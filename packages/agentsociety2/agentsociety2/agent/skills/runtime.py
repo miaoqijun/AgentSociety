@@ -11,7 +11,7 @@ import json
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Optional
 
 import json_repair
 
@@ -46,7 +46,9 @@ class AgentSkillRuntime:
         else:
             base_path = Path.cwd()
 
-        self._agent_work_dir = (base_path / "agents" / f"agent_{self._agent_id:04d}").resolve()
+        self._agent_work_dir = (
+            base_path / "agents" / f"agent_{self._agent_id:04d}"
+        ).resolve()
         self._agent_work_dir.mkdir(parents=True, exist_ok=True)
         return self._agent_work_dir
 
@@ -114,7 +116,9 @@ class AgentSkillRuntime:
             return []
         if root.is_file():
             return [str(root.relative_to(work_dir))]
-        return sorted(str(p.relative_to(work_dir)) for p in root.rglob("*") if p.is_file())
+        return sorted(
+            str(p.relative_to(work_dir)) for p in root.rglob("*") if p.is_file()
+        )
 
     def skill_list(self, names: list[str]) -> list[dict[str, Any]]:
         return self._registry.list_selection_metadata(names=names, only_enabled=True)
@@ -129,7 +133,9 @@ class AgentSkillRuntime:
         self,
         skill_name: str,
         args: dict[str, Any],
-        codegen_executor: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]] | None = None,
+        codegen_executor: (
+            Callable[[dict[str, Any]], Awaitable[dict[str, Any]]] | None
+        ) = None,
     ) -> dict[str, Any]:
         """执行某个 skill（转发到 registry）。
 
@@ -238,19 +244,33 @@ class AgentSkillRuntime:
                 source = [line for line in f if line.strip()]
         return [json_repair.loads(line) for line in source]
 
-    def append_thread_message(self, role: str, content: str, tick: int, t: datetime) -> None:
-        """追加 thread 消息到 ``thread_messages.jsonl``。"""
+    def append_thread_message(
+        self,
+        role: str,
+        content: str,
+        tick: int,
+        t: datetime,
+        *,
+        tool_result_full: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """追加 thread 消息到 ``thread_messages.jsonl``。
+
+        ``content`` 为喂给 LLM 的文本；若提供 ``tool_result_full``，则同条记录落盘完整工具结果
+        （读取 thread 时仍只用 ``content`` 构造 messages）。
+        """
         if self._agent_work_dir is None:
             raise RuntimeError("Agent workspace is not initialized")
         path = self._agent_work_dir / "thread_messages.jsonl"
-        entry = {
+        entry: dict[str, Any] = {
             "tick": tick,
             "time": t.isoformat(),
             "role": role,
             "content": content,
         }
+        if tool_result_full is not None:
+            entry["tool_result_full"] = tool_result_full
         with path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
 
     def read_recent_thread_messages(self, limit: int = 40) -> list[dict[str, str]]:
         """读取最近 N 条 thread 消息并转换为 LLM messages 结构。"""
@@ -279,4 +299,3 @@ class AgentSkillRuntime:
             if role in {"user", "assistant"} and content:
                 messages.append({"role": role, "content": content})
         return messages
-

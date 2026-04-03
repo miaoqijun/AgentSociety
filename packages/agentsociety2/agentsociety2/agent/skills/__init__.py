@@ -8,6 +8,7 @@ and loads full skill content only after activation.
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import os
 import sys
@@ -62,6 +63,14 @@ class SkillRegistry:
     def __init__(self) -> None:
         self._skills: dict[str, SkillInfo] = {}
         self._builtin_scanned = False
+
+    def copy_from(self, other: "SkillRegistry") -> None:
+        """从另一个 registry 复制所有技能。
+
+        :param other: 源 registry。
+        """
+        self._skills = copy.deepcopy(other._skills)
+        self._builtin_scanned = other._builtin_scanned
 
     # ---------- discover ----------
     def scan_builtin(self, root: Path = _BUILTIN_ROOT) -> None:
