@@ -1,17 +1,19 @@
 ---
 name: plan
 description: Turn the current intention into an environment action for this tick.
+outputs:
+  - state/plan_state.json
 ---
 
 # Plan
 
-You are the agent's **motor / executive** layer: turn a stated goal into a concrete `codegen` call (and optional `plan_state.json` for multi-step work).
+You are the agent's **motor / executive** layer: turn a stated goal into a concrete `codegen` call (and optional `state/plan_state.json` for multi-step work).
 
 ## Intention source (no hard deps)
 
-1. If `intention.json` exists, use it.
-2. Else if `thought.txt` or `observation.txt` exists, infer a **single short goal line**, write a minimal `intention.json` yourself (`intention`, `priority`, `reasoning` fields), then execute.
-3. Else use Agent Identity + a conservative default (e.g. `wait` / observe) and still write `intention.json` so the workspace stays explicit.
+1. If `state/intention.json` exists, use it.
+2. Else if `state/thought.txt` or `state/observation.txt` exists, infer a **single short goal line**, write a minimal `state/intention.json` yourself (`intention`, `priority`, `reasoning` fields), then execute.
+3. Else use Agent Identity + a conservative default (e.g. `wait` / observe) and still write `state/intention.json` so the workspace stays explicit.
 
 ## Configuration
 
@@ -27,11 +29,11 @@ The plan skill has configurable parameters:
 
 | File | Content |
 |------|---------|
-| `intention.json` | Goal for this tick (see **Intention source** above if absent) |
-| `observation.txt` | Current perception (for grounding actions in reality) |
-| `observation_ctx.json` | Structured environment context (if available) |
-| `plan_state.json` | Ongoing multi-step plan state (if exists) |
-| `memory.jsonl` | Optional context |
+| `state/intention.json` | Goal for this tick (see **Intention source** above if absent) |
+| `state/observation.txt` | Current perception (for grounding actions in reality) |
+| `state/observation_ctx.json` | Structured environment context (if available) |
+| `state/plan_state.json` | Ongoing multi-step plan state (if exists) |
+| `state/memory.jsonl` | Optional context |
 
 ## Plan Model
 
@@ -98,7 +100,7 @@ After each step execution, record the evaluation:
 
 ## Multi-Step Plans
 
-Some goals take multiple ticks. Use `plan_state.json` to track progress:
+Some goals take multiple ticks. Use `state/plan_state.json` to track progress:
 
 ```json
 {
@@ -113,11 +115,11 @@ Some goals take multiple ticks. Use `plan_state.json` to track progress:
 
 Each tick:
 
-1. `workspace_read("plan_state.json")` — check if there's an ongoing plan.
+1. `workspace_read("state/plan_state.json")` — check if there's an ongoing plan.
 2. If the current step is done (based on observation), increment `current_step`.
 3. Execute the current step via `codegen`.
-4. `workspace_write("plan_state.json", ...)` — persist updated state.
-5. When all steps are done, delete or clear `plan_state.json`.
+4. `workspace_write("state/plan_state.json", ...)` — persist updated state.
+5. When all steps are done, delete or clear `state/plan_state.json`.
 
 ## Step Execution with ReAct Paradigm
 
@@ -183,7 +185,7 @@ Only query the environment as a last resort when the information is truly needed
 After each `codegen` call (except when status indicates completion):
 
 1. **Call `<observe>` again** to get the updated environment state
-2. **Update `observation.txt`** with the new observation
+2. **Update `state/observation.txt`** with the new observation
 3. **Continue reasoning** based on the new state
 
 This ensures the agent maintains accurate awareness of the environment after each action.
@@ -192,7 +194,7 @@ Example sequence:
 ```
 1. codegen("Move to café") → response
 2. codegen("<observe>") → new observation
-3. Update observation.txt
+3. Update state/observation.txt
 4. Continue with next action or conclude
 ```
 
@@ -205,21 +207,21 @@ Classify the **active plan step** after each interaction:
 | `completed` | Step intention is satisfied given latest observation / tool thread. |
 | `in_progress` | Still in flight. If the environment says the action is **unsupported**, use **`failed`**, not endless `in_progress`. |
 | `failed` | Unreachable, or **repeated failures** on the same subgoal with no progress (prefer `failed` over spinning). |
-| `pending` | Not started yet (if your `plan_state.json` tracks that). |
+| `pending` | Not started yet (if your `state/plan_state.json` tracks that). |
 
-Check: step goal → latest observation → actions in thread / `memory.jsonl` → goal met? Multiple dead-end retries → `failed`. Then update `plan_state.json`.
+Check: step goal → latest observation → actions in thread / `state/memory.jsonl` → goal met? Multiple dead-end retries → `failed`. Then update `state/plan_state.json`.
 
 ## Plan Interruption
 
 ### Intention vs current plan
 
-Reconcile `intention.json` with the plan you are executing:
+Reconcile `state/intention.json` with the plan you are executing:
 
 1. Is the latest intention **materially different** from the plan’s target?
 2. Is it **more urgent** than finishing the current plan?
 3. Should you **drop** the plan and replan?
 
-If the balance is “yes”, clear or rewrite `plan_state.json` and build a new plan.
+If the balance is “yes”, clear or rewrite `state/plan_state.json` and build a new plan.
 
 If the workspace indicates an urgent need that should interrupt the current plan, discard the plan and replan toward addressing that need.
 
@@ -234,7 +236,62 @@ An ongoing plan should be interrupted when:
 
 #### Need-based interrupt
 
-When the workspace signals that a plan should be interrupted (e.g., an urgent need flag), reset `plan_state.json` and generate steps that address the urgent condition.
+When the workspace signals that a plan should be interrupted (e.g., an urgent need flag), reset `state/plan_state.json` and generate steps that address the urgent condition.
+
+### Systematic Interruption Decision Process
+
+Before executing any plan step, check these conditions in order:
+
+#### Step 1: Check needs.json for urgent needs
+
+```json
+{
+  "tool_name": "workspace_read",
+  "arguments": {"path": "state/needs.json"}
+}
+```
+
+If `should_interrupt_plan` is `true`, **interrupt immediately** and replan to address the urgent need.
+
+#### Step 2: Check intention alignment
+
+```json
+{
+  "tool_name": "workspace_read",
+  "arguments": {"path": "state/intention.json"}
+}
+```
+
+Compare the current intention with the plan target:
+
+| Condition | Action |
+|-----------|--------|
+| Intention matches plan target | Continue plan |
+| Intention differs but less urgent | Continue plan, note new intention |
+| Intention differs and more urgent | Interrupt plan, replan |
+| Intention is about survival (eat/rest/flee) | Interrupt immediately |
+
+#### Step 3: Environmental feasibility
+
+Check if the current plan step is still feasible:
+
+| Situation | Action |
+|-----------|--------|
+| Environment supports current step | Continue |
+| Environment changed, step impossible | Mark step as `failed`, replan |
+| Environment changed, alternative available | Modify plan, continue |
+
+### Interruption Priority Matrix
+
+| Priority | Condition | Must Interrupt? |
+|----------|-----------|-----------------|
+| 1 | `satiety` or `energy` critical (< 0.2) | **YES** - Survival |
+| 2 | `safety` critical (< 0.2) with immediate threat | **YES** - Safety |
+| 3 | New intention conflicts with plan + is more urgent | **YES** - Priority |
+| 4 | Plan step has failed 3+ times | **YES** - Stuck |
+| 5 | Environment makes plan impossible | **YES** - Infeasible |
+| 6 | New interesting opportunity | **MAYBE** - Consider tradeoffs |
+| 7 | Minor intention change | **NO** - Continue |
 
 ### How to Determine Interruption
 
@@ -250,7 +307,7 @@ If the answer is yes, set the plan to interrupted and generate a new plan.
 ```json
 {
   "tool_name": "workspace_read",
-  "arguments": {"path": "intention.json"}
+  "arguments": {"path": "state/intention.json"}
 }
 ```
 
@@ -260,7 +317,7 @@ Compare current intention with plan target. If significantly different and more 
 {
   "tool_name": "workspace_write",
   "arguments": {
-    "path": "plan_state.json",
+    "path": "state/plan_state.json",
     "content": "{}"
   }
 }
@@ -275,7 +332,7 @@ When a step completes successfully:
 1. **Increment step index** to move to next step
 2. **Check if more steps remain**
 3. **If more steps**: Continue executing the next step (don't wait for next tick if capacity allows)
-4. **If last step completed**: Mark plan as completed and clear or finalize `plan_state.json`
+4. **If last step completed**: Mark plan as completed and clear or finalize `state/plan_state.json`
 
 Example flow:
 ```
@@ -319,7 +376,7 @@ For most intentions, a single `codegen` call suffices:
 | rest | `"Find a bench or quiet spot and rest."` |
 | explore | `"Walk around and observe the neighborhood."` |
 
-Pass relevant context from `observation_ctx.json` in the `ctx` argument if the environment expects structured data (e.g., location IDs, agent IDs).
+Pass relevant context from `state/observation_ctx.json` in the `ctx` argument if the environment expects structured data (e.g., location IDs, agent IDs).
 
 ## Plan Generation
 
@@ -334,9 +391,9 @@ When there's no active plan, generate one from the current intention:
 
 1. Each step is one clear **`intention`** string: what to achieve in that slice of work.  
 2. **`steps`** contains only what is **necessary**, at most **`max_plan_steps`** (default 6).  
-3. Use **`memory.jsonl`** (tail or `grep`) so you do not repeat known-failed moves.  
+3. Use **`state/memory.jsonl`** (tail or `grep`) so you do not repeat known-failed moves.  
 4. Every step must be **executable under AVAILABLE ACTIONS** from the world description—no made-up verbs.  
-5. Avoid **query-only** steps to re-fetch facts you already have: rely on `observation.txt` / `observation_ctx.json` when they already state place, time, nearby entities.
+5. Avoid **query-only** steps to re-fetch facts you already have: rely on `state/observation.txt` / `state/observation_ctx.json` when they already state place, time, nearby entities.
 
 **Feasibility:** instructions must match the simulator’s action vocabulary—either one allowed action or a valid combination, at the right granularity.
 
@@ -357,7 +414,7 @@ After calling `codegen`, check the result:
 - **`status: "in_progress"`**: the action is still ongoing (e.g., traveling). Call `done` and resume next tick.
 - **`ok: false`**: the action failed. Read `stderr` for the reason. Consider:
   - Retrying with a different approach
-  - Adjusting the intention (write updated `intention.json` for next tick)
+  - Adjusting the intention (write updated `state/intention.json` for next tick)
   - Abandoning the plan if it's not feasible
 
 ## Decision Guidelines
@@ -371,17 +428,17 @@ After calling `codegen`, check the result:
 
 ## After success or failure
 
-Update `plan_state.json` (and optionally `memory.jsonl`) to record step outcomes.
+Update `state/plan_state.json` (and optionally `state/memory.jsonl`) to record step outcomes.
 
 ## Workspace Files Summary
 
 | File | Purpose |
 |------|---------|
-| `plan_state.json` | Current multi-step plan state |
-| `intention.json` | Current goal (from any source) |
-| `observation.txt` | Current environment perception |
-| `observation_ctx.json` | Structured environment data |
-| `memory.jsonl` | Optional execution notes |
+| `state/plan_state.json` | Current multi-step plan state |
+| `state/intention.json` | Current goal (from any source) |
+| `state/observation.txt` | Current environment perception |
+| `state/observation_ctx.json` | Structured environment data |
+| `state/memory.jsonl` | Optional execution notes |
 
 ## Template Mode (Optional)
 

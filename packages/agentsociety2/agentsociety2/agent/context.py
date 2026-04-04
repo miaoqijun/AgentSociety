@@ -64,28 +64,16 @@ def normalize_litellm_model_id(model: str) -> str:
 
 
 def default_tiktoken_encoding_for_model(model_id: str) -> str:
-    """根据模型 id 选择 tiktoken 编码名。
+    """返回统一的 tiktoken 编码名。
 
-    对非 OpenAI 模型，这里是近似策略。
+    不再根据模型名判断，统一使用 cl100k_base 作为通用近似。
+    当 LiteLLM 可用时，优先使用其精确计数。
 
-    :param model_id: tokenizer 选择所用模型 id。
+    :param model_id: 模型 id（忽略）。
     :type model_id: str
     :return: tiktoken 编码名。
     :rtype: str
     """
-    m = (model_id or "").lower()
-    if any(
-        x in m
-        for x in (
-            "gpt-4o",
-            "o200",
-            "gpt-5",
-            "chatgpt-4o",
-        )
-    ):
-        return "o200k_base"
-    if m.startswith(("o1", "o3", "o4")):
-        return "o200k_base"
     return "cl100k_base"
 
 
@@ -176,7 +164,9 @@ class ThreadTokenCounter:
         """
         if self.litellm_model and _LITELLM_TOKEN_COUNTER is not None:
             try:
-                raw = _LITELLM_TOKEN_COUNTER(model=self.litellm_model, messages=messages)
+                raw = _LITELLM_TOKEN_COUNTER(
+                    model=self.litellm_model, messages=messages
+                )
                 n: int | None
                 if isinstance(raw, int):
                     n = raw
@@ -193,7 +183,9 @@ class ThreadTokenCounter:
                 if isinstance(n, int) and n > 0:
                     return max(n, self._messages_char_floor(messages))
             except Exception as e:
-                logger.debug("litellm.token_counter failed (%s), fallback to local count", e)
+                logger.debug(
+                    "litellm.token_counter failed (%s), fallback to local count", e
+                )
         return sum(self.count_message(m) for m in messages)
 
 
@@ -202,7 +194,9 @@ def estimate_messages_tokens_approx(messages: list[dict[str, str]]) -> int:
     total = 0
     for m in messages:
         c = m.get("content", "") or ""
-        total += _ROLE_OVERHEAD_TOKENS + max(1, len(c) // 3) if c else _ROLE_OVERHEAD_TOKENS
+        total += (
+            _ROLE_OVERHEAD_TOKENS + max(1, len(c) // 3) if c else _ROLE_OVERHEAD_TOKENS
+        )
     return total
 
 
@@ -312,7 +306,9 @@ def _message_priority(msg: dict[str, str], index_in_old: int, old_len: int) -> f
     return score
 
 
-def _dedupe_adjacent_tool_results(old: list[dict[str, str]]) -> tuple[list[dict[str, str]], int]:
+def _dedupe_adjacent_tool_results(
+    old: list[dict[str, str]],
+) -> tuple[list[dict[str, str]], int]:
     if len(old) < 2:
         return old, 0
     out: list[dict[str, str]] = [old[0]]
@@ -411,7 +407,9 @@ def infer_compact_focus(
     )
 
 
-def merge_rolling_summary_local(prior: str, digest_snippet: str, max_chars: int = 4000) -> str:
+def merge_rolling_summary_local(
+    prior: str, digest_snippet: str, max_chars: int = 4000
+) -> str:
     snippet = (digest_snippet or "").strip()[:2000]
     if not prior.strip():
         return snippet[:max_chars]
@@ -431,7 +429,11 @@ def build_digest_chunks(
     used = 0
     for m in old_messages:
         content = m.get("content", "") or ""
-        lim = summary_msg_limit if content.startswith("TOOL_RESULT_JSON:") else summary_msg_short_limit
+        lim = (
+            summary_msg_limit
+            if content.startswith("TOOL_RESULT_JSON:")
+            else summary_msg_short_limit
+        )
         chunk = f"[{m.get('role', 'unknown')}]: {content[:lim]}"
         if used + len(chunk) > char_budget:
             parts.append("... (earlier messages omitted)")
@@ -469,7 +471,9 @@ Conversation:
 {digest_text}"""
 
 
-def generate_incremental_structured_summary_prompt(prior_summary: str, digest_text: str) -> str:
+def generate_incremental_structured_summary_prompt(
+    prior_summary: str, digest_text: str
+) -> str:
     return f"""Analyze the conversation and output a structured summary in JSON format.
 
 You are UPDATING a running summary. Merge with the prior summary: do not drop facts that are still relevant; remove contradicted obsolete details.
@@ -576,7 +580,9 @@ class StructuredSummary:
         if self.errors_encountered:
             lines.append("Errors:")
             for e in self.errors_encountered[-5:]:
-                lines.append(f"- {e.get('action', 'unknown')}: {e.get('error', 'unknown')}")
+                lines.append(
+                    f"- {e.get('action', 'unknown')}: {e.get('error', 'unknown')}"
+                )
         return "\n".join(lines) if lines else ""
 
 
@@ -701,7 +707,9 @@ class AgentMemory:
         if self._data.get("errors"):
             lines.append("Known Errors:")
             for e in self._data["errors"][-3:]:
-                lines.append(f"- {e.get('action', 'unknown')}: {e.get('error', 'unknown')}")
+                lines.append(
+                    f"- {e.get('action', 'unknown')}: {e.get('error', 'unknown')}"
+                )
         return "\n".join(lines) if lines else ""
 
     def clear(self) -> None:
@@ -725,7 +733,7 @@ def load_rolling_summary_from_workspace(read_json: Callable[[str, Any], Any]) ->
     :return: 当前滚动摘要字符串（可能为空）。
     :rtype: str
     """
-    raw = read_json("thread_compact_state.json", {})
+    raw = read_json("logs/thread_compact_state.json", {})
     if isinstance(raw, dict):
         return str(raw.get("rolling_summary", "") or "")
     return ""
@@ -752,7 +760,7 @@ def save_thread_compact_state(
     :rtype: None
     """
     workspace_write(
-        "thread_compact_state.json",
+        "logs/thread_compact_state.json",
         _json_dumps(
             {
                 "rolling_summary": rolling_summary,
@@ -839,7 +847,9 @@ async def run_thread_compaction(
         token_counter=counter,
     )
     total_chars = sum(len(m.get("content", "")) for m in thread_messages)
-    char_or_len_pressure = total_chars > max_chars or len(thread_messages) > keep_recent + 2
+    char_or_len_pressure = (
+        total_chars > max_chars or len(thread_messages) > keep_recent + 2
+    )
 
     if not need_compact and not char_or_len_pressure:
         if status == "warning":
@@ -959,7 +969,9 @@ async def run_thread_compaction(
 
     if tier == "heavy":
         rolling = merge_rolling_summary_local(rolling, digest_text, max_chars=4000)
-        assistant_body = "ROLLING_SUMMARY:\n" + rolling.strip()[: cfg.summary_char_budget]
+        assistant_body = (
+            "ROLLING_SUMMARY:\n" + rolling.strip()[: cfg.summary_char_budget]
+        )
         tel.extra["summary_mode"] = "heavy_rolling"
     else:
         prior = rolling.strip()
@@ -975,7 +987,9 @@ async def run_thread_compaction(
             if response.choices:
                 summary_text = (response.choices[0].message.content or "").strip()
         except Exception as e:
-            logger.warning(f"Agent {agent_id}: LLM compression failed: {e}, rolling fallback")
+            logger.warning(
+                f"Agent {agent_id}: LLM compression failed: {e}, rolling fallback"
+            )
 
         if summary_text:
             rolling = summary_text[:8000]
@@ -985,14 +999,18 @@ async def run_thread_compaction(
             except Exception:
                 pass
             if isinstance(parsed, dict):
-                structured_out = structured_summary_from_parsed(parsed, workspace_state_version)
+                structured_out = structured_summary_from_parsed(
+                    parsed, workspace_state_version
+                )
         if structured_out:
             assistant_body = structured_out.to_prompt_content()
             if not assistant_body.strip() and summary_text:
                 assistant_body = f"STRUCTURED_SUMMARY_RAW:\n{summary_text[: cfg.summary_char_budget]}"
             tel.extra["summary_mode"] = "structured"
         elif summary_text:
-            assistant_body = f"STRUCTURED_SUMMARY_RAW:\n{summary_text[: cfg.summary_char_budget]}"
+            assistant_body = (
+                f"STRUCTURED_SUMMARY_RAW:\n{summary_text[: cfg.summary_char_budget]}"
+            )
             tel.extra["summary_mode"] = "raw_json"
         else:
             rolling = merge_rolling_summary_local(rolling, digest_text, max_chars=4000)
@@ -1010,16 +1028,16 @@ async def run_thread_compaction(
         compacted.append(
             {
                 "role": "user",
-                    "content": "KEY_STATE_JSON:\n"
-                    + _json_dumps(
-                        {
-                            "workspace_state_version": workspace_state_version,
-                            "compact_count": new_compact_count,
-                            "compact_tier": tier,
-                            "files": key_state,
-                        },
-                        indent=None,
-                    ),
+                "content": "KEY_STATE_JSON:\n"
+                + _json_dumps(
+                    {
+                        "workspace_state_version": workspace_state_version,
+                        "compact_count": new_compact_count,
+                        "compact_tier": tier,
+                        "files": key_state,
+                    },
+                    indent=None,
+                ),
             }
         )
 

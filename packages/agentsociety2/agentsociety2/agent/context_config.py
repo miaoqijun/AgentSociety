@@ -7,8 +7,38 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
+
+# 默认上下文窗口（未知模型使用）
+DEFAULT_CONTEXT_WINDOW = 100000
+
+
+def get_model_context_window(model: str) -> int:
+    """获取模型的上下文窗口大小。
+
+    从 LiteLLM 获取，未找到则返回默认值 100k。
+
+    :param model: 模型名（如 "openai/gpt-4o"）。
+    :return: 上下文窗口大小（tokens）。
+    """
+    if not model:
+        return DEFAULT_CONTEXT_WINDOW
+
+    try:
+        from litellm.utils import get_model_info
+
+        info = get_model_info(model)
+        max_input = info.get("max_input_tokens")
+        if isinstance(max_input, int) and max_input > 0:
+            return max_input
+    except Exception:
+        pass
+
+    return DEFAULT_CONTEXT_WINDOW
 
 
 @dataclass
@@ -18,11 +48,25 @@ class ContextConfig:
     该配置用于控制 thread 压缩/摘要预算/工作区截断等行为。
     """
 
-    # ── 模型上下文限制（核心参数）──
-    model_context_window: int = 128000  # 模型上下文窗口大小（tokens）
-    compact_warning_ratio: float = 0.60  # 发出警告的利用率
-    compact_trigger_ratio: float = 0.70  # 触发压缩的利用率
-    compact_auto_ratio: float = 0.85  # 强制压缩的利用率
+    # ── 模型信息 ──
+    model: str = ""  # 模型名，用于动态获取上下文窗口
+
+    # ── 上下文窗口（可通过 model 自动获取，也可手动覆盖）──
+    _model_context_window: int = field(default=0, repr=False)
+
+    # ── 压缩阈值（相对比例）──
+    compact_warning_ratio: float = 0.60
+    compact_trigger_ratio: float = 0.70
+    compact_auto_ratio: float = 0.85
+    compact_block_ratio: float = 0.95
+
+    # ── Token 预算 ──
+    output_reserve: int = 16000
+    prompt_overhead: int = 8000
+
+    # ── 熔断机制 ──
+    max_retries: int = 3
+    backoff: float = 2.0
 
     # ── Thread 压缩阈值 ──
     thread_max_messages: int = 40
@@ -49,24 +93,43 @@ class ContextConfig:
     stderr_max_chars: int = 2000
     system_prompt_max_identity_chars: int = 10000
 
+    @property
+    def model_context_window(self) -> int:
+        """模型上下文窗口大小（tokens）。"""
+        if self._model_context_window > 0:
+            return self._model_context_window
+        if self.model:
+            return get_model_context_window(self.model)
+        return DEFAULT_CONTEXT_WINDOW
+
+    @model_context_window.setter
+    def model_context_window(self, value: int) -> None:
+        self._model_context_window = max(0, int(value))
+
+    @property
+    def effective_window(self) -> int:
+        """有效上下文窗口大小。"""
+        return max(
+            8192,
+            self.model_context_window - self.output_reserve - self.prompt_overhead,
+        )
+
 
 def get_config_for_agent(
     capability_kwargs: Optional[dict[str, Any]] = None,
 ) -> ContextConfig:
     """从 ``capability_kwargs`` 读取上下文配置覆盖。
 
-    :param capability_kwargs: 用户提供的配置覆盖项；未给定的字段使用默认值。
-    :type capability_kwargs: dict[str, Any] | None
+    :param capability_kwargs: 用户提供的配置覆盖项。
     :return: 配置实例。
-    :rtype: ContextConfig
-    :raises ValueError: 当某些字段的类型无法转换为对应的数值类型时。
     """
     config = ContextConfig()
 
     if not capability_kwargs:
         return config
 
-    # 模型上下文限制
+    if "model" in capability_kwargs:
+        config.model = str(capability_kwargs["model"])
     if "model_context_window" in capability_kwargs:
         config.model_context_window = int(capability_kwargs["model_context_window"])
     if "compact_warning_ratio" in capability_kwargs:
@@ -75,43 +138,59 @@ def get_config_for_agent(
         config.compact_trigger_ratio = float(capability_kwargs["compact_trigger_ratio"])
     if "compact_auto_ratio" in capability_kwargs:
         config.compact_auto_ratio = float(capability_kwargs["compact_auto_ratio"])
-
-    # Thread 配置
+    if "compact_block_ratio" in capability_kwargs:
+        config.compact_block_ratio = float(capability_kwargs["compact_block_ratio"])
+    if "output_reserve" in capability_kwargs:
+        config.output_reserve = int(capability_kwargs["output_reserve"])
+    if "prompt_overhead" in capability_kwargs:
+        config.prompt_overhead = int(capability_kwargs["prompt_overhead"])
+    if "max_retries" in capability_kwargs:
+        config.max_retries = int(capability_kwargs["max_retries"])
+    if "backoff" in capability_kwargs:
+        config.backoff = float(capability_kwargs["backoff"])
     if "thread_max_messages" in capability_kwargs:
         config.thread_max_messages = int(capability_kwargs["thread_max_messages"])
-    if "thread_keep_recent" in capability_kwargs:
-        config.thread_compact_keep_recent = int(capability_kwargs["thread_keep_recent"])
-    if "thread_compact_chars" in capability_kwargs:
-        config.thread_compact_max_chars = int(capability_kwargs["thread_compact_chars"])
-
-    # 工具结果配置
-    if "tool_result_thread_budget_chars" in capability_kwargs:
-        config.tool_result_thread_budget = int(
-            capability_kwargs["tool_result_thread_budget_chars"]
+    if "thread_compact_keep_recent" in capability_kwargs:
+        config.thread_compact_keep_recent = int(
+            capability_kwargs["thread_compact_keep_recent"]
         )
-    if "workspace_read_chunk_chars" in capability_kwargs:
-        config.workspace_read_chunk_cap = int(
-            capability_kwargs["workspace_read_chunk_chars"]
+    if "thread_compact_max_chars" in capability_kwargs:
+        config.thread_compact_max_chars = int(
+            capability_kwargs["thread_compact_max_chars"]
         )
-
-    # Prompt 配置
-    if "system_prompt_max_identity_chars" in capability_kwargs:
-        config.system_prompt_max_identity_chars = int(
-            capability_kwargs["system_prompt_max_identity_chars"]
-        )
-    if "profile_truncate_chars" in capability_kwargs:
-        config.profile_max_chars = int(capability_kwargs["profile_truncate_chars"])
-    if "world_desc_max_chars" in capability_kwargs:
-        config.world_desc_max_chars = int(capability_kwargs["world_desc_max_chars"])
-
-    # 摘要配置
     if "summary_char_budget" in capability_kwargs:
         config.summary_char_budget = int(capability_kwargs["summary_char_budget"])
-
-    # 输出截断
+    if "summary_msg_limit" in capability_kwargs:
+        config.summary_msg_limit = int(capability_kwargs["summary_msg_limit"])
+    if "summary_msg_short_limit" in capability_kwargs:
+        config.summary_msg_short_limit = int(
+            capability_kwargs["summary_msg_short_limit"]
+        )
+    if "workspace_snapshot_str_cap" in capability_kwargs:
+        config.workspace_snapshot_str_cap = int(
+            capability_kwargs["workspace_snapshot_str_cap"]
+        )
+    if "key_state_file_limit" in capability_kwargs:
+        config.key_state_file_limit = int(capability_kwargs["key_state_file_limit"])
+    if "world_desc_max_chars" in capability_kwargs:
+        config.world_desc_max_chars = int(capability_kwargs["world_desc_max_chars"])
+    if "profile_max_chars" in capability_kwargs:
+        config.profile_max_chars = int(capability_kwargs["profile_max_chars"])
+    if "tool_result_thread_budget" in capability_kwargs:
+        config.tool_result_thread_budget = int(
+            capability_kwargs["tool_result_thread_budget"]
+        )
+    if "workspace_read_chunk_cap" in capability_kwargs:
+        config.workspace_read_chunk_cap = int(
+            capability_kwargs["workspace_read_chunk_cap"]
+        )
     if "stdout_max_chars" in capability_kwargs:
         config.stdout_max_chars = int(capability_kwargs["stdout_max_chars"])
     if "stderr_max_chars" in capability_kwargs:
         config.stderr_max_chars = int(capability_kwargs["stderr_max_chars"])
+    if "system_prompt_max_identity_chars" in capability_kwargs:
+        config.system_prompt_max_identity_chars = int(
+            capability_kwargs["system_prompt_max_identity_chars"]
+        )
 
     return config

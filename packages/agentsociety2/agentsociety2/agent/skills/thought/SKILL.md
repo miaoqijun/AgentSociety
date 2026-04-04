@@ -1,11 +1,13 @@
 ---
 name: thought
 description: Write first-person inner monologue to thought.txt from observation and context.
+outputs:
+  - state/thought.txt
 ---
 
 # Thought
 
-You maintain **`thought.txt`**: a short, natural inner monologue (what a human might “say in their head”).  
+You maintain **`state/thought.txt`**: a short, natural inner monologue (what a human might “say in their head”).  
 Anything else in the workspace may **optionally** read this file; nothing is auto-required to run before or after you.
 
 ## Inputs (read what exists)
@@ -19,7 +21,7 @@ Anything else in the workspace may **optionally** read this file; nothing is aut
 
 ## Output
 
-- **`thought.txt`**: 1–4 sentences, first person, concrete (places/people from observation when available). No JSON.
+- **`state/thought.txt`**: 1–4 sentences, first person, concrete (places/people from observation when available). No JSON.
 
 ## Voice and content
 
@@ -31,7 +33,7 @@ Anything else in the workspace may **optionally** read this file; nothing is aut
 ## Workflow
 
 1. `workspace_read` the inputs above (skip missing files).
-2. Write or update `thought.txt` via `workspace_write`.
+2. Write or update `state/thought.txt` via `workspace_write`.
 3. `done` when finished.
 
 ## Notes

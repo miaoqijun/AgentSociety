@@ -7,7 +7,7 @@ from __future__ import annotations
 避免 agent 主体过度膨胀。
 """
 
-import json
+import logging
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +16,9 @@ from typing import Any, Awaitable, Callable, Optional
 import json_repair
 
 from agentsociety2.agent.skills import SkillRegistry
+from agentsociety2.agent.tool import jr_dumps
+
+logger = logging.getLogger(__name__)
 
 
 class AgentSkillRuntime:
@@ -51,6 +54,28 @@ class AgentSkillRuntime:
         ).resolve()
         self._agent_work_dir.mkdir(parents=True, exist_ok=True)
         return self._agent_work_dir
+
+    def ensure_standard_workspace_dirs(self) -> None:
+        """确保 workspace 标准目录结构存在。
+
+        创建以下目录：
+        - ``state/`` - Skills 状态文件
+        - ``memory/`` - 长期记忆
+        - ``input/`` - 外部输入
+        - ``logs/`` - 日志
+        """
+        if self._agent_work_dir is None:
+            raise RuntimeError("Agent workspace is not initialized")
+
+        standard_dirs = ["state", "memory", "input", "logs"]
+        for dir_name in standard_dirs:
+            dir_path = self._agent_work_dir / dir_name
+            try:
+                dir_path.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                logger.warning(
+                    f"Agent {self._agent_id}: failed to create workspace dir '{dir_name}': {e}"
+                )
 
     def _resolve_workspace_path(self, relative_path: str) -> Path:
         """将相对路径解析到 workspace 内并做越界保护。"""
@@ -177,26 +202,28 @@ class AgentSkillRuntime:
             "activated_skills": sorted(activated_skills or set()),
         }
         self.workspace_write(
-            "session_state.json",
-            json.dumps(state, ensure_ascii=False, indent=2),
+            "logs/session_state.json",
+            jr_dumps(state),
         )
         self.append_session_state_event(state)
 
     def append_session_state_event(self, state: dict[str, Any]) -> None:
-        """追加 session_state 事件到 ``session_state_history.jsonl``。"""
+        """追加 session_state 事件到 ``logs/session_state_history.jsonl``。"""
         if self._agent_work_dir is None:
             raise RuntimeError("Agent workspace is not initialized")
-        path = self._agent_work_dir / "session_state_history.jsonl"
+        path = self._agent_work_dir / "logs" / "session_state_history.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(state, ensure_ascii=False) + "\n")
+            f.write(jr_dumps(state, indent=None) + "\n")
 
     def append_tool_log(self, entry: dict[str, Any]) -> None:
         """追加单条工具调用日志（jsonl）。"""
         if self._agent_work_dir is None:
             raise RuntimeError("Agent workspace is not initialized")
-        log_path = self._agent_work_dir / "tool_calls.jsonl"
+        log_path = self._agent_work_dir / "logs" / "tool_calls.jsonl"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            f.write(jr_dumps(entry, indent=None) + "\n")
 
     def append_step_replay(
         self,
@@ -208,7 +235,8 @@ class AgentSkillRuntime:
         """追加 step 回放记录（jsonl）。"""
         if self._agent_work_dir is None:
             raise RuntimeError("Agent workspace is not initialized")
-        replay_path = self._agent_work_dir / "step_replay.jsonl"
+        replay_path = self._agent_work_dir / "logs" / "step_replay.jsonl"
+        replay_path.parent.mkdir(parents=True, exist_ok=True)
         record = {
             "tick": tick,
             "time": t.isoformat(),
@@ -216,7 +244,7 @@ class AgentSkillRuntime:
             "tool_history": tool_history,
         }
         with replay_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.write(jr_dumps(record, indent=None) + "\n")
 
     def read_json(self, relative_path: str, default: Any) -> Any:
         """读取工作目录中的 JSON 文件；空内容返回 default。"""
@@ -229,7 +257,7 @@ class AgentSkillRuntime:
         """读取最近 N 条工具调用日志。"""
         if self._agent_work_dir is None:
             raise RuntimeError("Agent workspace is not initialized")
-        path = self._agent_work_dir / "tool_calls.jsonl"
+        path = self._agent_work_dir / "logs" / "tool_calls.jsonl"
         if not path.exists():
             return []
         if limit > 0:
@@ -253,14 +281,15 @@ class AgentSkillRuntime:
         *,
         tool_result_full: Optional[dict[str, Any]] = None,
     ) -> None:
-        """追加 thread 消息到 ``thread_messages.jsonl``。
+        """追加 thread 消息到 ``logs/thread_messages.jsonl``。
 
         ``content`` 为喂给 LLM 的文本；若提供 ``tool_result_full``，则同条记录落盘完整工具结果
         （读取 thread 时仍只用 ``content`` 构造 messages）。
         """
         if self._agent_work_dir is None:
             raise RuntimeError("Agent workspace is not initialized")
-        path = self._agent_work_dir / "thread_messages.jsonl"
+        path = self._agent_work_dir / "logs" / "thread_messages.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
         entry: dict[str, Any] = {
             "tick": tick,
             "time": t.isoformat(),
@@ -270,13 +299,13 @@ class AgentSkillRuntime:
         if tool_result_full is not None:
             entry["tool_result_full"] = tool_result_full
         with path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+            f.write(jr_dumps(entry, indent=None) + "\n")
 
     def read_recent_thread_messages(self, limit: int = 40) -> list[dict[str, str]]:
         """读取最近 N 条 thread 消息并转换为 LLM messages 结构。"""
         if self._agent_work_dir is None:
             raise RuntimeError("Agent workspace is not initialized")
-        path = self._agent_work_dir / "thread_messages.jsonl"
+        path = self._agent_work_dir / "logs" / "thread_messages.jsonl"
         if not path.exists():
             return []
         if limit > 0:
@@ -299,3 +328,47 @@ class AgentSkillRuntime:
             if role in {"user", "assistant"} and content:
                 messages.append({"role": role, "content": content})
         return messages
+
+    def build_workspace_structure_prompt(self) -> str:
+        """构建 workspace 结构说明（Cursor风格：极简 + 动态发现）。
+
+        不维护复杂的 manifest/registry，只提供目录约定，让 Agent 自己探索。
+
+        :returns: workspace 结构说明文本。
+        """
+        lines = [
+            "## Workspace Structure",
+            "",
+            'All files are in the workspace root. Use `workspace_list(".")` to see what exists.',
+            "",
+            "### Directory Convention",
+            "- `state/` - Skill state files (emotion.json, intention.json, needs.json, etc.)",
+            "- `memory/` - Long-term memory (memory.jsonl)",
+            "- `input/` - External input from environment",
+            "- `logs/` - Execution logs (thread_messages.jsonl, tool_calls.jsonl, etc.)",
+            "",
+            "### Quick Discovery",
+            '- `workspace_list("state/")` - See all skill state files',
+            '- `workspace_read("state/emotion.json")` - Read emotion state',
+            '- `workspace_read("state/needs.json")` - Read needs state',
+            '- `workspace_read("memory/memory.jsonl")` - Read last N memories',
+            "",
+            "Let the agent discover what it needs dynamically.",
+        ]
+
+        # 动态添加当前存在的 state 文件
+        if self._agent_work_dir is not None:
+            state_dir = self._agent_work_dir / "state"
+            if state_dir.exists() and state_dir.is_dir():
+                state_files = sorted(
+                    f.name
+                    for f in state_dir.iterdir()
+                    if f.is_file() and (f.suffix == ".json" or f.suffix == ".txt")
+                )
+                if state_files:
+                    lines.append("")
+                    lines.append("### Current State Files")
+                    for filename in state_files:
+                        lines.append(f"- `state/{filename}`")
+
+        return "\n".join(lines)

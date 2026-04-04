@@ -2,6 +2,9 @@
 name: needs
 description: Update physiological/social need levels via subprocess heuristic.
 script: scripts/needs.py
+outputs:
+  - state/needs.json
+  - state/current_need.txt
 ---
 
 # Needs
@@ -73,6 +76,34 @@ Needs naturally decay each tick:
 
 Even without negative events, the agent will eventually need to eat and rest.
 
+### Time-Based Decay Multipliers
+
+Decay rates vary by time of day:
+
+| Need | Time Period | Multiplier | Reason |
+|------|-------------|------------|--------|
+| satiety | 06:00–09:00 | 1.5× | Breakfast time, hungrier |
+| satiety | 11:00–13:00 | 1.8× | Lunch time |
+| satiety | 18:00–20:00 | 1.6× | Dinner time |
+| energy | 22:00–06:00 | 0.5× | Night, lower consumption |
+| energy | 14:00–16:00 | 1.3× | Afternoon slump |
+
+### Activity Impact on Needs
+
+Detected activities automatically adjust need levels:
+
+| Activity | Energy Δ | Satiety Δ | Social Δ |
+|----------|----------|-----------|----------|
+| walking | −0.01 | — | — |
+| running | −0.02 | — | — |
+| working | −0.02 | −0.01 | — |
+| socializing | −0.01 | — | +0.05 |
+| eating | +0.05 | +0.30 | — |
+| sleeping | +0.20 | −0.02 | — |
+| resting | +0.10 | — | — |
+| reading | −0.005 | — | — |
+| exercising | −0.03 | −0.02 | — |
+
 ## Decision Rules for Determining Current Need
 
 1. **Priority matters**: Lower priority numbers mean higher urgency. Always consider needs in priority order (1 → 2 → 3 → 4 → 5).
@@ -81,7 +112,7 @@ Even without negative events, the agent will eventually need to eat and rest.
 
 ## Plan Interruption Logic
 
-The `should_interrupt_plan` flag is written to `needs.json` when satiety/energy is urgent and interruptible. Any skill that maintains `plan_state.json` **may** read this field and reset the plan—this is a **workspace convention**, not a hard dependency between skills.
+The `should_interrupt_plan` flag is written to `state/needs.json` when satiety/energy is urgent and interruptible. Any skill that maintains `state/plan_state.json` **may** read this field and reset the plan—this is a **workspace convention**, not a hard dependency between skills.
 
 ## How to Call
 
@@ -103,7 +134,7 @@ The `tick` and `time` fields are auto-injected. Pass the full observation text s
 
 The subprocess writes files to the agent workspace:
 
-### `needs.json`
+### `state/needs.json`
 ```json
 {
   "satiety": 0.72,
@@ -127,7 +158,7 @@ The subprocess writes files to the agent workspace:
 }
 ```
 
-### `current_need.txt`
+### `state/current_need.txt`
 The single most urgent need key (e.g. `"satiety"` or `"whatever"`)
 
 ### stdout output

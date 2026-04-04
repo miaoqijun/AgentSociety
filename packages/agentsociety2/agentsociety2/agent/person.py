@@ -10,19 +10,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import random
 import re
 import shlex
 from collections.abc import Mapping
 from datetime import datetime
 from fnmatch import fnmatch
-from typing import Any, Awaitable, Callable, Optional, TypeVar
+from typing import Any, Optional
 
-import json_repair
-from pydantic import BaseModel, Field
-
-from agentsociety2.agent.base import AgentBase, _is_rate_limit_like_error
+from agentsociety2.agent.base import AgentBase
 from agentsociety2.agent.context import (
     AgentMemory,
     StructuredSummary,
@@ -33,6 +28,21 @@ from agentsociety2.agent.context import (
 from agentsociety2.agent.context_config import get_config_for_agent
 from agentsociety2.agent.skills import SkillRegistry, get_skill_registry
 from agentsociety2.agent.skills.runtime import AgentSkillRuntime
+from agentsociety2.agent.tool import (
+    BLOCKED_TOKENS,
+    ToolDecision,
+    async_retry_on_transient,
+    jr_dumps,
+    jr_parse,
+    json_dumps_tool_result_for_thread,
+    pagination_from_args,
+    slice_text_page,
+    trunc_str,
+)
+from agentsociety2.agent.tool.loop_detection import (
+    LoopDetectionService,
+    LoopDetectionConfig,
+)
 from agentsociety2.env import (
     PersonStepConstraints,
     RouterBase,
@@ -42,217 +52,6 @@ from agentsociety2.logger import get_logger
 from agentsociety2.storage import ReplayWriter
 
 logger = get_logger()
-
-
-def _trunc_str(text: str, max_len: int) -> str:
-    """截断文本到指定长度。"""
-    if len(text) <= max_len:
-        return text
-    return text[:max_len] + "...<truncated>"
-
-
-T_co = TypeVar("T_co")
-
-
-async def _async_retry_on_transient(
-    factory: Callable[[], Awaitable[T_co]],
-    *,
-    max_retries: int = 2,
-    base_delay: float = 1.0,
-    max_delay: float = 8.0,
-    log_prefix: str = "",
-) -> T_co:
-    """对瞬时错误（限流、超时、连接类）做指数退避重试；每次调用 factory() 生成新的 awaitable。"""
-    last_err: BaseException | None = None
-    for attempt in range(max_retries + 1):
-        try:
-            return await factory()
-        except Exception as e:
-            last_err = e
-            transient = _is_rate_limit_like_error(e) or isinstance(
-                e, (asyncio.TimeoutError, ConnectionError, OSError)
-            )
-            if not transient or attempt >= max_retries:
-                raise
-            delay = min(base_delay * (2**attempt), max_delay) * (0.5 + random.random())
-            logger.warning(
-                f"{log_prefix}transient error (attempt {attempt + 1}/{max_retries + 1}): {e}; "
-                f"retry in {delay:.2f}s"
-            )
-            await asyncio.sleep(delay)
-    raise last_err  # pragma: no cover
-
-
-def _pagination_from_args(args: Mapping[str, Any], chunk_cap: int) -> tuple[int, int]:
-    """解析分页参数。
-
-    :param args: 参数字典。
-    :param chunk_cap: 单段上限。
-    :return: (offset, limit) 元组。
-    """
-    off = int(args.get("offset", 0) or 0)
-    off = max(0, off)
-    raw_lim = args.get("limit")
-    if raw_lim is None or raw_lim == "":
-        lim = chunk_cap
-    else:
-        lim = max(1, min(int(raw_lim), chunk_cap))
-    return off, lim
-
-
-def _slice_text_page(full: str, offset: int, limit: int) -> dict[str, Any]:
-    """对文本进行分页切片。
-
-    :param full: 完整文本。
-    :param offset: 起始位置。
-    :param limit: 切片长度。
-    :return: 包含分页信息的字典。
-    """
-    total = len(full)
-    off = min(max(0, offset), total)
-    lim = max(1, limit)
-    chunk = full[off : off + lim]
-    end = off + len(chunk)
-    return {
-        "content": chunk,
-        "total_chars": total,
-        "offset": off,
-        "limit_applied": lim,
-        "returned_chars": len(chunk),
-        "next_offset": end if end < total else None,
-        "has_more": end < total,
-    }
-
-
-def _jr_dumps(obj: Any, *, indent: int | None = None) -> str:
-    """JSON 序列化，经 json_repair 规范化。
-
-    :param obj: Python 对象。
-    :param indent: 缩进级别。
-    :return: JSON 字符串。
-    """
-    kw: dict[str, Any] = {"ensure_ascii": False, "default": str}
-    if indent is not None:
-        kw["indent"] = indent
-    raw = json.dumps(obj, **kw)
-    return json_repair.repair_json(raw, **kw)
-
-
-def _jr_parse(text: str) -> Any:
-    """JSON 解析。
-
-    :param text: JSON 文本。
-    :return: 解析结果。
-    """
-    return json_repair.loads(text)
-
-
-def _shrink_for_json_budget(
-    obj: Any, *, max_str_len: int, max_list_items: Optional[int]
-) -> Any:
-    """收缩对象以适应预算，保护结构化数据。
-
-    字符串直接截断；列表保留尾部，并在末尾追加一个元信息元素。
-
-    :param obj: 待收缩对象
-    :param max_str_len: 字符串最大长度
-    :param max_list_items: 列表最大条目数
-    :return: 收缩后的对象
-    """
-    if isinstance(obj, str):
-        return _trunc_str(obj, max_str_len) if max_str_len > 0 else obj
-    if isinstance(obj, list):
-        if max_list_items is not None and len(obj) > max_list_items:
-            keep = max(1, max_list_items - 1)
-            tail_items = [
-                _shrink_for_json_budget(v, max_str_len=max_str_len, max_list_items=max_list_items)
-                for v in obj[-keep:]
-            ]
-            meta = {
-                "_truncated": True,
-                "_kept": "tail",
-                "_total": len(obj),
-                "_dropped": len(obj) - keep,
-            }
-            return tail_items + [meta]
-        return [_shrink_for_json_budget(v, max_str_len=max_str_len, max_list_items=max_list_items) for v in obj]
-    if isinstance(obj, dict):
-        return {k: _shrink_for_json_budget(v, max_str_len=max_str_len, max_list_items=max_list_items) for k, v in obj.items()}
-    return obj
-
-
-def _json_dumps_tool_result_for_thread(
-    enriched: dict[str, Any], budget: int = 65536
-) -> str:
-    """序列化工具结果到 thread，超预算时收缩。
-
-    改进：在极限收缩时保留错误类型和关键字段，便于调试。
-
-    :param enriched: 工具结果字典
-    :param budget: 字符预算（默认 65536，实际使用时应传入 ctx_config.tool_result_thread_budget）
-    :return: JSON字符串
-    """
-    raw = _jr_dumps(enriched)
-    if len(raw) <= budget:
-        return raw
-    for max_str in (8000, 4000, 2000, 1000, 500):
-        for max_list in (50, 20, 10, 5):
-            shrunk = _shrink_for_json_budget(enriched, max_str_len=max_str, max_list_items=max_list)
-            cand = _jr_dumps(shrunk)
-            if len(cand) <= budget:
-                return cand
-    
-    # 极限情况：保留关键字段（包括错误信息）
-    minimal: dict[str, Any] = {
-        "error": "result_too_large",
-        "action": enriched.get("action"),
-        "workspace_state_version": enriched.get("workspace_state_version"),
-    }
-    
-    # 保留关键错误信息
-    if enriched.get("ok") is False:
-        minimal["ok"] = False
-        if enriched.get("error"):
-            minimal["original_error"] = str(enriched["error"])[:200]
-        if enriched.get("error_type"):
-            minimal["error_type"] = enriched["error_type"]
-        if enriched.get("exit_code"):
-            minimal["exit_code"] = enriched["exit_code"]
-        # 保留截断的 stderr
-        if enriched.get("stderr"):
-            minimal["stderr_hint"] = str(enriched["stderr"])[:300]
-    
-    return _jr_dumps(minimal)
-
-
-class ToolDecision(BaseModel):
-    """单轮工具决策输出模型。
-
-    由 LLM 生成并通过 Pydantic 校验，作为工具循环的唯一执行输入。
-
-    Attributes:
-        tool_name: 工具名称。必须是以下之一：activate_skill, read_skill,
-            execute_skill, workspace_read, workspace_write, workspace_list,
-            enable_skill, disable_skill, bash, glob, grep, codegen, batch, done。
-        arguments: 工具参数字典。
-        done: 是否结束当前仿真步。设为 true 时，当前工具执行完后本步结束。
-        summary: 执行摘要。
-    """
-
-    tool_name: str = Field(
-        description=(
-            "Exactly one of: activate_skill, read_skill, execute_skill, workspace_read, workspace_write, "
-            "workspace_list, enable_skill, disable_skill, bash, glob, grep, codegen, batch, done. "
-            "activate_skill with arguments.skill_name set to the skill name."
-        )
-    )
-    arguments: dict[str, Any] = Field(default_factory=dict)
-    done: bool = Field(
-        default=False,
-        description="Set true when this simulation step should end after the current tool runs. "
-        "If more tools are needed this round, must be false. You may use tool_name=done with no other work.",
-    )
-    summary: str = ""
 
 
 class PersonAgent(AgentBase):
@@ -390,7 +189,7 @@ class PersonAgent(AgentBase):
         self._world_description_for_prompt: str = ""
         self._workspace_snapshot_for_prompt: dict[str, Any] = {}
         self._profile_for_prompt: Any = None
-        
+
         # ── 上下文管理改进 ──
         # 持久化记忆（类似 CLAUDE.md）
         self._memory: Optional[AgentMemory] = None
@@ -402,9 +201,33 @@ class PersonAgent(AgentBase):
         # 跨压缩轮次的滚动摘要（增量合并，持久化见 thread_compact_state.json）
         self._rolling_thread_summary: str = ""
 
+        # ── 系统提示词缓存 ──
+        self._prompt_cache: str | None = None
+        self._prompt_cache_version: int = 0
+        self._cached_skills: set[str] = set()
+        self._cached_ws_version: int = 0
+
+        # ── 循环检测 ──
+        self._loop_detector = LoopDetectionService(LoopDetectionConfig())
+
     def _all_visible_skill_names(self) -> set[str]:
         """返回当前 agent 可见技能名集合副本。"""
         return set(self._selectable_skill_names)
+
+    def _invalidate_prompt_cache(self) -> None:
+        """失效系统提示词缓存。"""
+        self._prompt_cache = None
+        self._prompt_cache_version += 1
+
+    def _need_rebuild_prompt(self) -> bool:
+        """判断是否需要重建系统提示词。"""
+        if self._prompt_cache is None:
+            return True
+        if self._activated_skills != self._cached_skills:
+            return True
+        if self._workspace_state_version != self._cached_ws_version:
+            return True
+        return False
 
     def _workspace_preload_paths(self) -> list[str]:
         """获取预加载的 workspace 文件路径列表。
@@ -444,7 +267,7 @@ class PersonAgent(AgentBase):
                     content = self._skill_runtime.workspace_read(path)
                     if content:
                         if path.endswith(".json"):
-                            parsed = _jr_parse(content)
+                            parsed = jr_parse(content)
                             context[path] = parsed if isinstance(parsed, dict) else {}
                         else:
                             context[path] = content
@@ -516,9 +339,34 @@ class PersonAgent(AgentBase):
             s = raw.strip()
             if not s:
                 return {}
-            parsed = _jr_parse(s)
+            parsed = jr_parse(s)
             return dict(parsed) if isinstance(parsed, dict) else {}
         return {}
+
+    @staticmethod
+    def _sanitize_profile_for_prompt(profile: Any) -> Any:
+        """过滤 profile 中的潜在指令注入。
+
+        :param profile: 原始 profile。
+        :return: 安全的 profile。
+        """
+        if isinstance(profile, str):
+            # 移除可能的指令注入标记
+            profile = re.sub(
+                r"^\s*(SYSTEM|INSTRUCTION|ACT|PROMPT|IGNORE)\s*:",
+                "",
+                profile,
+                flags=re.IGNORECASE | re.MULTILINE,
+            )
+            return profile
+        if isinstance(profile, dict):
+            return {
+                k: PersonAgent._sanitize_profile_for_prompt(v)
+                for k, v in profile.items()
+            }
+        if isinstance(profile, list):
+            return [PersonAgent._sanitize_profile_for_prompt(item) for item in profile]
+        return profile
 
     def _agent_identity_json_for_prompt(self) -> str:
         """生成用于 system prompt 的智能体身份 JSON。
@@ -529,20 +377,23 @@ class PersonAgent(AgentBase):
             2000,
             int(self._capability_kwargs.get("system_prompt_max_identity_chars", 10000)),
         )
+        raw_profile = (
+            self._profile_for_prompt
+            if self._profile_for_prompt is not None
+            else self.get_profile()
+        )
+        # 安全过滤
+        safe_profile = self._sanitize_profile_for_prompt(raw_profile)
         agent_identity: dict[str, Any] = {
             "id": self.id,
             "name": self._name,
-            "profile": (
-                self._profile_for_prompt
-                if self._profile_for_prompt is not None
-                else self.get_profile()
-            ),
+            "profile": safe_profile,
         }
-        s = _jr_dumps(agent_identity)
+        s = jr_dumps(agent_identity)
         if len(s) <= max_total:
             return s
         agent_identity["profile"] = "<omitted: profile too large>"
-        return _jr_dumps(agent_identity)
+        return jr_dumps(agent_identity)
 
     # ── System Prompt ──────────────────────────────────────────────────────────
 
@@ -550,11 +401,16 @@ class PersonAgent(AgentBase):
         """构建本步 system prompt。
 
         注入 world description、agent identity、工具协议、skill catalog、已激活技能列表。
+        使用缓存机制避免重复构建。
 
         :param tick: 当前仿真步时间跨度（秒）。
         :param t: 当前仿真时间。
         :return: system prompt 文本。
         """
+        # 检查是否可以使用缓存
+        if not self._need_rebuild_prompt() and self._prompt_cache is not None:
+            return self._prompt_cache
+
         base = super().get_system_prompt(tick, t)
 
         wd = (self._world_description_for_prompt or self._world_description).strip()
@@ -589,6 +445,9 @@ class PersonAgent(AgentBase):
             "each assistant turn is exactly one tool call (`batch` still counts as one `tool_name`).\n"
         )
 
+        # 注入 workspace 结构说明（Cursor风格动态发现）
+        skill_section += f"\n{self._skill_runtime.build_workspace_structure_prompt()}\n"
+
         ctx_view = (
             self._workspace_snapshot_for_prompt
             if self._workspace_snapshot_for_prompt
@@ -600,7 +459,7 @@ class PersonAgent(AgentBase):
                 "Below is a snapshot of common workspace files for faster context.\n"
                 "Important: after any write/execute/codegen action, snapshot content may become stale; "
                 "use `workspace_read` to fetch latest source of truth when correctness matters.\n"
-                f"```json\n{_jr_dumps(ctx_view, indent=1)}\n```\n"
+                f"```json\n{jr_dumps(ctx_view, indent=1)}\n```\n"
             )
 
         skill_section += (
@@ -641,11 +500,18 @@ class PersonAgent(AgentBase):
         skill_section += (
             "# Tools\n"
             f"{self._render_tool_table()}\n\n"
-            f"# Skill Catalog\n{_jr_dumps(catalog, indent=1)}\n\n"
-            f"# Activated Skills\n{_jr_dumps(sorted(self._activated_skills))}"
+            f"# Skill Catalog\n{jr_dumps(catalog, indent=1)}\n\n"
+            f"# Activated Skills\n{jr_dumps(sorted(self._activated_skills))}"
         )
 
-        return base + world_block + skill_section
+        result = base + world_block + skill_section
+
+        # 更新缓存
+        self._prompt_cache = result
+        self._cached_skills = set(self._activated_skills)
+        self._cached_ws_version = self._workspace_state_version
+
+        return result
 
     # ── Thread Management ─────────────────────────────────────────────────────
 
@@ -665,14 +531,14 @@ class PersonAgent(AgentBase):
         """
         enriched = dict(result_obj)
         enriched.setdefault("workspace_state_version", self._workspace_state_version)
-        payload = _json_dumps_tool_result_for_thread(
+        payload = json_dumps_tool_result_for_thread(
             enriched, budget=self._tool_result_thread_budget_chars()
         )
         content = "TOOL_RESULT_JSON:\n" + payload
         self._skill_runtime.append_thread_message("user", content, tick=tick, t=t)
         thread_messages.append({"role": "user", "content": content})
         if len(thread_messages) > self._ctx_config.thread_max_messages:
-            thread_messages = thread_messages[-self._ctx_config.thread_max_messages:]
+            thread_messages = thread_messages[-self._ctx_config.thread_max_messages :]
 
     def _prepare_prompt_sidecars(self) -> None:
         """准备 prompt 侧车数据。
@@ -681,22 +547,39 @@ class PersonAgent(AgentBase):
         这些是非关键数据，无需 LLM 压缩。
         """
         wd = self._world_description.strip()
-        self._world_description_for_prompt = _trunc_str(wd, self._ctx_config.world_desc_max_chars) if len(wd) > self._ctx_config.world_desc_max_chars else wd
+        self._world_description_for_prompt = (
+            trunc_str(wd, self._ctx_config.world_desc_max_chars)
+            if len(wd) > self._ctx_config.world_desc_max_chars
+            else wd
+        )
 
         self._workspace_snapshot_for_prompt = {}
         for path, v in self._step_context.items():
-            if isinstance(v, str) and len(v) > self._ctx_config.workspace_snapshot_str_cap:
-                self._workspace_snapshot_for_prompt[path] = _trunc_str(v, self._ctx_config.workspace_snapshot_str_cap)
+            if (
+                isinstance(v, str)
+                and len(v) > self._ctx_config.workspace_snapshot_str_cap
+            ):
+                self._workspace_snapshot_for_prompt[path] = trunc_str(
+                    v, self._ctx_config.workspace_snapshot_str_cap
+                )
             else:
                 self._workspace_snapshot_for_prompt[path] = v
 
         prof = self.get_profile()
-        plim = int(self._capability_kwargs.get("profile_truncate_chars", self._ctx_config.profile_max_chars))
+        plim = int(
+            self._capability_kwargs.get(
+                "profile_truncate_chars", self._ctx_config.profile_max_chars
+            )
+        )
         if isinstance(prof, str):
-            self._profile_for_prompt = _trunc_str(prof, plim) if len(prof) > plim else None
+            self._profile_for_prompt = (
+                trunc_str(prof, plim) if len(prof) > plim else None
+            )
         elif prof is not None:
-            dumped = _jr_dumps(prof)
-            self._profile_for_prompt = _trunc_str(dumped, plim) if len(dumped) > plim else None
+            dumped = jr_dumps(prof)
+            self._profile_for_prompt = (
+                trunc_str(dumped, plim) if len(dumped) > plim else None
+            )
 
     def _catalog_paths_match(self, patterns: list[str]) -> bool:
         """检查当前工作集是否匹配任一模式。
@@ -719,7 +602,7 @@ class PersonAgent(AgentBase):
         if obs_raw is None and self._skill_runtime.workspace_exists(signal):
             raw_text = self._skill_runtime.workspace_read(signal)
             if raw_text.strip():
-                parsed = _jr_parse(raw_text)
+                parsed = jr_parse(raw_text)
                 obs_raw = parsed if isinstance(parsed, dict) else {}
         obs = obs_raw if isinstance(obs_raw, dict) else {}
         for key in ("path", "paths", "file", "files", "working_dir", "cwd"):
@@ -972,42 +855,6 @@ class PersonAgent(AgentBase):
 
     # ── Command Execution ─────────────────────────────────────────────────────
 
-    # 危险命令/token 黑名单
-    _BLOCKED_COMMAND_TOKENS = frozenset(
-        {
-            "rm -rf /",
-            "rm -rf /*",
-            "mkfs",
-            "dd if=",
-            ":(){",
-            "fork bomb",
-            "shutdown",
-            "reboot",
-            "poweroff",
-            "halt",
-            "init 0",
-            "init 6",
-            "curl",
-            "wget",
-            "nc ",
-            "ncat",
-            "ssh",
-            "scp",
-            "rsync",
-            "ftp",
-            "nmap",
-            "telnet",
-            "netcat",
-            "sudo",
-            "su ",
-            "chmod 777",
-            "chown",
-            "chgrp",
-            "> /dev/",
-            ">/dev/",
-        }
-    )
-
     async def _run_bash_in_workspace(
         self, command: str, timeout_sec: int
     ) -> dict[str, Any]:
@@ -1046,7 +893,7 @@ class PersonAgent(AgentBase):
                 "stderr": "blocked: parent traversal",
             }
         cmd_lower = command.lower()
-        for token in self._BLOCKED_COMMAND_TOKENS:
+        for token in BLOCKED_TOKENS:
             if token in cmd_lower:
                 return {
                     "ok": False,
@@ -1215,7 +1062,7 @@ class PersonAgent(AgentBase):
         """持久化 agent 配置到 agent_config.json。"""
         self._skill_runtime.workspace_write(
             "agent_config.json",
-            _jr_dumps(
+            jr_dumps(
                 {
                     "capabilities": self._capability_kwargs,
                     "state": self._agent_state,
@@ -1246,6 +1093,7 @@ class PersonAgent(AgentBase):
         """
         await super().init(env=env)
         self._skill_runtime.ensure_agent_work_dir(self._env)
+        self._skill_runtime.ensure_standard_workspace_dirs()
 
         # init_state 用于“出生时”的初始内在状态设定。
         # 仅在对应文件不存在时写入，避免覆盖实验过程中已经演化出的状态。
@@ -1284,6 +1132,7 @@ class PersonAgent(AgentBase):
             skill_name = module.get_default_skill()
             if skill_name and skill_name in self._all_visible_skill_names():
                 self._activated_skills.add(skill_name)
+                self._invalidate_prompt_cache()
                 logger.info(f"Agent {self.id}: activated default skill '{skill_name}'")
             elif skill_name:
                 logger.warning(
@@ -1293,7 +1142,7 @@ class PersonAgent(AgentBase):
 
         if self._env is not None:
             self._world_description = await self._env.get_world_description()
-        
+
         # 初始化持久化记忆
         try:
             self._memory = AgentMemory(self._skill_runtime.workspace_root())
@@ -1313,11 +1162,13 @@ class PersonAgent(AgentBase):
                 self._cache_valid_paths.add(p)
             if cached:
                 if p.endswith(".json"):
-                    parsed = _jr_parse(cached)
+                    parsed = jr_parse(cached)
                     if parsed:
                         key_state[p] = parsed
                 elif len(cached) > self._ctx_config.key_state_file_limit:
-                    key_state[p] = _trunc_str(cached, self._ctx_config.key_state_file_limit)
+                    key_state[p] = trunc_str(
+                        cached, self._ctx_config.key_state_file_limit
+                    )
                 else:
                     key_state[p] = cached
         return key_state
@@ -1336,7 +1187,7 @@ class PersonAgent(AgentBase):
 
         if force or not self._skill_runtime.workspace_exists("init_state.json"):
             self._skill_runtime.workspace_write(
-                "init_state.json", _jr_dumps(state, indent=2)
+                "init_state.json", jr_dumps(state, indent=2)
             )
 
         seed = state.get("workspace_seed", {})
@@ -1350,7 +1201,7 @@ class PersonAgent(AgentBase):
             if (not force) and self._skill_runtime.workspace_exists(rel_path):
                 continue
             if isinstance(value, (dict, list)):
-                content = _jr_dumps(value, indent=2)
+                content = jr_dumps(value, indent=2)
             else:
                 content = str(value)
             self._skill_runtime.workspace_write(rel_path, content)
@@ -1368,7 +1219,7 @@ class PersonAgent(AgentBase):
 
         async def _run_compact_llm(msgs: list[dict[str, str]]):
             if self._llm_transient_retries > 0:
-                return await _async_retry_on_transient(
+                return await async_retry_on_transient(
                     lambda: self.acompletion(msgs, stream=False),
                     max_retries=self._llm_transient_retries,
                     log_prefix=f"Agent {self.id}: compact ",
@@ -1423,45 +1274,51 @@ class PersonAgent(AgentBase):
         """
         # 清空 thread 消息文件
         if self._skill_runtime._agent_work_dir is not None:
-            thread_file = self._skill_runtime._agent_work_dir / "thread_messages.jsonl"
+            thread_file = (
+                self._skill_runtime._agent_work_dir / "logs" / "thread_messages.jsonl"
+            )
             if thread_file.exists():
                 thread_file.unlink()
-            compact_state = self._skill_runtime._agent_work_dir / "thread_compact_state.json"
+            compact_state = (
+                self._skill_runtime._agent_work_dir
+                / "logs"
+                / "thread_compact_state.json"
+            )
             if compact_state.exists():
                 compact_state.unlink()
-        
+
         # 清空 workspace 缓存
         self._invalidate_all_workspace_cache()
-        
+
         # 重置状态
         self._activated_skills.clear()
         self._active_skill_scope = ""
         self._structured_summary = None
         self._compact_count = 0
         self._rolling_thread_summary = ""
-        
+
         if not keep_memory and self._memory:
             self._memory.clear()
-        
+
         logger.info(f"Agent {self.id}: session cleared (keep_memory={keep_memory})")
 
     def handoff_to_memory(self) -> None:
         """将当前状态写入持久化记忆，类似 Claude Code 的 session handoff。"""
         if not self._memory:
             return
-        
+
         # 更新当前任务
         if self._structured_summary:
             self._memory.set_current_task(self._structured_summary.primary_goal)
-            
+
             # 记录已完成的动作
             for action in self._structured_summary.completed_actions:
                 self._memory.complete_task(action)
-            
+
             # 记录错误
             for error in self._structured_summary.errors_encountered:
                 self._memory.add_error(error)
-        
+
         logger.info(f"Agent {self.id}: handed off state to memory")
 
     # ── Batch Tool Handler ─────────────────────────────────────────────────────
@@ -1506,7 +1363,7 @@ class PersonAgent(AgentBase):
                         paths = [path]
 
                 cap = self._workspace_read_chunk_cap()
-                off, lim = _pagination_from_args(args, cap)
+                off, lim = pagination_from_args(args, cap)
 
                 read_results: dict[str, Any] = {}
                 for p in paths:
@@ -1515,13 +1372,13 @@ class PersonAgent(AgentBase):
                         continue
                     cached = self._get_cached_workspace_content(p)
                     if cached is not None:
-                        page = _slice_text_page(cached, off, lim)
+                        page = slice_text_page(cached, off, lim)
                         read_results[p] = {"ok": True, "cached": True, **page}
                     elif self._skill_runtime.workspace_exists(p):
                         content = self._skill_runtime.workspace_read(p)
                         self._workspace_cache[p] = content
                         self._cache_valid_paths.add(p)
-                        page = _slice_text_page(content, off, lim)
+                        page = slice_text_page(content, off, lim)
                         read_results[p] = {"ok": True, "cached": False, **page}
                     else:
                         read_results[p] = {"ok": False, "error": "file not found"}
@@ -1692,6 +1549,9 @@ class PersonAgent(AgentBase):
         history: list[dict[str, Any]] = []
         thread_messages = self._skill_runtime.read_recent_thread_messages(limit=40)
 
+        # 每步重置循环检测器
+        self._loop_detector.reset()
+
         for i in range(self._max_tool_rounds):
             # 滑动摘要：当 thread 过长时压缩旧消息
             thread_messages = await self._compact_thread_if_needed(
@@ -1715,7 +1575,7 @@ class PersonAgent(AgentBase):
                     t=t,
                     max_retries=self._tool_decision_max_retries,
                 )
-                decision_json = _jr_dumps(decision.model_dump())
+                decision_json = jr_dumps(decision.model_dump())
                 self._skill_runtime.append_thread_message(
                     "user", prompt, tick=tick, t=t
                 )
@@ -1725,7 +1585,9 @@ class PersonAgent(AgentBase):
                 thread_messages.append({"role": "user", "content": prompt})
                 thread_messages.append({"role": "assistant", "content": decision_json})
                 if len(thread_messages) > self._ctx_config.thread_max_messages:
-                    thread_messages = thread_messages[-self._ctx_config.thread_max_messages:]
+                    thread_messages = thread_messages[
+                        -self._ctx_config.thread_max_messages :
+                    ]
             except Exception as e:
                 logs.append(f"tool_loop_error:{e}")
                 break
@@ -1733,6 +1595,22 @@ class PersonAgent(AgentBase):
             action = decision.tool_name.strip()
             args = self._coerce_llm_dict(decision.arguments)
             skill_name = str(args.get("skill_name", "")).strip()
+
+            # ── 循环检测 ──
+            loop_result = self._loop_detector.check_tool_loop(action, args)
+            if loop_result.is_loop:
+                logger.warning(
+                    f"Agent {self.id}: loop detected - {loop_result.details}"
+                )
+                logs.append(f"loop_detected:{loop_result.loop_type}")
+                result_obj = {
+                    "action": action,
+                    "ok": False,
+                    "error": f"Loop detected: {loop_result.details}. Call 'done' or try a different approach.",
+                }
+                history.append(result_obj)
+                self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
+                break
 
             # 仅当显式选择 done 工具时立即结束。done=true 与具体工具并列时表示
             # 「执行本工具后本仿真步结束」，不得在派发工具之前 break（否则工具不会执行）。
@@ -1910,6 +1788,7 @@ class PersonAgent(AgentBase):
                         continue
                     self._activated_skills.add(skill_name)
                     self._active_skill_scope = skill_name
+                    self._invalidate_prompt_cache()
                     self._persist_agent_config()
                 result_obj = {
                     "action": action,
@@ -1943,9 +1822,9 @@ class PersonAgent(AgentBase):
                 if ok:
                     self._active_skill_scope = skill_name
                 cap = self._workspace_read_chunk_cap()
-                off, lim = _pagination_from_args(args, cap)
+                off, lim = pagination_from_args(args, cap)
                 page = (
-                    _slice_text_page(content, off, lim)
+                    slice_text_page(content, off, lim)
                     if ok
                     else {
                         "content": "",
@@ -2022,8 +1901,8 @@ class PersonAgent(AgentBase):
                     "exit_code": out.get("exit_code"),
                     "error_type": out.get("error_type"),
                     "artifacts": out.get("artifacts", []),
-                    "stdout": _trunc_str(stdout_s, self._ctx_config.stdout_max_chars),
-                    "stderr": _trunc_str(stderr_s, self._ctx_config.stderr_max_chars),
+                    "stdout": trunc_str(stdout_s, self._ctx_config.stdout_max_chars),
+                    "stderr": trunc_str(stderr_s, self._ctx_config.stderr_max_chars),
                     "workspace_state_version": self._workspace_state_version,
                 }
                 history.append(result_obj)
@@ -2050,7 +1929,7 @@ class PersonAgent(AgentBase):
             if action == "workspace_read":
                 ws_read_path = str(args.get("path", ""))
                 cap = self._workspace_read_chunk_cap()
-                off, lim = _pagination_from_args(args, cap)
+                off, lim = pagination_from_args(args, cap)
                 try:
                     if not self._skill_runtime.workspace_exists(ws_read_path):
                         result_obj = {
@@ -2069,7 +1948,7 @@ class PersonAgent(AgentBase):
                             self._workspace_cache[ws_read_path] = content
                             self._cache_valid_paths.add(ws_read_path)
                             cached_hit = False
-                        page = _slice_text_page(content, off, lim)
+                        page = slice_text_page(content, off, lim)
                         result_obj = {
                             "action": action,
                             "path": ws_read_path,
@@ -2203,8 +2082,8 @@ class PersonAgent(AgentBase):
                     "action": action,
                     "ok": ok,
                     "exit_code": out.get("exit_code"),
-                    "stdout": _trunc_str(bo, self._ctx_config.stdout_max_chars),
-                    "stderr": _trunc_str(be, self._ctx_config.stderr_max_chars),
+                    "stdout": trunc_str(bo, self._ctx_config.stdout_max_chars),
+                    "stderr": trunc_str(be, self._ctx_config.stderr_max_chars),
                 }
                 history.append(result_obj)
                 self._skill_runtime.append_tool_log(
@@ -2279,8 +2158,8 @@ class PersonAgent(AgentBase):
                 result_obj = {
                     "action": action,
                     "ok": ok,
-                    "stdout": _trunc_str(co, self._ctx_config.stdout_max_chars),
-                    "stderr": _trunc_str(ce, self._ctx_config.stderr_max_chars),
+                    "stdout": trunc_str(co, self._ctx_config.stdout_max_chars),
+                    "stderr": trunc_str(ce, self._ctx_config.stderr_max_chars),
                     "workspace_state_version": self._workspace_state_version,
                 }
                 if out.get("ctx") is not None:
@@ -2381,10 +2260,10 @@ class PersonAgent(AgentBase):
             selected_skills=self._selectable_skill_names,
             tool_history=tool_history,
         )
-        
+
         # 将当前状态写入持久化记忆
         self.handoff_to_memory()
-        
+
         if not logs:
             return "no-action"
         return " | ".join(logs)

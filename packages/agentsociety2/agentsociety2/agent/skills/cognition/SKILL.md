@@ -1,16 +1,19 @@
 ---
 name: cognition
 description: Produce emotion.json and intention.json from workspace context.
+outputs:
+  - state/emotion.json
+  - state/intention.json
 ---
 
 # Cognition
 
-Read available workspace context and produce `emotion.json` and `intention.json`.
+Read available workspace context and produce `state/emotion.json` and `state/intention.json`.
 
 ## Output Files
 
-- `emotion.json`: Current emotional state
-- `intention.json`: Current intention/goal
+- `state/emotion.json`: Current emotional state (includes mood layer)
+- `state/intention.json`: Current intention/goal
 
 ## Input Files (optional, read if present)
 
@@ -18,22 +21,89 @@ Read any existing files from the workspace as context. Common inputs include:
 
 | File | Use |
 |------|-----|
-| `observation.txt` | Main grounding for this tick |
-| `thought.txt` | Inner monologue context |
-| `needs.json`, `current_need.txt` | Urgency context |
-| `memory.jsonl` | Last 5–10 lines for continuity |
-| `emotion.json`, `intention.json` | Prior state for continuity |
-| `plan_state.json` | Whether a multi-step plan is in flight |
+| `state/observation.txt` | Main grounding for this tick |
+| `state/thought.txt` | Inner monologue context |
+| `state/needs.json`, `state/current_need.txt` | Urgency context |
+| `state/memory.jsonl` | Last 5–10 lines for continuity |
+| `state/emotion.json`, `state/intention.json` | Prior state for continuity |
+| `state/plan_state.json` | Whether a multi-step plan is in flight |
 
-Also use **Agent Identity** from the system prompt. Other JSON in the workspace (`beliefs.json`, etc.) can be read if present. **Skip missing files gracefully.**
+Also use **Agent Identity** from the system prompt. Other JSON in the workspace (`state/beliefs.json`, etc.) can be read if present. **Skip missing files gracefully.**
 
 ## What to do
 
 1. Integrate whatever inputs exist into one appraisal.
-2. Write `emotion.json`: `primary`, dimensional `intensities`, plus `valence` / `arousal` / `note`.
-3. Write `intention.json`: one chosen goal with TPB scores.
+2. Write `state/emotion.json`: `primary`, `mood`, dimensional `intensities`, plus `valence` / `arousal` / `note`.
+3. Write `state/intention.json`: one chosen goal with TPB scores.
 
-## Emotion
+## Emotion Layers
+
+Emotions operate on three timescales (based on psychological research):
+
+### Layer 1: Emotion (seconds to minutes)
+
+Short-term, event-driven responses.
+
+- Dimensions: `sadness`, `joy`, `fear`, `disgust`, `anger`, `surprise` (0–10)
+- Changes rapidly based on immediate events
+- Maximum change: ±2 per tick per dimension
+
+### Layer 2: Mood (hours to days)
+
+Medium-term, cumulative emotional state.
+
+- Persists across multiple ticks
+- Influences emotion recovery speed
+- Drifts slowly toward neutral
+- Represented in `state/emotion.json` as `mood` object
+
+| Mood Field | Range | Description |
+|------------|-------|-------------|
+| `valence` | -1 to 1 | Positive/negative tendency |
+| `arousal` | 0 to 1 | Energy level |
+| `stability` | 0 to 1 | How resistant to change |
+
+### Layer 3: Personality (long-term)
+
+Stable traits from `state/personality.json` (if exists).
+
+| Trait | Effect |
+|-------|--------|
+| High `neuroticism` (> 0.7) | Amplify all emotions × 1.3 |
+| Low `neuroticism` (< 0.3) | Dampen emotion changes, cap at ±1 per tick |
+| High `extraversion` (> 0.7) | Amplify positive emotions (joy, surprise) × 1.2 |
+| High `agreeableness` (> 0.7) | Reduce anger responses −2 |
+
+## Emotion Continuity Rules
+
+**CRITICAL**: These rules must be followed strictly.
+
+1. **Maximum change per tick**: Each intensity dimension can change by at most ±2 per tick
+2. **Inertia**: If no significant events occurred, intensities should stay within ±1 of previous values
+3. **Valence drift**: Emotions slowly drift toward neutral (intensity 3-4) without reinforcing events
+4. **Mood influence**: Current mood affects how quickly emotions recover:
+   - Positive mood (valence > 0.3): Joy recovers +1 per tick
+   - Negative mood (valence < -0.3): Sadness/anger recovers slower
+   - Low stability: Faster emotion swings
+
+### Validation Checklist
+
+Before writing `state/emotion.json`, verify:
+
+- [ ] No dimension changed by more than ±2 from previous values
+- [ ] Changes are justified by events in observation/memory
+- [ ] Mood is updated based on cumulative emotion history
+
+## Need-Emotion Linkage
+
+Low need satisfaction affects emotional state:
+
+| Need Condition | Emotion Effect |
+|----------------|----------------|
+| satiety < 0.3 | anger +2, joy −1 (hangry) |
+| energy < 0.3 | sadness +1, joy −1 (fatigued) |
+| safety < 0.3 | fear +2, surprise +1 (anxious) |
+| social < 0.3 | sadness +1, loneliness amplifies |
 
 ### Intensities (0–10 integers)
 
@@ -47,8 +117,8 @@ Dimensions: `sadness`, `joy`, `fear`, `disgust`, `anger`, `surprise`
 | 7–8 | high |
 | 9–10 | very high |
 
-- Combine recent events (`memory.jsonl` tail, `observation.txt`) with any urgency signals present in the workspace (e.g., need levels if available).
-- If a previous `emotion.json` exists, change intensities only when the situation meaningfully shifted; otherwise stay near prior values.
+- Combine recent events (`state/memory.jsonl` tail, `state/observation.txt`) with any urgency signals present in the workspace (e.g., need levels if available).
+- If a previous `state/emotion.json` exists, change intensities only when the situation meaningfully shifted; otherwise stay near prior values.
 
 ### Primary Emotion Label
 
@@ -71,18 +141,23 @@ Higher values on all three → stronger commitment. `priority`: lower number = m
 1. List up to 5 candidate goals (fewer is fine).
 2. If the workspace contains urgency signals (e.g., unmet needs), prefer candidates that address them; otherwise leisure or exploration is appropriate.
 3. Score each candidate with the three TPB fields; assign `priority` to each.
-4. Emit only the best candidate as `intention.json` (lowest `priority` wins).
+4. Emit only the best candidate as `state/intention.json` (lowest `priority` wins).
 5. Phrase `intention` as a goal ("Eat lunch at the café"), not step-by-step motor instructions.
 
 ## Output File Schemas
 
-### emotion.json
+### state/emotion.json
 
 ```json
 {
   "primary": "Hope",
   "valence": 0.5,
   "arousal": 0.4,
+  "mood": {
+    "valence": 0.2,
+    "arousal": 0.5,
+    "stability": 0.7
+  },
   "intensities": {
     "sadness": 3,
     "joy": 6,
@@ -95,7 +170,7 @@ Higher values on all three → stronger commitment. `priority`: lower number = m
 }
 ```
 
-### intention.json
+### state/intention.json
 
 ```json
 {
@@ -111,10 +186,46 @@ Higher values on all three → stronger commitment. `priority`: lower number = m
 ## Execution Sequence
 
 1. `workspace_read` any of the optional inputs that exist (skip missing paths).
-2. `workspace_write("emotion.json", ...)`
-3. `workspace_write("intention.json", ...)`
-4. `done`
+2. Compute mood update (drift toward neutral, influenced by recent emotions).
+3. Compute emotion intensities (respect continuity rules).
+4. `workspace_write("state/emotion.json", ...)`
+5. `workspace_write("state/intention.json", ...)`
+6. `done`
 
 ## Notes
 
 - Intentions should be feasible given the latest observation; if the situation is unclear, prefer low-risk intentions (`wait`, `observe`, `move to safer area`) over fantasy.
+
+## Plan Completion/Failure Emotion Updates
+
+When a plan completes or fails, emotions should be updated accordingly:
+
+### Plan Completed Successfully
+
+| Emotion | Change |
+|---------|--------|
+| joy | +2 to +4 (depending on plan importance) |
+| pride | +2 to +3 |
+| fear | −1 (reduced anxiety) |
+| sadness | −1 |
+
+**Primary emotion**: `Satisfaction`, `Pride`, or `Gratification`
+
+### Plan Failed
+
+| Emotion | Change |
+|---------|--------|
+| sadness | +2 to +3 |
+| anger | +1 to +2 (if external cause) |
+| fear | +1 (increased uncertainty) |
+| joy | −2 |
+
+**Primary emotion**: `Disappointment`, `Frustration`, or `Remorse` (if self-caused)
+
+### Integration with Plan Skill
+
+The `plan` skill may signal completion/failure via `state/plan_state.json`. When detected:
+1. Read the plan target and outcome
+2. Apply appropriate emotion adjustments
+3. Update `state/emotion.json` with new intensities
+4. Write a brief note in the `note` field explaining the change

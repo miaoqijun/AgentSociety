@@ -1,11 +1,13 @@
 ---
 name: memory
 description: Persist important outcomes from this step to long-term storage.
+outputs:
+  - state/memory.jsonl
 ---
 
 # Memory
 
-You are the agent's long-term memory system. When you run this skill, decide what's worth remembering and append it to `memory.jsonl`, using whatever workspace context you already have (no required ordering with other skills).
+You are the agent's long-term memory system. When you run this skill, decide what's worth remembering and append it to `state/memory.jsonl`, using whatever workspace context you already have (no required ordering with other skills).
 
 ## Architecture (conceptual)
 
@@ -17,7 +19,7 @@ Three layers:
 - **Purpose**: Immediate reasoning; there is no separate hidden memory buffer beyond workspace + thread.
 - **Usage**: Read only files that exist; skip missing paths.
 
-### 2. Long-term store (`memory.jsonl`)
+### 2. Long-term store (`state/memory.jsonl`)
 
 - **What**: Append-only JSONL in the agent workspace.
 - **Purpose**: Persist what should survive across ticks (events, decisions, plan outcomes, abstract takeaways).
@@ -89,7 +91,7 @@ Then append **one** JSONL object with a `type` like `cognition` or `event` and t
 
 ## Memory Entry Format
 
-Each entry is a single JSON line in `memory.jsonl`:
+Each entry is a single JSON line in `state/memory.jsonl`:
 
 ```json
 {"tick": 42, "time": "2024-01-15T10:30:00", "type": "event", "summary": "Met Alice at the park. She mentioned a job opening at the library.", "tags": ["social", "alice", "job"], "importance": "medium"}
@@ -132,19 +134,19 @@ Each entry is a single JSON line in `memory.jsonl`:
 {
   "tool_name": "workspace_write",
   "arguments": {
-    "path": "memory.jsonl",
+    "path": "state/memory.jsonl",
     "content": "<existing content>\n<new JSON line>"
   }
 }
 ```
 
-**Important**: Since `workspace_write` overwrites the file, first `workspace_read("memory.jsonl")` to get existing content, then append the new entry. Alternatively, use `bash` with `echo '...' >> memory.jsonl` to append directly.
+**Important**: Since `workspace_write` overwrites the file, first `workspace_read("state/memory.jsonl")` to get existing content, then append the new entry. Alternatively, use `bash` with `echo '...' >> memory.jsonl` to append directly.
 
 4. If nothing notable happened, call `done` immediately.
 
 ## Memory Retrieval
 
-Readers of `memory.jsonl` typically scan the last few lines for recent context.
+Readers of `state/memory.jsonl` typically scan the last few lines for recent context.
 
 ### Reading Recent Memories
 
@@ -154,7 +156,7 @@ Focus on the most recent entries (last 5–10) when you need continuity:
 {
   "tool_name": "workspace_read",
   "arguments": {
-    "path": "memory.jsonl"
+    "path": "state/memory.jsonl"
   }
 }
 ```
@@ -175,7 +177,7 @@ Recent memories (within last few ticks) are most relevant for immediate decision
 
 ## Searching older memories
 
-There is no `memory_search` tool. Use `grep` on `memory.jsonl` (or `workspace_read` the tail of the file and scan locally), e.g. search for a name or tag substring.
+There is no `memory_search` tool. Use `grep` on `state/memory.jsonl` (or `workspace_read` the tail of the file and scan locally), e.g. search for a name or tag substring.
 
 ## Guidelines
 
@@ -188,5 +190,5 @@ There is no `memory_search` tool. Use `grep` on `memory.jsonl` (or `workspace_re
 ## End of step (checklist)
 
 1. Decide whether this tick warrants a new JSONL line (or a bundled summary line).
-2. If yes: `workspace_read("memory.jsonl")` then `workspace_write` with prior content plus `\n` + new JSON line, or append via `bash` (`>>`).
+2. If yes: `workspace_read("state/memory.jsonl")` then `workspace_write` with prior content plus `\n` + new JSON line, or append via `bash` (`>>`).
 3. If nothing notable happened, skip writing and finish the skill with `done`.

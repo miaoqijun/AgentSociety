@@ -1,6 +1,8 @@
 ---
 name: observation
 description: Fetch the current world observation for this tick.
+outputs:
+  - state/observation.txt
 ---
 
 # Observation
@@ -9,7 +11,7 @@ You are a situated agent in a simulated world. This skill fetches the latest sen
 
 ## When to Use
 
-Activate this skill when you need fresh perception for the current tick. Other skills **may** read `observation.txt` / `observation_ctx.json` if those files exist—there is no hard activation order.
+Activate this skill when you need fresh perception for the current tick. Other skills **may** read `state/observation.txt` / `state/observation_ctx.json` if those files exist—there is no hard activation order.
 
 ## Workflow
 
@@ -21,13 +23,13 @@ Activate this skill when you need fresh perception for the current tick. Other s
 4. Write the observation to workspace for downstream skills:
 
 ```
-workspace_write("observation.txt", <stdout text>)
+workspace_write("state/observation.txt", <stdout text>)
 ```
 
 5. If `ctx` contains useful structured data, also write it:
 
 ```
-workspace_write("observation_ctx.json", <ctx as JSON string>)
+workspace_write("state/observation_ctx.json", <ctx as JSON string>)
 ```
 
 ## Persisting perception
@@ -64,13 +66,13 @@ After performing any action via `codegen`, always re-observe to get the updated 
 1. Execute action via `codegen`
 2. Check the response status
 3. Call `codegen` with `"<observe>"` again
-4. Update `observation.txt` and `observation_ctx.json`
+4. Update `state/observation.txt` and `state/observation_ctx.json`
 
 This ensures the agent's internal state matches the environment state.
 
 ## Observation Context Structure
 
-The `observation_ctx.json` typically contains:
+The `state/observation_ctx.json` typically contains:
 
 ```json
 {
@@ -91,12 +93,12 @@ The `observation_ctx.json` typically contains:
 
 ## Important Notes
 
-- Prefer writing `observation.txt` every time you observe so the workspace stays self-consistent.
+- Prefer writing `state/observation.txt` every time you observe so the workspace stays self-consistent.
 - If you skip observation, other skills have less grounding—work from profile + whatever files already exist.
-- The `ctx` JSON may be large; you don't need to memorize it all—write it to `observation_ctx.json` and let readers pull fields as needed.
-- If `codegen` returns an error, write a short note into `observation.txt` so later reads see what failed.
+- The `ctx` JSON may be large; you don't need to memorize it all—write it to `state/observation_ctx.json` and let readers pull fields as needed.
+- If `codegen` returns an error, write a short note into `state/observation.txt` so later reads see what failed.
 
 ## Notes on State
 
-This skill only produces **observation artifacts** (`observation.txt`, optional `observation_ctx.json`).
+This skill only produces **observation artifacts** (`state/observation.txt`, optional `state/observation_ctx.json`).
 Higher-level “agent state snapshot / replay logging” is considered **system functionality** rather than a human-like capability skill, and should be handled by the runtime/framework if needed.

@@ -5,6 +5,8 @@ ReAct Router Implementation
 
 import json
 from typing import Tuple, Dict, Any, List
+
+import json_repair
 from litellm import AllMessageValues
 from openai.types.chat import ChatCompletionToolParam
 
@@ -18,7 +20,7 @@ __all__ = ["ReActRouter"]
 class ReActRouter(RouterBase):
     """
     ReAct模式Router：通过Reasoning-Acting循环，使用function calling直接调用所有模块的所有函数。
-    
+
     工作流程：
     1. 收集所有环境模块的工具信息
     2. 使用LLM的function calling能力选择并调用工具
@@ -38,15 +40,15 @@ class ReActRouter(RouterBase):
             max_steps=max_steps,
             max_llm_call_retry=max_llm_call_retry,
         )
-        
+
         # 预收集所有工具（包括readonly和非readonly）
         self._all_tools: List[ChatCompletionToolParam] = []
         self._all_readonly_tools: List[ChatCompletionToolParam] = []
         self._tool_name_to_module: Dict[str, EnvBase] = {}
         self._tool_name_to_tool_obj: Dict[str, Any] = {}
-        
+
         self._collect_all_tools()
-        
+
         # 创建set_status工具的schema
         self._set_status_tool_schema = self._create_set_status_tool_schema()
 
@@ -54,7 +56,7 @@ class ReActRouter(RouterBase):
         """收集所有模块的所有工具"""
         for module in self.env_modules:
             registered_tools = getattr(module.__class__, "_registered_tools", {})
-            
+
             for tool_name, tool_obj in registered_tools.items():
                 # 获取工具的LLM格式schema
                 tool_schema: ChatCompletionToolParam | None = None
@@ -62,17 +64,17 @@ class ReActRouter(RouterBase):
                     if llm_tool["function"]["name"] == tool_name:
                         tool_schema = llm_tool
                         break
-                
+
                 if tool_schema:
                     self._all_tools.append(tool_schema)
                     self._tool_name_to_module[tool_name] = module
                     self._tool_name_to_tool_obj[tool_name] = tool_obj
-                    
+
                     # 检查是否是readonly工具
                     readonly_tools = getattr(module.__class__, "_readonly_tools", {})
                     if readonly_tools.get(tool_name, False):
                         self._all_readonly_tools.append(tool_schema)
-    
+
     def _create_set_status_tool_schema(self) -> ChatCompletionToolParam:
         """创建set_status工具的schema"""
         return {
@@ -99,7 +101,11 @@ class ReActRouter(RouterBase):
         }
 
     async def ask(
-        self, ctx: dict, instruction: str, readonly: bool = False
+        self,
+        ctx: dict,
+        instruction: str,
+        readonly: bool = False,
+        template_mode: bool = False,
     ) -> Tuple[dict, str]:
         """
         使用ReAct模式处理指令。
@@ -108,14 +114,17 @@ class ReActRouter(RouterBase):
             ctx: 上下文字典
             instruction: 指令字符串
             readonly: 是否只读模式
+            template_mode: 模板模式（ReActRouter 不使用，仅为签名兼容）
 
         Returns:
             (ctx, answer) 元组
         """
         # 添加当前时间信息到 ctx，以便工具调用可以访问
         self._add_current_time_to_ctx(ctx)
-        
-        get_logger().info(f"ReActRouter: Processing instruction: {instruction}, readonly: {readonly}")
+
+        get_logger().info(
+            f"ReActRouter: Processing instruction: {instruction}, readonly: {readonly}"
+        )
 
         if not self.env_modules:
             get_logger().warning("No environment modules available")
@@ -127,15 +136,18 @@ class ReActRouter(RouterBase):
 
         # 选择可用的工具列表
         available_tools = self._all_readonly_tools if readonly else self._all_tools
-        
+
         if not available_tools:
-            results = {"status": "fail", "reason": "No available tools to handle the request"}
+            results = {
+                "status": "fail",
+                "reason": "No available tools to handle the request",
+            }
             return results, "No available tools to handle the request."
 
         # 构建初始对话，包含ctx和instruction
         initial_prompt = self._build_initial_prompt(instruction, ctx, readonly)
         dialog: List[AllMessageValues] = [{"role": "user", "content": initial_prompt}]
-        
+
         # 添加set_status工具到可用工具列表
         tools_with_status = available_tools + [self._set_status_tool_schema]
 
@@ -146,7 +158,7 @@ class ReActRouter(RouterBase):
         # status 表示用户的指令在环境模块中是否被有效地完成了，还是需要等待一段时间后由用户主动检测指令的完成性
         status = "success"
         error: str | None = None
-        
+
         while step_count < self.max_steps:
             step_count += 1
             get_logger().debug(f"ReActRouter: Step {step_count}/{self.max_steps}")
@@ -163,7 +175,7 @@ class ReActRouter(RouterBase):
                 if tools_for_call:
                     call_kwargs["tools"] = tools_for_call
                     call_kwargs["tool_choice"] = "auto"
-                
+
                 response = await self.acompletion_with_system_prompt(**call_kwargs)
             except Exception as e:
                 get_logger().error(f"ReActRouter: LLM call failed: {str(e)}")
@@ -172,7 +184,11 @@ class ReActRouter(RouterBase):
                 results["status"] = status
                 results["error"] = error_msg
                 # 构建过程文本
-                process_text = json.dumps(execution_log, indent=2, default=str) if execution_log else ""
+                process_text = (
+                    json.dumps(execution_log, indent=2, default=str)
+                    if execution_log
+                    else ""
+                )
                 # 使用基类的generate_final_answer生成最终答案
                 final_answer, determined_status = await self.generate_final_answer(
                     ctx, instruction, results, process_text, status, error_msg
@@ -186,35 +202,49 @@ class ReActRouter(RouterBase):
             assistant_content = message.content or ""
 
             # 记录assistant的响应
-            execution_log.append({
-                "step": step_count,
-                "type": "assistant_response",
-                "content": assistant_content,
-                "tool_calls_count": len(tool_calls),
-            })
+            execution_log.append(
+                {
+                    "step": step_count,
+                    "type": "assistant_response",
+                    "content": assistant_content,
+                    "tool_calls_count": len(tool_calls),
+                }
+            )
 
             # 添加assistant的响应到对话
-            dialog.append({
-                "role": "assistant",
-                "content": assistant_content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    }
-                    for tc in tool_calls
-                ] if tool_calls else None,
-            })
+            dialog.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_content,
+                    "tool_calls": (
+                        [
+                            {
+                                "id": tc.id,
+                                "type": tc.type,
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
+                            }
+                            for tc in tool_calls
+                        ]
+                        if tool_calls
+                        else None
+                    ),
+                }
+            )
 
             # 如果没有tool calls，说明LLM认为任务完成
             if not tool_calls:
-                get_logger().info(f"ReActRouter: Task completed after {step_count} steps")
+                get_logger().info(
+                    f"ReActRouter: Task completed after {step_count} steps"
+                )
                 # 构建过程文本
-                process_text = json.dumps(execution_log, indent=2, default=str) if execution_log else ""
+                process_text = (
+                    json.dumps(execution_log, indent=2, default=str)
+                    if execution_log
+                    else ""
+                )
                 # 使用基类的generate_final_answer生成最终答案
                 final_answer, determined_status = await self.generate_final_answer(
                     ctx, instruction, results, process_text, status, error
@@ -230,24 +260,30 @@ class ReActRouter(RouterBase):
             for tool_call in tool_calls:
                 func_name = tool_call.function.name
                 func_args_str = tool_call.function.arguments
-                
+
                 try:
-                    func_args = json.loads(func_args_str)
-                except json.JSONDecodeError as e:
-                    get_logger().error(f"ReActRouter: Failed to parse tool arguments: {e}")
+                    func_args = json_repair.loads(func_args_str)
+                except Exception as e:
+                    get_logger().error(
+                        f"ReActRouter: Failed to parse tool arguments: {e}"
+                    )
                     error_result = {"error": f"Invalid JSON arguments: {str(e)}"}
-                    tool_results.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": func_name,
-                        "content": json.dumps(error_result),
-                    })
-                    step_tool_calls.append({
-                        "tool": func_name,
-                        "arguments": func_args_str,
-                        "result": error_result,
-                        "success": False,
-                    })
+                    tool_results.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": func_name,
+                            "content": json.dumps(error_result),
+                        }
+                    )
+                    step_tool_calls.append(
+                        {
+                            "tool": func_name,
+                            "arguments": func_args_str,
+                            "result": error_result,
+                            "success": False,
+                        }
+                    )
                     continue
 
                 # 处理set_status工具调用
@@ -257,18 +293,24 @@ class ReActRouter(RouterBase):
                     results["status"] = status
                     if reason:
                         results["reason"] = reason
-                    tool_results.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": func_name,
-                        "content": json.dumps({"status": status, "message": "Status set successfully"}),
-                    })
-                    step_tool_calls.append({
-                        "tool": func_name,
-                        "arguments": func_args,
-                        "result": {"status": status},
-                        "success": True,
-                    })
+                    tool_results.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": func_name,
+                            "content": json.dumps(
+                                {"status": status, "message": "Status set successfully"}
+                            ),
+                        }
+                    )
+                    step_tool_calls.append(
+                        {
+                            "tool": func_name,
+                            "arguments": func_args,
+                            "result": {"status": status},
+                            "success": True,
+                        }
+                    )
                     get_logger().info(f"ReActRouter: Status set to {status}")
                     continue
 
@@ -276,46 +318,58 @@ class ReActRouter(RouterBase):
                 try:
                     result = await self._execute_tool(func_name, func_args, readonly)
                     result_str = json.dumps(result, default=str)
-                    tool_results.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": func_name,
-                        "content": result_str,
-                    })
+                    tool_results.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": func_name,
+                            "content": result_str,
+                        }
+                    )
                     results[func_name] = result
-                    step_tool_calls.append({
-                        "tool": func_name,
-                        "arguments": func_args,
-                        "result": result,
-                        "success": True,
-                    })
-                    get_logger().debug(f"ReActRouter: Executed tool {func_name}, result: {result_str[:200]}")
+                    step_tool_calls.append(
+                        {
+                            "tool": func_name,
+                            "arguments": func_args,
+                            "result": result,
+                            "success": True,
+                        }
+                    )
+                    get_logger().debug(
+                        f"ReActRouter: Executed tool {func_name}, result: {result_str[:200]}"
+                    )
                 except Exception as e:
                     error_msg = f"Error executing {func_name}: {str(e)}"
                     get_logger().error(f"ReActRouter: {error_msg}")
                     error_result = {"error": error_msg}
-                    tool_results.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": func_name,
-                        "content": json.dumps(error_result),
-                    })
-                    step_tool_calls.append({
-                        "tool": func_name,
-                        "arguments": func_args,
-                        "result": error_result,
-                        "success": False,
-                    })
+                    tool_results.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": func_name,
+                            "content": json.dumps(error_result),
+                        }
+                    )
+                    step_tool_calls.append(
+                        {
+                            "tool": func_name,
+                            "arguments": func_args,
+                            "result": error_result,
+                            "success": False,
+                        }
+                    )
                     # 如果工具执行失败，标记为 fail
                     status = "fail"
                     error = error_msg
 
             # 记录工具调用结果
-            execution_log.append({
-                "step": step_count,
-                "type": "tool_execution",
-                "tool_calls": step_tool_calls,
-            })
+            execution_log.append(
+                {
+                    "step": step_count,
+                    "type": "tool_execution",
+                    "tool_calls": step_tool_calls,
+                }
+            )
 
             # 将工具执行结果添加到对话
             dialog.extend(tool_results)
@@ -323,7 +377,9 @@ class ReActRouter(RouterBase):
         # 达到最大步数
         get_logger().warning(f"ReActRouter: Reached max steps ({self.max_steps})")
         # 构建过程文本
-        process_text = json.dumps(execution_log, indent=2, default=str) if execution_log else ""
+        process_text = (
+            json.dumps(execution_log, indent=2, default=str) if execution_log else ""
+        )
         # 使用基类的generate_final_answer生成最终答案
         final_answer, determined_status = await self.generate_final_answer(
             ctx, instruction, results, process_text, status, error
@@ -332,7 +388,6 @@ class ReActRouter(RouterBase):
         if error:
             results["error"] = error
         return results, final_answer
-
 
     async def _execute_tool(self, tool_name: str, args: dict, readonly: bool) -> Any:
         """执行工具调用"""
@@ -344,7 +399,9 @@ class ReActRouter(RouterBase):
         # 检查readonly约束
         readonly_tools = getattr(module.__class__, "_readonly_tools", {})
         if readonly and not readonly_tools.get(tool_name, False):
-            raise ValueError(f"Tool {tool_name} is not readonly, but readonly mode is enabled")
+            raise ValueError(
+                f"Tool {tool_name} is not readonly, but readonly mode is enabled"
+            )
 
         # 获取工具对象
         tool_obj = self._tool_name_to_tool_obj.get(tool_name)
@@ -358,18 +415,21 @@ class ReActRouter(RouterBase):
 
         # 执行工具函数（可能是async）
         import inspect
+
         if inspect.iscoroutinefunction(tool_func):
             result = await tool_func(module, **args)
         else:
             result = tool_func(module, **args)
 
         return result
-    
+
     def _build_initial_prompt(self, instruction: str, ctx: dict, readonly: bool) -> str:
         """构建初始prompt，包含ctx和instruction"""
-        readonly_note = " (READONLY MODE - you can only use read-only tools)" if readonly else ""
+        readonly_note = (
+            " (READONLY MODE - you can only use read-only tools)" if readonly else ""
+        )
         context_repr = repr(ctx)
-        
+
         prompt = f"""You are an AI assistant helping an agent accomplish tasks in a virtual world simulation environment.
 
 ## Agent Input
@@ -411,8 +471,5 @@ You have access to various environment tools. Use function calling to interact w
 - **error**: An error occurred during code execution. Must include error details.
 
 Let's start!"""
-        
+
         return prompt
-
-
-

@@ -24,6 +24,30 @@ _BUILTIN_ROOT = Path(__file__).resolve().parent
 
 @dataclass
 class SkillInfo:
+    """Metadata container for a skill.
+
+    Skills are discovered from SKILL.md YAML frontmatter. This dataclass
+    holds all metadata fields needed for skill discovery, activation, and execution.
+
+    :param name: Unique skill identifier.
+    :param description: Human-readable description for catalog display.
+    :param argument_hint: Hint for expected arguments format.
+    :param user_invocable: Whether this skill can be directly invoked by users.
+    :param allowed_tools: List of tools this skill is permitted to use.
+    :param script: Path to optional Python script (relative to skill directory).
+    :param executor: Execution mode (e.g., "codegen" for environment-routed skills).
+    :param source: Origin of skill: "builtin", "custom", or "env:<name>".
+    :param path: Absolute path to skill directory.
+    :param enabled: Whether skill is currently enabled.
+    :param disable_model_invocation: If True, hide from model selection catalog.
+    :param paths: Additional paths this skill provides access to.
+    :param requires: List of skill names that must be available.
+    :param outputs: List of output files this skill produces.
+    :param priority: Priority for ordering (higher = more important).
+    :param skill_md: Cached content of SKILL.md file.
+    :param _skill_md_loaded: Internal flag tracking if SKILL.md was loaded.
+    """
+
     name: str
     description: str = ""
     argument_hint: str = ""
@@ -37,6 +61,8 @@ class SkillInfo:
     disable_model_invocation: bool = False
     paths: list[str] = field(default_factory=list)
     requires: list[str] = field(default_factory=list)
+    outputs: list[str] = field(default_factory=list)
+    priority: int = 0
     skill_md: str = ""
     _skill_md_loaded: bool = False
 
@@ -60,7 +86,29 @@ def _get_global_subprocess_semaphore() -> asyncio.Semaphore:
 
 
 class SkillRegistry:
+    """Registry for skill discovery, management, and execution.
+
+    The SkillRegistry provides:
+    - Discovery: Scan skills from builtin, custom, and environment directories
+    - Listing: List skills with metadata for model selection
+    - Activation: Load and activate skill content on demand
+    - Execution: Run skill scripts with argument passing
+
+    Example usage::
+
+        registry = SkillRegistry()
+        registry.scan_builtin()
+
+        # List available skills
+        for info in registry.list_enabled():
+            print(f"{info.name}: {info.description}")
+
+        # Activate and get skill content
+        content = registry.activate("needs")
+    """
+
     def __init__(self) -> None:
+        """Initialize an empty skill registry."""
         self._skills: dict[str, SkillInfo] = {}
         self._builtin_scanned = False
 
@@ -174,7 +222,33 @@ class SkillRegistry:
                 entry["paths"] = list(info.paths)
             if info.requires:
                 entry["requires"] = list(info.requires)
+            if info.outputs:
+                entry["outputs"] = list(info.outputs)
+            if info.priority:
+                entry["priority"] = info.priority
             result.append(entry)
+        return result
+
+    def list_with_state(
+        self, workspace_files: set[str], names: list[str] | None = None
+    ) -> list[dict[str, Any]]:
+        """Return catalog entries with output file state information.
+
+        :param workspace_files: Set of file paths currently in workspace.
+        :param names: Optional filter by skill names.
+        :return: List of catalog entries with outputs_exist status.
+        """
+        base = self.list_selection_metadata(names=names, only_enabled=True)
+        result: list[dict[str, Any]] = []
+        for entry in base:
+            entry_copy = entry.copy()
+            outputs = entry.get("outputs", [])
+            if outputs:
+                entry_copy["outputs_exist"] = all(f in workspace_files for f in outputs)
+                entry_copy["outputs_missing"] = [
+                    f for f in outputs if f not in workspace_files
+                ]
+            result.append(entry_copy)
         return result
 
     # ---------- read ----------
@@ -266,6 +340,8 @@ class SkillRegistry:
             meta.get("disable_model_invocation", meta.get("disable-model-invocation"))
         )
         info.requires = _to_list(meta.get("requires"))
+        info.outputs = _to_list(meta.get("outputs"))
+        info.priority = int(meta.get("priority", 0))
         info._skill_md_loaded = False
         info.skill_md = ""
         return True
@@ -410,6 +486,8 @@ def _discover_skills(root: Path, source: str) -> list[SkillInfo]:
             ),
             paths=_to_list(meta.get("paths")),
             requires=_to_list(meta.get("requires")),
+            outputs=_to_list(meta.get("outputs")),
+            priority=int(meta.get("priority", 0)),
             _skill_md_loaded=False,
         )
         result.append(info)
