@@ -13,6 +13,7 @@ import argparse
 import asyncio
 import json
 import shutil
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 import aiohttp
@@ -401,6 +402,13 @@ This file records descriptions of high-value file paths and their meanings to he
 ## Ignore Files
 
 - `papers/`: The directory for storing literature search results or user-uploaded literature files. You SHOULD NOT read this directory directly, but use the `load_literature` tool to load the literature files.
+- `paper/`: The paper-orchestrator harness directory. Contains all state and artifacts for the Nature/Science-grade paper development OS:
+  - `paper/paper_meta.yaml` — title, authors, affiliations
+  - `paper/state/` — paper_state.yaml, research_pack.json, human_gates.yaml
+  - `paper/artifacts/` — storyline_map, claim_ledger, evidence_backlog, figure_argument_map
+  - `paper/artifacts/manuscript/` — abstract.md, main.md, results/*, discussion.md
+  - `paper/reviews/` — review_round_NNN.yaml
+  - `paper/runs/<TS>/compose/out/paper.pdf` — the compiled deliverable
 
 ## Progressive Context Loading
 
@@ -596,6 +604,51 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
             if prefill_result["success"]:
                 result["created"].append(".agentsociety/prefill_params.json")
             result["errors"].extend(prefill_result["errors"])
+
+            # 创建过程持久化文件
+            progress_file = target_dir / ".agentsociety" / "progress.json"
+            if not progress_file.exists():
+                progress_data = {
+                    "version": "1.0",
+                    "workspace": {
+                        "topic": topic or "",
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "current_stage": "literature_search",
+                        "current_hypothesis_id": None,
+                        "current_experiment_id": None,
+                    },
+                    "stages": {
+                        "literature_search": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
+                        "hypothesis": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
+                        "experiment_config": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
+                        "run_experiment": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
+                        "analysis": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
+                        "generate_paper": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
+                    },
+                    "hypotheses": {},
+                }
+                progress_file.write_text(json.dumps(progress_data, indent=2, ensure_ascii=False), encoding="utf-8")
+                result["created"].append(".agentsociety/progress.json")
+
+            decisions_file = target_dir / ".agentsociety" / "decisions.jsonl"
+            if not decisions_file.exists():
+                decisions_file.write_text("", encoding="utf-8")
+                result["created"].append(".agentsociety/decisions.jsonl")
+
+            session_file = target_dir / ".agentsociety" / "session.json"
+            if not session_file.exists():
+                session_data = {
+                    "version": "1.0",
+                    "session_id": str(uuid.uuid4()),
+                    "started_at": datetime.now(timezone.utc).isoformat(),
+                    "last_active_at": datetime.now(timezone.utc).isoformat(),
+                    "current_action": "workspace_initialized",
+                    "pending_decisions": [],
+                    "errors": [],
+                    "session_summary": "",
+                }
+                session_file.write_text(json.dumps(session_data, indent=2, ensure_ascii=False), encoding="utf-8")
+                result["created"].append(".agentsociety/session.json")
 
         if not result["errors"] or any("failed" in e.lower() for e in result["errors"]):
             # 只有没有严重错误时才标记为成功

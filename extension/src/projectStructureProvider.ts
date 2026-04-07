@@ -2044,24 +2044,6 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         items.push(item);
       }
 
-      // experiment_results.json
-      const resultsFile = path.join(runDir, 'experiment_results.json');
-      if (fs.existsSync(resultsFile)) {
-        const resultsItem = new ProjectItem(
-          isChinese ? '实验结果' : 'Experiment Results',
-          vscode.TreeItemCollapsibleState.None,
-          'file',
-          resultsFile
-        );
-        resultsItem.contextValue = 'json experimentResults';
-        resultsItem.command = {
-          command: 'aiSocialScientist.viewExperimentResults',
-          title: '查看实验结果',
-          arguments: [{ filePath: resultsFile }]
-        };
-        items.push(resultsItem);
-      }
-
       // pid.json
       const pidFile = path.join(runDir, 'pid.json');
       if (fs.existsSync(pidFile)) {
@@ -3011,6 +2993,14 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
    */
   syncBundledClaudeSkillToWorkspace(skillName: string): { success: boolean; message: string } {
     return this.workspaceManager.syncSingleBundledSkill(skillName);
+  }
+
+  /**
+   * Expose the SkillVersionManager so the skill marketplace webview / commands
+   * can list/apply/snapshot skill versions without re-creating the manager.
+   */
+  getSkillVersionManager() {
+    return this.workspaceManager.getVersionManager();
   }
 
   async updateExtensionSkills(): Promise<void> {

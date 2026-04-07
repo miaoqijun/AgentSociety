@@ -310,20 +310,6 @@
         "model": "高频操作 LLM 模型",
         "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
       },
-      "easypaper": {
-        "title": "EasyPaper（可选）",
-        "hint": "论文 PDF 排版服务",
-        "apiUrl": "EasyPaper API URL",
-        "apiUrlPlaceholder": "http://localhost:8004",
-        "llmApiKey": "EasyPaper 通用 LLM API Key",
-        "llmApiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
-        "llmModel": "EasyPaper LLM 模型",
-        "llmModelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）",
-        "vlmModel": "EasyPaper VLM 模型",
-        "vlmModelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）",
-        "vlmApiKey": "EasyPaper VLM API Key",
-        "vlmApiKeyPlaceholder": "可留空（保存后默认与 LLM API Key 保持一致）"
-      },
       "literature": {
         "title": "文献检索服务（可选）",
         "apiUrl": "文献检索 API URL",
@@ -493,6 +479,11 @@
     "viewDocumentation": "在编辑器打开 SKILL.md",
     "scanAgentSkills": "扫描工作区 Agent 技能",
     "syncExtensionSkills": "将内置模板复制到当前项目",
+    "switchSkillVersion": "切换版本",
+    "switchSkillVersionTip": "通过命令面板选择 preset 一键切换 agentsociety-* 全套版本",
+    "snapshotSkill": "快照",
+    "snapshotSkillTip": "为当前 .claude/skills/ 实际内容创建一个本地快照（保存在 ~/.agentsociety/skill-versions/）",
+    "editSkillPresets": "管理 Preset",
     "marketplace": "技能市场",
     "marketplaceAgent": "技能市场 · Agent 技能",
     "marketplaceClaude": "技能市场 · Claude 技能",

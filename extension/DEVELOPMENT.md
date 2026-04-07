@@ -111,7 +111,12 @@ extension/
 │   ├── agentsociety-scan-modules/    # 扫描模块
 │   ├── agentsociety-synthesize/      # 结果综合
 │   ├── agentsociety-web-research/    # 网络研究
-│   ├── agentsociety-generate-paper/  # 论文生成
+│   ├── agentsociety-paper-orchestrator/  # 论文生成 OS — 状态机 + 调度
+│   ├── agentsociety-paper-adapter/       # workspace → ResearchPack
+│   ├── agentsociety-paper-framing/       # storyline_map 生成
+│   ├── agentsociety-paper-evidence-expansion/  # 证据缺口审计
+│   ├── agentsociety-paper-architecture/  # claim tree + manuscript drafting
+│   ├── agentsociety-paper-skeptical-review/   # 多审稿人评审轮次
 │   ├── docx/                         # Word 文档处理
 │   ├── pdf/                          # PDF 文档处理
 │   ├── pptx/                         # PPT 文档处理
@@ -159,7 +164,6 @@ extension/
 
 - **Python 环境配置**
 - **文献检索配置**
-- **EasyPaper 配置**
 - **配置验证功能**
 
 ### 3. 帮助页面 (HelpPageViewProvider)

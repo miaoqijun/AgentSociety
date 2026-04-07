@@ -49,11 +49,6 @@ const DEFAULT_VALUES: ConfigValues = {
   webSearchApiToken: '',
   miroflowDefaultLlm: 'qwen-3',
   miroflowDefaultAgent: 'mirothinker_v1.5_keep5_max200',
-  easypaperApiUrl: '',
-  easypaperLlmApiKey: '',
-  easypaperLlmModel: '',
-  easypaperVlmModel: '',
-  easypaperVlmApiKey: '',
   literatureSearchApiUrl: 'http://localhost:8008/api/search',
   literatureSearchApiKey: '',
 };
@@ -89,8 +84,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
         return (values.analysisLlmApiKey || values.llmApiKey || '').trim();
       case 'embedding':
         return (values.embeddingApiKey || values.llmApiKey || '').trim();
-      case 'easypaperVlm':
-        return (values.easypaperVlmApiKey || values.easypaperLlmApiKey || values.llmApiKey || '').trim();
       default:
         return (values.llmApiKey || '').trim();
     }
@@ -106,8 +99,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
         return (values.analysisLlmApiBase || values.llmApiBase || '').trim();
       case 'embedding':
         return (values.embeddingApiBase || values.llmApiBase || '').trim();
-      case 'easypaperVlm':
-        return (values.llmApiBase || '').trim();
       default:
         return (values.llmApiBase || '').trim();
     }
@@ -147,7 +138,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   const analysisValidateDisabledReason = getValidationDisabledReason('analysis', currentValues);
   const embeddingValidateDisabledReason = getValidationDisabledReason('embedding', currentValues);
   const pythonValidateDisabledReason = null;
-  const easypaperVlmValidateDisabledReason = getValidationDisabledReason('easypaperVlm', currentValues);
   const literatureValidateDisabledReason = getValidationDisabledReason('literature', currentValues);
   const [loading, setLoading] = React.useState(false);
   const [startingBackend, setStartingBackend] = React.useState(false);
@@ -160,7 +150,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     nano: { validating: false, valid: null, error: null },
     analysis: { validating: false, valid: null, error: null },
     embedding: { validating: false, valid: null, error: null },
-    easypaperVlm: { validating: false, valid: null, error: null },
     python: { validating: false, valid: null, error: null },
     literature: { validating: false, valid: null, error: null },
   });
@@ -228,7 +217,12 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     }
 
     // For coder/nano/analysis/embedding, check if default LLM config is filled in the form
-    if (['coder', 'nano', 'analysis', 'embedding', 'easypaperVlm'].includes(llmType)) {
+    if ([
+      'coder',
+      'nano',
+      'analysis',
+      'embedding',
+    ].includes(llmType)) {
       const effectiveApiKey = getEffectiveApiKey(values, llmType);
       if (!effectiveApiKey) {
         notification.warning({
@@ -906,71 +900,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                         {validationState.python.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8, borderRadius: 6 }} />}
                         <Tooltip title={pythonValidateDisabledReason || ''}>
                           <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('python')} loading={validationState.python?.validating}>{t('configPage.validate')}</Button>
-                        </Tooltip>
-                      </Card>
-
-                      {/* EasyPaper */}
-                      <Card
-                        size="small"
-                        title={
-                          <Space>
-                            <span>{t('configPage.advanced.easypaper.title')}</span>
-                            <Tooltip title={t('configPage.advanced.easypaper.hint')}><QuestionCircleOutlined style={{ color: palette.descriptionForeground }} /></Tooltip>
-                          </Space>
-                        }
-                        style={{
-                          marginBottom: 12,
-                          borderRadius: 10,
-                          border: `1px solid ${palette.panelBorder}`,
-                          background: isDark
-                            ? 'rgba(37, 37, 38, 0.5)'
-                            : 'rgba(255, 255, 255, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                        }}
-                        styles={{ body: { padding: '12px 16px' } }}
-                      >
-                        <Form.Item name="easypaperApiUrl" label={t('configPage.advanced.easypaper.apiUrl')}>
-                          <Input placeholder={t('configPage.advanced.easypaper.apiUrlPlaceholder')} />
-                        </Form.Item>
-                        <Form.Item name="easypaperLlmApiKey" label={t('configPage.advanced.easypaper.llmApiKey')}>
-                          <Input.Password
-                            placeholder={t('configPage.linkedPlaceholders.apiKey', {
-                              status: hasDefaultLlmKey
-                                ? t('configPage.linkedPlaceholders.configured')
-                                : t('configPage.linkedPlaceholders.notConfigured'),
-                            })}
-                            autoComplete="off"
-                          />
-                        </Form.Item>
-                        <Form.Item name="easypaperLlmModel" label={t('configPage.advanced.easypaper.llmModel')}>
-                          <Input placeholder={t('configPage.advanced.easypaper.llmModelPlaceholder', { model: defaultLlmModel })} />
-                        </Form.Item>
-                        <Form.Item name="easypaperVlmModel" label={t('configPage.advanced.easypaper.vlmModel')}>
-                          <Input placeholder={t('configPage.advanced.easypaper.vlmModelPlaceholder', { model: defaultLlmModel })} />
-                        </Form.Item>
-                        <Form.Item name="easypaperVlmApiKey" label={t('configPage.advanced.easypaper.vlmApiKey')}>
-                          <Input.Password
-                            placeholder={t('configPage.linkedPlaceholders.apiKey', {
-                              status: hasDefaultLlmKey
-                                ? t('configPage.linkedPlaceholders.configured')
-                                : t('configPage.linkedPlaceholders.notConfigured'),
-                            })}
-                            autoComplete="off"
-                          />
-                        </Form.Item>
-                        {validationState.easypaperVlm.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.easypaperVlm.error} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        {validationState.easypaperVlm.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        <Tooltip title={easypaperVlmValidateDisabledReason || ''}>
-                          <Button
-                            size="small"
-                            icon={<CheckCircleOutlined />}
-                            onClick={() => handleValidate('easypaperVlm')}
-                            loading={validationState.easypaperVlm?.validating}
-                            disabled={Boolean(easypaperVlmValidateDisabledReason)}
-                          >
-                            {t('configPage.validate')}
-                          </Button>
                         </Tooltip>
                       </Card>
 

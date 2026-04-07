@@ -8,6 +8,9 @@
 import * as vscode from 'vscode';
 import type { SSEEvent } from '../shared/messages';
 import { getBackendAccessUrl } from '../runtimeConfig';
+import { fetchCompat } from '../shared/fetchCompat';
+
+const fetch = fetchCompat as unknown as typeof globalThis.fetch;
 
 export interface BackendStatus {
   connected: boolean;

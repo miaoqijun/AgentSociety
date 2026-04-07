@@ -26,11 +26,6 @@ const LEGACY_ENV_SETTING_MAP: Array<{
   { settingKey: 'env.webSearchApiToken', envKey: 'webSearchApiToken' },
   { settingKey: 'env.miroflowDefaultLlm', envKey: 'miroflowDefaultLlm' },
   { settingKey: 'env.miroflowDefaultAgent', envKey: 'miroflowDefaultAgent' },
-  { settingKey: 'env.easypaperApiUrl', envKey: 'easypaperApiUrl' },
-  { settingKey: 'env.easypaperLlmApiKey', envKey: 'easypaperLlmApiKey' },
-  { settingKey: 'env.easypaperLlmModel', envKey: 'easypaperLlmModel' },
-  { settingKey: 'env.easypaperVlmModel', envKey: 'easypaperVlmModel' },
-  { settingKey: 'env.easypaperVlmApiKey', envKey: 'easypaperVlmApiKey' },
   { settingKey: 'env.literatureSearchApiUrl', envKey: 'literatureSearchApiUrl' },
 ];
 

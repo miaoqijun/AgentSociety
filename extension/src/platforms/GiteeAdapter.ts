@@ -5,6 +5,9 @@
 
 import * as vscode from 'vscode';
 import type { PlatformAdapter, RepoItem, SkillSource } from './PlatformAdapter';
+import { fetchCompat } from '../shared/fetchCompat';
+
+const fetch = fetchCompat as unknown as typeof globalThis.fetch;
 
 export class GiteeAdapter implements PlatformAdapter {
   readonly name = 'Gitee';

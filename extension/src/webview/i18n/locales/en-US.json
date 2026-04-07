@@ -310,20 +310,6 @@
         "model": "High-Frequency LLM Model",
         "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
       },
-      "easypaper": {
-        "title": "EasyPaper (optional)",
-        "hint": "Paper PDF typesetting service",
-        "apiUrl": "EasyPaper API URL",
-        "apiUrlPlaceholder": "http://localhost:8004",
-        "llmApiKey": "EasyPaper General LLM API Key",
-        "llmApiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
-        "llmModel": "EasyPaper LLM Model",
-        "llmModelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})",
-        "vlmModel": "EasyPaper VLM Model",
-        "vlmModelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})",
-        "vlmApiKey": "EasyPaper VLM API Key",
-        "vlmApiKeyPlaceholder": "Leave blank (it will default to the LLM API key after saving)"
-      },
       "literature": {
         "title": "Literature Search Service (optional)",
         "apiUrl": "Literature Search API URL",
@@ -493,6 +479,11 @@
     "viewDocumentation": "Open SKILL.md in editor",
     "scanAgentSkills": "Scan workspace for agent skills",
     "syncExtensionSkills": "Copy bundled templates into this project",
+    "switchSkillVersion": "Switch Version",
+    "switchSkillVersionTip": "Pick a preset from the command palette to switch all agentsociety-* skills at once",
+    "snapshotSkill": "Snapshot",
+    "snapshotSkillTip": "Snapshot the current .claude/skills/ contents into ~/.agentsociety/skill-versions/",
+    "editSkillPresets": "Manage Presets",
     "marketplace": "Marketplace",
     "marketplaceAgent": "Marketplace · Agent skills",
     "marketplaceClaude": "Marketplace · Claude skills",

@@ -218,7 +218,7 @@ PersonAgent follows a **metadata-first, selected-only** model:
 - **experiment**: Experiment configuration and execution
 - **hypothesis**: Hypothesis generation and management
 - **web_research**: Web research using Miro
-- **paper**: Academic paper generation with EasyPaper
+- **paper**: Academic paper generation (rewriting: will be replaced by the `agentsociety-paper-orchestrator` skill suite that produces a Nature-style PDF via LaTeX)
 - **analysis**: Data analysis and reporting
 - **agent**: Agent processing, selection, generation, and filtering
 

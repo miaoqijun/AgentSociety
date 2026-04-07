@@ -14,6 +14,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { getBackendAccessUrl } from './runtimeConfig';
+import { fetchCompat } from './shared/fetchCompat';
 import type {
   AgentProfile,
   ExperimentInfo,
@@ -25,6 +26,8 @@ import type {
   TimelinePoint,
   WebviewMessage,
 } from './webview/replay/types';
+
+const fetch = fetchCompat as unknown as typeof globalThis.fetch;
 
 export class ReplayWebviewProvider {
   private readonly panel: vscode.WebviewPanel;

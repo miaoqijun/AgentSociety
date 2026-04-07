@@ -12,6 +12,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { randomUUID } from 'crypto';
+import { SkillVersionManager } from './skillVersionManager';
 
 export interface WorkspaceInitOptions {
   topic: string;
@@ -28,10 +30,19 @@ export interface WorkspaceInitResult {
 export class WorkspaceManager {
   private outputChannel: vscode.OutputChannel;
   private skillsSourcePath: string;
+  private runtimeSourcePath: string;
+  private versionManager: SkillVersionManager;
 
   constructor(context: vscode.ExtensionContext) {
     this.outputChannel = vscode.window.createOutputChannel('Workspace Manager');
     this.skillsSourcePath = path.join(context.extensionPath, 'skills');
+    this.runtimeSourcePath = path.join(context.extensionPath, 'runtime');
+    this.versionManager = new SkillVersionManager(context, this.outputChannel);
+  }
+
+  /** Expose version manager for callers (commands, webview provider). */
+  public getVersionManager(): SkillVersionManager {
+    return this.versionManager;
   }
 
   private log(message: string): void {
@@ -175,7 +186,7 @@ export class WorkspaceManager {
 
       reportProgress('正在创建工作区配置...');
 
-      // Create .agentsociety directory for internal state (prefill_params.json)
+      // Create .agentsociety directory for internal state and persisted workflow files
       const agentsocietyDir = path.join(workspacePath, '.agentsociety');
       if (!fs.existsSync(agentsocietyDir)) {
         fs.mkdirSync(agentsocietyDir, { recursive: true });
@@ -183,18 +194,7 @@ export class WorkspaceManager {
         this.log(`Created: ${agentsocietyDir}`);
       }
 
-      // Create prefill_params.json file
-      const prefillParamsPath = path.join(agentsocietyDir, 'prefill_params.json');
-      if (!fs.existsSync(prefillParamsPath)) {
-        const prefillParams = {
-          version: '1.0',
-          env_modules: {},
-          agents: {}
-        };
-        fs.writeFileSync(prefillParamsPath, JSON.stringify(prefillParams, null, 2), 'utf-8');
-        filesCreated.push('.agentsociety/prefill_params.json');
-        this.log(`Created: ${prefillParamsPath}`);
-      }
+      this.ensureWorkspaceStateFiles(workspacePath, options.topic, filesCreated);
 
       // Create CLAUDE.md with technical project guidance
       const claudeMdPath = path.join(workspacePath, 'CLAUDE.md');
@@ -353,7 +353,8 @@ export class WorkspaceManager {
    *
    * The extension keeps a read-only copy of AgentSociety skills under
    * `extension/skills/` for UI browsing, but Claude Code discovers them from
-   * the workspace-local `.claude/skills/` directory.
+   * the workspace-local `.claude/skills/` directory. Runtime launcher assets
+   * are synced into `.agentsociety/bin/`.
    */
   public syncClaudeCodeResources(
     workspacePath?: string
@@ -382,6 +383,13 @@ export class WorkspaceManager {
     const created: string[] = [];
     const synced: string[] = [];
 
+    const runtimeResult = this.syncWorkspaceRuntimeAssets(workspacePath);
+    if (!runtimeResult.success) {
+      return runtimeResult;
+    }
+    created.push(...runtimeResult.created);
+    synced.push(...runtimeResult.synced);
+
     if (!fs.existsSync(claudeDir)) {
       fs.mkdirSync(claudeDir, { recursive: true });
       created.push('.claude/');
@@ -395,6 +403,10 @@ export class WorkspaceManager {
     }
 
     for (const item of fs.readdirSync(this.skillsSourcePath)) {
+      // agentsociety-* skills are version-managed; applyPreset handles them below.
+      if (SkillVersionManager.isVersioned(item)) {
+        continue;
+      }
       const sourcePath = path.join(this.skillsSourcePath, item);
       const targetPath = path.join(targetDir, item);
 
@@ -421,6 +433,23 @@ export class WorkspaceManager {
       }
     }
 
+    // Apply the active version preset to materialize agentsociety-* skills as symlinks.
+    const applyResult = this.versionManager.applyPreset(workspacePath);
+    for (const a of applyResult.applied) {
+      synced.push(a.skill);
+    }
+    if (applyResult.errors.length > 0) {
+      this.log(
+        `applyPreset[${applyResult.preset}] reported ${applyResult.errors.length} error(s): ` +
+          applyResult.errors.map((e) => `${e.skill}: ${e.message}`).join('; '),
+      );
+    }
+    if (applyResult.fallbacks.length > 0) {
+      this.log(
+        `applyPreset[${applyResult.preset}] fell back to defaults for: ${applyResult.fallbacks.join(', ')}`,
+      );
+    }
+
     if (synced.length === 0) {
       return {
         success: false,
@@ -435,6 +464,56 @@ export class WorkspaceManager {
       message: `已同步 ${synced.length} 个 Claude Code 资源`,
       created,
       synced,
+    };
+  }
+
+  private syncWorkspaceRuntimeAssets(
+    workspacePath: string
+  ): { success: boolean; message: string; created: string[]; synced: string[] } {
+    const sourceBinDir = path.join(this.runtimeSourcePath, 'agentsociety', 'bin');
+    if (!fs.existsSync(sourceBinDir) || !fs.statSync(sourceBinDir).isDirectory()) {
+      return {
+        success: false,
+        message: `扩展运行时目录不存在: ${sourceBinDir}`,
+        created: [],
+        synced: [],
+      };
+    }
+
+    const agentsocietyDir = path.join(workspacePath, '.agentsociety');
+    const targetBinDir = path.join(agentsocietyDir, 'bin');
+    const created: string[] = [];
+
+    if (!fs.existsSync(agentsocietyDir)) {
+      fs.mkdirSync(agentsocietyDir, { recursive: true });
+      created.push('.agentsociety/');
+      this.log(`Created: ${agentsocietyDir}`);
+    }
+
+    if (fs.existsSync(targetBinDir)) {
+      fs.rmSync(targetBinDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(targetBinDir, { recursive: true });
+    created.push('.agentsociety/bin/');
+    this.log(`Created: ${targetBinDir}`);
+
+    try {
+      this.copyDirectoryRecursive(sourceBinDir, targetBinDir);
+    } catch (error) {
+      this.log(`Failed to copy runtime assets ${sourceBinDir}: ${error}`);
+      return {
+        success: false,
+        message: `无法同步工作区运行时资源: ${sourceBinDir}`,
+        created,
+        synced: [],
+      };
+    }
+
+    return {
+      success: true,
+      message: '已同步工作区运行时资源',
+      created,
+      synced: ['.agentsociety/bin/ags.py'],
     };
   }
 
@@ -456,6 +535,24 @@ export class WorkspaceManager {
       return { success: false, message: `扩展技能目录不存在: ${this.skillsSourcePath}` };
     }
 
+    // agentsociety-* skills go through the version manager (active preset → symlink).
+    if (SkillVersionManager.isVersioned(trimmed)) {
+      const result = this.versionManager.applyPreset(workspacePath);
+      const applied = result.applied.find((a) => a.skill === trimmed);
+      if (applied) {
+        return {
+          success: true,
+          message: `已应用 preset「${result.preset}」中的 ${trimmed}（${applied.mode}）`,
+        };
+      }
+      const errored = result.errors.find((e) => e.skill === trimmed);
+      if (errored) {
+        return { success: false, message: `同步失败 ${trimmed}: ${errored.message}` };
+      }
+      return { success: false, message: `未找到技能 ${trimmed}` };
+    }
+
+    // Office / legacy skills: keep flat copy.
     const sourcePath = path.join(this.skillsSourcePath, trimmed);
     if (!fs.existsSync(sourcePath)) {
       return { success: false, message: `扩展中不存在技能: ${trimmed}` };
@@ -614,6 +711,9 @@ export class WorkspaceManager {
     fs.mkdirSync(target, { recursive: true });
 
     for (const item of fs.readdirSync(source)) {
+      if (item === '__pycache__' || item.endsWith('.pyc')) {
+        continue;
+      }
       const sourcePath = path.join(source, item);
       const targetPath = path.join(target, item);
       const stat = fs.statSync(sourcePath);
@@ -728,6 +828,7 @@ export class WorkspaceManager {
     const entriesToAdd = [
       '.env',
       '.claude/',
+      '.agentsociety/session.json',
       '# Python cache files in custom/',
       'custom/**/__pycache__/',
       'custom/**/*.pyc',
@@ -780,183 +881,271 @@ This file provides guidance to Claude Code when working in this AI Social Scient
 
 ---
 
-## Python Environment
+## Session Start
 
-**CRITICAL**: All skills require \`agentsociety2\` to be installed in the Python environment.
+At the start of a new task or when resuming work:
 
-### Finding the Correct Python
-
-The workspace \`.env\` file contains \`PYTHON_PATH\` pointing to the Python environment with agentsociety2 installed:
+1. Read \`TOPIC.md\` to understand the research goal.
+2. Read \`.env\` and resolve \`PYTHON_PATH\`.
+3. Run:
 
 \`\`\`bash
-# Read PYTHON_PATH from .env (with fallback to python3)
+PYTHON_PATH=$(grep "^PYTHON_PATH=" .env | cut -d'=' -f2)
+PYTHON_PATH=\${PYTHON_PATH:-python3}
+$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline where-am-i --json
+\`\`\`
+
+Treat the returned pipeline state as the default source of truth for what to do next.
+
+---
+
+## Python Environment
+
+All Claude Code skills in this workspace require \`agentsociety2\` to be available in the configured Python environment.
+
+Always prefer the interpreter from \`.env\`:
+
+\`\`\`bash
 PYTHON_PATH=$(grep "^PYTHON_PATH=" .env | cut -d'=' -f2)
 PYTHON_PATH=\${PYTHON_PATH:-python3}
 \`\`\`
 
-### Why PYTHON_PATH Matters
+Required environment variables:
 
-- Dependencies are managed via \`uv\`, not system Python
-- Skills auto-load \`.env\` but use the calling Python interpreter
-- Always use \`$PYTHON_PATH\` to ensure agentsociety2 is available
+- \`AGENTSOCIETY_LLM_API_KEY\`
+- \`AGENTSOCIETY_LLM_API_BASE\`
+- \`AGENTSOCIETY_LLM_MODEL\`
 
----
+Why this matters:
 
-## Research Workflow (Execution Order)
-
-Follow this sequence for social science research:
-
-\`\`\`
-1. Define Research Topic (TOPIC.md)
-   └─> Define research question and objectives
-
-2. Literature Review
-   └─> agentsociety-literature-search
-   └─> agentsociety-web-research
-
-3. Dataset Exploration (optional but recommended)
-   └─> agentsociety-use-dataset (list → search → readme → download)
-
-4. Generate Hypothesis
-   └─> agentsociety-hypothesis add
-
-5. Initialize Experiment
-   └─> agentsociety-experiment-config (validate → prepare → info → run → check, supports questionnaire steps)
-
-6. Run Experiment
-   └─> agentsociety-run-experiment start
-
-7. Analyze Results
-   └─> agentsociety-analysis
-
-8. Generate Report
-   └─> agentsociety-synthesize
-
-9. Share Dataset (optional)
-   └─> agentsociety-create-dataset (init → validate → pack → upload)
-
-10. Refine Hypothesis/Experiment
-   └─> Repeat from step 3 with new insights
-\`\`\`
+- Dependencies are managed via \`uv\`, not system Python.
+- Skill scripts use the calling interpreter.
+- Using the wrong interpreter usually means \`agentsociety2\` is not importable.
 
 ---
 
-## Workspace Structure
+## Primary State Files
+
+The workspace keeps durable execution state under \`.agentsociety/\`. Claude Code should use these files as working memory for the research process.
+
+| File | Role | How to use it |
+|------|------|---------------|
+| \`.agentsociety/progress.json\` | Pipeline stage tracker | Read first when deciding the next research step |
+| \`.agentsociety/control_plane.json\` | Approvals, blockers, risks, assumptions | Check before risky or blocked actions |
+| \`.agentsociety/claims.json\` | Structured findings and review state | Use during analysis and paper generation |
+| \`.agentsociety/decisions.jsonl\` | Append-only decision log | Record important choices and rationale |
+| \`.agentsociety/session.json\` | Runtime session state | Useful for current session context, but not the primary long-term source of truth |
+| \`.agentsociety/bin/ags.py\` | Stable workspace launcher | Prefer this entry point for bundled workflow operations |
+
+Prefer updating pipeline state through \`.agentsociety/bin/ags.py research-pipeline ...\` instead of editing state files manually.
+
+---
+
+## Workspace Map
 
 \`\`\`
 .
-├── TOPIC.md              # Research topic and goals
-├── CLAUDE.md             # This file - technical guidance
-├── AGENTS.md             # Symlink to CLAUDE.md
-├── .claude/              # Claude Code workspace resources
-│   └── skills/           # Synced AgentSociety skills for Claude Code
-├── .env                  # Environment configuration (API keys, PYTHON_PATH, etc)
-├── papers/               # Literature storage
-│   ├── literature_index.json  # Literature catalog
-│   └── literature/            # Individual article summaries
-├── user_data/            # User data storage for custom datasets
-├── datasets/             # Downloaded datasets from the platform
-│   └── {dataset_id}/     # Each dataset has its own directory
-│       ├── metadata.json # Dataset metadata (name, version, category, etc.)
-│       ├── README.md     # Dataset description and usage guide
-│       └── data/         # Actual data files
-├── custom/               # Custom Agent and Environment modules
-│   ├── agents/               # Custom agent definitions
-│   │   └── examples/         # Example agents (reference only)
-│   ├── envs/                 # Custom environment modules
-│   │   └── examples/         # Example environments (reference only)
-│   └── README.md             # Custom module development guide
-├── .agentsociety/        # Internal workspace state
-│   └── prefill_params.json  # Pre-filled parameters for modules
-├── hypothesis_{id}/      # Hypothesis directories
-│   ├── HYPOTHESIS.md         # Hypothesis description and groups
-│   ├── SIM_SETTINGS.json     # Agent and env module selection
-│   └── experiment_{id}/
-│       ├── EXPERIMENT.md     # Experiment description
-│       ├── init/             # Configuration files (simplified)
-│       │   ├── config_params.py  # Parameter generation script
-│       │   ├── init_config.json  # Experiment configuration
-│       │   └── steps.yaml        # Execution steps
-│       ├── run/              # Simulation outputs
-│       │   ├── sqlite.db         # Simulation database
-│       │   ├── stdout.log        # Standard output
-│       │   ├── stderr.log        # Error messages
-│       │   └── pid.json          # Process ID file (when running)
-│       └── data/             # Analysis results
-│           ├── analysis_summary.json
-│           ├── report.md
-│           └── figures/
-├── presentation/         # Experiment analysis reports
-│   └── hypothesis_{id}/
-│       └── experiment_{id}/
-│           ├── synthesis_report_zh.md
-│           └── synthesis_report_en.md
-└── synthesis/            # Comprehensive synthesis reports
-    ├── synthesis_report_YYYYMMDD_zh.md
-    ├── synthesis_report_YYYYMMDD_en.md
-    ├── synthesis_report_YYYYMMDD_zh.html
-    └── synthesis_report_YYYYMMDD_en.html
+├── TOPIC.md
+├── CLAUDE.md
+├── AGENTS.md
+├── .env
+├── .claude/
+│   └── skills/                 # Claude Code skill bundle for this workspace
+├── .agentsociety/
+│   ├── progress.json
+│   ├── control_plane.json
+│   ├── claims.json
+│   ├── decisions.jsonl
+│   ├── session.json
+│   └── bin/ags.py
+├── papers/                     # Literature outputs
+├── datasets/                   # Downloaded datasets
+├── user_data/                  # User-provided data files
+├── custom/
+│   ├── agents/                 # Custom agent code
+│   ├── envs/                   # Custom environment module code
+│   └── README.md
+├── hypothesis_{id}/            # Hypothesis and experiment folders
+├── presentation/               # Analysis reports and assets
+├── synthesis/                  # Cross-hypothesis synthesis outputs
+└── paper/                      # Workspace-level paper outputs
 \`\`\`
 
-### Directory Notes
-
-- **custom/** - Create your custom Agent and Environment modules here. See \`custom/README.md\` for development guide.
-- **user_data/** - Store your custom datasets and data files here for experiment configuration.
-- **datasets/** - Downloaded datasets from the AgentSociety platform. Managed by \`agentsociety-use-dataset\`.
-- **.agentsociety/** - Internal workspace state, managed by the system.
-- **Claude Code conversations** - Stored outside the workspace at \`~/.claude/projects/<workspace-path-encoded>/\`. The workspace exporter includes the matching directory when it exists.
+Most tasks should begin with \`TOPIC.md\`, \`.agentsociety/progress.json\`, and the relevant hypothesis or report directory.
 
 ---
 
-## User Dialogue Style
+## Skill Routing
 
-When interacting with users:
+Claude Code loads the workspace-local skill bundle from \`.claude/skills/\`.
 
-### 1. Academic Tone
-- Use academic terminology and maintain professionalism
-- Be precise with terminology
-- Acknowledge uncertainty and limitations
+Use this routing model:
 
-### 2. Language Matching
-- Match the user's language (Chinese or English)
-- Maintain consistency throughout the conversation
+- Start with \`agentsociety-research-pipeline\` when the current stage is unclear.
+- Use \`agentsociety-literature-search\` for academic literature collection.
+- Use \`agentsociety-web-research\` for supplementary web context.
+- Use \`agentsociety-scan-modules\` before hypothesis creation or experiment configuration.
+- Use \`agentsociety-hypothesis\` to create or revise hypotheses.
+- Use \`agentsociety-experiment-config\` to prepare \`init_config.json\` and \`steps.yaml\`.
+- Use \`agentsociety-run-experiment\` only after configuration is ready and checked.
+- Use \`agentsociety-analysis\` once experiment outputs exist.
+- Use \`agentsociety-paper-orchestrator\` after analysis artifacts and reviewed claims are ready.
+- Use \`agentsociety-use-dataset\` or \`agentsociety-create-dataset\` only when data acquisition or publishing is part of the task.
 
-### 3. Guidance Flow
-- Proactively guide users to the next step
-- After completing a step, suggest the next action
-- Explain the current step's position in the overall research workflow
-- Provide optional research paths
+Preferred command examples:
 
-### 4. Ask Questions
-- Frequently ask questions to clarify user requirements:
-- "Which specific research direction are you interested in?"
-- "What is the theoretical basis for this hypothesis?"
-- "What results do you expect to observe?"
-- "How many agents should participate in the experiment?"
-
----
-
-## Quick Skill Reference
-
-| Skill | Purpose | Example |
-|-------|---------|---------|
-| \`agentsociety-scan-modules\` | List available agents/envs | \`list --short\` |
-| \`agentsociety-hypothesis\` | Manage hypotheses | \`add\`, \`list\`, \`get\` |
-| \`agentsociety-experiment-config\` | Generate experiment config, including questionnaire steps | \`validate\`, \`prepare\`, \`run\` |
-| \`agentsociety-run-experiment\` | Execute simulations | \`start\`, \`status\`, \`stop\` |
-| \`agentsociety-analysis\` | Analyze results | \`--hypothesis-id 1 --experiment-id 1\` |
-| \`agentsociety-synthesize\` | Create reports | Bilingual synthesis |
-| \`agentsociety-use-dataset\` | Browse & download datasets | \`list\`, \`search\`, \`download\` |
-| \`agentsociety-create-dataset\` | Create & share datasets | \`init\`, \`validate\`, \`upload\` |
+\`\`\`bash
+$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline where-am-i --json
+$PYTHON_PATH .agentsociety/bin/ags.py scan-modules list --short
+$PYTHON_PATH .agentsociety/bin/ags.py hypothesis list --json
+$PYTHON_PATH .agentsociety/bin/ags.py experiment-config validate --hypothesis-id 1 --experiment-id 1
+$PYTHON_PATH .agentsociety/bin/ags.py run-experiment status --hypothesis-id 1 --experiment-id 1
+$PYTHON_PATH .agentsociety/bin/ags.py analysis load-context --workspace . --hypothesis-id 1 --experiment-id 1
+\`\`\`
 
 ---
 
-## Skills Notes
+## Operating Rules
 
-- Use the VSCode extension tree view to browse:
-  - **Agent Skills** (backend-managed, supports import/reload)
-  - **AgentSociety Skills** (extension bundled, read-only)
-- Claude Code loads the synced workspace-local skill bundle from \`.claude/skills/\`
+Do:
+
+- Match the user's language.
+- Explain the current pipeline stage when it matters to the next action.
+- Prefer \`.agentsociety/bin/ags.py\` over ad hoc helper scripts for workflow operations.
+- Update pipeline state after completing a stage or resolving a meaningful blocker.
+- Read relevant state files before asking the user for information that may already exist in the workspace.
+
+Do not:
+
+- Guess the current stage when \`research-pipeline where-am-i --json\` can tell you.
+- Use system Python by default when \`.env\` provides \`PYTHON_PATH\`.
+- Edit \`.agentsociety/*.json\` or \`.jsonl\` manually unless there is a clear reason not to use the CLI.
+- Start analysis before experiment outputs exist.
+- Start paper generation before analysis outputs and claim review are in place.
+`;
+  }
+
+  private ensureWorkspaceStateFiles(
+    workspacePath: string,
+    topic: string,
+    filesCreated: string[]
+  ): void {
+    const agentsocietyDir = path.join(workspacePath, '.agentsociety');
+
+    const writeJsonIfMissing = (relativePath: string, payload: unknown) => {
+      const absolutePath = path.join(workspacePath, relativePath);
+      if (fs.existsSync(absolutePath)) {
+        return;
+      }
+      fs.writeFileSync(absolutePath, JSON.stringify(payload, null, 2), 'utf-8');
+      filesCreated.push(relativePath);
+      this.log(`Created: ${absolutePath}`);
+    };
+
+    const writeTextIfMissing = (relativePath: string, content: string) => {
+      const absolutePath = path.join(workspacePath, relativePath);
+      if (fs.existsSync(absolutePath)) {
+        return;
+      }
+      fs.writeFileSync(absolutePath, content, 'utf-8');
+      filesCreated.push(relativePath);
+      this.log(`Created: ${absolutePath}`);
+    };
+
+    fs.mkdirSync(path.join(agentsocietyDir, 'agent_classes'), { recursive: true });
+    fs.mkdirSync(path.join(agentsocietyDir, 'env_modules'), { recursive: true });
+    fs.mkdirSync(path.join(agentsocietyDir, 'data'), { recursive: true });
+    fs.mkdirSync(path.join(agentsocietyDir, 'custom_env_skill', 'runs'), { recursive: true });
+
+    writeTextIfMissing('.agentsociety/path.md', this.getWorkspacePathMemoryContent());
+
+    writeJsonIfMissing('.agentsociety/prefill_params.json', {
+      version: '1.0',
+      env_modules: {},
+      agents: {},
+    });
+
+    writeJsonIfMissing('.agentsociety/progress.json', {
+      version: '1.0',
+      workspace: {
+        topic: topic || '',
+        created_at: new Date().toISOString(),
+        current_stage: 'literature_search',
+        current_hypothesis_id: null,
+        current_experiment_id: null,
+      },
+      stages: {
+        literature_search: { status: 'not_started', started_at: null, completed_at: null, attempts: 0, error: null, metadata: {} },
+        hypothesis: { status: 'not_started', started_at: null, completed_at: null, attempts: 0, error: null, metadata: {} },
+        experiment_config: { status: 'not_started', started_at: null, completed_at: null, attempts: 0, error: null, metadata: {} },
+        run_experiment: { status: 'not_started', started_at: null, completed_at: null, attempts: 0, error: null, metadata: {} },
+        analysis: { status: 'not_started', started_at: null, completed_at: null, attempts: 0, error: null, metadata: {} },
+        generate_paper: { status: 'not_started', started_at: null, completed_at: null, attempts: 0, error: null, metadata: {} },
+      },
+      hypotheses: {},
+    });
+
+    writeJsonIfMissing('.agentsociety/control_plane.json', {
+      version: '1.0',
+      current_focus: {
+        stage: null,
+        hypothesis_id: null,
+        experiment_id: null,
+        artifact: null,
+      },
+      next_recommended_actions: [],
+      pending_approvals: [],
+      open_risks: [],
+      active_assumptions: [],
+      blockers: [],
+    });
+
+    writeJsonIfMissing('.agentsociety/claims.json', {
+      version: '1.0',
+      claims: [],
+    });
+
+    writeTextIfMissing('.agentsociety/decisions.jsonl', '');
+
+    writeJsonIfMissing('.agentsociety/session.json', {
+      version: '1.0',
+      session_id: randomUUID(),
+      started_at: new Date().toISOString(),
+      last_active_at: new Date().toISOString(),
+      current_action: 'workspace_initialized',
+      pending_decisions: [],
+      errors: [],
+      session_summary: '',
+    });
+  }
+
+  private getWorkspacePathMemoryContent(): string {
+    return `# Workspace Path Memory
+
+This file records descriptions of high-value file paths and their meanings to help the Agent run with long-term memory.
+
+## High-Value Files
+
+- \`TOPIC.md\`: The core research topic and goals for the current simulation experiment. Always read this file first to understand your mission.
+- \`.agentsociety/agent_classes/*.json\`: JSON files containing detailed information about all supported agent classes, including their types and capabilities.
+- \`.agentsociety/env_modules/*.json\`: JSON files containing detailed information about all supported environment modules that can be used to build simulation worlds.
+- \`.agentsociety/prefill_params.json\`: Pre-filled parameters for modules to avoid repetitive input.
+
+## Ignore Files
+
+- \`papers/\`: The directory for storing literature search results or user-uploaded literature files. You SHOULD NOT read this directory directly, but use the \`load_literature\` tool to load the literature files.
+
+## Progressive Context Loading
+
+Instead of using specialized discovery tools, you should:
+1. Read \`.agentsociety/path.md\` to understand the workspace structure.
+2. List these directories to see available components.
+3. Read specific JSON files as needed to gather detailed information about agent classes or environment modules.
+
+## Custom Modules
+
+- \`custom/agents/\`: Custom agent classes created by the user.
+- \`custom/envs/\`: Custom environment modules created by the user.
 `;
   }
 

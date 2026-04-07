@@ -40,12 +40,6 @@ export interface ConfigValues {
   webSearchApiToken: string;
   miroflowDefaultLlm: string;
   miroflowDefaultAgent: string;
-  // EasyPaper (optional, for generate_paper tool)
-  easypaperApiUrl: string;
-  easypaperLlmApiKey: string;
-  easypaperLlmModel: string;
-  easypaperVlmModel: string;
-  easypaperVlmApiKey: string;
   // Literature Search (optional, for search_literature tool)
   literatureSearchApiUrl: string;
   literatureSearchApiKey: string;
