@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentsociety2"
-version = "2.1.2"
+version = "2.1.3"
 description = "A modern, LLM-native agent simulation platform for social science research"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -49,7 +49,7 @@ classifiers = [
 dependencies = [
     "click>=8.0.0",
     "geojson>=3.1.0",
-    "numpy>=1.20.0,<2.0.0",
+    "numpy>=1.20.0",
     "aiosqlite>=0.20.0",
     "pycityproto>=2.4.5",
     "pydantic>=2.10.4",

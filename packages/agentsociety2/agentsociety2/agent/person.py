@@ -10,12 +10,15 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import shlex
 from collections.abc import Mapping
 from datetime import datetime
 from fnmatch import fnmatch
 from typing import Any, Optional
+
+from pydantic import BaseModel
 
 from agentsociety2.agent.base import AgentBase
 from agentsociety2.agent.context import (
@@ -49,7 +52,6 @@ from agentsociety2.env import (
     merge_person_step_constraints,
 )
 from agentsociety2.logger import get_logger
-from agentsociety2.storage import ReplayWriter
 
 logger = get_logger()
 
@@ -114,7 +116,6 @@ class PersonAgent(AgentBase):
         id: int,
         profile: Any,
         name: Optional[str] = None,
-        replay_writer: Optional[ReplayWriter] = None,
         init_state: Optional[dict[str, Any]] = None,
         **capability_kwargs: Any,
     ):
@@ -123,7 +124,6 @@ class PersonAgent(AgentBase):
         :param id: Agent 唯一标识。
         :param profile: 画像对象（dict 或可序列化对象）。
         :param name: 可选显示名。
-        :param replay_writer: 可选回放写入器。
         :param init_state: 可选初始状态（会写入 workspace，默认不覆盖已存在文件）。
         :param capability_kwargs: 行为/能力参数（节选）：
 
@@ -141,7 +141,7 @@ class PersonAgent(AgentBase):
             - ``model`` / ``llm_model``：LiteLLM 路由模型名（用于 token_counter 与 tiktoken 回退）
             - ``tiktoken_encoding``：强制指定 tiktoken 编码名（可选）
         """
-        super().__init__(id=id, profile=profile, name=name, replay_writer=replay_writer)
+        super().__init__(id=id, profile=profile, name=name)
         self._agent_state: dict[str, Any] = self._coerce_llm_dict(init_state)
         self._capability_kwargs: dict[str, Any] = dict(capability_kwargs)
 
@@ -308,6 +308,18 @@ class PersonAgent(AgentBase):
         self._workspace_state_version += 1
         return self._workspace_state_version
 
+    @staticmethod
+    def _truncate_text(text: str, *, max_len: int) -> str:
+        """截断文本到指定长度。
+
+        :param text: 原始文本。
+        :param max_len: 最大长度。
+        :return: 截断后的文本。
+        """
+        if len(text) <= max_len:
+            return text
+        return text[:max_len]
+
     def _workspace_read_chunk_cap(self) -> int:
         """获取单次文件读取的字符上限。"""
         raw = self._capability_kwargs.get("workspace_read_chunk_chars")
@@ -351,7 +363,6 @@ class PersonAgent(AgentBase):
         :return: 安全的 profile。
         """
         if isinstance(profile, str):
-            # 移除可能的指令注入标记
             profile = re.sub(
                 r"^\s*(SYSTEM|INSTRUCTION|ACT|PROMPT|IGNORE)\s*:",
                 "",
@@ -367,6 +378,51 @@ class PersonAgent(AgentBase):
         if isinstance(profile, list):
             return [PersonAgent._sanitize_profile_for_prompt(item) for item in profile]
         return profile
+
+    @staticmethod
+    def _json_default(value: Any) -> Any:
+        """为 ``json.dumps`` 提供兜底序列化。
+
+        重点处理环境工具常见返回对象，例如 Pydantic ``BaseModel``、``set``、
+        ``tuple``、``bytes`` 以及 ``datetime``/``date`` 等带 ``isoformat()``
+        的对象，避免工具回放写 thread 时抛出 ``not JSON serializable``。
+        """
+        if isinstance(value, BaseModel):
+            return value.model_dump(mode="json")
+        if isinstance(value, Mapping):
+            return dict(value)
+        if isinstance(value, (set, frozenset, tuple)):
+            return list(value)
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        isoformat = getattr(value, "isoformat", None)
+        if callable(isoformat):
+            try:
+                return isoformat()
+            except TypeError:
+                pass
+        model_dump = getattr(value, "model_dump", None)
+        if callable(model_dump):
+            try:
+                return model_dump(mode="json")
+            except TypeError:
+                return model_dump()
+        return str(value)
+
+    @classmethod
+    def _json_dumps_safe(
+        cls,
+        value: Any,
+        *,
+        indent: int | None = None,
+    ) -> str:
+        """以统一 JSON-safe 策略序列化任意对象。"""
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            indent=indent,
+            default=cls._json_default,
+        )
 
     def _agent_identity_json_for_prompt(self) -> str:
         """生成用于 system prompt 的智能体身份 JSON。
@@ -389,11 +445,26 @@ class PersonAgent(AgentBase):
             "name": self._name,
             "profile": safe_profile,
         }
-        s = jr_dumps(agent_identity)
+
+        def dump() -> str:
+            return self._json_dumps_safe(agent_identity)
+
+        s = dump()
         if len(s) <= max_total:
             return s
-        agent_identity["profile"] = "<omitted: profile too large>"
-        return jr_dumps(agent_identity)
+
+        prof = agent_identity.get("profile")
+        prof_s = prof if isinstance(prof, str) else self._json_dumps_safe(prof)
+        inner_budget = max(max_total - 220, 400)
+        agent_identity["profile"] = (
+            self._truncate_text(prof_s, max_len=inner_budget) + "…<truncated>"
+        )
+        s = dump()
+        if len(s) <= max_total:
+            return s
+
+        agent_identity["profile"] = "<omitted: profile too large for system prompt>"
+        return dump()
 
     # ── System Prompt ──────────────────────────────────────────────────────────
 
@@ -459,7 +530,7 @@ class PersonAgent(AgentBase):
                 "Below is a snapshot of common workspace files for faster context.\n"
                 "Important: after any write/execute/codegen action, snapshot content may become stale; "
                 "use `workspace_read` to fetch latest source of truth when correctness matters.\n"
-                f"```json\n{jr_dumps(ctx_view, indent=1)}\n```\n"
+                f"```json\n{self._json_dumps_safe(ctx_view, indent=1)}\n```\n"
             )
 
         skill_section += (
@@ -1062,7 +1133,7 @@ class PersonAgent(AgentBase):
         """持久化 agent 配置到 agent_config.json。"""
         self._skill_runtime.workspace_write(
             "agent_config.json",
-            jr_dumps(
+            self._json_dumps_safe(
                 {
                     "capabilities": self._capability_kwargs,
                     "state": self._agent_state,
@@ -1187,7 +1258,8 @@ class PersonAgent(AgentBase):
 
         if force or not self._skill_runtime.workspace_exists("init_state.json"):
             self._skill_runtime.workspace_write(
-                "init_state.json", jr_dumps(state, indent=2)
+                "init_state.json",
+                self._json_dumps_safe(state, indent=2),
             )
 
         seed = state.get("workspace_seed", {})
@@ -1201,7 +1273,7 @@ class PersonAgent(AgentBase):
             if (not force) and self._skill_runtime.workspace_exists(rel_path):
                 continue
             if isinstance(value, (dict, list)):
-                content = jr_dumps(value, indent=2)
+                content = self._json_dumps_safe(value, indent=2)
             else:
                 content = str(value)
             self._skill_runtime.workspace_write(rel_path, content)
@@ -2163,7 +2235,8 @@ class PersonAgent(AgentBase):
                     "workspace_state_version": self._workspace_state_version,
                 }
                 if out.get("ctx") is not None:
-                    result_obj["ctx"] = out["ctx"]
+                    ctx_str = self._json_dumps_safe(out["ctx"])
+                    result_obj["ctx"] = self._truncate_text(ctx_str, max_len=4000)
                 history.append(result_obj)
                 self._skill_runtime.append_tool_log(
                     {"tick": tick, "time": t.isoformat(), **result_obj}

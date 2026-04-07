@@ -25,7 +25,7 @@
 - ``AgentSocietyHelper``: 模拟编排助手（顶层 re-export）
 
 **Storage 模块**:
-- ``ReplayWriter``: 回放数据写入器
+- ``ReplayWriter``: 环境回放数据写入器
 
 使用示例::
 
@@ -45,7 +45,7 @@
         # ... 其他抽象方法
 """
 
-__version__ = "2.0.0"
+__version__ = "2.1.3"
 
 # Import main components for easy access
 from .agent import AgentBase, PersonAgent
