@@ -7,6 +7,7 @@ Components:
 - batch: BatchLLMRouter for concurrent LLM calls
 - async_io: AsyncWorkspaceIO for non-blocking file operations
 - loop_detection: Loop detection service to prevent infinite loops
+- security: Bash command security checking
 """
 
 from agentsociety2.agent.tool.async_io import AsyncWorkspaceIO
@@ -17,8 +18,12 @@ from agentsociety2.agent.tool.loop_detection import (
     LoopDetectionConfig,
     LoopDetectionService,
 )
-from agentsociety2.agent.tool.utils import (
+from agentsociety2.agent.tool.security import (
+    BLOCKED_PATTERNS,
     BLOCKED_TOKENS,
+    BashSecurityChecker,
+)
+from agentsociety2.agent.tool.utils import (
     async_retry_on_transient,
     json_dumps,
     json_dumps_tool_result_for_thread,
@@ -51,4 +56,7 @@ __all__ = [
     "AsyncWorkspaceIO",
     "LoopDetectionService",
     "LoopDetectionConfig",
+    "BLOCKED_TOKENS",
+    "BLOCKED_PATTERNS",
+    "BashSecurityChecker",
 ]

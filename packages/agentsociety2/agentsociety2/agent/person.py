@@ -10,15 +10,13 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 import shlex
+from collections import OrderedDict
 from collections.abc import Mapping
 from datetime import datetime
 from fnmatch import fnmatch
 from typing import Any, Optional
-
-from pydantic import BaseModel
 
 from agentsociety2.agent.base import AgentBase
 from agentsociety2.agent.context import (
@@ -176,9 +174,10 @@ class PersonAgent(AgentBase):
             capability_kwargs=self._capability_kwargs,
         )
 
-        # 上下文缓存：避免重复读取相同文件
-        self._workspace_cache: dict[str, str] = {}
+        # 上下文缓存：避免重复读取相同文件（LRU 淘汰）
+        self._workspace_cache: OrderedDict[str, str] = OrderedDict()
         self._cache_valid_paths: set[str] = set()
+        self._cache_max_entries: int = 50  # 最大缓存条目数
         # 当前 step 的上下文快照（在 step 开始时构建）
         self._step_context: dict[str, Any] = {}
         # workspace 状态版本：每次可能改动工作区后递增，避免模型使用过期上下文
@@ -209,6 +208,21 @@ class PersonAgent(AgentBase):
 
         # ── 循环检测 ──
         self._loop_detector = LoopDetectionService(LoopDetectionConfig())
+
+    def _update_workspace_cache(self, path: str, content: str) -> None:
+        """更新缓存并执行 LRU 淘汰。
+
+        :param path: 文件路径。
+        :param content: 文件内容。
+        """
+        if path in self._workspace_cache:
+            self._workspace_cache.move_to_end(path)
+        self._workspace_cache[path] = content
+        self._cache_valid_paths.add(path)
+        while len(self._workspace_cache) > self._cache_max_entries:
+            oldest = next(iter(self._workspace_cache))
+            del self._workspace_cache[oldest]
+            self._cache_valid_paths.discard(oldest)
 
     def _all_visible_skill_names(self) -> set[str]:
         """返回当前 agent 可见技能名集合副本。"""
@@ -258,21 +272,39 @@ class PersonAgent(AgentBase):
 
         预读 capability_kwargs['preload_workspace_paths'] 列出的路径，
         同时更新缓存供后续操作使用。单个文件读取失败不会中断整体构建。
+
+        结果总大小受 MAX_STEP_CONTEXT_CHARS 限制。
         """
+        from agentsociety2.agent.context_config import MAX_STEP_CONTEXT_CHARS
+
         context: dict[str, Any] = {}
+        total_chars = 0
 
         for path in self._workspace_preload_paths():
             try:
                 if self._skill_runtime.workspace_exists(path):
                     content = self._skill_runtime.workspace_read(path)
                     if content:
+                        # 检查大小限制
+                        content_chars = (
+                            len(content)
+                            if isinstance(content, str)
+                            else len(str(content))
+                        )
+                        if total_chars + content_chars > MAX_STEP_CONTEXT_CHARS:
+                            logger.warning(
+                                f"_step_context exceeds limit ({total_chars + content_chars} > {MAX_STEP_CONTEXT_CHARS}), "
+                                f"skipping {path}"
+                            )
+                            continue
+
                         if path.endswith(".json"):
                             parsed = jr_parse(content)
                             context[path] = parsed if isinstance(parsed, dict) else {}
                         else:
                             context[path] = content
-                        self._workspace_cache[path] = content
-                        self._cache_valid_paths.add(path)
+                        total_chars += content_chars
+                        self._update_workspace_cache(path, content)
             except Exception as e:
                 logger.warning(f"Failed to preload {path}: {e}")
 
@@ -288,13 +320,14 @@ class PersonAgent(AgentBase):
         self._step_context.pop(path, None)
 
     def _get_cached_workspace_content(self, path: str) -> Optional[str]:
-        """从缓存获取文件内容。
+        """从缓存获取文件内容（LRU 访问）。
 
         :param path: 文件路径。
         :return: 缓存内容，未命中返回 None。
         """
-        if path in self._cache_valid_paths:
-            return self._workspace_cache.get(path)
+        if path in self._cache_valid_paths and path in self._workspace_cache:
+            self._workspace_cache.move_to_end(path)
+            return self._workspace_cache[path]
         return None
 
     def _invalidate_all_workspace_cache(self) -> None:
@@ -307,18 +340,6 @@ class PersonAgent(AgentBase):
         """递增 workspace 状态版本号并返回新值。"""
         self._workspace_state_version += 1
         return self._workspace_state_version
-
-    @staticmethod
-    def _truncate_text(text: str, *, max_len: int) -> str:
-        """截断文本到指定长度。
-
-        :param text: 原始文本。
-        :param max_len: 最大长度。
-        :return: 截断后的文本。
-        """
-        if len(text) <= max_len:
-            return text
-        return text[:max_len]
 
     def _workspace_read_chunk_cap(self) -> int:
         """获取单次文件读取的字符上限。"""
@@ -379,51 +400,6 @@ class PersonAgent(AgentBase):
             return [PersonAgent._sanitize_profile_for_prompt(item) for item in profile]
         return profile
 
-    @staticmethod
-    def _json_default(value: Any) -> Any:
-        """为 ``json.dumps`` 提供兜底序列化。
-
-        重点处理环境工具常见返回对象，例如 Pydantic ``BaseModel``、``set``、
-        ``tuple``、``bytes`` 以及 ``datetime``/``date`` 等带 ``isoformat()``
-        的对象，避免工具回放写 thread 时抛出 ``not JSON serializable``。
-        """
-        if isinstance(value, BaseModel):
-            return value.model_dump(mode="json")
-        if isinstance(value, Mapping):
-            return dict(value)
-        if isinstance(value, (set, frozenset, tuple)):
-            return list(value)
-        if isinstance(value, bytes):
-            return value.decode("utf-8", errors="replace")
-        isoformat = getattr(value, "isoformat", None)
-        if callable(isoformat):
-            try:
-                return isoformat()
-            except TypeError:
-                pass
-        model_dump = getattr(value, "model_dump", None)
-        if callable(model_dump):
-            try:
-                return model_dump(mode="json")
-            except TypeError:
-                return model_dump()
-        return str(value)
-
-    @classmethod
-    def _json_dumps_safe(
-        cls,
-        value: Any,
-        *,
-        indent: int | None = None,
-    ) -> str:
-        """以统一 JSON-safe 策略序列化任意对象。"""
-        return json.dumps(
-            value,
-            ensure_ascii=False,
-            indent=indent,
-            default=cls._json_default,
-        )
-
     def _agent_identity_json_for_prompt(self) -> str:
         """生成用于 system prompt 的智能体身份 JSON。
 
@@ -447,18 +423,16 @@ class PersonAgent(AgentBase):
         }
 
         def dump() -> str:
-            return self._json_dumps_safe(agent_identity)
+            return jr_dumps(agent_identity)
 
         s = dump()
         if len(s) <= max_total:
             return s
 
         prof = agent_identity.get("profile")
-        prof_s = prof if isinstance(prof, str) else self._json_dumps_safe(prof)
+        prof_s = prof if isinstance(prof, str) else jr_dumps(prof)
         inner_budget = max(max_total - 220, 400)
-        agent_identity["profile"] = (
-            self._truncate_text(prof_s, max_len=inner_budget) + "…<truncated>"
-        )
+        agent_identity["profile"] = trunc_str(prof_s, max_len=inner_budget)
         s = dump()
         if len(s) <= max_total:
             return s
@@ -530,7 +504,7 @@ class PersonAgent(AgentBase):
                 "Below is a snapshot of common workspace files for faster context.\n"
                 "Important: after any write/execute/codegen action, snapshot content may become stale; "
                 "use `workspace_read` to fetch latest source of truth when correctness matters.\n"
-                f"```json\n{self._json_dumps_safe(ctx_view, indent=1)}\n```\n"
+                f"```json\n{jr_dumps(ctx_view, indent=1)}\n```\n"
             )
 
         skill_section += (
@@ -1133,7 +1107,7 @@ class PersonAgent(AgentBase):
         """持久化 agent 配置到 agent_config.json。"""
         self._skill_runtime.workspace_write(
             "agent_config.json",
-            self._json_dumps_safe(
+            jr_dumps(
                 {
                     "capabilities": self._capability_kwargs,
                     "state": self._agent_state,
@@ -1229,8 +1203,7 @@ class PersonAgent(AgentBase):
             cached = self._get_cached_workspace_content(p)
             if cached is None and self._skill_runtime.workspace_exists(p):
                 cached = self._skill_runtime.workspace_read(p)
-                self._workspace_cache[p] = cached
-                self._cache_valid_paths.add(p)
+                self._update_workspace_cache(p, cached)
             if cached:
                 if p.endswith(".json"):
                     parsed = jr_parse(cached)
@@ -1259,7 +1232,7 @@ class PersonAgent(AgentBase):
         if force or not self._skill_runtime.workspace_exists("init_state.json"):
             self._skill_runtime.workspace_write(
                 "init_state.json",
-                self._json_dumps_safe(state, indent=2),
+                jr_dumps(state, indent=2),
             )
 
         seed = state.get("workspace_seed", {})
@@ -1273,7 +1246,7 @@ class PersonAgent(AgentBase):
             if (not force) and self._skill_runtime.workspace_exists(rel_path):
                 continue
             if isinstance(value, (dict, list)):
-                content = self._json_dumps_safe(value, indent=2)
+                content = jr_dumps(value, indent=2)
             else:
                 content = str(value)
             self._skill_runtime.workspace_write(rel_path, content)
@@ -1448,8 +1421,7 @@ class PersonAgent(AgentBase):
                         read_results[p] = {"ok": True, "cached": True, **page}
                     elif self._skill_runtime.workspace_exists(p):
                         content = self._skill_runtime.workspace_read(p)
-                        self._workspace_cache[p] = content
-                        self._cache_valid_paths.add(p)
+                        self._update_workspace_cache(p, content)
                         page = slice_text_page(content, off, lim)
                         read_results[p] = {"ok": True, "cached": False, **page}
                     else:
@@ -2017,8 +1989,7 @@ class PersonAgent(AgentBase):
                             cached_hit = True
                         else:
                             content = self._skill_runtime.workspace_read(ws_read_path)
-                            self._workspace_cache[ws_read_path] = content
-                            self._cache_valid_paths.add(ws_read_path)
+                            self._update_workspace_cache(ws_read_path, content)
                             cached_hit = False
                         page = slice_text_page(content, off, lim)
                         result_obj = {
@@ -2235,8 +2206,8 @@ class PersonAgent(AgentBase):
                     "workspace_state_version": self._workspace_state_version,
                 }
                 if out.get("ctx") is not None:
-                    ctx_str = self._json_dumps_safe(out["ctx"])
-                    result_obj["ctx"] = self._truncate_text(ctx_str, max_len=4000)
+                    ctx_str = jr_dumps(out["ctx"])
+                    result_obj["ctx"] = trunc_str(ctx_str, max_len=4000)
                 history.append(result_obj)
                 self._skill_runtime.append_tool_log(
                     {"tick": tick, "time": t.isoformat(), **result_obj}
@@ -2296,7 +2267,7 @@ class PersonAgent(AgentBase):
         1. 步数递增，重置技能作用域
         2. 刷新可见技能列表
         3. 构建上下文快照（预读取文件）
-        4. 执行工具循环
+        4. 执行工具循环（带超时保护）
         5. 持久化会话状态和回放记录
 
         :param tick: 当前仿真步时间跨度（秒）。
@@ -2318,7 +2289,17 @@ class PersonAgent(AgentBase):
         self._build_step_context()
         self._prepare_prompt_sidecars()
 
-        logs, tool_history = await self._tool_loop(tick=tick, t=t)
+        # 执行工具循环，带超时保护
+        step_timeout = self._capability_kwargs.get("step_timeout_sec", 300)
+        try:
+            async with asyncio.timeout(step_timeout):
+                logs, tool_history = await self._tool_loop(tick=tick, t=t)
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"PersonAgent {self.id} step timed out after {step_timeout}s"
+            )
+            logs = [f"step timeout after {step_timeout}s"]
+            tool_history = []
 
         # 使用 tool loop 结束后的最终技能状态
         self._skill_runtime.persist_session_state(

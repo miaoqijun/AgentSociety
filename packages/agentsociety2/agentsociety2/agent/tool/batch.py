@@ -104,7 +104,7 @@ class BatchLLMRouter:
         if self._caller is None:
             raise RuntimeError("BatchLLMRouter: caller not set")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         future: asyncio.Future[Any] = loop.create_future()
 
         async with self._lock:

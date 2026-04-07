@@ -1,6 +1,12 @@
 """Agent 上下文配置（阈值与 capability 映射）。
 
-该模块只负责保存「压缩相关阈值与限制」以及从 ``capability_kwargs`` 读取这些数值。
+该模块集中管理所有配置常量，包括：
+- 压缩相关阈值与限制
+- 安全配置（环境变量白名单）
+- 循环检测阈值
+- 内存限制
+- 超时配置
+- 并发配置
 
 记忆、thread 压缩、token 计量与摘要生成见 :mod:`agentsociety2.agent.context`。
 """
@@ -8,13 +14,66 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# 默认上下文窗口（未知模型使用）
-DEFAULT_CONTEXT_WINDOW = 100000
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 全局配置常量
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _get_int_env(name: str, default: int) -> int:
+    """从环境变量读取整数配置。
+
+    :param name: 环境变量名。
+    :param default: 默认值。
+    :return: 配置值。
+    """
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+# ── 默认上下文窗口 ──
+DEFAULT_CONTEXT_WINDOW: int = 100_000
+
+# ── 安全配置 ──
+#: 允许传递给 Skill 脚本的环境变量白名单
+ALLOWED_ENV_VARS: frozenset[str] = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "USER",
+        "SHELL",
+        "PYTHONPATH",
+        "PYTHONUNBUFFERED",
+        "LANG",
+        "LC_ALL",
+    }
+)
+
+# ── 循环检测配置 ──
+LOOP_MAX_TOOL_REPEATS: int = 5
+LOOP_MAX_CONTENT_REPEATS: int = 10
+LOOP_MAX_ERROR_REPEATS: int = 3
+LOOP_HISTORY_SIZE: int = 20
+LOOP_OVERUSE_THRESHOLD: int = 15
+
+# ── 内存限制 ──
+MAX_STEP_CONTEXT_CHARS: int = 100_000  # 100KB
+
+# ── 超时配置 ──
+DEFAULT_STEP_TIMEOUT_SEC: int = _get_int_env("AGENT_STEP_TIMEOUT_SEC", 300)
+DEFAULT_BASH_TIMEOUT_SEC: int = 30
+DEFAULT_SKILL_TIMEOUT_SEC: int = 30
+
+# ── 并发配置 ──
+MAX_SUBPROCESS_CONCURRENT: int = _get_int_env("AGENT_MAX_SUBPROCESS_CONCURRENT", 16)
 
 
 def get_model_context_window(model: str) -> int:

@@ -10,16 +10,10 @@ import re
 from pathlib import Path
 from typing import Any, Callable, Coroutine
 
+from agentsociety2.agent.tool.security import BashSecurityChecker
 from agentsociety2.logger import get_logger
 
 logger = get_logger()
-
-#: 被阻止的命令标记
-BLOCKED_TOKENS = frozenset({
-    "rm -rf /", "rm -rf /*", "curl", "wget", "sudo", "su ",
-    "chmod 777", "chown", "mkfs", "dd if=", "> /dev/",
-    "shutdown", "reboot", "init 0", "init 6", ":(){ :|:& };:",
-})
 
 
 class ToolExecutor:
@@ -31,9 +25,8 @@ class ToolExecutor:
     :ivar codegen_ctx: codegen 上下文覆盖。
     :ivar ask_fn: 环境 ask 函数。
     :ivar retries: Bash 超时重试次数。
+    :ivar security_checker: Bash 安全检查器。
     """
-
-    BLOCKED = BLOCKED_TOKENS
 
     def __init__(
         self,
@@ -53,6 +46,7 @@ class ToolExecutor:
         self.codegen_ctx = codegen_ctx or {}
         self.ask_fn = ask_fn
         self.retries = retries
+        self._security_checker = BashSecurityChecker()
 
     async def bash(self, cmd: str, timeout: int = 30) -> dict[str, Any]:
         """在 workspace 内执行 bash 命令。
@@ -64,21 +58,46 @@ class ToolExecutor:
         """
         cmd = cmd.strip()
         if not cmd:
-            return {"ok": False, "exit_code": -1, "stdout": "", "stderr": "empty command"}
+            return {
+                "ok": False,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": "empty command",
+            }
 
-        if re.search(r"(^|[\s\'\"();|&])\/", cmd):
-            return {"ok": False, "exit_code": -1, "stdout": "", "stderr": "blocked: absolute path"}
+        # 绝对路径检查
+        if re.search(r"(^|[\s\\'\"();|&])\/", cmd):
+            return {
+                "ok": False,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": "blocked: absolute path",
+            }
+
+        # 父目录遍历检查
         if "../" in cmd or "/.." in cmd or "..\\\\" in cmd:
-            return {"ok": False, "exit_code": -1, "stdout": "", "stderr": "blocked: parent traversal"}
+            return {
+                "ok": False,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": "blocked: parent traversal",
+            }
 
-        cmd_lower = cmd.lower()
-        for token in self.BLOCKED:
-            if token in cmd_lower:
-                return {"ok": False, "exit_code": -1, "stdout": "", "stderr": f"blocked: '{token}'"}
+        # 使用 BashSecurityChecker 进行安全检查
+        is_safe, reason = self._security_checker.check(cmd)
+        if not is_safe:
+            return {
+                "ok": False,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": f"blocked: {reason}",
+            }
 
         for attempt in range(self.retries + 1):
             proc = await asyncio.create_subprocess_exec(
-                "bash", "-c", cmd,
+                "bash",
+                "-c",
+                cmd,
                 cwd=str(self.workspace),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -129,12 +148,17 @@ class ToolExecutor:
 
         :param pattern: Glob 模式。
         :param root: 相对根目录。
-        :return: {ok, count, matches}
+        :return: {ok, count, matches, error}
         :rtype: dict[str, Any]
         """
         root_path = (self.workspace / (root or ".")).resolve()
         if root_path != self.workspace and self.workspace not in root_path.parents:
-            raise ValueError("Path escapes workspace")
+            return {
+                "ok": False,
+                "error": "Path escapes workspace",
+                "count": 0,
+                "matches": [],
+            }
         if not root_path.exists():
             return {"ok": True, "count": 0, "matches": []}
         matches = [
@@ -161,17 +185,29 @@ class ToolExecutor:
         :param max_files: 最大扫描文件数。
         :param max_matches: 最大返回匹配数。
         :param max_bytes: 最大文件大小。
-        :return: {ok, count, matches, truncated}
+        :return: {ok, count, matches, truncated, error}
         :rtype: dict[str, Any]
         """
         root_path = (self.workspace / (root or ".")).resolve()
         if root_path != self.workspace and self.workspace not in root_path.parents:
-            raise ValueError("Path escapes workspace")
+            return {
+                "ok": False,
+                "error": "Path escapes workspace",
+                "count": 0,
+                "matches": [],
+                "truncated": False,
+            }
 
         try:
             rx = re.compile(pattern)
         except re.error as e:
-            raise ValueError(f"Invalid regex: {pattern}") from e
+            return {
+                "ok": False,
+                "error": f"Invalid regex: {pattern}",
+                "count": 0,
+                "matches": [],
+                "truncated": False,
+            }
 
         walker = root_path.rglob(file_pattern) if file_pattern else root_path.rglob("*")
         matches = []
@@ -196,12 +232,19 @@ class ToolExecutor:
                     truncated = True
                     break
                 if rx.search(line):
-                    matches.append({
-                        "path": str(path.relative_to(self.workspace)),
-                        "line": line_no,
-                        "content": line[:500],
-                    })
+                    matches.append(
+                        {
+                            "path": str(path.relative_to(self.workspace)),
+                            "line": line_no,
+                            "content": line[:500],
+                        }
+                    )
             if truncated:
                 break
 
-        return {"ok": True, "count": len(matches), "matches": matches, "truncated": truncated}
+        return {
+            "ok": True,
+            "count": len(matches),
+            "matches": matches,
+            "truncated": truncated,
+        }

@@ -8,7 +8,6 @@ and loads full skill content only after activation.
 from __future__ import annotations
 
 import asyncio
-import copy
 import json
 import os
 import sys
@@ -16,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
+from agentsociety2.agent.context_config import ALLOWED_ENV_VARS
 from agentsociety2.logger import get_logger
 
 logger = get_logger()
@@ -28,6 +28,10 @@ class SkillInfo:
 
     Skills are discovered from SKILL.md YAML frontmatter. This dataclass
     holds all metadata fields needed for skill discovery, activation, and execution.
+
+    Note: If frozen=True is desired for memory optimization (shared instances),
+    the enable/disable/reload methods would need to be refactored to return
+    new instances instead of mutating in place.
 
     :param name: Unique skill identifier.
     :param description: Human-readable description for catalog display.
@@ -65,6 +69,31 @@ class SkillInfo:
     priority: int = 0
     skill_md: str = ""
     _skill_md_loaded: bool = False
+
+    def copy(self) -> "SkillInfo":
+        """创建浅拷贝，列表字段重新创建以避免共享。
+
+        :return: 新的 SkillInfo 实例。
+        """
+        return SkillInfo(
+            name=self.name,
+            description=self.description,
+            argument_hint=self.argument_hint,
+            user_invocable=self.user_invocable,
+            allowed_tools=list(self.allowed_tools),
+            script=self.script,
+            executor=self.executor,
+            source=self.source,
+            path=self.path,
+            enabled=self.enabled,
+            disable_model_invocation=self.disable_model_invocation,
+            paths=list(self.paths),
+            requires=list(self.requires),
+            outputs=list(self.outputs),
+            priority=self.priority,
+            skill_md=self.skill_md,
+            _skill_md_loaded=self._skill_md_loaded,
+        )
 
 
 # 全局子进程并发限制：所有 agent 的 registry 共享同一个 semaphore，
@@ -115,9 +144,12 @@ class SkillRegistry:
     def copy_from(self, other: "SkillRegistry") -> None:
         """从另一个 registry 复制所有技能。
 
+        使用浅拷贝共享 SkillInfo 实例，减少内存占用。
+        每个 SkillInfo 的列表字段会重新创建以避免意外共享。
+
         :param other: 源 registry。
         """
-        self._skills = copy.deepcopy(other._skills)
+        self._skills = {name: info.copy() for name, info in other._skills.items()}
         self._builtin_scanned = other._builtin_scanned
 
     # ---------- discover ----------
@@ -363,6 +395,21 @@ class SkillRegistry:
             Callable[[dict[str, Any]], Awaitable[dict[str, Any]]] | None
         ) = None,
     ) -> dict[str, Any]:
+        """执行指定技能。
+
+        根据技能配置选择执行方式：
+        - executor="codegen": 通过环境执行
+        - 有 script 字段: 执行 Python 脚本
+        - 无 script: 返回空成功结果
+
+        :param skill_name: 技能名称。
+        :param args: 传递给技能的参数。
+        :param agent_work_dir: Agent 工作目录。
+        :param timeout_sec: 执行超时秒数。
+        :param codegen_executor: codegen 执行器回调。
+        :return: 执行结果字典，包含 ok、exit_code、stdout、stderr、artifacts 等字段。
+        :rtype: dict[str, Any]
+        """
         info = self._skills.get(skill_name)
         if not info:
             return _error("validation", f"Skill not found: {skill_name}")
@@ -395,7 +442,8 @@ class SkillRegistry:
             str(p.relative_to(work_dir)) for p in work_dir.rglob("*") if p.is_file()
         }
 
-        env = os.environ.copy()
+        # 使用环境变量白名单，避免泄露敏感信息
+        env = {k: v for k, v in os.environ.items() if k in ALLOWED_ENV_VARS}
         env["SKILL_NAME"] = skill_name
         env["SKILL_DIR"] = str(skill_root)
         env["AGENT_WORK_DIR"] = str(work_dir)
@@ -451,6 +499,15 @@ def _error(error_type: str, message: str) -> dict[str, Any]:
 
 
 def _discover_skills(root: Path, source: str) -> list[SkillInfo]:
+    """发现指定目录下的所有技能。
+
+    扫描目录中的子目录，查找 SKILL.md 文件并解析 frontmatter。
+
+    :param root: 要扫描的根目录。
+    :param source: 技能来源标识（"builtin"、"custom" 或 "env:<name>"）。
+    :return: 发现的 SkillInfo 列表。
+    :rtype: list[SkillInfo]
+    """
     result: list[SkillInfo] = []
     if not root.is_dir():
         return result

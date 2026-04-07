@@ -1,24 +1,22 @@
 """工具实用函数。
 
 JSON 处理、字符串截断、分页、重试逻辑。
+
+JSON 容错策略：
+- 解析：使用 json_repair 自动修复常见 JSON 错误（缺少引号、尾随逗号等）
+- 序列化：自动处理 Pydantic 模型、datetime、set、bytes 等类型
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Mapping
 from typing import Any
 
 import json_repair
 
-#: 被阻止的命令标记（安全黑名单）
-BLOCKED_TOKENS = frozenset({
-    "rm -rf /", "rm -rf /*", "mkfs", "dd if=", ":(){", "fork bomb",
-    "shutdown", "reboot", "poweroff", "halt", "init 0", "init 6",
-    "curl", "wget", "nc ", "ncat", "ssh", "scp", "rsync", "ftp",
-    "nmap", "telnet", "netcat", "sudo", "su ", "chmod 777",
-    "chown", "chgrp", "> /dev/", ">/dev/",
-})
+# BLOCKED_TOKENS 已移至 agentsociety2.agent.tool.security
 
 
 def truncate(text: str, max_len: int) -> str:
@@ -41,7 +39,7 @@ trunc_str = truncate
 def _serialize_for_json(obj: Any) -> Any:
     """递归转换对象为 JSON 可序列化格式。
 
-    处理 Pydantic 模型、datetime 等类型。
+    处理 Pydantic 模型、datetime、set、bytes 等类型。
     """
     if obj is None:
         return None
@@ -51,18 +49,35 @@ def _serialize_for_json(obj: Any) -> Any:
         return {k: _serialize_for_json(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [_serialize_for_json(item) for item in obj]
+    # set, frozenset 转为 list
+    if isinstance(obj, (set, frozenset)):
+        return [_serialize_for_json(item) for item in obj]
+    # bytes 转为字符串
+    if isinstance(obj, bytes):
+        return obj.decode("utf-8", errors="replace")
     # Pydantic 模型
     if hasattr(obj, "model_dump"):
-        return obj.model_dump()
+        try:
+            return obj.model_dump(mode="json")
+        except TypeError:
+            return obj.model_dump()
     # datetime 类型
     if hasattr(obj, "isoformat"):
-        return obj.isoformat()
+        try:
+            return obj.isoformat()
+        except TypeError:
+            pass
+    # Mapping 类型
+    if isinstance(obj, Mapping):
+        return {k: _serialize_for_json(v) for k, v in obj.items()}
     # 其他类型转为字符串
     return str(obj)
 
 
 def json_dumps(obj: Any, indent: int | None = 2) -> str:
-    """JSON 序列化。
+    """JSON 序列化（带容错处理）。
+
+    自动处理不可序列化类型，确保输出有效 JSON。
 
     :param obj: 要序列化的对象。
     :param indent: 缩进级别。
@@ -70,7 +85,14 @@ def json_dumps(obj: Any, indent: int | None = 2) -> str:
     :rtype: str
     """
     serialized = _serialize_for_json(obj)
-    return json.dumps(serialized, ensure_ascii=False, indent=indent)
+    result = json.dumps(serialized, ensure_ascii=False, indent=indent)
+    # 使用 json_repair 验证并修复输出
+    try:
+        json_repair.loads(result)
+        return result
+    except Exception:
+        # 如果仍有问题，重新序列化
+        return json_repair.dumps(serialized, indent=indent, ensure_ascii=False)
 
 
 #: JSON 序列化别名
@@ -80,10 +102,18 @@ jr_dumps = json_dumps
 def json_parse(text: str) -> Any:
     """容错 JSON 解析。
 
+    自动修复常见 JSON 错误：
+    - 缺少引号的键名
+    - 尾随逗号
+    - 单引号代替双引号
+    - 注释
+
     :param text: JSON 文本。
     :return: 解析后的对象。
     :rtype: Any
     """
+    if not text or not text.strip():
+        return None
     return json_repair.loads(text)
 
 
@@ -105,7 +135,7 @@ def paginate(items: list[Any], page: int, size: int) -> dict[str, Any]:
     page = max(1, min(page, total_pages))
     start = (page - 1) * size
     return {
-        "items": items[start:start + size],
+        "items": items[start : start + size],
         "page": page,
         "size": size,
         "total_pages": total_pages,
@@ -194,6 +224,7 @@ async def async_retry_on_transient(
     :rtype: Any
     """
     from agentsociety2.logger import get_logger
+
     logger = get_logger()
 
     last_err: Exception | None = None
@@ -208,7 +239,7 @@ async def async_retry_on_transient(
             )
             if not is_transient or attempt >= max_retries:
                 raise
-            delay = 0.5 * (2 ** attempt)
+            delay = 0.5 * (2**attempt)
             if log_prefix:
                 logger.warning(
                     f"{log_prefix}transient error (attempt {attempt + 1}/{max_retries + 1}): {e}; retry in {delay}s"

@@ -12,9 +12,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Literal, Optional
 
 import json_repair
+from pydantic import BaseModel, field_validator
 from ruamel.yaml import YAML
 
 from agentsociety2.agent.context_config import ContextConfig
@@ -520,17 +521,35 @@ class CompactTelemetry:
         )
 
 
-@dataclass
-class StructuredSummary:
+class StructuredSummary(BaseModel):
+    """结构化摘要（Pydantic 模型）。
+
+    用于验证 LLM 返回的摘要数据，确保字段类型正确。
+    """
+
     primary_goal: str = ""
-    current_status: str = "in_progress"
-    completed_actions: list[str] = field(default_factory=list)
-    pending_actions: list[str] = field(default_factory=list)
-    key_files_written: list[str] = field(default_factory=list)
+    current_status: Literal["in_progress", "completed", "blocked", "error"] = (
+        "in_progress"
+    )
+    completed_actions: list[str] = []
+    pending_actions: list[str] = []
+    key_files_written: list[str] = []
     active_skill: Optional[str] = None
-    blockers: list[str] = field(default_factory=list)
-    errors_encountered: list[dict[str, str]] = field(default_factory=list)
+    blockers: list[str] = []
+    errors_encountered: list[dict[str, str]] = []
     workspace_version: int = 0
+
+    @field_validator("completed_actions", "pending_actions", "blockers")
+    @classmethod
+    def limit_list_size(cls, v: list[str]) -> list[str]:
+        """限制列表最大 10 条。"""
+        return v[:10] if len(v) > 10 else v
+
+    @field_validator("errors_encountered")
+    @classmethod
+    def limit_errors_size(cls, v: list[dict[str, str]]) -> list[dict[str, str]]:
+        """限制错误列表最大 5 条。"""
+        return v[:5] if len(v) > 5 else v
 
     def to_dict(self) -> dict[str, Any]:
         """将结构化摘要转为字典。
@@ -599,17 +618,21 @@ def structured_summary_from_parsed(
     :return: 构造完成的 :class:`StructuredSummary`。
     :rtype: StructuredSummary
     """
-    return StructuredSummary(
-        primary_goal=parsed.get("primary_goal", ""),
-        current_status=parsed.get("current_status", "in_progress"),
-        completed_actions=parsed.get("completed_actions", []),
-        pending_actions=parsed.get("pending_actions", []),
-        key_files_written=parsed.get("key_files_written", []),
-        active_skill=parsed.get("active_skill"),
-        blockers=parsed.get("blockers", []),
-        errors_encountered=parsed.get("errors_encountered", []),
-        workspace_version=workspace_version,
-    )
+    try:
+        return StructuredSummary(
+            primary_goal=parsed.get("primary_goal", ""),
+            current_status=parsed.get("current_status", "in_progress"),
+            completed_actions=parsed.get("completed_actions", []),
+            pending_actions=parsed.get("pending_actions", []),
+            key_files_written=parsed.get("key_files_written", []),
+            active_skill=parsed.get("active_skill"),
+            blockers=parsed.get("blockers", []),
+            errors_encountered=parsed.get("errors_encountered", []),
+            workspace_version=workspace_version,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to validate StructuredSummary: {e}, using defaults")
+        return StructuredSummary(workspace_version=workspace_version)
 
 
 class AgentMemory:

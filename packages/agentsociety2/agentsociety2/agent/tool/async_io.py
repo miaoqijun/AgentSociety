@@ -48,7 +48,11 @@ class AsyncWorkspaceIO:
         return target
 
     async def read(self, relative_path: str) -> str:
-        """异步读取文件内容。"""
+        """异步读取文件内容。
+
+        :param relative_path: 相对路径。
+        :return: 文件内容。
+        """
         target = self._resolve(relative_path)
 
         if HAS_AIOFILES:
@@ -60,8 +64,7 @@ class AsyncWorkspaceIO:
                 return await f.read()
         else:
             # 回退到线程池
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(self._executor, self._sync_read, target)
+            return await asyncio.to_thread(self._sync_read, target)
 
     def _sync_read(self, path: Path) -> str:
         """同步读取文件（用于线程池回退）。"""
@@ -70,7 +73,12 @@ class AsyncWorkspaceIO:
         return path.read_text(encoding="utf-8")
 
     async def write(self, relative_path: str, content: str) -> str:
-        """异步写入文件。"""
+        """异步写入文件。
+
+        :param relative_path: 相对路径。
+        :param content: 文件内容。
+        :return: 写入的文件路径。
+        """
         target = self._resolve(relative_path)
 
         if HAS_AIOFILES:
@@ -84,10 +92,7 @@ class AsyncWorkspaceIO:
             return str(target)
         else:
             # 回退到线程池
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                self._executor, self._sync_write, target, content
-            )
+            return await asyncio.to_thread(self._sync_write, target, content)
 
     def _sync_write(self, path: Path, content: str) -> str:
         """同步写入文件（用于线程池回退）。"""
@@ -96,7 +101,12 @@ class AsyncWorkspaceIO:
         return str(path)
 
     async def append(self, relative_path: str, content: str) -> str:
-        """异步追加内容到文件。"""
+        """异步追加内容到文件。
+
+        :param relative_path: 相对路径。
+        :param content: 追加内容。
+        :return: 文件路径。
+        """
         target = self._resolve(relative_path)
 
         if HAS_AIOFILES:
@@ -108,10 +118,7 @@ class AsyncWorkspaceIO:
                 await f.write(content)
             return str(target)
         else:
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                self._executor, self._sync_append, target, content
-            )
+            return await asyncio.to_thread(self._sync_append, target, content)
 
     def _sync_append(self, path: Path, content: str) -> str:
         """同步追加文件（用于线程池回退）。"""
@@ -126,17 +133,24 @@ class AsyncWorkspaceIO:
         return await self.append(relative_path, line)
 
     async def exists(self, relative_path: str) -> bool:
-        """异步检查文件是否存在。"""
+        """异步检查文件是否存在。
+
+        :param relative_path: 相对路径。
+        :return: 是否存在。
+        """
         target = self._resolve(relative_path)
 
         if HAS_AIOFILES:
             return await aiofiles.os.path.exists(target)
         else:
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(self._executor, target.exists)
+            return await asyncio.to_thread(target.exists)
 
     async def is_file(self, relative_path: str) -> bool:
-        """异步检查是否为文件。"""
+        """异步检查是否为文件。
+
+        :param relative_path: 相对路径。
+        :return: 是否为文件。
+        """
         target = self._resolve(relative_path)
 
         if HAS_AIOFILES:
@@ -145,26 +159,23 @@ class AsyncWorkspaceIO:
                 return False
             return not await aiofiles.os.path.isdir(target)
         else:
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(self._executor, target.is_file)
+            return await asyncio.to_thread(target.is_file)
 
     async def list_files(self, relative_path: str = ".") -> list[str]:
-        """异步列出文件（递归）。"""
+        """异步列出文件（递归）。
+
+        :param relative_path: 相对路径。
+        :return: 文件列表。
+        """
         root = self._resolve(relative_path)
 
         if HAS_AIOFILES:
             if not await aiofiles.os.path.exists(root):
                 return []
             # aiofiles 不支持 rglob，使用线程池
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                self._executor, self._sync_list_files, root
-            )
+            return await asyncio.to_thread(self._sync_list_files, root)
         else:
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                self._executor, self._sync_list_files, root
-            )
+            return await asyncio.to_thread(self._sync_list_files, root)
 
     def _sync_list_files(self, root: Path) -> list[str]:
         """同步列出文件（用于线程池）。"""
@@ -194,7 +205,11 @@ class AsyncWorkspaceIO:
         return await self.write(relative_path, content)
 
     async def delete(self, relative_path: str) -> bool:
-        """异步删除文件。"""
+        """异步删除文件。
+
+        :param relative_path: 相对路径。
+        :return: 是否成功删除。
+        """
         target = self._resolve(relative_path)
 
         if HAS_AIOFILES:
@@ -205,8 +220,7 @@ class AsyncWorkspaceIO:
             await aiofiles.os.remove(target)
             return True
         else:
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(self._executor, self._sync_delete, target)
+            return await asyncio.to_thread(self._sync_delete, target)
 
     def _sync_delete(self, path: Path) -> bool:
         """同步删除文件（用于线程池回退）。"""
@@ -223,7 +237,4 @@ class AsyncWorkspaceIO:
             if not await aiofiles.os.path.exists(target):
                 await asyncio.to_thread(target.mkdir, parents=True, exist_ok=True)
         else:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                self._executor, lambda: target.mkdir(parents=True, exist_ok=True)
-            )
+            await asyncio.to_thread(target.mkdir, parents=True, exist_ok=True)
