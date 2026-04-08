@@ -39,7 +39,12 @@ from typing import Any, Optional, Sequence
 from agentsociety2.env import RouterBase
 from agentsociety2.agent import AgentBase
 from agentsociety2.society.helper import AgentSocietyHelper
-from agentsociety2.storage import ColumnDef, ReplayDatasetSpec, ReplayWriter, TableSchema
+from agentsociety2.storage import (
+    ColumnDef,
+    ReplayDatasetSpec,
+    ReplayWriter,
+    TableSchema,
+)
 from agentsociety2.storage.replay_metadata import (
     AGENT_PROFILE_DATASET_CAPABILITY,
     AGENT_PROFILE_DATASET_ID,
@@ -208,7 +213,11 @@ class AgentSociety:
     async def init(self):
         # Replay writer: use provided one or create it before env init so
         # modules that register replay tables during init see a ready writer.
-        if self._replay_writer is None and self._enable_replay and self._run_dir is not None:
+        if (
+            self._replay_writer is None
+            and self._enable_replay
+            and self._run_dir is not None
+        ):
             db_path = self._run_dir / "sqlite.db"
             self._replay_writer = ReplayWriter(db_path)
             await self._replay_writer.init()
@@ -244,13 +253,13 @@ class AgentSociety:
 
         :param tick: 本步时间跨度（秒）。
         """
-        self._t += timedelta(seconds=tick)
-        self._env_router.sync_simulation_clock(self._t)
         tasks = []
         for agent in self._agents:
             tasks.append(agent.step(tick, self._t))
         await asyncio.gather(*tasks)
         await self._env_router.step(tick, self._t)
+        self._t += timedelta(seconds=tick)
+        self._env_router.sync_simulation_clock(self._t)
         self._step_count += 1
 
     async def run(self, num_steps: int, tick: int):

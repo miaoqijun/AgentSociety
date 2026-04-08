@@ -460,7 +460,8 @@ class EnvBase(metaclass=EnvMeta):
                 },
             }
             self._llm_tools.append(func)
-            if self._readonly_tools.get(t.name, False):  # type: ignore
+            readonly_tools = getattr(self.__class__, "_readonly_tools", {})
+            if readonly_tools.get(t.name, False):
                 self._readonly_llm_tools.append(func)
 
     def _set_llm_tools(self, tools: list[ChatCompletionToolParam]):
