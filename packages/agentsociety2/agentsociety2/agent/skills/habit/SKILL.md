@@ -1,6 +1,10 @@
 ---
 name: habit
 description: Manage daily routines and habitual behaviors for realistic human simulation.
+inputs:
+  - state/observation.txt
+  - state/needs.json
+  - state/intention.json
 outputs:
   - state/habits.json
 ---

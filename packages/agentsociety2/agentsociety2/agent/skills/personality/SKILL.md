@@ -1,6 +1,8 @@
 ---
 name: personality
 description: Apply personality-based modulation to decisions, emotions, and behaviors.
+inputs:
+  - state/observation.txt
 outputs:
   - state/personality.json
 ---

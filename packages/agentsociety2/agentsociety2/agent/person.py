@@ -2570,6 +2570,13 @@ class PersonAgent(AgentBase):
         except Exception as e:
             logger.debug(f"Agent {self.id}: sync_state_to_context failed: {e}")
 
+        # 定期更新文件清单
+        if self._step_count % 10 == 0:
+            try:
+                self._skill_runtime.write_file_manifest()
+            except Exception as e:
+                logger.debug(f"Agent {self.id}: write_file_manifest failed: {e}")
+
         # 检查点保存
         if (
             self._checkpoint

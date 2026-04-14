@@ -3,6 +3,7 @@ name: observation
 description: Fetch the current world observation for this tick.
 outputs:
   - state/observation.txt
+  - state/observation_ctx.json
 ---
 
 # Observation

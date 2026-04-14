@@ -1,6 +1,11 @@
 ---
 name: plan
 description: Turn the current intention into an environment action for this tick.
+inputs:
+  - state/intention.json
+  - state/observation.txt
+  - state/needs.json
+  - state/plan_state.json
 outputs:
   - state/plan_state.json
 ---

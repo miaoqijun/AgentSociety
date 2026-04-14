@@ -1,6 +1,10 @@
 ---
 name: cognition
 description: Produce emotion.json and intention.json from workspace context.
+inputs:
+  - state/observation.txt
+  - state/needs.json
+  - state/memory.jsonl
 outputs:
   - state/emotion.json
   - state/intention.json

@@ -29,10 +29,6 @@ class SkillInfo:
     Skills are discovered from SKILL.md YAML frontmatter. This dataclass
     holds all metadata fields needed for skill discovery, activation, and execution.
 
-    Note: If frozen=True is desired for memory optimization (shared instances),
-    the enable/disable/reload methods would need to be refactored to return
-    new instances instead of mutating in place.
-
     :param name: Unique skill identifier.
     :param description: Human-readable description for catalog display.
     :param argument_hint: Hint for expected arguments format.
@@ -46,6 +42,7 @@ class SkillInfo:
     :param disable_model_invocation: If True, hide from model selection catalog.
     :param paths: Additional paths this skill provides access to.
     :param requires: List of skill names that must be available.
+    :param inputs: List of input files this skill reads (for dependency discovery).
     :param outputs: List of output files this skill produces.
     :param priority: Priority for ordering (higher = more important).
     :param skill_md: Cached content of SKILL.md file.
@@ -65,6 +62,7 @@ class SkillInfo:
     disable_model_invocation: bool = False
     paths: list[str] = field(default_factory=list)
     requires: list[str] = field(default_factory=list)
+    inputs: list[str] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)
     priority: int = 0
     skill_md: str = ""
@@ -89,6 +87,7 @@ class SkillInfo:
             disable_model_invocation=self.disable_model_invocation,
             paths=list(self.paths),
             requires=list(self.requires),
+            inputs=list(self.inputs),
             outputs=list(self.outputs),
             priority=self.priority,
             skill_md=self.skill_md,
@@ -254,6 +253,8 @@ class SkillRegistry:
                 entry["paths"] = list(info.paths)
             if info.requires:
                 entry["requires"] = list(info.requires)
+            if info.inputs:
+                entry["inputs"] = list(info.inputs)
             if info.outputs:
                 entry["outputs"] = list(info.outputs)
             if info.priority:
@@ -372,6 +373,7 @@ class SkillRegistry:
             meta.get("disable_model_invocation", meta.get("disable-model-invocation"))
         )
         info.requires = _to_list(meta.get("requires"))
+        info.inputs = _to_list(meta.get("inputs"))
         info.outputs = _to_list(meta.get("outputs"))
         info.priority = int(meta.get("priority", 0))
         info._skill_md_loaded = False
@@ -543,6 +545,7 @@ def _discover_skills(root: Path, source: str) -> list[SkillInfo]:
             ),
             paths=_to_list(meta.get("paths")),
             requires=_to_list(meta.get("requires")),
+            inputs=_to_list(meta.get("inputs")),
             outputs=_to_list(meta.get("outputs")),
             priority=int(meta.get("priority", 0)),
             _skill_md_loaded=False,

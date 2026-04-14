@@ -1,6 +1,9 @@
 ---
 name: memory
 description: Persist important outcomes from this step to long-term storage with automatic forgetting curve.
+inputs:
+  - state/observation.txt
+  - state/intention.json
 outputs:
   - state/memory.jsonl
 ---

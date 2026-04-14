@@ -2,6 +2,8 @@
 name: needs
 description: Update physiological/social need levels via subprocess heuristic.
 script: scripts/needs.py
+inputs:
+  - state/observation.txt
 outputs:
   - state/needs.json
   - state/current_need.txt

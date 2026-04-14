@@ -730,3 +730,74 @@ class AgentSkillRuntime:
             "recent_errors": errors[-5:],
             "last_tick": recent[-1].get("tick") if recent else None,
         }
+
+    # ==================== File Discovery ====================
+
+    def build_file_manifest(self) -> str:
+        """构建 workspace 文件清单。
+
+        动态扫描 workspace 目录，生成 Markdown 格式的文件清单，
+        类似 CLAUDE.md 的功能，帮助 agent 了解有哪些文件可用。
+
+        :returns: Markdown 格式的文件清单。
+        """
+        if self._agent_work_dir is None:
+            return ""
+
+        lines = [
+            "# Workspace Files",
+            "",
+            f"**Root**: `{self._agent_work_dir}`",
+            "",
+        ]
+
+        # 扫描各目录
+        for dir_name in ["state", "memory", "input", "logs"]:
+            dir_path = self._agent_work_dir / dir_name
+            if not dir_path.exists():
+                continue
+
+            files = sorted(
+                f.name for f in dir_path.iterdir()
+                if f.is_file() and not f.name.startswith(".")
+            )
+            if files:
+                lines.append(f"## {dir_name}/")
+                for f in files:
+                    file_path = dir_path / f
+                    size = file_path.stat().st_size
+                    size_str = self._format_file_size(size)
+                    lines.append(f"- `{dir_name}/{f}` ({size_str})")
+                lines.append("")
+
+        # 检查根目录文件
+        root_files = []
+        for f in self._agent_work_dir.iterdir():
+            if f.is_file() and not f.name.startswith(".") and f.suffix in [".md", ".json", ".txt"]:
+                root_files.append(f.name)
+
+        if root_files:
+            lines.append("## Root Files")
+            for f in sorted(root_files):
+                file_path = self._agent_work_dir / f
+                size = file_path.stat().st_size
+                size_str = self._format_file_size(size)
+                lines.append(f"- `{f}` ({size_str})")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_file_size(size: int) -> str:
+        """格式化文件大小。"""
+        if size < 1024:
+            return f"{size}B"
+        elif size < 1024 * 1024:
+            return f"{size / 1024:.1f}KB"
+        else:
+            return f"{size / (1024 * 1024):.1f}MB"
+
+    def write_file_manifest(self) -> None:
+        """将文件清单写入 AGENT_FILES.md。"""
+        manifest = self.build_file_manifest()
+        if manifest:
+            self.workspace_write("AGENT_FILES.md", manifest)

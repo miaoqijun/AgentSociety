@@ -1,6 +1,10 @@
 ---
 name: thought
 description: Write first-person inner monologue to thought.txt from observation and context.
+inputs:
+  - state/observation.txt
+  - state/needs.json
+  - state/intention.json
 outputs:
   - state/thought.txt
 ---
