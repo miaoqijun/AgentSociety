@@ -758,7 +758,8 @@ class AgentSkillRuntime:
                 continue
 
             files = sorted(
-                f.name for f in dir_path.iterdir()
+                f.name
+                for f in dir_path.iterdir()
                 if f.is_file() and not f.name.startswith(".")
             )
             if files:
@@ -773,7 +774,11 @@ class AgentSkillRuntime:
         # 检查根目录文件
         root_files = []
         for f in self._agent_work_dir.iterdir():
-            if f.is_file() and not f.name.startswith(".") and f.suffix in [".md", ".json", ".txt"]:
+            if (
+                f.is_file()
+                and not f.name.startswith(".")
+                and f.suffix in [".md", ".json", ".txt"]
+            ):
                 root_files.append(f.name)
 
         if root_files:
