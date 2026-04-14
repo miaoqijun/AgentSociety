@@ -18,7 +18,7 @@ import json_repair
 from pydantic import BaseModel, field_validator
 from ruamel.yaml import YAML
 
-from agentsociety2.agent.context_config import ContextConfig
+from agentsociety2.agent.config import ContextConfig
 from agentsociety2.logger import get_logger
 
 logger = get_logger()

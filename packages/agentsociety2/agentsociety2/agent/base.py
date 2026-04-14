@@ -92,12 +92,10 @@ __all__ = [
     "LLMInteractionHistory",
 ]
 
-# Environment variable to enable/disable history recording
-_ENABLE_LLM_HISTORY = os.getenv("ENABLE_LLM_HISTORY", "false").lower() in (
-    "true",
-    "1",
-    "yes",
-)
+# 默认配置常量
+_DEFAULT_LLM_HISTORY_ENABLED = False
+_DEFAULT_LLM_HISTORY_MAX_ENTRIES = 100
+
 
 @dataclass
 class LLMInteractionHistory:
@@ -273,8 +271,6 @@ class AgentBase(ABC):
     ):
         """记录 LLM 交互到历史列表（需启用）。
 
-        仅在 ENABLE_LLM_HISTORY 环境变量为 true 时记录。
-
         Args:
             messages: 发送给 LLM 的消息列表。
             response: LLM 返回的响应对象。
@@ -282,7 +278,7 @@ class AgentBase(ABC):
             t: 当前仿真时间。
             method_name: 调用 LLM 的方法名称。
         """
-        if not _ENABLE_LLM_HISTORY:
+        if not _DEFAULT_LLM_HISTORY_ENABLED:
             return
 
         assert (
@@ -299,6 +295,9 @@ class AgentBase(ABC):
             method_name=method_name,
         )
         self._llm_interaction_history.append(history_record)
+
+        if len(self._llm_interaction_history) > _DEFAULT_LLM_HISTORY_MAX_ENTRIES:
+            self._llm_interaction_history = self._llm_interaction_history[-_DEFAULT_LLM_HISTORY_MAX_ENTRIES:]
 
     def _record_token_usage(self, response: Any) -> None:
         """记录 LLM 调用的 token 使用统计。

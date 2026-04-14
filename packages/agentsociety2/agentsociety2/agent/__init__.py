@@ -1,38 +1,119 @@
-"""智能体模块 - 提供 Agent 的核心类。
+"""Agent模块 - 提供智能体核心类和基础设施。
 
-本模块包含：
+核心组件
+========
 
-**AgentBase** — 智能体抽象基类：
-- 定义智能体的基本接口（ask、step、dump、load）
-- 提供 LLM 交互、环境交互、回放写入等基础功能
-- 支持 skill 状态管理和 token 使用统计
+**AgentBase**
+    智能体抽象基类，定义基本接口。
 
-**PersonAgent** — skills-first agent：
-- 每个 agent 拥有独立工作区和会话线程
-- 通过 skill catalog + 工具调用自主完成任务
-- 适用于通用社会模拟场景
+**PersonAgent**  
+    技能优先型Agent实现，支持独立工作区和渐进式技能发现。
 
-使用示例::
+配置管理
+========
 
-    from agentsociety2.agent import AgentBase, PersonAgent
-    from datetime import datetime
+**AgentConfig**
+    统一配置管理，整合模型、循环、上下文、持久化、并发等所有配置。
 
-    # 使用 PersonAgent
-    agent = PersonAgent(id=1, profile={"name": "Alice"})
+    >>> from agentsociety2.agent import AgentConfig
+    >>> config = AgentConfig()  # 使用默认值
+    >>> config.model.context_window  # 200000
 
-    # 自定义 Agent
-    class MyAgent(AgentBase):
-        async def ask(self, message: str, readonly: bool = True) -> str:
-            return f"Received: {message}"
-        async def step(self, tick: int, t: datetime) -> str:
-            return "Step completed"
-        async def dump(self) -> dict:
-            return {}
-        async def load(self, dump_data: dict):
-            pass
+属性与状态
+==========
+
+**AgentAttributes / AgentState**
+    属性与状态分离设计，区分静态特征和动态变化。
+
+    >>> from agentsociety2.agent import PersonAttributes, PersonState
+    >>> attrs = PersonAttributes(name="Alice", extraversion=0.8)
+    >>> state = PersonState(primary_emotion="happy")
+
+持久化
+======
+
+**Checkpoint** - 检查点管理，支持崩溃恢复
+**WriteAheadLog** - 预写日志，确保精确恢复
+**WorkspaceCleaner** - 工作区清理
+**SessionRecovery** - 会话恢复上下文构建
+
+并发控制
+========
+
+**ParallelExecutor** - 并行工具执行器
+**RateLimiter** - 令牌桶限流器
+**TaskManager** - 后台任务管理器
 """
 
 from .base import AgentBase
 from .person import PersonAgent
+from .config import (
+    AgentConfig,
+    ModelConfig,
+    LoopConfig,
+    ContextConfig,
+    PersistenceConfig,
+    ConcurrencyConfig,
+    LoopDetectionConfig,
+    ALLOWED_ENV_VARS,
+)
+from .attributes import (
+    AgentAttributes,
+    AgentState,
+    PersonAttributes,
+    PersonState,
+    StateManager,
+)
+from .prompt_builder import PromptBuilder, ToolTableBuilder
+from .persistence import (
+    Checkpoint,
+    WriteAheadLog,
+    WorkspaceCleaner,
+    SessionRecovery,
+    IntentStatus,
+)
+from .concurrent import (
+    ParallelExecutor,
+    RateLimiter,
+    TaskManager,
+    get_executor,
+    get_limiter,
+    get_task_manager,
+)
 
-__all__ = ["AgentBase", "PersonAgent"]
+__all__ = [
+    # 核心类
+    "AgentBase",
+    "PersonAgent",
+    # 配置
+    "AgentConfig",
+    "ModelConfig",
+    "LoopConfig",
+    "ContextConfig",
+    "PersistenceConfig",
+    "ConcurrencyConfig",
+    "LoopDetectionConfig",
+    "ALLOWED_ENV_VARS",
+    # 属性与状态
+    "AgentAttributes",
+    "AgentState",
+    "PersonAttributes",
+    "PersonState",
+    "StateManager",
+    # Prompt
+    "PromptBuilder",
+    "ToolTableBuilder",
+    # 持久化
+    "Checkpoint",
+    "WriteAheadLog",
+    "WorkspaceCleaner",
+    "SessionRecovery",
+    "IntentStatus",
+    # 并发
+    "ParallelExecutor",
+    "RateLimiter",
+    "TaskManager",
+    "get_executor",
+    "get_limiter",
+    "get_task_manager",
+]

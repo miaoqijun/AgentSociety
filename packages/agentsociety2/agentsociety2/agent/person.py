@@ -10,15 +10,24 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import re
 import shlex
 from collections import OrderedDict
 from collections.abc import Mapping
 from datetime import datetime
 from fnmatch import fnmatch
+from pathlib import Path
 from typing import Any, Optional
 
 from agentsociety2.agent.base import AgentBase
+from agentsociety2.agent.config import AgentConfig
+from agentsociety2.agent.persistence import (
+    Checkpoint,
+    WorkspaceCleaner,
+    SessionRecovery,
+)
+from agentsociety2.agent.concurrent import ParallelExecutor, RateLimiter, TaskManager
 from agentsociety2.agent.context import (
     AgentMemory,
     StructuredSummary,
@@ -26,7 +35,7 @@ from agentsociety2.agent.context import (
     run_thread_compaction,
     save_thread_compact_state,
 )
-from agentsociety2.agent.context_config import get_config_for_agent
+from agentsociety2.agent.prompt_builder import PromptBuilder, PromptCacheManager
 from agentsociety2.agent.skills import SkillRegistry, get_skill_registry
 from agentsociety2.agent.skills.runtime import AgentSkillRuntime
 from agentsociety2.agent.tool import (
@@ -102,11 +111,42 @@ class PersonAgent(AgentBase):
         ("done", "(done=true, summary)", "Finish this step"),
     )
 
+    # 精简版工具表（仅名称和用途，不含详细参数说明）
+    _TOOL_SPECS_MINIMAL: tuple[tuple[str, str], ...] = (
+        ("activate_skill", "Load and activate a skill by name"),
+        ("read_skill", "Read skill documentation files"),
+        ("execute_skill", "Execute skill's subprocess"),
+        ("bash", "Run shell commands"),
+        ("codegen", "Send instructions to simulation environment"),
+        ("workspace_read", "Read files from your workspace"),
+        ("workspace_write", "Write files to your workspace"),
+        ("workspace_list", "List workspace directory contents"),
+        ("glob", "Find files by pattern"),
+        ("grep", "Search file contents"),
+        ("enable_skill", "Make a hidden skill visible"),
+        ("disable_skill", "Hide a skill from catalog"),
+        ("batch", "Execute multiple operations together"),
+        ("done", "Finish this simulation step"),
+    )
+
     @classmethod
     def _render_tool_table(cls) -> str:
         lines = ["| Tool | Arguments | Purpose |", "|------|-----------|----------|"]
         for name, arguments, purpose in cls._TOOL_SPECS:
             lines.append(f"| {name} | {arguments} | {purpose} |")
+        return "\n".join(lines)
+
+    @classmethod
+    def _render_tool_table_minimal(cls) -> str:
+        """渲染精简版工具表（减少 Token 消耗）。
+
+        仅显示工具名称和简短描述，详细参数按需查询。
+
+        :return: 精简版工具表 Markdown。
+        """
+        lines = ["| Tool | Purpose |", "|------|---------|"]
+        for name, purpose in cls._TOOL_SPECS_MINIMAL:
+            lines.append(f"| {name} | {purpose} |")
         return "\n".join(lines)
 
     def __init__(
@@ -147,7 +187,7 @@ class PersonAgent(AgentBase):
         self._skill_registry = SkillRegistry()
         self._skill_registry.copy_from(base_registry)
         self._skill_runtime = AgentSkillRuntime(
-            agent_id=id, registry=self._skill_registry
+            agent_id=id, registry=self._skill_registry, state_config=self._config.state
         )
         self._selectable_skill_names: set[str] = set()
         self._skill_visibility_overrides: dict[str, bool] = {}
@@ -169,15 +209,15 @@ class PersonAgent(AgentBase):
             0, int(self._capability_kwargs.get("tool_decision_max_retries", 10))
         )
 
-        # ── 统一的上下文配置管理 ──
-        self._ctx_config = get_config_for_agent(
-            capability_kwargs=self._capability_kwargs,
-        )
+        # ── 统一配置管理 ──
+        self._config = AgentConfig.from_kwargs(capability_kwargs)
+        self._ctx_config = self._config.context
 
         # 上下文缓存：避免重复读取相同文件（LRU 淘汰）
         self._workspace_cache: OrderedDict[str, str] = OrderedDict()
         self._cache_valid_paths: set[str] = set()
-        self._cache_max_entries: int = 50  # 最大缓存条目数
+        self._cache_max_entries: int = self._ctx_config.workspace_cache_max_entries
+        self._cache_lock = threading.Lock()
         # 当前 step 的上下文快照（在 step 开始时构建）
         self._step_context: dict[str, Any] = {}
         # workspace 状态版本：每次可能改动工作区后递增，避免模型使用过期上下文
@@ -205,9 +245,25 @@ class PersonAgent(AgentBase):
         self._prompt_cache_version: int = 0
         self._cached_skills: set[str] = set()
         self._cached_ws_version: int = 0
+        # 新增：Prompt 缓存管理器
+        self._prompt_cache_manager: PromptCacheManager | None = None
 
         # ── 循环检测 ──
-        self._loop_detector = LoopDetectionService(LoopDetectionConfig())
+        self._loop_detector = LoopDetectionService(self._config.loop_detection)
+
+        # ── 检查点与会话恢复（延迟初始化，需要workspace路径） ──
+        self._checkpoint: Optional[Checkpoint] = None
+        self._session_recovery: Optional[SessionRecovery] = None
+
+        # ── Workspace 清理（延迟初始化） ──
+        self._cleaner: Optional[WorkspaceCleaner] = None
+
+        # ── 并发控制 ──
+        self._parallel_executor = ParallelExecutor(self._config)
+        self._rate_limiter = RateLimiter(self._config.concurrency.rate_limit_rps)
+
+        # ── Prompt 缓存管理器 ──
+        self._prompt_cache_manager = PromptCacheManager()
 
     def _update_workspace_cache(self, path: str, content: str) -> None:
         """更新缓存并执行 LRU 淘汰。
@@ -215,14 +271,15 @@ class PersonAgent(AgentBase):
         :param path: 文件路径。
         :param content: 文件内容。
         """
-        if path in self._workspace_cache:
-            self._workspace_cache.move_to_end(path)
-        self._workspace_cache[path] = content
-        self._cache_valid_paths.add(path)
-        while len(self._workspace_cache) > self._cache_max_entries:
-            oldest = next(iter(self._workspace_cache))
-            del self._workspace_cache[oldest]
-            self._cache_valid_paths.discard(oldest)
+        with self._cache_lock:
+            if path in self._workspace_cache:
+                self._workspace_cache.move_to_end(path)
+            self._workspace_cache[path] = content
+            self._cache_valid_paths.add(path)
+            while len(self._workspace_cache) > self._cache_max_entries:
+                oldest = next(iter(self._workspace_cache))
+                del self._workspace_cache[oldest]
+                self._cache_valid_paths.discard(oldest)
 
     def _all_visible_skill_names(self) -> set[str]:
         """返回当前 agent 可见技能名集合副本。"""
@@ -273,9 +330,9 @@ class PersonAgent(AgentBase):
         预读 capability_kwargs['preload_workspace_paths'] 列出的路径，
         同时更新缓存供后续操作使用。单个文件读取失败不会中断整体构建。
 
-        结果总大小受 MAX_STEP_CONTEXT_CHARS 限制。
+        结果总大小受配置限制。
         """
-        from agentsociety2.agent.context_config import MAX_STEP_CONTEXT_CHARS
+        max_chars = self._config.context.workspace_read_chunk_cap
 
         context: dict[str, Any] = {}
         total_chars = 0
@@ -291,9 +348,9 @@ class PersonAgent(AgentBase):
                             if isinstance(content, str)
                             else len(str(content))
                         )
-                        if total_chars + content_chars > MAX_STEP_CONTEXT_CHARS:
+                        if total_chars + content_chars > max_chars:
                             logger.warning(
-                                f"_step_context exceeds limit ({total_chars + content_chars} > {MAX_STEP_CONTEXT_CHARS}), "
+                                f"_step_context exceeds limit ({total_chars + content_chars} > {max_chars}), "
                                 f"skipping {path}"
                             )
                             continue
@@ -384,12 +441,24 @@ class PersonAgent(AgentBase):
         :return: 安全的 profile。
         """
         if isinstance(profile, str):
-            profile = re.sub(
-                r"^\s*(SYSTEM|INSTRUCTION|ACT|PROMPT|IGNORE)\s*:",
-                "",
-                profile,
-                flags=re.IGNORECASE | re.MULTILINE,
-            )
+            # Block common prompt injection patterns
+            patterns = [
+                r"^\s*(SYSTEM|INSTRUCTION|ACT|PROMPT|IGNORE|ASSISTANT|USER|AI|BOT)\s*[:\[\{]",
+                r"^\s*<<\s*(SYSTEM|INSTRUCTION|ACT|PROMPT|IGNORE)\s*>>",
+                r"\[\s*(SYSTEM|INSTRUCTION|ACT|PROMPT|IGNORE)\s*\]",
+                r"<\s*(SYSTEM|INSTRUCTION|ACT|PROMPT|IGNORE)\s*>",
+            ]
+            for pattern in patterns:
+                profile = re.sub(
+                    pattern, "", profile, flags=re.IGNORECASE | re.MULTILINE
+                )
+            # Block Unicode variants (full-width characters)
+            unicode_patterns = [
+                r"[\uff21-\uff3a\uff41-\uff5a]+\s*[\uff1a\uff1b]",  # Full-width letters followed by full-width colon
+            ]
+            for pattern in unicode_patterns:
+                if re.search(pattern, profile):
+                    profile = re.sub(pattern, "", profile)
             return profile
         if isinstance(profile, dict):
             return {
@@ -446,7 +515,7 @@ class PersonAgent(AgentBase):
         """构建本步 system prompt。
 
         注入 world description、agent identity、工具协议、skill catalog、已激活技能列表。
-        使用缓存机制避免重复构建。
+        使用分段缓存机制优化 Token 消耗。
 
         :param tick: 当前仿真步时间跨度（秒）。
         :param t: 当前仿真时间。
@@ -458,14 +527,119 @@ class PersonAgent(AgentBase):
 
         base = super().get_system_prompt(tick, t)
 
+        # 使用 PromptBuilder 构建分段 prompt
+        builder = PromptBuilder()
+
+        # === 静态段（可缓存） ===
         wd = (self._world_description_for_prompt or self._world_description).strip()
-        world_block = ""
         if wd:
-            world_block = (
-                "\n\n# World Description\n"
-                "Environment-specific modules, tools, and action conventions:\n\n"
-                f"{wd}\n"
-            )
+            builder.add_world_description(wd)
+
+        builder.add_workspace_structure(
+            self._skill_runtime.build_workspace_structure_prompt()
+        )
+
+        # 工具协议和工具表（静态）
+        builder.add_tool_protocol()
+        # 根据配置选择工具表模式
+        if self._ctx_config.tool_table_mode == "minimal":
+            builder.add_tools(self._render_tool_table_minimal())
+        else:
+            builder.add_tools(self._render_tool_table())
+
+        # 技能目录（静态）
+        visible_names = sorted(self._all_visible_skill_names())
+        catalog_names: list[str] = []
+        for n in visible_names:
+            info = self._skill_registry.get_skill_info(n, load_content=False)
+            if info is None:
+                continue
+            if getattr(info, "disable_model_invocation", False):
+                continue
+            patterns = list(getattr(info, "paths", []) or [])
+            if patterns and not self._catalog_paths_match(patterns):
+                continue
+            catalog_names.append(n)
+        catalog = self._skill_runtime.skill_list(catalog_names)
+        builder.add_skill_catalog(catalog)
+
+        # === 动态段（每次重建） ===
+        builder.add_identity(
+            self.id, self._name, self._agent_identity_json_for_prompt()
+        )
+
+        # AGENT_CONTEXT.md
+        context_data = self._skill_runtime.read_agent_context()
+        if context_data.get("metadata") or context_data.get("content"):
+            builder.add_context(context_data, max_chars=1000)
+
+        # Workspace 摘要
+        workspace_summary = self._skill_runtime.build_workspace_summary()
+        if workspace_summary:
+            builder.add_workspace_summary(workspace_summary)
+
+        # 会话恢复上下文
+        if self._session_recovery:
+            recovery_context = self._session_recovery.build_recovery_context(tick)
+            if recovery_context:
+                builder.add_recovery_context(recovery_context)
+
+        # Workspace 状态快照
+        ctx_view = (
+            self._workspace_snapshot_for_prompt
+            if self._workspace_snapshot_for_prompt
+            else self._step_context
+        )
+        if ctx_view:
+            builder.add_state_snapshot(ctx_view)
+
+        # 已激活技能
+        builder.add_activated_skills(self._activated_skills)
+
+        # 环境约束
+        pc = self._merged_person_step_constraints()
+        if pc:
+            constraints = "This step has environment-imposed limits: only skills listed in the catalog above exist for you."
+            if pc.pin_allowed_tools_to_skill:
+                constraints += f" Allowed-tools scope is pinned to `{pc.pin_allowed_tools_to_skill}` at step start."
+            builder.add_constraints(constraints)
+
+        # 构建完整 prompt
+        result = base + builder.build()
+
+        # 更新缓存
+        self._prompt_cache = result
+        self._cached_skills = set(self._activated_skills)
+        self._cached_ws_version = self._workspace_state_version
+
+        return result
+
+    def get_system_prompt_segmented(self, tick: int, t: datetime) -> tuple[str, str]:
+        """分段构建 system prompt，支持 Prompt Caching。
+
+        返回静态段和动态段，静态段可添加 cache_control 实现 Token 缓存。
+
+        :param tick: 当前仿真步时间跨度（秒）。
+        :param t: 当前仿真时间。
+        :return: (静态段, 动态段) 元组。
+        """
+        base = super().get_system_prompt(tick, t)
+
+        builder = PromptBuilder()
+
+        # 静态段
+        wd = (self._world_description_for_prompt or self._world_description).strip()
+        if wd:
+            builder.add_world_description(wd)
+        builder.add_workspace_structure(
+            self._skill_runtime.build_workspace_structure_prompt()
+        )
+        builder.add_tool_protocol()
+        # 根据配置选择工具表模式
+        if self._ctx_config.tool_table_mode == "minimal":
+            builder.add_tools(self._render_tool_table_minimal())
+        else:
+            builder.add_tools(self._render_tool_table())
 
         visible_names = sorted(self._all_visible_skill_names())
         catalog_names: list[str] = []
@@ -480,83 +654,39 @@ class PersonAgent(AgentBase):
                 continue
             catalog_names.append(n)
         catalog = self._skill_runtime.skill_list(catalog_names)
+        builder.add_skill_catalog(catalog)
 
-        skill_section = (
-            f"\n\n# Agent Identity\n"
-            f"{self._agent_identity_json_for_prompt()}\n"
-            "\n# This simulation step\n"
-            "The persona and behavioral guidelines above set motivation and realism. "
-            "Within this step you must act only through the tool JSON protocol below: "
-            "each assistant turn is exactly one tool call (`batch` still counts as one `tool_name`).\n"
+        # 动态段
+        builder.add_identity(
+            self.id, self._name, self._agent_identity_json_for_prompt()
         )
-
-        # 注入 workspace 结构说明（Cursor风格动态发现）
-        skill_section += f"\n{self._skill_runtime.build_workspace_structure_prompt()}\n"
-
+        context_data = self._skill_runtime.read_agent_context()
+        if context_data.get("metadata") or context_data.get("content"):
+            builder.add_context(context_data, max_chars=1000)
+        workspace_summary = self._skill_runtime.build_workspace_summary()
+        if workspace_summary:
+            builder.add_workspace_summary(workspace_summary)
+        if self._session_recovery:
+            recovery_context = self._session_recovery.build_recovery_context(tick)
+            if recovery_context:
+                builder.add_recovery_context(recovery_context)
         ctx_view = (
             self._workspace_snapshot_for_prompt
             if self._workspace_snapshot_for_prompt
             else self._step_context
         )
         if ctx_view:
-            skill_section += (
-                f"\n# Workspace State (pre-loaded)\n"
-                "Below is a snapshot of common workspace files for faster context.\n"
-                "Important: after any write/execute/codegen action, snapshot content may become stale; "
-                "use `workspace_read` to fetch latest source of truth when correctness matters.\n"
-                f"```json\n{jr_dumps(ctx_view, indent=1)}\n```\n"
-            )
-
-        skill_section += (
-            "\n# Tool protocol (output shape)\n"
-            "Respond ONLY with valid JSON: {tool_name, arguments, done, summary}. "
-            "`arguments` must be a JSON object (use {} if no parameters).\n"
-            "For execute_skill use arguments.args as a JSON object; for codegen use arguments.ctx as a JSON object "
-            "(prefer objects over stringified JSON; the runtime parses strings with json_repair).\n"
-            "For activate_skill set arguments.skill_name; optional arguments.arguments (string or list) feeds "
-            "SKILL.md placeholders like $ARGUMENTS / $0.\n\n"
-            "# Skills\n"
-            "The catalog lists name + short description only (progressive disclosure). "
-            "Use `activate_skill` to load full SKILL.md, then follow it.\n"
-            "If TOOL_RESULT_JSON reports blocked/visibility/dependency errors, adjust the next tool call.\n\n"
-            "# Execution Rules\n"
-            "- Do not invent tools or fields. `tool_name` must match the Tools table exactly.\n"
-            "- Never set tool_name to a catalog skill name. Use activate_skill with arguments.skill_name.\n"
-            "- To drive the **shared simulation environment** (observe, submit, status), use `codegen` with a clear "
-            "instruction; the runtime merges your numeric id into ctx.\n"
-            "- Prefer skill-driven execution: activate -> read/execute -> workspace operations -> done.\n"
-            "- Long files: use `workspace_read` or `read_skill` with `arguments.offset` (0-based char index in decoded "
-            "text) and optional `arguments.limit`; if `has_more` is true, call again with `offset=next_offset`.\n"
-            "- Keep `summary` concise and factual.\n"
-            "- Use `batch` only when allowed by the active skill's allowed-tools (if any).\n\n"
-        )
+            builder.add_state_snapshot(ctx_view)
+        builder.add_activated_skills(self._activated_skills)
         pc = self._merged_person_step_constraints()
         if pc:
-            skill_section += (
-                "# Environment step constraints\n"
-                "This step has environment-imposed limits: only skills listed in the catalog above exist for you. "
-                "If an active skill declares allowed-tools, do not call tools outside that list.\n"
-            )
+            constraints = "This step has environment-imposed limits: only skills listed in the catalog above exist for you."
             if pc.pin_allowed_tools_to_skill:
-                skill_section += (
-                    f"Allowed-tools scope is pinned to `{pc.pin_allowed_tools_to_skill}` at step start; "
-                    "follow that skill's SKILL.md for codegen vs workspace.\n"
-                )
-        skill_section += (
-            "# Tools\n"
-            f"{self._render_tool_table()}\n\n"
-            f"# Skill Catalog\n{jr_dumps(catalog, indent=1)}\n\n"
-            f"# Activated Skills\n{jr_dumps(sorted(self._activated_skills))}"
-        )
+                constraints += f" Allowed-tools scope is pinned to `{pc.pin_allowed_tools_to_skill}` at step start."
+            builder.add_constraints(constraints)
 
-        result = base + world_block + skill_section
-
-        # 更新缓存
-        self._prompt_cache = result
-        self._cached_skills = set(self._activated_skills)
-        self._cached_ws_version = self._workspace_state_version
-
-        return result
+        static_prompt, dynamic_prompt = builder.build_segmented(base)
+        return static_prompt, dynamic_prompt
 
     # ── Thread Management ─────────────────────────────────────────────────────
 
@@ -809,11 +939,14 @@ class PersonAgent(AgentBase):
     async def _inject_skill_command_outputs(self, content: str) -> str:
         """注入 !`cmd` 动态上下文。
 
-        命令失败则激活失败。
+        命令失败则激活失败。仅允许安全命令（禁止管道、重定向、命令替换等）。
 
         :param content: 包含 !`cmd` 占位符的 skill 内容。
         :return: 渲染后的内容。
         """
+        from agentsociety2.agent.tool.security import BashSecurityChecker
+
+        security_checker = BashSecurityChecker()
         pattern = re.compile(r"!\`([^`\n]+)\`")
         rendered = content
         offset = 0
@@ -821,6 +954,9 @@ class PersonAgent(AgentBase):
             cmd = m.group(1).strip()
             if not cmd:
                 raise ValueError("empty dynamic command")
+            is_safe, reason = security_checker.check(cmd)
+            if not is_safe:
+                raise ValueError(f"blocked dynamic command: {cmd} - {reason}")
             out = await self._run_bash_in_workspace(command=cmd, timeout_sec=20)
             if not out.get("ok"):
                 raise ValueError(
@@ -920,32 +1056,18 @@ class PersonAgent(AgentBase):
                 "stdout": "",
                 "stderr": "empty command",
             }
-        # 基于“默认信任本机”的轻量护栏：
-        # - 禁止绝对路径，避免直接读写系统文件
-        # - 禁止 ../ 访问上级目录，避免越出 agent workspace 语义
-        if re.search(r"(^|[\s'\"();|&])\/", command):
+        # SECURITY: Use BashSecurityChecker for comprehensive protection
+        from agentsociety2.agent.tool.security import BashSecurityChecker
+
+        security_checker = BashSecurityChecker()
+        is_safe, reason = security_checker.check(command)
+        if not is_safe:
             return {
                 "ok": False,
                 "exit_code": -1,
                 "stdout": "",
-                "stderr": "blocked: absolute path",
+                "stderr": f"blocked: {reason}",
             }
-        if "../" in command or "/.." in command or "..\\" in command:
-            return {
-                "ok": False,
-                "exit_code": -1,
-                "stdout": "",
-                "stderr": "blocked: parent traversal",
-            }
-        cmd_lower = command.lower()
-        for token in BLOCKED_TOKENS:
-            if token in cmd_lower:
-                return {
-                    "ok": False,
-                    "exit_code": -1,
-                    "stdout": "",
-                    "stderr": f"blocked: contains '{token}'",
-                }
         work_dir = self._skill_runtime.workspace_root()
         attempts = self._bash_timeout_retries + 1
         for attempt in range(attempts):
@@ -1037,9 +1159,9 @@ class PersonAgent(AgentBase):
         root_path = (work_dir / (root or ".")).resolve()
         if root_path != work_dir and work_dir not in root_path.parents:
             raise ValueError("Path escapes agent workspace")
-        max_files = 2000
-        max_matches = 1000
-        max_file_bytes = 2 * 1024 * 1024
+        max_files = self._ctx_config.grep_max_files
+        max_matches = self._ctx_config.grep_max_matches
+        max_file_bytes = self._ctx_config.grep_max_file_bytes
         try:
             rx = re.compile(pattern)
         except re.error as e:
@@ -1188,6 +1310,23 @@ class PersonAgent(AgentBase):
         if self._env is not None:
             self._world_description = await self._env.get_world_description()
 
+        # 初始化检查点和会话恢复
+        workspace_root = self._skill_runtime.workspace_root()
+        self._checkpoint = Checkpoint(workspace_root, self._config)
+        self._session_recovery = SessionRecovery(workspace_root, self._checkpoint)
+        self._cleaner = WorkspaceCleaner(workspace_root, self._config)
+
+        # 尝试从最近的检查点恢复
+        latest_tick = self._checkpoint.latest_tick()
+        if latest_tick is not None:
+            logger.info(f"Agent {self.id}: found checkpoint at tick {latest_tick}")
+            restored = self._restore_from_checkpoint(latest_tick)
+            if restored:
+                logger.info(
+                    f"Agent {self.id}: restored from checkpoint at tick {latest_tick}"
+                )
+            logger.info(f"Agent {self.id}: found checkpoint at tick {latest_tick}")
+
         # 初始化持久化记忆
         try:
             self._memory = AgentMemory(self._skill_runtime.workspace_root())
@@ -1216,6 +1355,70 @@ class PersonAgent(AgentBase):
                 else:
                     key_state[p] = cached
         return key_state
+
+    def _collect_checkpoint_state(self) -> dict[str, Any]:
+        """收集用于检查点保存的状态数据。"""
+        state: dict[str, Any] = {
+            "step_count": self._step_count,
+            "activated_skills": sorted(self._activated_skills),
+            "active_skill_scope": self._active_skill_scope,
+        }
+
+        # 动态收集 state 目录下的所有 JSON 文件
+        state_files = self._skill_runtime.workspace_list("state")
+        for path in state_files:
+            if path.endswith(".json"):
+                try:
+                    content = self._skill_runtime.workspace_read(path)
+                    parsed = jr_parse(content)
+                    if parsed:
+                        state[path] = parsed
+                except Exception:
+                    pass
+
+        return state
+
+    def _restore_from_checkpoint(self, tick: int) -> bool:
+        """从检查点恢复 agent 状态。
+
+        :param tick: 检查点的 tick 值。
+        :return: 是否成功恢复。
+        """
+        if self._checkpoint is None:
+            return False
+
+        data = self._checkpoint.restore(tick)
+        if data is None:
+            return False
+
+        state = data.get("state", {})
+        if not isinstance(state, dict):
+            return False
+
+        # 恢复基本状态
+        self._step_count = state.get("step_count", 0)
+
+        # 恢复激活的技能
+        activated_skills = state.get("activated_skills", [])
+        if isinstance(activated_skills, list):
+            self._activated_skills = set(activated_skills)
+
+        # 恢复活跃技能范围
+        self._active_skill_scope = state.get("active_skill_scope", "")
+
+        # 动态恢复状态文件（所有以 state/ 开头的路径）
+        for key, value in state.items():
+            if key.startswith("state/") and key.endswith(".json"):
+                try:
+                    self._skill_runtime.workspace_write(key, jr_dumps(value, indent=2))
+                except Exception as e:
+                    logger.warning(f"Agent {self.id}: failed to restore {key}: {e}")
+
+        # 刷新可见技能列表
+        self._refresh_selectable_skills()
+        self._invalidate_prompt_cache()
+
+        return True
 
     def _seed_workspace_from_init_state(self) -> None:
         """从 init_state 初始化 workspace。
@@ -1640,6 +1843,16 @@ class PersonAgent(AgentBase):
             args = self._coerce_llm_dict(decision.arguments)
             skill_name = str(args.get("skill_name", "")).strip()
 
+            # 发送行为追踪事件
+            self._skill_runtime.emit_behavior_event(
+                "tool_call",
+                {
+                    "tool": action,
+                    "args_summary": {k: str(v)[:50] for k, v in list(args.items())[:5]},
+                },
+                tick=tick,
+            )
+
             # ── 循环检测 ──
             loop_result = self._loop_detector.check_tool_loop(action, args)
             if loop_result.is_loop:
@@ -1647,14 +1860,38 @@ class PersonAgent(AgentBase):
                     f"Agent {self.id}: loop detected - {loop_result.details}"
                 )
                 logs.append(f"loop_detected:{loop_result.loop_type}")
+
+                # 尝试恢复：重置活跃技能范围，给模型一个干净的上下文
+                if self._active_skill_scope:
+                    prev_scope = self._active_skill_scope
+                    self._active_skill_scope = ""
+                    self._invalidate_prompt_cache()
+                    logger.info(
+                        f"Agent {self.id}: reset active_skill_scope from '{prev_scope}' to recover from loop"
+                    )
+
                 result_obj = {
                     "action": action,
                     "ok": False,
-                    "error": f"Loop detected: {loop_result.details}. Call 'done' or try a different approach.",
+                    "error": f"Loop detected: {loop_result.details}. Active skill scope has been reset. Call 'done' or try a different approach.",
+                    "recovery_hint": "Your previous skill context has been cleared. You may activate a different skill or call 'done' to finish this step.",
                 }
                 history.append(result_obj)
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
-                break
+                # 不立即 break，给模型一次恢复机会，但记录循环次数
+                self._loop_consecutive_count = (
+                    getattr(self, "_loop_consecutive_count", 0) + 1
+                )
+                if self._loop_consecutive_count >= 3:
+                    logger.error(
+                        f"Agent {self.id}: too many consecutive loops, forcing step end"
+                    )
+                    logs.append("forced_end:too_many_loops")
+                    break
+                continue
+            else:
+                # 重置连续循环计数
+                self._loop_consecutive_count = 0
 
             # 仅当显式选择 done 工具时立即结束。done=true 与具体工具并列时表示
             # 「执行本工具后本仿真步结束」，不得在派发工具之前 break（否则工具不会执行）。
@@ -1834,6 +2071,15 @@ class PersonAgent(AgentBase):
                     self._active_skill_scope = skill_name
                     self._invalidate_prompt_cache()
                     self._persist_agent_config()
+                    # 发送 skill 激活事件
+                    self._skill_runtime.emit_behavior_event(
+                        "skill_activate",
+                        {
+                            "skill": skill_name,
+                            "args": activation_raw[:100] if activation_raw else "",
+                        },
+                        tick=tick,
+                    )
                 result_obj = {
                     "action": action,
                     "skill_name": skill_name,
@@ -2317,6 +2563,36 @@ class PersonAgent(AgentBase):
 
         # 将当前状态写入持久化记忆
         self.handoff_to_memory()
+
+        # 自动同步状态到 AGENT_CONTEXT.md
+        try:
+            self._skill_runtime.sync_state_to_context()
+        except Exception as e:
+            logger.debug(f"Agent {self.id}: sync_state_to_context failed: {e}")
+
+        # 检查点保存
+        if (
+            self._checkpoint
+            and tick % self._config.persistence.checkpoint_interval == 0
+        ):
+            try:
+                checkpoint_state = self._collect_checkpoint_state()
+                self._checkpoint.save(tick=tick, state=checkpoint_state)
+                logger.debug(f"Agent {self.id}: saved checkpoint at tick {tick}")
+            except Exception as e:
+                logger.warning(f"Agent {self.id}: checkpoint save failed: {e}")
+
+        # 定期清理
+        if self._cleaner and self._step_count % 100 == 0:
+            try:
+                cleanup_stats = await self._cleaner.cleanup()
+                if cleanup_stats.get("bytes_freed", 0) > 0:
+                    logger.info(
+                        f"Agent {self.id}: cleanup freed "
+                        f"{cleanup_stats['bytes_freed'] / 1024:.1f}KB"
+                    )
+            except Exception as e:
+                logger.warning(f"Agent {self.id}: cleanup failed: {e}")
 
         if not logs:
             return "no-action"

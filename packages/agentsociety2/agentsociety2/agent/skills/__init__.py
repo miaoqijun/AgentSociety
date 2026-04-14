@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from agentsociety2.agent.context_config import ALLOWED_ENV_VARS
+from agentsociety2.agent.config import ALLOWED_ENV_VARS
 from agentsociety2.logger import get_logger
 
 logger = get_logger()

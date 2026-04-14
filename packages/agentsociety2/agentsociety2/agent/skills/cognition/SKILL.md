@@ -136,13 +136,76 @@ Exactly **one** English label, case-sensitive, from:
 
 Higher values on all three → stronger commitment. `priority`: lower number = more urgent this tick.
 
+## Emotion-Intention Integration
+
+**CRITICAL**: Current emotional state directly influences intention selection via TPB modifiers.
+
+### Emotion Modifiers
+
+Apply these modifiers to the base TPB scores based on current emotion intensities:
+
+| Emotion Condition | attitude Modifier | perceived_control Modifier | Effect |
+|-------------------|-------------------|---------------------------|--------|
+| `joy > 7` | +0.10 | +0.05 | Optimism bias, more willing to act |
+| `joy < 3` | -0.05 | -0.05 | Reduced motivation |
+| `anger > 6` | -0.10 | -0.05 | Impulsive, less careful planning |
+| `fear > 6` | +0.05 (for safety goals) | -0.10 | Risk-averse, lower confidence |
+| `fear > 6` | -0.10 (for risky goals) | -0.10 | Avoids risky intentions |
+| `sadness > 6` | -0.05 | -0.05 | Withdrawn, lower energy |
+| `surprise > 7` | +0.05 | -0.05 | Open to new options, but uncertain |
+
+### Computation Formula
+
+```
+final_attitude = base_attitude × (1 + emotion_attitude_modifier)
+final_perceived_control = base_perceived_control × (1 + emotion_control_modifier)
+
+final_score = final_attitude + subjective_norm + final_perceived_control
+```
+
+**Clamping**: All final values must be clamped to [0, 1] range.
+
+### Emotion-Behavior Tendencies
+
+Emotions also create natural behavioral tendencies that should bias candidate selection:
+
+| Primary Emotion | Preferred Intention Types | Avoided Intention Types |
+|-----------------|--------------------------|------------------------|
+| Joy | Social, exploration, leisure | Safety-seeking, withdrawal |
+| Anger | Confrontation, goal pursuit | Passive waiting, avoidance |
+| Fear | Safety-seeking, risk avoidance | Bold actions, exploration |
+| Sadness | Withdrawal, reflection | Social engagement, active goals |
+| Hope | Goal pursuit, planning | Giving up, passive resignation |
+| Satisfaction | Rest, leisure, social | Urgent action, new challenges |
+
 ### Selection Procedure
 
 1. List up to 5 candidate goals (fewer is fine).
 2. If the workspace contains urgency signals (e.g., unmet needs), prefer candidates that address them; otherwise leisure or exploration is appropriate.
-3. Score each candidate with the three TPB fields; assign `priority` to each.
-4. Emit only the best candidate as `state/intention.json` (lowest `priority` wins).
-5. Phrase `intention` as a goal ("Eat lunch at the café"), not step-by-step motor instructions.
+3. Score each candidate with the three TPB fields (base values).
+4. **Apply emotion modifiers** to attitude and perceived_control based on current emotion state.
+5. **Consider emotion-behavior tendencies** when ranking candidates.
+6. Assign `priority` to each candidate based on final_score.
+7. Emit only the best candidate as `state/intention.json` (highest final_score, or lowest `priority`).
+8. Phrase `intention` as a goal ("Eat lunch at the café"), not step-by-step motor instructions.
+
+### Example Calculation
+
+```
+Current emotion: anger=7, joy=3, fear=2
+
+Candidate: "Confront Alice about the issue"
+Base scores: attitude=0.7, subjective_norm=0.5, perceived_control=0.6
+
+Emotion modifiers:
+- anger > 6 → attitude -0.10, perceived_control -0.05
+- joy < 3 → attitude -0.05, perceived_control -0.05
+
+Final scores:
+- attitude = 0.7 × (1 - 0.10 - 0.05) = 0.7 × 0.85 = 0.595
+- perceived_control = 0.6 × (1 - 0.05 - 0.05) = 0.6 × 0.90 = 0.54
+- final_score = 0.595 + 0.5 + 0.54 = 1.635
+```
 
 ## Output File Schemas
 
@@ -179,9 +242,16 @@ Higher values on all three → stronger commitment. `priority`: lower number = m
   "attitude": 0.9,
   "subjective_norm": 0.7,
   "perceived_control": 0.8,
+  "final_score": 2.4,
+  "emotion_influence": {
+    "joy_modifier": 0.05,
+    "applied_modifiers": ["joy > 7: +0.10 attitude"]
+  },
   "reasoning": "One or two sentences"
 }
 ```
+
+**Note**: The `emotion_influence` field records how emotions affected this decision, providing transparency and debuggability.
 
 ## Execution Sequence
 
@@ -189,8 +259,9 @@ Higher values on all three → stronger commitment. `priority`: lower number = m
 2. Compute mood update (drift toward neutral, influenced by recent emotions).
 3. Compute emotion intensities (respect continuity rules).
 4. `workspace_write("state/emotion.json", ...)`
-5. `workspace_write("state/intention.json", ...)`
-6. `done`
+5. **List candidate intentions and apply emotion modifiers** to compute final scores.
+6. `workspace_write("state/intention.json", ...)` (include emotion_influence field)
+7. `done`
 
 ## Notes
 
