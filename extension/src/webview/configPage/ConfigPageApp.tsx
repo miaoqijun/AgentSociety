@@ -450,14 +450,17 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
             {validationState.default.valid && (
               <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 12 }} />
             )}
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              onClick={() => handleValidate('default')}
-              loading={validationState.default?.validating}
-            >
-              {t('configPage.validate')}
-            </Button>
+            <Tooltip title={defaultValidateDisabledReason || ''}>
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                onClick={() => handleValidate('default')}
+                loading={validationState.default?.validating}
+                disabled={Boolean(defaultValidateDisabledReason)}
+              >
+                {t('configPage.validate')}
+              </Button>
+            </Tooltip>
           </Card>
 
           {/* ========== 可选配置（折叠）========== */}
@@ -673,15 +676,17 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                       </Form.Item>
                       <Form.Item>
                         <Space>
-                          <Button
-                            size="small"
-                            icon={<CheckCircleOutlined />}
-                            loading={validationState.literature?.validating}
-                            onClick={() => handleValidate('literature')}
-                            disabled={Boolean(literatureValidateDisabledReason)}
-                          >
-                            {t('configPage.literature.validateConfig')}
-                          </Button>
+                          <Tooltip title={literatureValidateDisabledReason || ''}>
+                            <Button
+                              size="small"
+                              icon={<CheckCircleOutlined />}
+                              loading={validationState.literature?.validating}
+                              onClick={() => handleValidate('literature')}
+                              disabled={Boolean(literatureValidateDisabledReason)}
+                            >
+                              {t('configPage.literature.validateConfig')}
+                            </Button>
+                          </Tooltip>
                           {validationState.literature?.valid === true && (
                             <Text type="success">✓ {t('configPage.literature.validateSuccess')}</Text>
                           )}

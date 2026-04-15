@@ -398,7 +398,9 @@ export class ConfigPageViewProvider {
 
     // 对非默认模型：若 API Key 或 Base URL 为空，则回落到默认 LLM 配置
     if (!apiKey && llmType !== 'default') {
-      apiKey = config.llmApiKey || '';
+      apiKey = llmType === 'easypaperVlm'
+        ? (config.easypaperLlmApiKey || config.llmApiKey || '')
+        : (config.llmApiKey || '');
     }
     if (!apiBase) {
       apiBase = config.llmApiBase || '';

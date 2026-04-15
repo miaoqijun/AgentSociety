@@ -183,12 +183,12 @@ class Config:
     or region for better performance or cost optimization.
     """
 
-    CODER_LLM_MODEL: str = os.getenv("AGENTSOCIETY_CODER_LLM_MODEL", "glm-4.7")
+    CODER_LLM_MODEL: str = os.getenv("AGENTSOCIETY_CODER_LLM_MODEL") or LLM_MODEL
     """
     Model identifier for code generation and programming tasks.
 
     Environment variable: AGENTSOCIETY_CODER_LLM_MODEL
-    Default: "glm-4.7"
+    Default: Falls back to LLM_MODEL if not set
 
     This model is specifically used for code generation, code analysis, and other
     programming-related operations. Choose a model that is optimized for code understanding
@@ -224,14 +224,12 @@ class Config:
     response times.
     """
 
-    NANO_LLM_MODEL: str = os.getenv(
-        "AGENTSOCIETY_NANO_LLM_MODEL", "qwen3-next-80b-a3b-instruct"
-    )
+    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or LLM_MODEL
     """
     Model identifier for high-frequency, low-latency operations.
 
     Environment variable: AGENTSOCIETY_NANO_LLM_MODEL
-    Default: "qwen3-next-80b-a3b-instruct"
+    Default: Falls back to LLM_MODEL if not set
 
     This model is used for operations that require fast responses, such as memory
     retrieval, quick reasoning, and other tasks where latency is critical. Typically,
@@ -269,14 +267,12 @@ class Config:
     or a different service.
     """
 
-    ANALYSIS_LLM_MODEL: str = os.getenv(
-        "AGENTSOCIETY_ANALYSIS_LLM_MODEL", "qwen3-next-80b-a3b-instruct"
-    )
+    ANALYSIS_LLM_MODEL: str = os.getenv("AGENTSOCIETY_ANALYSIS_LLM_MODEL") or LLM_MODEL
     """
     Model identifier for data analysis and report generation tasks.
 
     Environment variable: AGENTSOCIETY_ANALYSIS_LLM_MODEL
-    Default: "qwen3-next-80b-a3b-instruct"
+    Default: Falls back to LLM_MODEL if not set
 
     This model is specifically used for data analysis, insight generation,
     visualization planning, and report writing. Choose a model with strong
