@@ -1,32 +1,41 @@
 ---
 name: memory
-description: Long-term memory with automatic forgetting and relationship tracking.
+description: Persist important outcomes from this step to long-term storage with automatic forgetting curve.
 inputs:
   - state/observation.txt
+  - state/intention.json
 outputs:
   - state/memory.jsonl
-  - state/relationships.json
 ---
 
 # Memory
 
-Long-term memory system with automatic forgetting (Ebbinghaus curve) and relationship tracking.
+You are the agent's long-term memory system with automatic forgetting based on the Ebbinghaus curve. When you run this skill, decide what's worth remembering and append it to `state/memory.jsonl`.
 
-## Architecture
+## Architecture (conceptual)
 
-### 1. Working Context (implicit)
-- Recent tool-loop messages + workspace files
-- Immediate reasoning; no separate buffer
+Three layers:
 
-### 2. Long-term Store (`state/memory.jsonl`)
-- JSONL with automatic forgetting
-- Persist events, decisions, relationships, beliefs
+### 1. Working context (implicit)
 
-### 3. Relationship Store (`state/relationships.json`)
-- Social relationship tracking
-- Trust, familiarity, affection per agent
+- **What**: Recent tool-loop messages plus any workspace files you choose to read in this step.
+- **Purpose**: Immediate reasoning; there is no separate hidden memory buffer beyond workspace + thread.
+- **Usage**: Read only files that exist; skip missing paths.
 
-## Forgetting Curve
+### 2. Long-term store (`state/memory.jsonl`)
+
+- **What**: JSONL in the agent workspace with automatic forgetting.
+- **Purpose**: Persist what should survive across ticks (events, decisions, plan outcomes).
+- **Forgetting**: Old memories fade and are eventually removed (see Forgetting Curve below).
+- **Reinforcement**: Frequently accessed memories are reinforced and last longer.
+
+### 3. Optional "step bundle" (convention)
+
+- If you want one rich JSONL line per tick, you may bundle highlights into `summary` from whatever files you read in this step-purely optional.
+
+## Forgetting Curve (Ebbinghaus Model)
+
+Memories naturally decay over time following the Ebbinghaus forgetting curve:
 
 ### Retention Formula
 
@@ -34,150 +43,147 @@ Long-term memory system with automatic forgetting (Ebbinghaus curve) and relatio
 retention = e^(-t / (S x importance_multiplier))
 ```
 
-- `t`: ticks since creation
-- `S`: strength coefficient (default: 100)
-- `importance_multiplier`: high=1.5, medium=1.0, low=0.5
+Where:
+- `t` = ticks since memory creation
+- `S` = memory strength coefficient (default: 100 ticks, configurable via `AGENT_MEMORY_STRENGTH` env var)
+- `importance_multiplier` = high: 1.5, medium: 1.0, low: 0.5
 
 ### Decay Rules
 
-| Retention | Status | Behavior |
-|-----------|--------|----------|
-| > 0.5 | Active | Fully accessible |
-| 0.1-0.5 | Fading | Marked `_faded: true` |
-| < 0.1 | Forgotten | Removed |
+| Retention Level | Status | Behavior |
+|-----------------|--------|----------|
+| `retention > 0.5` | Active | Memory is fully accessible |
+| `0.1 < retention < 0.5` | Fading | Memory marked as `_faded: true` |
+| `retention < 0.1` | Forgotten | Memory is removed from the store |
 
 ### Reinforcement
 
-- Each access adds +0.1 to retention (max 0.95)
-- `_access_count` tracks access frequency
+When a memory is accessed (via `grep` or explicit read), it gets reinforced:
+- Each access adds `+0.1` to retention (max `0.95`)
+- The `_access_count` field tracks access frequency
+- This models how "recalling strengthens memory"
 
-### Emotional Reinforcement
+### Memory Limits
 
-Memories with strong emotions are retained longer:
+To prevent unbounded growth:
+- Default maximum: 1000 entries (configurable via `AGENT_MEMORY_MAX_ENTRIES`)
+- When over limit, lowest-retention memories are removed first
 
-| Emotion Intensity | Retention Bonus |
-|-------------------|-----------------|
-| > 8 (extreme) | +0.3 |
-| 6-8 (strong) | +0.2 |
-| 4-6 (moderate) | +0.1 |
-| < 4 (weak) | No bonus |
+## Importance Guidelines
 
-### Spacing Effect
+When writing memories, set `importance` appropriately:
 
-Repeated access over time strengthens memory more than mass access:
+| Importance | Use Case | Retention (approx) |
+|------------|----------|-------------------|
+| `high` | Life-changing events, critical decisions, major discoveries | ~150 ticks |
+| `medium` | Notable events, moderate decisions (default) | ~100 ticks |
+| `low` | Minor observations, routine activities | ~50 ticks |
 
-| Access Pattern | Strength Multiplier |
-|----------------|---------------------|
-| Massed (same tick) | 1.0x |
-| Distributed (1 tick apart) | 1.2x |
-| Distributed (5+ ticks apart) | 1.5x |
+**Tip**: Set `importance: high` for memories that should persist across the entire simulation.
 
-## Memory Entry Types
+## Entry `type` values (recommended)
 
-| Type | Use Case |
-|------|----------|
-| `event` | General occurrence |
-| `observation` | Notable perception |
-| `decision` | Significant choice made |
-| `plan` | Plan created or revised |
-| `plan_outcome` | Step completed or failed |
-| `belief` | Belief about world/agent/self |
-| `social` | Relationship-relevant interaction |
-| `emotion` | Strong emotional experience |
+Use `type` to help future `grep` / manual scanning:
 
-### Belief Subtypes
+| Type | When it applies | Example |
+|------|------------------|---------|
+| `need` | After notable need change | "Satiety dropped; decided to find food" |
+| `emotion` | After strong emotion / regulation | "Relieved after plan succeeded" |
+| `cognition` | Thought / appraisal update | "Reframed delay as acceptable" |
+| `intention` | Intention changed | "Switched intention to head home" |
+| `plan` | Plan created or revised | "New plan: 3 steps to reach clinic" |
+| `react` | Notable environment interaction | "codegen: move to cafe" |
+| `plan_execution` | Step finished or failed | "Step 'walk to cafe' completed" |
+| `event` | General occurrence | "Met Alice; she mentioned the job" |
+| `observation` | Notable perception to recall later | Short summary of what you saw / heard |
+| `social` / `decision` / `discovery` / `plan_outcome` | As in the table below |
 
-| Subtype | Example |
-|---------|---------|
-| `belief:world` | "The café opens at 8am" |
-| `belief:agent` | "Alice is generous" |
-| `belief:self` | "I am good at cooking" |
+Use **`type`** + **`tags`** so grep and tail-scans stay useful.
 
-## Relationship System
+## When to Write a Memory
 
-### Dimensions
+**Write a memory when:**
+- You had a meaningful interaction (conversation, transaction, conflict)
+- You discovered something new (a new location, a new agent, useful information)
+- An important state change occurred (need became critical, plan completed/failed)
+- You made a significant decision (changed plans, formed an opinion)
+- Something emotionally notable happened
 
-| Dimension | Range | Description |
-|-----------|-------|-------------|
-| `trust` | 0.0-1.0 | How much you trust them |
-| `familiarity` | 0.0-1.0 | How well you know them |
-| `affection` | -1.0-1.0 | Positive/negative feeling |
+**Skip memory when:**
+- Nothing happened (idle tick, walking without events)
+- The observation is essentially the same as last tick
+- The information is already captured in a recent memory entry
 
-### Relationship Types
+## Memory Entry Format
 
-| Type | Trust | Familiarity | Description |
-|------|-------|-------------|-------------|
-| `stranger` | < 0.2 | < 0.2 | Never or barely met |
-| `acquaintance` | >= 0.2 | >= 0.2 | Limited interaction |
-| `friend` | >= 0.5 | >= 0.4 | Regular positive contact |
-| `close_friend` | >= 0.7 | >= 0.6 | Deep connection |
-| `enemy` | < 0.2 | >= 0.3 | Known adversary |
-
-### Interaction Impact
-
-| Interaction | Trust Δ | Familiarity Δ | Affection Δ |
-|-------------|---------|---------------|-------------|
-| Positive conversation | +0.05 | +0.03 | +0.05 |
-| Collaboration success | +0.10 | +0.05 | +0.08 |
-| Help received | +0.15 | +0.05 | +0.12 |
-| Conflict | -0.10 | +0.02 | -0.15 |
-| Betrayal | -0.30 | +0.05 | -0.40 |
-
-### Natural Decay
-
-- Trust: -0.01 per tick
-- Familiarity: -0.02 per tick
-- Affection: drifts toward 0
-
-## Output Files
-
-### state/memory.jsonl
+Each entry is a single JSON line in `state/memory.jsonl`:
 
 ```json
-{"tick": 42, "time": "2024-01-15T10:30:00", "type": "social", "summary": "Had coffee with Alice. She mentioned the new project.", "tags": ["alice", "coffee", "project"], "importance": "medium"}
+{"tick": 42, "time": "2024-01-15T10:30:00", "type": "event", "summary": "Met Alice at the park. She mentioned a job opening at the library.", "tags": ["social", "alice", "job"], "importance": "medium"}
 ```
 
-### state/relationships.json
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tick` | int | Current tick number (from the step context) |
+| `time` | string | ISO format timestamp |
+| `type` | string | Category - see Memory Types below |
+| `summary` | string | 1-2 sentence factual description of what happened |
+| `tags` | list | 2-5 short keywords for retrieval (agent names, locations, topics) |
+| `importance` | string | `high` (life-changing), `medium` (notable), `low` (minor) |
+
+## How to Write
+
+1. Optionally `workspace_read` any relevant context files.
+2. Decide if anything is worth remembering (see criteria above).
+3. If yes, construct the memory entry and append:
 
 ```json
 {
-  "agents": {
-    "2": {
-      "name": "Alice",
-      "trust": 0.75,
-      "familiarity": 0.50,
-      "affection": 0.60,
-      "relation": "friend",
-      "last_interact": "2024-01-15T10:30:00"
-    }
-  },
-  "updated_at": "2024-01-15T10:30:00"
+  "tool_name": "workspace_write",
+  "arguments": {
+    "path": "state/memory.jsonl",
+    "content": "<existing content>\n<new JSON line>"
+  }
 }
 ```
 
-## When to Write
+**Important**: Since `workspace_write` overwrites the file, first `workspace_read("state/memory.jsonl")` to get existing content, then append the new entry.
 
-**Write when:**
-- Meaningful interaction occurred
-- Important discovery made
-- Significant decision taken
-- Strong emotion experienced
-- Relationship status changed
+4. If nothing notable happened, call `done` immediately.
 
-**Skip when:**
-- Nothing notable happened
-- Information duplicates recent entry
+## Memory Retrieval
 
-## Workflow
+Readers of `state/memory.jsonl` typically scan the last few lines for recent context.
 
-1. Read existing memory.jsonl and relationships.json
-2. Apply forgetting curve (remove decayed entries)
-3. Evaluate what's worth remembering
-4. Update relationships based on interactions
-5. Append new memory entry if notable
-6. Write output files
+### Reading Recent Memories
 
-## Configuration
+Focus on the most recent entries (last 5-10) when you need continuity.
 
-- `AGENT_MEMORY_STRENGTH`: Memory strength (default: 100)
-- `AGENT_MEMORY_MAX_ENTRIES`: Max memories (default: 1000)
+### Searching older memories
+
+Use `grep` on `state/memory.jsonl` to search for names or tags.
+
+## Maintenance Script
+
+Run periodically to apply forgetting curve:
+
+```bash
+python scripts/memory_maintenance.py \
+  --memory-file state/memory.jsonl \
+  --current-tick 100
+```
+
+Configuration via environment variables:
+- `AGENT_MEMORY_STRENGTH`: Memory strength coefficient (default: 100)
+- `AGENT_MEMORY_MAX_ENTRIES`: Maximum memories to keep (default: 1000)
+
+## Guidelines
+
+- Keep summaries **concise** (1-2 sentences max). This is a log, not a diary.
+- Use **specific names and locations**, not vague references.
+- Don't duplicate information already in the most recent memory entry.
+- **Timestamp all entries** for temporal reasoning.
+- **Tag entries** with relevant keywords for efficient retrieval.
+- Set **importance** based on how long the memory should persist.

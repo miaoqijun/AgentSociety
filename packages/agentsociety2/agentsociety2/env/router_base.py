@@ -866,6 +866,20 @@ Your generated world description:"""
                     "Use natural language instructions to interact with the environment router to accomplish your goals."
                 )
 
+            # Append custom world descriptions from environment modules
+            custom_descriptions = []
+            for env_module in self.env_modules:
+                if hasattr(env_module, 'get_world_description') and callable(env_module.get_world_description):
+                    try:
+                        custom_desc = env_module.get_world_description()
+                        if custom_desc and isinstance(custom_desc, str) and custom_desc.strip():
+                            custom_descriptions.append(custom_desc.strip())
+                    except Exception as e:
+                        logger.warning(f"Failed to get custom world description from {env_module.name}: {e}")
+
+            if custom_descriptions:
+                world_description = world_description + "\n\n" + "\n\n".join(custom_descriptions)
+
             logger.info(f"  ✓ 成功生成世界描述（长度: {len(world_description)} 字符）")
 
             return world_description.strip()
