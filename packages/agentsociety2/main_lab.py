@@ -3,6 +3,8 @@ Commons Tragedy 实验相关的主程序
 使用 PersonAgent 进行公地悲剧游戏模拟
 """
 
+# ruff: noqa: E402
+
 import asyncio
 import json
 import logging
@@ -698,10 +700,8 @@ async def main_commons_tragedy_with_person_agent(
                     if json_match:
                         data = json.loads(json_match.group(0))
                         if isinstance(data, dict):
-                            pool_before = data.get(
-                                "current_pool_resources", initial_pool_resources
-                            )
-                except:
+                            pool_before = data.get("current_pool_resources", initial_pool_resources)
+                except Exception:
                     pass
 
                 print(f"轮次开始时资源池: {pool_before} 单位")
@@ -900,7 +900,7 @@ async def main_prisoners_dilemma_with_person_agent(
     logger.info("【Prisoner's Dilemma Game with PersonAgent (囚徒困境-PersonAgent版)】")
     logger.info("=" * 80)
     logger.info("实验设置：")
-    logger.info(f"  - Agent 数量: 2 (Prisoner's Dilemma是2人游戏)")
+    logger.info("  - Agent 数量: 2 (Prisoner's Dilemma是2人游戏)")
     logger.info(f"  - 游戏局数: {num_games}")
     logger.info(f"  - 每局轮数: {num_rounds}")
     logger.info(
@@ -923,7 +923,7 @@ async def main_prisoners_dilemma_with_person_agent(
 
     # 限制 agent 数量 (Prisoner's Dilemma 只需要2个)
     if len(profiles) < 2:
-        logger.error(f"  ❌ profiles 数量不足，需要至少2个 agent")
+        logger.error("  ❌ profiles 数量不足，需要至少2个 agent")
         return
 
     profiles_to_use = profiles[profile_start_idx : profile_start_idx + 2]
@@ -970,7 +970,7 @@ async def main_prisoners_dilemma_with_person_agent(
         logger.error(f"保存实验配置失败: {e}")
 
     # ------- 创建 Agents ====================
-    logger.info(f"\n【步骤3】创建 2 个 PersonAgent...")
+    logger.info("\n【步骤3】创建 2 个 PersonAgent...")
 
     agent_args = []
     date_time_str = datetime.now().strftime("%Y%m%d%H%M%S")

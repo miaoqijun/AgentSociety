@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Agent 技能运行时（workspace + skill 执行）。
 
 该模块提供 :class:`~agentsociety2.agent.skills.runtime.AgentSkillRuntime`，用于把 PersonAgent 的
@@ -46,6 +44,9 @@ from __future__ import annotations
     runtime.write_file_manifest()
 """
 
+from __future__ import annotations
+
+import json
 import logging
 from collections import deque
 from datetime import datetime, timezone
