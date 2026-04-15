@@ -28,9 +28,9 @@ import { LLMValidator, PythonValidator, LLMType } from './services/llmValidator'
 /** Build EasyPaper agents YAML content from AgentSociety2 config (LLM/VLM). API Base uses llmApiBase. */
 function buildEasyPaperYaml(config: Partial<EnvConfig>): string {
   const llmKey = (config.easypaperLlmApiKey ?? '').trim() || (config.llmApiKey ?? '').trim();
-  const llmBase = (config.llmApiBase ?? 'https://cloud.infini-ai.com/maas/v1').trim();
-  const llmModel = (config.easypaperLlmModel ?? '').trim() || (config.llmModel ?? 'qwen3-next-80b-a3b-instruct').trim();
-  const vlmModel = (config.easypaperVlmModel ?? '').trim() || 'qwen3-vl-235b-a22b-thinking';
+  const llmBase = (config.llmApiBase ?? 'https://api.openai.com/v1').trim();
+  const llmModel = (config.easypaperLlmModel ?? '').trim() || (config.llmModel ?? 'gpt-5.4').trim();
+  const vlmModel = (config.easypaperVlmModel ?? '').trim() || 'gpt-5.4';
   const vlmKey = (config.easypaperVlmApiKey ?? '').trim() || llmKey;
   const vlmBase = llmBase;
   const esc = (s: string) => (s.includes(':') || s.includes('"') || s.includes('\n') ? `"${String(s).replace(/"/g, '\\"')}"` : s);
@@ -201,21 +201,21 @@ export class ConfigPageViewProvider {
       backendHost: envConfig.backendHost || '127.0.0.1',
       backendPort: envConfig.backendPort ?? 8001,
       pythonPath: envConfig.pythonPath || '',
-      llmApiBase: envConfig.llmApiBase || 'https://cloud.infini-ai.com/maas/v1',
-      llmModel: envConfig.llmModel || 'qwen3-next-80b-a3b-instruct',
+      llmApiBase: envConfig.llmApiBase || 'https://api.openai.com/v1',
+      llmModel: envConfig.llmModel || 'gpt-5.4',
       backendLogLevel: envConfig.backendLogLevel || 'info',
       coderLlmApiKey: envConfig.coderLlmApiKey || '',
       coderLlmApiBase: envConfig.coderLlmApiBase || '',
-      coderLlmModel: envConfig.coderLlmModel || 'glm-4.7',
+      coderLlmModel: envConfig.coderLlmModel || 'gpt-5.3-codex',
       nanoLlmApiKey: envConfig.nanoLlmApiKey || '',
       nanoLlmApiBase: envConfig.nanoLlmApiBase || '',
-      nanoLlmModel: envConfig.nanoLlmModel || 'qwen3-next-80b-a3b-instruct',
+      nanoLlmModel: envConfig.nanoLlmModel || 'gpt-5.4-nano',
       analysisLlmApiKey: envConfig.analysisLlmApiKey || '',
       analysisLlmApiBase: envConfig.analysisLlmApiBase || '',
-      analysisLlmModel: envConfig.analysisLlmModel || 'glm-5',
+      analysisLlmModel: envConfig.analysisLlmModel || 'gpt-5.4',
       embeddingApiKey: envConfig.embeddingApiKey || '',
       embeddingApiBase: envConfig.embeddingApiBase || '',
-      embeddingModel: envConfig.embeddingModel || 'bge-m3',
+      embeddingModel: envConfig.embeddingModel || 'text-embedding-3-large',
       embeddingDims: envConfig.embeddingDims ?? 1024,
       webSearchApiUrl: envConfig.webSearchApiUrl || '',
       webSearchApiToken: envConfig.webSearchApiToken || '',
@@ -223,8 +223,8 @@ export class ConfigPageViewProvider {
       miroflowDefaultAgent: envConfig.miroflowDefaultAgent || 'mirothinker_v1.5_keep5_max200',
       easypaperApiUrl: envConfig.easypaperApiUrl || '',
       easypaperLlmApiKey: envConfig.easypaperLlmApiKey || '',
-      easypaperLlmModel: envConfig.easypaperLlmModel || 'qwen3-next-80b-a3b-instruct',
-      easypaperVlmModel: envConfig.easypaperVlmModel || 'qwen3-vl-235b-a22b-thinking',
+      easypaperLlmModel: envConfig.easypaperLlmModel || 'gpt-5.4',
+      easypaperVlmModel: envConfig.easypaperVlmModel || 'gpt-5.4',
       easypaperVlmApiKey: envConfig.easypaperVlmApiKey || '',
       literatureSearchApiUrl: envConfig.literatureSearchApiUrl || 'http://localhost:8008/api/search',
       literatureSearchApiKey: envConfig.literatureSearchApiKey || '',
@@ -360,38 +360,38 @@ export class ConfigPageViewProvider {
       case 'coder':
         apiKey = config.coderLlmApiKey || '';
         apiBase = config.coderLlmApiBase || '';
-        model = config.coderLlmModel || 'glm-4.7';
+        model = config.coderLlmModel || 'gpt-5.3-codex';
         break;
       case 'nano':
         apiKey = config.nanoLlmApiKey || '';
         apiBase = config.nanoLlmApiBase || '';
-        model = config.nanoLlmModel || 'qwen3-next-80b-a3b-instruct';
+        model = config.nanoLlmModel || 'gpt-5.4-nano';
         break;
       case 'analysis':
         apiKey = config.analysisLlmApiKey || '';
         apiBase = config.analysisLlmApiBase || '';
-        model = config.analysisLlmModel || 'glm-5';
+        model = config.analysisLlmModel || 'gpt-5.4';
         break;
       case 'embedding':
         apiKey = config.embeddingApiKey || '';
         apiBase = config.embeddingApiBase || '';
-        model = config.embeddingModel || 'bge-m3';
+        model = config.embeddingModel || 'text-embedding-3-large';
         validationType = LLMType.Embedding;
         break;
       case 'easypaperLlm':
         apiKey = config.easypaperLlmApiKey || '';
-        apiBase = config.llmApiBase || 'https://cloud.infini-ai.com/maas/v1';
-        model = config.easypaperLlmModel || 'qwen3-next-80b-a3b-instruct';
+        apiBase = config.llmApiBase || 'https://api.openai.com/v1';
+        model = config.easypaperLlmModel || 'gpt-5.4';
         break;
       case 'easypaperVlm':
         apiKey = config.easypaperVlmApiKey || '';
-        apiBase = config.llmApiBase || 'https://cloud.infini-ai.com/ai.sap.com/v1';
-        model = config.easypaperVlmModel || 'qwen3-vl-235b-a22b-thinking';
+        apiBase = config.llmApiBase || 'https://api.openai.com/v1';
+        model = config.easypaperVlmModel || 'gpt-5.4';
         break;
       default: // default LLM
         apiKey = config.llmApiKey || '';
         apiBase = config.llmApiBase || '';
-        model = config.llmModel || 'qwen3-next-80b-a3b-instruct';
+        model = config.llmModel || 'gpt-5.4';
         break;
     }
 

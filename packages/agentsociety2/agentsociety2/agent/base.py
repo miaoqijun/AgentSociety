@@ -278,7 +278,11 @@ class AgentBase(ABC):
             t: 当前仿真时间。
             method_name: 调用 LLM 的方法名称。
         """
-        if not _DEFAULT_LLM_HISTORY_ENABLED:
+        # 从子类获取配置，默认禁用
+        enabled = getattr(self, "_llm_history_enabled", False)
+        max_entries = getattr(self, "_llm_history_max_entries", 100)
+
+        if not enabled:
             return
 
         assert (
@@ -296,8 +300,8 @@ class AgentBase(ABC):
         )
         self._llm_interaction_history.append(history_record)
 
-        if len(self._llm_interaction_history) > _DEFAULT_LLM_HISTORY_MAX_ENTRIES:
-            self._llm_interaction_history = self._llm_interaction_history[-_DEFAULT_LLM_HISTORY_MAX_ENTRIES:]
+        if len(self._llm_interaction_history) > max_entries:
+            self._llm_interaction_history = self._llm_interaction_history[-max_entries:]
 
     def _record_token_usage(self, response: Any) -> None:
         """记录 LLM 调用的 token 使用统计。

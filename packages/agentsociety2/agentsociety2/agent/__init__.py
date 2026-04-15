@@ -6,7 +6,7 @@
 **AgentBase**
     智能体抽象基类，定义基本接口。
 
-**PersonAgent**  
+**PersonAgent**
     技能优先型Agent实现，支持独立工作区和渐进式技能发现。
 
 配置管理
@@ -18,16 +18,6 @@
     >>> from agentsociety2.agent import AgentConfig
     >>> config = AgentConfig()  # 使用默认值
     >>> config.model.context_window  # 200000
-
-属性与状态
-==========
-
-**AgentAttributes / AgentState**
-    属性与状态分离设计，区分静态特征和动态变化。
-
-    >>> from agentsociety2.agent import PersonAttributes, PersonState
-    >>> attrs = PersonAttributes(name="Alice", extraversion=0.8)
-    >>> state = PersonState(primary_emotion="happy")
 
 持久化
 ======
@@ -55,14 +45,8 @@ from .config import (
     PersistenceConfig,
     ConcurrencyConfig,
     LoopDetectionConfig,
+    StateConfig,
     ALLOWED_ENV_VARS,
-)
-from .attributes import (
-    AgentAttributes,
-    AgentState,
-    PersonAttributes,
-    PersonState,
-    StateManager,
 )
 from .prompt_builder import PromptBuilder, ToolTableBuilder
 from .persistence import (
@@ -93,13 +77,8 @@ __all__ = [
     "PersistenceConfig",
     "ConcurrencyConfig",
     "LoopDetectionConfig",
+    "StateConfig",
     "ALLOWED_ENV_VARS",
-    # 属性与状态
-    "AgentAttributes",
-    "AgentState",
-    "PersonAttributes",
-    "PersonState",
-    "StateManager",
     # Prompt
     "PromptBuilder",
     "ToolTableBuilder",

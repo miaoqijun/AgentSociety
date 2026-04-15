@@ -213,6 +213,10 @@ class PersonAgent(AgentBase):
         self._config = AgentConfig.from_kwargs(capability_kwargs)
         self._ctx_config = self._config.context
 
+        # LLM 历史记录配置（供 AgentBase._record_llm_interaction 使用）
+        self._llm_history_enabled = self._config.persistence.enable_llm_history
+        self._llm_history_max_entries = self._config.persistence.llm_history_max_entries
+
         # 上下文缓存：避免重复读取相同文件（LRU 淘汰）
         self._workspace_cache: OrderedDict[str, str] = OrderedDict()
         self._cache_valid_paths: set[str] = set()
@@ -511,26 +515,11 @@ class PersonAgent(AgentBase):
 
     # ── System Prompt ──────────────────────────────────────────────────────────
 
-    def get_system_prompt(self, tick: int, t: datetime) -> str:
-        """构建本步 system prompt。
+    def _build_prompt_static_segment(self, builder: PromptBuilder) -> None:
+        """构建 prompt 静态段（可缓存）。
 
-        注入 world description、agent identity、工具协议、skill catalog、已激活技能列表。
-        使用分段缓存机制优化 Token 消耗。
-
-        :param tick: 当前仿真步时间跨度（秒）。
-        :param t: 当前仿真时间。
-        :return: system prompt 文本。
+        :param builder: PromptBuilder 实例。
         """
-        # 检查是否可以使用缓存
-        if not self._need_rebuild_prompt() and self._prompt_cache is not None:
-            return self._prompt_cache
-
-        base = super().get_system_prompt(tick, t)
-
-        # 使用 PromptBuilder 构建分段 prompt
-        builder = PromptBuilder()
-
-        # === 静态段（可缓存） ===
         wd = (self._world_description_for_prompt or self._world_description).strip()
         if wd:
             builder.add_world_description(wd)
@@ -539,15 +528,12 @@ class PersonAgent(AgentBase):
             self._skill_runtime.build_workspace_structure_prompt()
         )
 
-        # 工具协议和工具表（静态）
         builder.add_tool_protocol()
-        # 根据配置选择工具表模式
         if self._ctx_config.tool_table_mode == "minimal":
             builder.add_tools(self._render_tool_table_minimal())
         else:
             builder.add_tools(self._render_tool_table())
 
-        # 技能目录（静态）
         visible_names = sorted(self._all_visible_skill_names())
         catalog_names: list[str] = []
         for n in visible_names:
@@ -563,28 +549,29 @@ class PersonAgent(AgentBase):
         catalog = self._skill_runtime.skill_list(catalog_names)
         builder.add_skill_catalog(catalog)
 
-        # === 动态段（每次重建） ===
+    def _build_prompt_dynamic_segment(self, builder: PromptBuilder, tick: int) -> None:
+        """构建 prompt 动态段（每次重建）。
+
+        :param builder: PromptBuilder 实例。
+        :param tick: 当前仿真步时间跨度（秒）。
+        """
         builder.add_identity(
             self.id, self._name, self._agent_identity_json_for_prompt()
         )
 
-        # AGENT_CONTEXT.md
         context_data = self._skill_runtime.read_agent_context()
         if context_data.get("metadata") or context_data.get("content"):
             builder.add_context(context_data, max_chars=1000)
 
-        # Workspace 摘要
         workspace_summary = self._skill_runtime.build_workspace_summary()
         if workspace_summary:
             builder.add_workspace_summary(workspace_summary)
 
-        # 会话恢复上下文
         if self._session_recovery:
             recovery_context = self._session_recovery.build_recovery_context(tick)
             if recovery_context:
                 builder.add_recovery_context(recovery_context)
 
-        # Workspace 状态快照
         ctx_view = (
             self._workspace_snapshot_for_prompt
             if self._workspace_snapshot_for_prompt
@@ -593,10 +580,8 @@ class PersonAgent(AgentBase):
         if ctx_view:
             builder.add_state_snapshot(ctx_view)
 
-        # 已激活技能
         builder.add_activated_skills(self._activated_skills)
 
-        # 环境约束
         pc = self._merged_person_step_constraints()
         if pc:
             constraints = "This step has environment-imposed limits: only skills listed in the catalog above exist for you."
@@ -604,10 +589,27 @@ class PersonAgent(AgentBase):
                 constraints += f" Allowed-tools scope is pinned to `{pc.pin_allowed_tools_to_skill}` at step start."
             builder.add_constraints(constraints)
 
-        # 构建完整 prompt
+    def get_system_prompt(self, tick: int, t: datetime) -> str:
+        """构建本步 system prompt。
+
+        注入 world description、agent identity、工具协议、skill catalog、已激活技能列表。
+        使用分段缓存机制优化 Token 消耗。
+
+        :param tick: 当前仿真步时间跨度（秒）。
+        :param t: 当前仿真时间。
+        :return: system prompt 文本。
+        """
+        if not self._need_rebuild_prompt() and self._prompt_cache is not None:
+            return self._prompt_cache
+
+        base = super().get_system_prompt(tick, t)
+        builder = PromptBuilder()
+
+        self._build_prompt_static_segment(builder)
+        self._build_prompt_dynamic_segment(builder, tick)
+
         result = base + builder.build()
 
-        # 更新缓存
         self._prompt_cache = result
         self._cached_skills = set(self._activated_skills)
         self._cached_ws_version = self._workspace_state_version
@@ -624,69 +626,12 @@ class PersonAgent(AgentBase):
         :return: (静态段, 动态段) 元组。
         """
         base = super().get_system_prompt(tick, t)
-
         builder = PromptBuilder()
 
-        # 静态段
-        wd = (self._world_description_for_prompt or self._world_description).strip()
-        if wd:
-            builder.add_world_description(wd)
-        builder.add_workspace_structure(
-            self._skill_runtime.build_workspace_structure_prompt()
-        )
-        builder.add_tool_protocol()
-        # 根据配置选择工具表模式
-        if self._ctx_config.tool_table_mode == "minimal":
-            builder.add_tools(self._render_tool_table_minimal())
-        else:
-            builder.add_tools(self._render_tool_table())
+        self._build_prompt_static_segment(builder)
+        self._build_prompt_dynamic_segment(builder, tick)
 
-        visible_names = sorted(self._all_visible_skill_names())
-        catalog_names: list[str] = []
-        for n in visible_names:
-            info = self._skill_registry.get_skill_info(n, load_content=False)
-            if info is None:
-                continue
-            if getattr(info, "disable_model_invocation", False):
-                continue
-            patterns = list(getattr(info, "paths", []) or [])
-            if patterns and not self._catalog_paths_match(patterns):
-                continue
-            catalog_names.append(n)
-        catalog = self._skill_runtime.skill_list(catalog_names)
-        builder.add_skill_catalog(catalog)
-
-        # 动态段
-        builder.add_identity(
-            self.id, self._name, self._agent_identity_json_for_prompt()
-        )
-        context_data = self._skill_runtime.read_agent_context()
-        if context_data.get("metadata") or context_data.get("content"):
-            builder.add_context(context_data, max_chars=1000)
-        workspace_summary = self._skill_runtime.build_workspace_summary()
-        if workspace_summary:
-            builder.add_workspace_summary(workspace_summary)
-        if self._session_recovery:
-            recovery_context = self._session_recovery.build_recovery_context(tick)
-            if recovery_context:
-                builder.add_recovery_context(recovery_context)
-        ctx_view = (
-            self._workspace_snapshot_for_prompt
-            if self._workspace_snapshot_for_prompt
-            else self._step_context
-        )
-        if ctx_view:
-            builder.add_state_snapshot(ctx_view)
-        builder.add_activated_skills(self._activated_skills)
-        pc = self._merged_person_step_constraints()
-        if pc:
-            constraints = "This step has environment-imposed limits: only skills listed in the catalog above exist for you."
-            if pc.pin_allowed_tools_to_skill:
-                constraints += f" Allowed-tools scope is pinned to `{pc.pin_allowed_tools_to_skill}` at step start."
-            builder.add_constraints(constraints)
-
-        static_prompt, dynamic_prompt = builder.build_segmented(base)
-        return static_prompt, dynamic_prompt
+        return builder.build_segmented(base)
 
     # ── Thread Management ─────────────────────────────────────────────────────
 
@@ -1381,6 +1326,22 @@ class PersonAgent(AgentBase):
     def _restore_from_checkpoint(self, tick: int) -> bool:
         """从检查点恢复 agent 状态。
 
+        恢复持久化状态，可重建状态在下次 step 时自动重建。
+
+        **持久化状态（从检查点恢复）**：
+        - step_count: 步骤计数
+        - activated_skills: 已激活技能集合
+        - active_skill_scope: 活跃技能范围
+        - state/*.json: 所有状态文件
+
+        **可重建状态（不持久化，下次 step 时自动重建）**：
+        - _workspace_cache: 工作区缓存（LRU，按需填充）
+        - _prompt_cache: 提示词缓存（已失效重建）
+        - _step_context: 步骤上下文（step 开始时构建）
+        - _memory: 记忆内容（从 memory/ 目录读取）
+        - _structured_summary: 结构化摘要（从文件读取）
+        - _rolling_thread_summary: 滚动摘要（从 thread_compact_state.json 读取）
+
         :param tick: 检查点的 tick 值。
         :return: 是否成功恢复。
         """
@@ -1870,11 +1831,22 @@ class PersonAgent(AgentBase):
                         f"Agent {self.id}: reset active_skill_scope from '{prev_scope}' to recover from loop"
                     )
 
+                # 构建详细的错误信息和恢复建议
+                error_parts = [f"Loop detected: {loop_result.details}"]
+                if loop_result.root_cause:
+                    error_parts.append(f"Root cause: {loop_result.root_cause}")
+                if loop_result.alternative_actions:
+                    error_parts.append("Suggested alternatives:")
+                    for i, alt in enumerate(loop_result.alternative_actions[:3], 1):
+                        error_parts.append(f"  {i}. {alt}")
+
                 result_obj = {
                     "action": action,
                     "ok": False,
-                    "error": f"Loop detected: {loop_result.details}. Active skill scope has been reset. Call 'done' or try a different approach.",
-                    "recovery_hint": "Your previous skill context has been cleared. You may activate a different skill or call 'done' to finish this step.",
+                    "error": ". ".join(error_parts),
+                    "recovery_hint": "Your previous skill context has been cleared. Consider the suggested alternatives above, or call 'done' to finish this step.",
+                    "loop_type": loop_result.loop_type,
+                    "affected_tools": loop_result.affected_tools,
                 }
                 history.append(result_obj)
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)

@@ -26,30 +26,30 @@ const DEFAULT_VALUES: ConfigValues = {
   backendHost: '127.0.0.1',
   backendPort: 8001,
   pythonPath: '',
-  llmApiBase: 'https://cloud.infini-ai.com/maas/v1',
-  llmModel: 'qwen3-next-80b-a3b-instruct',
+  llmApiBase: 'https://api.openai.com/v1',
+  llmModel: 'gpt-5.4',
   backendLogLevel: 'info',
   coderLlmApiKey: '',
-  coderLlmApiBase: '',
-  coderLlmModel: 'glm-4.7',
+  coderLlmApiBase: 'https://api.openai.com/v1',
+  coderLlmModel: 'gpt-5.3-codex',
   nanoLlmApiKey: '',
-  nanoLlmApiBase: '',
-  nanoLlmModel: 'qwen3-next-80b-a3b-instruct',
+  nanoLlmApiBase: 'https://api.openai.com/v1',
+  nanoLlmModel: 'gpt-5.4-mini',
   analysisLlmApiKey: '',
-  analysisLlmApiBase: '',
-  analysisLlmModel: 'glm-5',
+  analysisLlmApiBase: 'https://api.openai.com/v1',
+  analysisLlmModel: 'gpt-5.4',
   embeddingApiKey: '',
-  embeddingApiBase: '',
-  embeddingModel: 'bge-m3',
+  embeddingApiBase: 'https://api.openai.com/v1',
+  embeddingModel: 'text-embedding-3-large',
   embeddingDims: 1024,
   webSearchApiUrl: '',
   webSearchApiToken: '',
-  miroflowDefaultLlm: 'qwen-3',
-  miroflowDefaultAgent: 'mirothinker_v1.5_keep5_max200',
-  easypaperApiUrl: '',
+  miroflowDefaultLlm: '',
+  miroflowDefaultAgent: '',
+  easypaperApiUrl: 'http://localhost:8004',
   easypaperLlmApiKey: '',
-  easypaperLlmModel: 'qwen3-next-80b-a3b-instruct',
-  easypaperVlmModel: 'qwen3-vl-235b-a22b-thinking',
+  easypaperLlmModel: 'gpt-5.4',
+  easypaperVlmModel: 'gpt-5.4',
   easypaperVlmApiKey: '',
   literatureSearchApiUrl: 'http://localhost:8008/api/search',
   literatureSearchApiKey: '',
@@ -359,10 +359,10 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               <Input.Password placeholder="sk-xxx 或您的 API 密钥" autoComplete="off" />
             </Form.Item>
             <Form.Item name="llmApiBase" label="API 基础 URL">
-              <Input placeholder="https://cloud.infini-ai.com/maas/v1" />
+              <Input placeholder="https://api.openai.com/v1" />
             </Form.Item>
             <Form.Item name="llmModel" label="模型名称">
-              <Input placeholder="qwen3-next-80b-a3b-instruct" />
+              <Input placeholder="gpt-5.4" />
             </Form.Item>
             {validationState.default.error && (
               <Alert type="error" message="验证失败" description={validationState.default.error} style={{ marginBottom: 12 }} />
@@ -386,13 +386,13 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               {/* 代码生成 LLM */}
               <Card size="small" title="代码生成 LLM" style={{ marginBottom: 12 }}>
                 <Form.Item name="coderLlmApiKey" label="API 密钥">
-                  <Input.Password placeholder="留空使用默认" autoComplete="off" />
+                  <Input.Password placeholder="与默认一致可留空" autoComplete="off" />
                 </Form.Item>
                 <Form.Item name="coderLlmApiBase" label="API URL">
-                  <Input placeholder="留空使用默认" />
+                  <Input placeholder="与默认一致可留空" />
                 </Form.Item>
                 <Form.Item name="coderLlmModel" label="模型">
-                  <Input placeholder="glm-4.7" />
+                  <Input placeholder="gpt-5.3-codex" />
                 </Form.Item>
                 {validationState.coder.error && <Alert type="error" message="验证失败" description={validationState.coder.error} style={{ marginBottom: 8 }} />}
                 {validationState.coder.valid && <Alert type="success" message="验证成功" style={{ marginBottom: 8 }} />}
@@ -402,13 +402,13 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               {/* 高频操作 LLM */}
               <Card size="small" title="高频操作 LLM" style={{ marginBottom: 12 }}>
                 <Form.Item name="nanoLlmApiKey" label="API 密钥">
-                  <Input.Password placeholder="留空使用默认" autoComplete="off" />
+                  <Input.Password placeholder="与默认一致可留空" autoComplete="off" />
                 </Form.Item>
                 <Form.Item name="nanoLlmApiBase" label="API URL">
-                  <Input placeholder="留空使用默认" />
+                  <Input placeholder="与默认一致可留空" />
                 </Form.Item>
                 <Form.Item name="nanoLlmModel" label="模型">
-                  <Input placeholder="qwen3-next-80b-a3b-instruct" />
+                  <Input placeholder="gpt-5.4-nano" />
                 </Form.Item>
                 {validationState.nano.error && <Alert type="error" message="验证失败" description={validationState.nano.error} style={{ marginBottom: 8 }} />}
                 {validationState.nano.valid && <Alert type="success" message="验证成功" style={{ marginBottom: 8 }} />}
@@ -418,13 +418,13 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               {/* 分析 LLM */}
               <Card size="small" title="数据分析 LLM（洞察生成、报告撰写）" style={{ marginBottom: 12 }}>
                 <Form.Item name="analysisLlmApiKey" label="API 密钥">
-                  <Input.Password placeholder="留空使用默认" autoComplete="off" />
+                  <Input.Password placeholder="与默认一致可留空" autoComplete="off" />
                 </Form.Item>
                 <Form.Item name="analysisLlmApiBase" label="API URL">
-                  <Input placeholder="留空使用默认" />
+                  <Input placeholder="与默认一致可留空" />
                 </Form.Item>
                 <Form.Item name="analysisLlmModel" label="模型">
-                  <Input placeholder="建议使用较强模型" />
+                  <Input placeholder="gpt-5.4" />
                 </Form.Item>
                 {validationState.analysis?.error && <Alert type="error" message={validationState.analysis.error} style={{ marginBottom: 8 }} />}
                 {validationState.analysis?.valid && <Alert type="success" message="验证成功" style={{ marginBottom: 8 }} />}
@@ -434,13 +434,13 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               {/* Embedding */}
               <Card size="small" title="Embedding 模型" style={{ marginBottom: 12 }}>
                 <Form.Item name="embeddingApiKey" label="API 密钥">
-                  <Input.Password placeholder="留空使用默认" autoComplete="off" />
+                  <Input.Password placeholder="与默认一致可留空" autoComplete="off" />
                 </Form.Item>
                 <Form.Item name="embeddingApiBase" label="API URL">
-                  <Input placeholder="留空使用默认" />
+                  <Input placeholder="与默认一致可留空" />
                 </Form.Item>
                 <Form.Item name="embeddingModel" label="模型">
-                  <Input placeholder="bge-m3" />
+                  <Input placeholder="text-embedding-3-large" />
                 </Form.Item>
                 <Form.Item name="embeddingDims" label="向量维度">
                   <InputNumber min={64} max={4096} style={{ width: '100%' }} placeholder="1024" />
@@ -469,13 +469,13 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                   <Input.Password placeholder="与默认一致可留空" autoComplete="off" />
                 </Form.Item>
                 <Form.Item name="easypaperLlmModel" label="LLM 模型">
-                  <Input placeholder="qwen3-next-80b-a3b-instruct" />
+                  <Input placeholder="gpt-5.4" />
                 </Form.Item>
                 <Form.Item name="easypaperVlmModel" label="VLM 模型">
-                  <Input placeholder="qwen3-vl-235b-a22b-thinking" />
+                  <Input placeholder="gpt-5.4" />
                 </Form.Item>
                 <Form.Item name="easypaperVlmApiKey" label="VLM API Key">
-                  <Input.Password placeholder="与 LLM 一致可留空" autoComplete="off" />
+                  <Input.Password placeholder="与默认一致可留空" autoComplete="off" />
                 </Form.Item>
               </Card>
 

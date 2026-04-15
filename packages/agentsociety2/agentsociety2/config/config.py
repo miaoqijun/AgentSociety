@@ -127,13 +127,13 @@ class Config:
     """
 
     LLM_API_BASE: str = os.getenv(
-        "AGENTSOCIETY_LLM_API_BASE", "https://cloud.infini-ai.com/maas/v1"
+        "AGENTSOCIETY_LLM_API_BASE", "https://llmapi.fiblab.net"
     )
     """
     Base URL endpoint for the default LLM API service.
 
     Environment variable: AGENTSOCIETY_LLM_API_BASE
-    Default: "https://cloud.infini-ai.com/maas/v1"
+    Default: "https://llmapi.fiblab.net"
 
     This should point to the API endpoint that supports OpenAI-compatible API calls.
     The URL should include the protocol (https://) and the base path, but not the
@@ -183,9 +183,7 @@ class Config:
     or region for better performance or cost optimization.
     """
 
-    CODER_LLM_MODEL: str = os.getenv(
-        "AGENTSOCIETY_CODER_LLM_MODEL", "glm-4.7"
-    )
+    CODER_LLM_MODEL: str = os.getenv("AGENTSOCIETY_CODER_LLM_MODEL", "glm-4.7")
     """
     Model identifier for code generation and programming tasks.
 
@@ -214,9 +212,7 @@ class Config:
     key allows you to use a faster or cheaper model for these high-frequency operations.
     """
 
-    NANO_LLM_API_BASE: str = (
-        os.getenv("AGENTSOCIETY_NANO_LLM_API_BASE") or LLM_API_BASE
-    )
+    NANO_LLM_API_BASE: str = os.getenv("AGENTSOCIETY_NANO_LLM_API_BASE") or LLM_API_BASE
     """
     Base URL endpoint for the nano LLM API.
 
@@ -663,7 +659,9 @@ class Config:
                 },
             ]
             logger.info("Nano LLM configured: model=%s api_base=%s", model, api_base)
-            logger.debug("Nano model_list: %s", _redact_router_config_for_log(model_list))
+            logger.debug(
+                "Nano model_list: %s", _redact_router_config_for_log(model_list)
+            )
             return Router(
                 model_list=model_list,
                 cache_responses=True,
@@ -694,18 +692,12 @@ class Config:
     @classmethod
     def get_web_search_api_token(cls) -> str:
         """Get web search MCP token, preferring the latest environment value."""
-        return (
-            os.getenv("WEB_SEARCH_API_TOKEN", "").strip()
-            or cls.WEB_SEARCH_API_TOKEN
-        )
+        return os.getenv("WEB_SEARCH_API_TOKEN", "").strip() or cls.WEB_SEARCH_API_TOKEN
 
     @classmethod
     def get_miroflow_default_llm(cls) -> str:
         """Get default MiroFlow LLM, preferring the latest environment value."""
-        return (
-            os.getenv("MIROFLOW_DEFAULT_LLM", "").strip()
-            or cls.MIROFLOW_DEFAULT_LLM
-        )
+        return os.getenv("MIROFLOW_DEFAULT_LLM", "").strip() or cls.MIROFLOW_DEFAULT_LLM
 
     @classmethod
     def get_miroflow_default_agent(cls) -> str:

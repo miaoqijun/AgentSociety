@@ -2,18 +2,12 @@
 
 Components:
 - decision: ToolDecision model for LLM output
-- executor: Secure tool execution (bash, codegen, glob, grep)
 - utils: JSON handling, string truncation, pagination, retry
-- batch: BatchLLMRouter for concurrent LLM calls
-- async_io: AsyncWorkspaceIO for non-blocking file operations
 - loop_detection: Loop detection service to prevent infinite loops
 - security: Bash command security checking
 """
 
-from agentsociety2.agent.tool.async_io import AsyncWorkspaceIO
-from agentsociety2.agent.tool.batch import BatchLLMRouter, BatchLLMRouterSingleton
 from agentsociety2.agent.tool.decision import ToolDecision
-from agentsociety2.agent.tool.executor import ToolExecutor
 from agentsociety2.agent.tool.loop_detection import (
     LoopDetectionConfig,
     LoopDetectionService,
@@ -39,7 +33,6 @@ from agentsociety2.agent.tool.utils import (
 
 __all__ = [
     "ToolDecision",
-    "ToolExecutor",
     "truncate",
     "trunc_str",
     "json_dumps",
@@ -51,9 +44,6 @@ __all__ = [
     "slice_text_page",
     "json_dumps_tool_result_for_thread",
     "async_retry_on_transient",
-    "BatchLLMRouter",
-    "BatchLLMRouterSingleton",
-    "AsyncWorkspaceIO",
     "LoopDetectionService",
     "LoopDetectionConfig",
     "BLOCKED_TOKENS",

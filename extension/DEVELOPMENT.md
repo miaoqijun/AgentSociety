@@ -154,28 +154,29 @@ uv run python -m agentsociety2.backend.run
 ```env
 # 默认 LLM 配置（必需）
 AGENTSOCIETY_LLM_API_KEY=your_api_key
-AGENTSOCIETY_LLM_API_BASE=https://cloud.infini-ai.com/maas/v1
-AGENTSOCIETY_LLM_MODEL=qwen3-next-80b-a3b-instruct
+AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1
+AGENTSOCIETY_LLM_MODEL=gpt-5.4
 
 # 代码生成 LLM 配置（可选，未设置时回退到 AGENTSOCIETY_LLM_*）
 AGENTSOCIETY_CODER_LLM_API_KEY=your_coder_api_key
-AGENTSOCIETY_CODER_LLM_API_BASE=https://cloud.infini-ai.com/maas/v1
-AGENTSOCIETY_CODER_LLM_MODEL=glm-5
+AGENTSOCIETY_CODER_LLM_API_BASE=https://api.openai.com/v1
+AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.3-codex
 
 # 高频操作 LLM 配置（可选）
 AGENTSOCIETY_NANO_LLM_API_KEY=your_nano_api_key
-AGENTSOCIETY_NANO_LLM_API_BASE=https://cloud.infini-ai.com/maas/v1
-AGENTSOCIETY_NANO_LLM_MODEL=qwen3-next-80b-a3b-instruct
+AGENTSOCIETY_NANO_LLM_API_BASE=https://api.openai.com/v1
+AGENTSOCIETY_NANO_LLM_MODEL=gpt-5.4-nano
 
 # 数据分析 LLM 配置（可选，用于数据分析、洞察生成、报告撰写）
 AGENTSOCIETY_ANALYSIS_LLM_API_KEY=your_analysis_api_key
-AGENTSOCIETY_ANALYSIS_LLM_API_BASE=https://cloud.infini-ai.com/maas/v1
-AGENTSOCIETY_ANALYSIS_LLM_MODEL=glm-5
+AGENTSOCIETY_ANALYSIS_LLM_API_BASE=https://api.openai.com/v1
+AGENTSOCIETY_ANALYSIS_LLM_MODEL=gpt-5.4
 
 # Embedding 模型配置（可选）
 AGENTSOCIETY_EMBEDDING_API_KEY=your_embedding_api_key
-AGENTSOCIETY_EMBEDDING_API_BASE=https://cloud.infini-ai.com/maas/v1
-AGENTSOCIETY_EMBEDDING_MODEL=bge-m3
+AGENTSOCIETY_EMBEDDING_API_BASE=https://api.openai.com/v1
+AGENTSOCIETY_EMBEDDING_MODEL=text-embedding-3-large
+AGENTSOCIETY_EMBEDDING_DIMS=1024
 
 # 后端服务配置
 BACKEND_HOST=0.0.0.0

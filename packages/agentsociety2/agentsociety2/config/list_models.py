@@ -38,7 +38,7 @@ def get_available_models(
         api_base
         or os.getenv("AGENTSOCIETY_LLM_API_BASE", "").strip()
         or os.getenv("API_BASE", "").strip()
-        or "https://cloud.infini-ai.com/maas/v1"
+        or "https://llmapi.fiblab.net"
     )
     key = (
         api_key
@@ -57,8 +57,8 @@ def get_available_models(
         url = base
     elif base.endswith("/v1") or base.endswith("/maas/v1"):
         url = f"{base}/models"
-    elif base == "https://cloud.infini-ai.com":
-        url = f"{base}/maas/v1/models"
+    elif base == "https://llmapi.fiblab.net":
+        url = f"{base}/v1/models"
     else:
         url = f"{base}/models"
     headers = {
@@ -96,10 +96,10 @@ def get_available_models(
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
-    
+
     # 入口脚本负责加载环境变量
     load_dotenv()
-    
+
     try:
         # 获取模型列表
         models_data = get_available_models()

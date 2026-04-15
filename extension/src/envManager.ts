@@ -115,20 +115,20 @@ const ENV_KEY_MAP: Record<keyof EnvConfig, string> = {
  * Default values for configuration
  */
 export const DEFAULT_ENV_CONFIG: Partial<EnvConfig> = {
-  llmApiBase: 'https://cloud.infini-ai.com/maas/v1',
-  llmModel: 'qwen3-next-80b-a3b-instruct',
+  llmApiBase: 'https://api.openai.com/v1',
+  llmModel: 'gpt-5.4',
   backendHost: '127.0.0.1',
   backendPort: 8001,
   backendLogLevel: 'info',
-  coderLlmModel: 'glm-4.7',
-  nanoLlmModel: 'qwen3-next-80b-a3b-instruct',
-  analysisLlmModel: 'glm-5',
-  embeddingModel: 'bge-m3',
+  coderLlmModel: 'gpt-5.3-codex',
+  nanoLlmModel: 'gpt-5.4-nano',
+  analysisLlmModel: 'gpt-5.4',
+  embeddingModel: 'text-embedding-3-large',
   embeddingDims: 1024,
   miroflowDefaultLlm: 'qwen-3',
   miroflowDefaultAgent: 'mirothinker_v1.5_keep5_max200',
-  easypaperLlmModel: 'qwen3-next-80b-a3b-instruct',
-  easypaperVlmModel: 'qwen3-vl-235b-a22b-thinking',
+  easypaperLlmModel: 'gpt-5.4',
+  easypaperVlmModel: 'gpt-5.4',
   literatureSearchApiUrl: 'http://localhost:8008/api/search',
 };
 
@@ -323,34 +323,34 @@ export class EnvManager {
 # LLM API Key / LLM API 密钥
 AGENTSOCIETY_LLM_API_KEY=your-api-key-here
 # LLM API Base URL / LLM API 基础 URL
-AGENTSOCIETY_LLM_API_BASE=https://cloud.infini-ai.com/maas/v1
+AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1
 # LLM Model Name / LLM 模型名称
-AGENTSOCIETY_LLM_MODEL=qwen3-next-80b-a3b-instruct
+AGENTSOCIETY_LLM_MODEL=gpt-5.4
 
 # ========== Coder LLM / Coder LLM (代码生成) ==========
 # Coder LLM for code generation / 用于代码生成的 LLM
 AGENTSOCIETY_CODER_LLM_API_KEY=
 AGENTSOCIETY_CODER_LLM_API_BASE=
-AGENTSOCIETY_CODER_LLM_MODEL=glm-4.7
+AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.3-codex
 
 # ========== Nano LLM / Nano LLM (高频操作) ==========
 # Nano LLM for high-frequency operations / 用于高频操作的轻量级 LLM
 AGENTSOCIETY_NANO_LLM_API_KEY=
 AGENTSOCIETY_NANO_LLM_API_BASE=
-AGENTSOCIETY_NANO_LLM_MODEL=qwen3-next-80b-a3b-instruct
+AGENTSOCIETY_NANO_LLM_MODEL=gpt-5.4-nano
 
 # ========== Analysis LLM / Analysis LLM (数据分析) ==========
 # Analysis LLM for data analysis, insight generation, and report writing
 # 用于数据分析、洞察生成和报告撰写的 LLM，建议使用较强的模型
 AGENTSOCIETY_ANALYSIS_LLM_API_KEY=
 AGENTSOCIETY_ANALYSIS_LLM_API_BASE=
-AGENTSOCIETY_ANALYSIS_LLM_MODEL=glm-5
+AGENTSOCIETY_ANALYSIS_LLM_MODEL=gpt-5.4
 
 # ========== Embedding Model / 嵌入模型 ==========
 # Embedding model for vector search / 用于向量搜索的嵌入模型
 AGENTSOCIETY_EMBEDDING_API_KEY=
 AGENTSOCIETY_EMBEDDING_API_BASE=
-AGENTSOCIETY_EMBEDDING_MODEL=bge-m3
+AGENTSOCIETY_EMBEDDING_MODEL=text-embedding-3-large
 AGENTSOCIETY_EMBEDDING_DIMS=1024
 
 # ========== Backend Configuration / 后端配置 ==========
@@ -381,9 +381,9 @@ EASYPAPER_API_URL=
 # EasyPaper LLM API Key / EasyPaper LLM API 密钥
 EASYPAPER_LLM_API_KEY=
 # EasyPaper LLM Model / EasyPaper LLM 模型
-EASYPAPER_LLM_MODEL=qwen3-next-80b-a3b-instruct
+EASYPAPER_LLM_MODEL=gpt-5.4
 # EasyPaper VLM Model / EasyPaper 视觉语言模型
-EASYPAPER_VLM_MODEL=qwen3-vl-235b-a22b-thinking
+EASYPAPER_VLM_MODEL=gpt-5.4
 # EasyPaper VLM API Key / EasyPaper VLM API 密钥
 EASYPAPER_VLM_API_KEY=
 

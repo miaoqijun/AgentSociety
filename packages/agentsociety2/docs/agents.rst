@@ -213,10 +213,14 @@ step() 方法
 也就是说，``PersonAgent`` 不会把自己的 step 状态直接写入 ``agent_status`` 之类的
 SQLite 表；如果你需要检查 agent 过程数据，应优先查看：
 
-* ``agent_config.json``
-* ``session_state.json``
-* ``tool_calls.jsonl``
-* ``thread_messages.jsonl``
+* ``agent_config.json``: Agent 配置
+* ``session_state.json``: 会话状态
+* ``tool_calls.jsonl``: 工具调用日志
+* ``thread_messages.jsonl``: Thread 消息
+* ``AGENT_CONTEXT.md``: 动态上下文文件
+* ``AGENT_FILES.md``: 工作区文件清单
+* ``state/*.json``: 状态文件（情绪、需求、意图、规划等）
+* ``wal/``: Write-Ahead Log 目录
 
 智能体记忆
 ------------

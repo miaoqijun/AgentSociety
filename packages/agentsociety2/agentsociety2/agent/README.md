@@ -9,13 +9,10 @@
 1. **技能优先 (Skill-First)**
    Agent能力通过Skill模块动态扩展，而非硬编码。用户可自定义Skill，系统自动发现并集成。
 
-2. **属性与状态分离**
-   属性(Attributes)定义Agent的静态特征，状态(State)记录动态变化。这是ABM研究的关键基础设施。
-
-3. **统一配置管理**
+2. **统一配置管理**
    所有配置集中于`AgentConfig`，支持环境变量覆盖和运行时动态调整。
 
-4. **长期运行支持**
+3. **长期运行支持**
    内置检查点、预写日志(WAL)、工作区清理机制，支持崩溃恢复和长时间仿真。
 
 ## 架构概览
@@ -38,11 +35,6 @@
 │  │              并发控制 (Concurrency)                  │   │
 │  │  ParallelExecutor │ RateLimiter │ TaskManager       │   │
 │  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              属性与状态 (Attributes)                 │   │
-│  │  PersonAttributes (静态) │ PersonState (动态)       │   │
-│  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -53,7 +45,6 @@ agent/
 ├── person.py          # PersonAgent核心实现
 ├── base.py            # Agent抽象基类
 ├── config.py          # 统一配置管理
-├── attributes.py      # 属性与状态分离
 ├── prompt_builder.py  # 模块化Prompt构建
 ├── persistence.py     # 检查点、WAL、清理
 ├── concurrent.py      # 并发控制
@@ -61,9 +52,9 @@ agent/
 ├── init_utils.py      # 初始化工具
 ├── tool/              # 工具模块
 │   ├── decision.py    # ToolDecision模型
-│   ├── executor.py    # 工具执行器
 │   ├── loop_detection.py  # 循环检测
-│   └── ...
+│   ├── security.py    # Bash安全检查
+│   └── utils.py       # 工具函数
 ├── skills/            # Skills系统
 │   ├── __init__.py    # SkillRegistry
 │   ├── runtime.py     # AgentSkillRuntime
@@ -126,33 +117,7 @@ config.state.builtin_states     # 内置状态文件定义
 | | extra_states | {} | 扩展状态文件定义 |
 | | auto_discover | True | 自动发现状态文件 |
 
-### 2. Attributes & State - 属性状态分离
-
-```python
-from agentsociety2.agent import PersonAttributes, PersonState, StateManager
-
-# 静态属性
-attrs = PersonAttributes(
-    name="Alice",
-    age=25,
-    extraversion=0.8,  # Big Five人格
-    openness=0.6,
-)
-
-# 动态状态
-state = PersonState(
-    primary_emotion="happy",
-    energy=0.8,
-    money=150.0,
-)
-
-# 状态管理器
-manager = StateManager(workspace=Path("./agent_0001"), state_class=PersonState)
-manager.save(state)
-history = manager.history(limit=100)  # 获取历史状态
-```
-
-### 3. Persistence - 持久化支持
+### 2. Persistence - 持久化支持
 
 ```python
 from agentsociety2.agent import Checkpoint, WriteAheadLog, WorkspaceCleaner
@@ -172,7 +137,7 @@ cleaner = WorkspaceCleaner(workspace, config)
 stats = await cleaner.cleanup()  # 清理旧文件
 ```
 
-### 4. Concurrent - 并发控制
+### 3. Concurrent - 并发控制
 
 ```python
 from agentsociety2.agent import ParallelExecutor, RateLimiter, TaskManager
@@ -195,7 +160,7 @@ task_id = await task_mgr.spawn("task_1", my_coro())
 await task_mgr.cancel("task_1")
 ```
 
-### 5. PromptBuilder - 模块化Prompt
+### 3. PromptBuilder - 模块化Prompt
 
 ```python
 from agentsociety2.agent import PromptBuilder, ToolTableBuilder

@@ -50,11 +50,23 @@ class LoopDetectionResult:
     :ivar is_loop: 是否检测到循环。
     :ivar loop_type: 循环类型 ("tool_repeat", "tool_alternating", "tool_overuse", "content", "error")。
     :ivar details: 详细描述。
+    :ivar root_cause: 根本原因分析。
+    :ivar alternative_actions: 建议的替代行动。
+    :ivar affected_tools: 受影响的工具列表。
     """
 
     is_loop: bool = False
     loop_type: str = ""
     details: str = ""
+    root_cause: str = ""
+    alternative_actions: list[str] = None
+    affected_tools: list[str] = None
+
+    def __post_init__(self):
+        if self.alternative_actions is None:
+            self.alternative_actions = []
+        if self.affected_tools is None:
+            self.affected_tools = []
 
 
 class LoopDetectionService:
@@ -114,6 +126,14 @@ class LoopDetectionService:
                     is_loop=True,
                     loop_type="tool_repeat",
                     details=f"Tool '{tool_name}' called {self._config.max_tool_repeats} times with same arguments",
+                    root_cause=f"The tool '{tool_name}' is not producing the expected result, causing repeated attempts.",
+                    alternative_actions=[
+                        "Check if the tool arguments are correct",
+                        "Try a different approach or tool",
+                        "Call 'done' to finish this step and try again later",
+                        "Read the tool output carefully to understand why it's not working",
+                    ],
+                    affected_tools=[tool_name],
                 )
 
         # 2. 交替模式检测 (ABAB)
@@ -125,10 +145,19 @@ class LoopDetectionService:
                 and last_6[0] == last_6[2] == last_6[4]
                 and last_6[1] == last_6[3] == last_6[5]
             ):
+                tools = [fp.split(":")[0] for fp in set(last_6)]
                 return LoopDetectionResult(
                     is_loop=True,
                     loop_type="tool_alternating",
                     details=f"Alternating pattern detected between tools",
+                    root_cause=f"Tools {tools[0]} and {tools[1]} are alternating without progress. This usually means a condition is not being met or a state is not changing as expected.",
+                    alternative_actions=[
+                        "Check if there's a prerequisite step missing",
+                        "Verify the condition you're trying to achieve",
+                        "Try a completely different approach",
+                        "Consider if the task requires external input",
+                    ],
+                    affected_tools=tools,
                 )
 
         # 3. 过度使用检测
@@ -143,6 +172,14 @@ class LoopDetectionService:
                         is_loop=True,
                         loop_type="tool_overuse",
                         details=f"Tool '{name}' used {count} times in last {self._config.history_size} calls",
+                        root_cause=f"Tool '{name}' is being used excessively. This may indicate the task is too complex or the approach is not efficient.",
+                        alternative_actions=[
+                            "Consider breaking down the task into smaller steps",
+                            "Use a different tool or approach",
+                            "Activate a relevant skill that might help",
+                            "Call 'done' and reassess the overall strategy",
+                        ],
+                        affected_tools=[name],
                     )
 
         return LoopDetectionResult(is_loop=False)
