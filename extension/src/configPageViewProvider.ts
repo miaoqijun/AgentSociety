@@ -30,7 +30,7 @@ function buildEasyPaperYaml(config: Partial<EnvConfig>): string {
   const llmKey = (config.easypaperLlmApiKey ?? '').trim() || (config.llmApiKey ?? '').trim();
   const llmBase = (config.llmApiBase ?? 'https://api.openai.com/v1').trim();
   const llmModel = (config.easypaperLlmModel ?? '').trim() || (config.llmModel ?? 'gpt-5.4').trim();
-  const vlmModel = (config.easypaperVlmModel ?? '').trim() || 'gpt-5.4';
+  const vlmModel = (config.easypaperVlmModel ?? '').trim() || llmModel;
   const vlmKey = (config.easypaperVlmApiKey ?? '').trim() || llmKey;
   const vlmBase = llmBase;
   const esc = (s: string) => (s.includes(':') || s.includes('"') || s.includes('\n') ? `"${String(s).replace(/"/g, '\\"')}"` : s);
@@ -206,13 +206,13 @@ export class ConfigPageViewProvider {
       backendLogLevel: envConfig.backendLogLevel || 'info',
       coderLlmApiKey: envConfig.coderLlmApiKey || '',
       coderLlmApiBase: envConfig.coderLlmApiBase || '',
-      coderLlmModel: envConfig.coderLlmModel || 'gpt-5.3-codex',
+      coderLlmModel: envConfig.coderLlmModel || '',
       nanoLlmApiKey: envConfig.nanoLlmApiKey || '',
       nanoLlmApiBase: envConfig.nanoLlmApiBase || '',
-      nanoLlmModel: envConfig.nanoLlmModel || 'gpt-5.4-nano',
+      nanoLlmModel: envConfig.nanoLlmModel || '',
       analysisLlmApiKey: envConfig.analysisLlmApiKey || '',
       analysisLlmApiBase: envConfig.analysisLlmApiBase || '',
-      analysisLlmModel: envConfig.analysisLlmModel || 'gpt-5.4',
+      analysisLlmModel: envConfig.analysisLlmModel || '',
       embeddingApiKey: envConfig.embeddingApiKey || '',
       embeddingApiBase: envConfig.embeddingApiBase || '',
       embeddingModel: envConfig.embeddingModel || 'text-embedding-3-large',
@@ -223,8 +223,8 @@ export class ConfigPageViewProvider {
       miroflowDefaultAgent: envConfig.miroflowDefaultAgent || 'mirothinker_v1.5_keep5_max200',
       easypaperApiUrl: envConfig.easypaperApiUrl || '',
       easypaperLlmApiKey: envConfig.easypaperLlmApiKey || '',
-      easypaperLlmModel: envConfig.easypaperLlmModel || 'gpt-5.4',
-      easypaperVlmModel: envConfig.easypaperVlmModel || 'gpt-5.4',
+      easypaperLlmModel: envConfig.easypaperLlmModel || '',
+      easypaperVlmModel: envConfig.easypaperVlmModel || '',
       easypaperVlmApiKey: envConfig.easypaperVlmApiKey || '',
       literatureSearchApiUrl: envConfig.literatureSearchApiUrl || 'http://localhost:8008/api/search',
       literatureSearchApiKey: envConfig.literatureSearchApiKey || '',
@@ -296,7 +296,7 @@ export class ConfigPageViewProvider {
       backendPort: config.backendPort,
       pythonPath: config.pythonPath,
       llmApiBase: config.llmApiBase,
-      llmModel: config.llmModel,
+      llmModel: (config.llmModel ?? '').trim() || 'gpt-5.4',
       backendLogLevel: config.backendLogLevel,
       coderLlmApiKey: config.coderLlmApiKey,
       coderLlmApiBase: config.coderLlmApiBase,
@@ -350,6 +350,7 @@ export class ConfigPageViewProvider {
    */
   private async _handleValidateConfig(config: Partial<ConfigValues>, llmType: string = 'default'): Promise<void> {
     const validator = new LLMValidator();
+    const defaultModel = (config.llmModel ?? '').trim() || 'gpt-5.4';
 
     let apiKey: string = '';
     let apiBase: string = '';
@@ -360,17 +361,17 @@ export class ConfigPageViewProvider {
       case 'coder':
         apiKey = config.coderLlmApiKey || '';
         apiBase = config.coderLlmApiBase || '';
-        model = config.coderLlmModel || 'gpt-5.3-codex';
+        model = config.coderLlmModel || defaultModel;
         break;
       case 'nano':
         apiKey = config.nanoLlmApiKey || '';
         apiBase = config.nanoLlmApiBase || '';
-        model = config.nanoLlmModel || 'gpt-5.4-nano';
+        model = config.nanoLlmModel || defaultModel;
         break;
       case 'analysis':
         apiKey = config.analysisLlmApiKey || '';
         apiBase = config.analysisLlmApiBase || '';
-        model = config.analysisLlmModel || 'gpt-5.4';
+        model = config.analysisLlmModel || defaultModel;
         break;
       case 'embedding':
         apiKey = config.embeddingApiKey || '';
@@ -381,17 +382,17 @@ export class ConfigPageViewProvider {
       case 'easypaperLlm':
         apiKey = config.easypaperLlmApiKey || '';
         apiBase = config.llmApiBase || 'https://api.openai.com/v1';
-        model = config.easypaperLlmModel || 'gpt-5.4';
+        model = config.easypaperLlmModel || defaultModel;
         break;
       case 'easypaperVlm':
         apiKey = config.easypaperVlmApiKey || '';
         apiBase = config.llmApiBase || 'https://api.openai.com/v1';
-        model = config.easypaperVlmModel || 'gpt-5.4';
+        model = config.easypaperVlmModel || defaultModel;
         break;
       default: // default LLM
         apiKey = config.llmApiKey || '';
         apiBase = config.llmApiBase || '';
-        model = config.llmModel || 'gpt-5.4';
+        model = defaultModel;
         break;
     }
 

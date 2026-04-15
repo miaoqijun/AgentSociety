@@ -120,15 +120,10 @@ export const DEFAULT_ENV_CONFIG: Partial<EnvConfig> = {
   backendHost: '127.0.0.1',
   backendPort: 8001,
   backendLogLevel: 'info',
-  coderLlmModel: 'gpt-5.3-codex',
-  nanoLlmModel: 'gpt-5.4-nano',
-  analysisLlmModel: 'gpt-5.4',
   embeddingModel: 'text-embedding-3-large',
   embeddingDims: 1024,
   miroflowDefaultLlm: 'qwen-3',
   miroflowDefaultAgent: 'mirothinker_v1.5_keep5_max200',
-  easypaperLlmModel: 'gpt-5.4',
-  easypaperVlmModel: 'gpt-5.4',
   literatureSearchApiUrl: 'http://localhost:8008/api/search',
 };
 
@@ -331,20 +326,23 @@ AGENTSOCIETY_LLM_MODEL=gpt-5.4
 # Coder LLM for code generation / 用于代码生成的 LLM
 AGENTSOCIETY_CODER_LLM_API_KEY=
 AGENTSOCIETY_CODER_LLM_API_BASE=
-AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.3-codex
+# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
+AGENTSOCIETY_CODER_LLM_MODEL=
 
 # ========== Nano LLM / Nano LLM (高频操作) ==========
 # Nano LLM for high-frequency operations / 用于高频操作的轻量级 LLM
 AGENTSOCIETY_NANO_LLM_API_KEY=
 AGENTSOCIETY_NANO_LLM_API_BASE=
-AGENTSOCIETY_NANO_LLM_MODEL=gpt-5.4-nano
+# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
+AGENTSOCIETY_NANO_LLM_MODEL=
 
 # ========== Analysis LLM / Analysis LLM (数据分析) ==========
 # Analysis LLM for data analysis, insight generation, and report writing
 # 用于数据分析、洞察生成和报告撰写的 LLM，建议使用较强的模型
 AGENTSOCIETY_ANALYSIS_LLM_API_KEY=
 AGENTSOCIETY_ANALYSIS_LLM_API_BASE=
-AGENTSOCIETY_ANALYSIS_LLM_MODEL=gpt-5.4
+# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
+AGENTSOCIETY_ANALYSIS_LLM_MODEL=
 
 # ========== Embedding Model / 嵌入模型 ==========
 # Embedding model for vector search / 用于向量搜索的嵌入模型
@@ -381,9 +379,11 @@ EASYPAPER_API_URL=
 # EasyPaper LLM API Key / EasyPaper LLM API 密钥
 EASYPAPER_LLM_API_KEY=
 # EasyPaper LLM Model / EasyPaper LLM 模型
-EASYPAPER_LLM_MODEL=gpt-5.4
+# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
+EASYPAPER_LLM_MODEL=
 # EasyPaper VLM Model / EasyPaper 视觉语言模型
-EASYPAPER_VLM_MODEL=gpt-5.4
+# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
+EASYPAPER_VLM_MODEL=
 # EasyPaper VLM API Key / EasyPaper VLM API 密钥
 EASYPAPER_VLM_API_KEY=
 

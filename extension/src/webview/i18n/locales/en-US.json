@@ -212,7 +212,7 @@
       "apiBase": "API URL",
       "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
       "model": "Model",
-      "modelPlaceholder": "Default: gpt-5.4"
+      "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
     },
     "python": {
       "title": "Python Environment",
@@ -282,7 +282,7 @@
       "apiBase": "Code Generation LLM API Base URL",
       "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
       "model": "Code Generation LLM Model",
-      "modelPlaceholder": "Default: gpt-5.3-codex"
+      "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
     },
     "advanced": {
       "embedding": {
@@ -305,7 +305,7 @@
         "apiBase": "High-Frequency LLM API Base URL",
         "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
         "model": "High-Frequency LLM Model",
-        "modelPlaceholder": "Default: gpt-5.4-nano"
+        "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
       },
       "easypaper": {
         "title": "EasyPaper (optional)",
@@ -315,9 +315,9 @@
         "llmApiKey": "EasyPaper General LLM API Key",
         "llmApiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
         "llmModel": "EasyPaper LLM Model",
-        "llmModelPlaceholder": "Default: gpt-5.4",
+        "llmModelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})",
         "vlmModel": "EasyPaper VLM Model",
-        "vlmModelPlaceholder": "Default: gpt-5.4",
+        "vlmModelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})",
         "vlmApiKey": "EasyPaper VLM API Key",
         "vlmApiKeyPlaceholder": "Leave blank (it will default to the LLM API key after saving)"
       },
@@ -341,9 +341,18 @@
       "apiKeyMissing": "Please enter LLM API Key",
       "apiBaseMissing": "Please enter LLM API Base URL"
     },
+    "linkedPlaceholders": {
+      "apiKey": "Leave blank to reuse the default LLM key above ({{status}})",
+      "apiBase": "Leave blank to reuse the default LLM API base URL above (current: {{base}})",
+      "configured": "configured",
+      "notConfigured": "not configured"
+    },
     "validation": {
       "failed": "Validation failed, please check API key and base URL",
       "emptyApiKey": "API Key or Base URL is empty",
+      "needsApiKey": "Please enter the current API key, or fill in the default LLM API key above",
+      "needsApiBase": "Please enter the current API URL, or fill in the default LLM API URL above",
+      "literatureUrlRequired": "Please enter Literature Search API URL",
       "invalidKey": "API Key is invalid or expired",
       "invalidUrl": "API address is incorrect. Please check if the address includes /v1 path",
       "serverError": "Server error",

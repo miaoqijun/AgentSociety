@@ -212,7 +212,7 @@
       "apiBase": "API URL",
       "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
       "model": "模型",
-      "modelPlaceholder": "默认值：gpt-5.4"
+      "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
     },
     "python": {
       "title": "Python 环境",
@@ -282,7 +282,7 @@
       "apiBase": "代码生成 LLM API 基础 URL",
       "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
       "model": "代码生成 LLM 模型",
-      "modelPlaceholder": "默认值：gpt-5.3-codex"
+      "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
     },
     "advanced": {
       "embedding": {
@@ -305,7 +305,7 @@
         "apiBase": "高频操作 LLM API 基础 URL",
         "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
         "model": "高频操作 LLM 模型",
-        "modelPlaceholder": "默认值：gpt-5.4-nano"
+        "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
       },
       "easypaper": {
         "title": "EasyPaper（可选）",
@@ -315,9 +315,9 @@
         "llmApiKey": "EasyPaper 通用 LLM API Key",
         "llmApiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
         "llmModel": "EasyPaper LLM 模型",
-        "llmModelPlaceholder": "默认值：gpt-5.4",
+        "llmModelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）",
         "vlmModel": "EasyPaper VLM 模型",
-        "vlmModelPlaceholder": "默认值：gpt-5.4",
+        "vlmModelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）",
         "vlmApiKey": "EasyPaper VLM API Key",
         "vlmApiKeyPlaceholder": "可留空（保存后默认与 LLM API Key 保持一致）"
       },
@@ -341,9 +341,18 @@
       "apiKeyMissing": "请输入 LLM API 密钥",
       "apiBaseMissing": "请输入 LLM API 基础 URL"
     },
+    "linkedPlaceholders": {
+      "apiKey": "可留空，沿用上方默认 LLM 密钥（{{status}}）",
+      "apiBase": "可留空，沿用上方默认 LLM API 地址（当前：{{base}}）",
+      "configured": "已填写",
+      "notConfigured": "未填写"
+    },
     "validation": {
       "failed": "验证失败，请检查 API 密钥和基础 URL",
       "emptyApiKey": "API Key 或 Base URL 为空",
+      "needsApiKey": "请先填写当前项 API Key，或在上方填写默认 LLM API Key",
+      "needsApiBase": "请先填写当前项 API URL，或在上方填写默认 LLM API URL",
+      "literatureUrlRequired": "请输入文献检索 API URL",
       "invalidKey": "API Key 无效或已过期",
       "invalidUrl": "API 地址不正确。请检查地址是否包含 /v1 路径",
       "serverError": "服务器错误",

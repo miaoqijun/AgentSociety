@@ -32,13 +32,13 @@ const DEFAULT_VALUES: ConfigValues = {
   backendLogLevel: 'info',
   coderLlmApiKey: '',
   coderLlmApiBase: 'https://api.openai.com/v1',
-  coderLlmModel: 'gpt-5.3-codex',
+  coderLlmModel: '',
   nanoLlmApiKey: '',
   nanoLlmApiBase: 'https://api.openai.com/v1',
-  nanoLlmModel: 'gpt-5.4-nano',
+  nanoLlmModel: '',
   analysisLlmApiKey: '',
   analysisLlmApiBase: 'https://api.openai.com/v1',
-  analysisLlmModel: 'gpt-5.4',
+  analysisLlmModel: '',
   embeddingApiKey: '',
   embeddingApiBase: 'https://api.openai.com/v1',
   embeddingModel: 'text-embedding-3-large',
@@ -49,8 +49,8 @@ const DEFAULT_VALUES: ConfigValues = {
   miroflowDefaultAgent: 'mirothinker_v1.5_keep5_max200',
   easypaperApiUrl: '',
   easypaperLlmApiKey: '',
-  easypaperLlmModel: 'gpt-5.4',
-  easypaperVlmModel: 'gpt-5.4',
+  easypaperLlmModel: '',
+  easypaperVlmModel: '',
   easypaperVlmApiKey: '',
   literatureSearchApiUrl: 'http://localhost:8008/api/search',
   literatureSearchApiKey: '',
@@ -69,6 +69,83 @@ interface ValidationState {
 export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm<ConfigValues>();
+  const watchedValues = Form.useWatch([], form) as Partial<ConfigValues> | undefined;
+  const currentValues = watchedValues || {};
+  const hasText = (value?: string) => Boolean(value && value.trim());
+  const defaultLlmModel = (currentValues.llmModel || DEFAULT_VALUES.llmModel || '').trim();
+  const defaultLlmApiBase = (currentValues.llmApiBase || DEFAULT_VALUES.llmApiBase || '').trim();
+  const hasDefaultLlmKey = hasText(currentValues.llmApiKey);
+
+  const getEffectiveApiKey = (values: Partial<ConfigValues>, llmType: string): string => {
+    switch (llmType) {
+      case 'coder':
+        return (values.coderLlmApiKey || values.llmApiKey || '').trim();
+      case 'nano':
+        return (values.nanoLlmApiKey || values.llmApiKey || '').trim();
+      case 'analysis':
+        return (values.analysisLlmApiKey || values.llmApiKey || '').trim();
+      case 'embedding':
+        return (values.embeddingApiKey || values.llmApiKey || '').trim();
+      case 'easypaperVlm':
+        return (values.easypaperVlmApiKey || values.easypaperLlmApiKey || values.llmApiKey || '').trim();
+      default:
+        return (values.llmApiKey || '').trim();
+    }
+  };
+
+  const getEffectiveApiBase = (values: Partial<ConfigValues>, llmType: string): string => {
+    switch (llmType) {
+      case 'coder':
+        return (values.coderLlmApiBase || values.llmApiBase || '').trim();
+      case 'nano':
+        return (values.nanoLlmApiBase || values.llmApiBase || '').trim();
+      case 'analysis':
+        return (values.analysisLlmApiBase || values.llmApiBase || '').trim();
+      case 'embedding':
+        return (values.embeddingApiBase || values.llmApiBase || '').trim();
+      case 'easypaperVlm':
+        return (values.llmApiBase || '').trim();
+      default:
+        return (values.llmApiBase || '').trim();
+    }
+  };
+
+  const getValidationDisabledReason = (llmType: string, values: Partial<ConfigValues>): string | null => {
+    if (llmType === 'default') {
+      if (!hasText(values.llmApiKey)) {
+        return t('configPage.notifications.apiKeyMissing');
+      }
+      if (!hasText(values.llmApiBase)) {
+        return t('configPage.notifications.apiBaseMissing');
+      }
+      return null;
+    }
+
+    if (llmType === 'literature') {
+      return hasText(values.literatureSearchApiUrl) ? null : t('configPage.validation.literatureUrlRequired');
+    }
+
+    const apiKey = getEffectiveApiKey(values, llmType);
+    if (!hasText(apiKey)) {
+      return t('configPage.validation.needsApiKey');
+    }
+
+    const apiBase = getEffectiveApiBase(values, llmType);
+    if (!hasText(apiBase)) {
+      return t('configPage.validation.needsApiBase');
+    }
+
+    return null;
+  };
+
+  const defaultValidateDisabledReason = getValidationDisabledReason('default', currentValues);
+  const coderValidateDisabledReason = getValidationDisabledReason('coder', currentValues);
+  const nanoValidateDisabledReason = getValidationDisabledReason('nano', currentValues);
+  const analysisValidateDisabledReason = getValidationDisabledReason('analysis', currentValues);
+  const embeddingValidateDisabledReason = getValidationDisabledReason('embedding', currentValues);
+  const pythonValidateDisabledReason = null;
+  const easypaperVlmValidateDisabledReason = getValidationDisabledReason('easypaperVlm', currentValues);
+  const literatureValidateDisabledReason = getValidationDisabledReason('literature', currentValues);
   const [loading, setLoading] = React.useState(false);
   const [startingBackend, setStartingBackend] = React.useState(false);
   const [workspaceInfo, setWorkspaceInfo] = React.useState<WorkspaceInfo>({ hasWorkspace: false });
@@ -109,43 +186,26 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     }
 
     // For coder/nano/analysis/embedding, check if default LLM config is filled in the form
-    if (['coder', 'nano', 'analysis', 'embedding'].includes(llmType)) {
-      if (!values.llmApiKey) {
+    if (['coder', 'nano', 'analysis', 'embedding', 'easypaperVlm'].includes(llmType)) {
+      const effectiveApiKey = getEffectiveApiKey(values, llmType);
+      if (!effectiveApiKey) {
         notification.warning({
           message: t('configPage.validationFailed'),
-          description: '请先在上方配置默认 LLM API Key（留空的配置项将使用默认 LLM）',
+          description: t('configPage.validation.needsApiKey'),
           placement: 'top',
         });
         return;
       }
-      if (!values.llmApiBase) {
+      const effectiveApiBase = getEffectiveApiBase(values, llmType);
+      if (!effectiveApiBase) {
         notification.warning({
           message: t('configPage.validationFailed'),
-          description: '请先在上方配置默认 LLM API Base URL（留空的配置项将使用默认 LLM）',
+          description: t('configPage.validation.needsApiBase'),
           placement: 'top',
         });
         return;
       }
-      // Don't check for missing fields - they can fall back to defaults
-      setValidationState(prev => ({ ...prev, [llmType]: { validating: true, valid: null, error: null } }));
-      vscode.postMessage({
-        command: 'validateConfig',
-        config: values,
-        llmType,
-      });
-      return;
-    }
 
-    // For easypaperVlm, check if default LLM config is filled
-    if (llmType === 'easypaperVlm') {
-      if (!values.llmApiBase) {
-        notification.warning({
-          message: t('configPage.validationFailed'),
-          description: '请先在上方配置默认 LLM API Base URL',
-          placement: 'top',
-        });
-        return;
-      }
       setValidationState(prev => ({ ...prev, [llmType]: { validating: true, valid: null, error: null } }));
       vscode.postMessage({
         command: 'validateConfig',
@@ -157,11 +217,11 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
 
     // For default LLM, check required fields
     if (llmType === 'default') {
-      const missingField = !values.llmApiKey ? 'API Key' : !values.llmApiBase ? 'API Base URL' : !values.llmModel ? '模型名称' : '';
+      const missingField = !values.llmApiKey ? t('configPage.notifications.apiKeyMissing') : !values.llmApiBase ? t('configPage.notifications.apiBaseMissing') : '';
       if (missingField) {
         notification.warning({
           message: t('configPage.validationFailed'),
-          description: `请输入 ${missingField}`,
+          description: missingField,
           placement: 'top',
         });
         return;
@@ -413,58 +473,116 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                     {/* 代码生成 LLM */}
                     <Card size="small" title={t('configPage.coder.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.coder.hint')}><QuestionCircleOutlined /></Tooltip>}>
                       <Form.Item name="coderLlmApiKey" label={t('configPage.coder.apiKey')}>
-                        <Input.Password placeholder={t('configPage.coder.apiKeyPlaceholder')} autoComplete="off" />
+                        <Input.Password
+                          placeholder={t('configPage.linkedPlaceholders.apiKey', {
+                            status: hasDefaultLlmKey
+                              ? t('configPage.linkedPlaceholders.configured')
+                              : t('configPage.linkedPlaceholders.notConfigured'),
+                          })}
+                          autoComplete="off"
+                        />
                       </Form.Item>
                       <Form.Item name="coderLlmApiBase" label={t('configPage.coder.apiBase')}>
-                        <Input placeholder={t('configPage.coder.apiBasePlaceholder')} />
+                        <Input placeholder={t('configPage.linkedPlaceholders.apiBase', { base: defaultLlmApiBase })} />
                       </Form.Item>
                       <Form.Item name="coderLlmModel" label={t('configPage.coder.model')}>
-                        <Input placeholder={t('configPage.coder.modelPlaceholder')} />
+                        <Input placeholder={t('configPage.coder.modelPlaceholder', { model: defaultLlmModel })} />
                       </Form.Item>
                       {validationState.coder.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.coder.error} style={{ marginBottom: 8 }} />}
                       {validationState.coder.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('coder')} loading={validationState.coder?.validating}>{t('configPage.validate')}</Button>
+                      <Tooltip title={coderValidateDisabledReason || ''}>
+                        <Button
+                          size="small"
+                          icon={<CheckCircleOutlined />}
+                          onClick={() => handleValidate('coder')}
+                          loading={validationState.coder?.validating}
+                          disabled={Boolean(coderValidateDisabledReason)}
+                        >
+                          {t('configPage.validate')}
+                        </Button>
+                      </Tooltip>
                     </Card>
 
                     {/* 高频操作 LLM */}
                     <Card size="small" title={t('configPage.advanced.nano.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.advanced.nano.hint')}><QuestionCircleOutlined /></Tooltip>}>
                       <Form.Item name="nanoLlmApiKey" label={t('configPage.advanced.nano.apiKey')}>
-                        <Input.Password placeholder={t('configPage.advanced.nano.apiKeyPlaceholder')} autoComplete="off" />
+                        <Input.Password
+                          placeholder={t('configPage.linkedPlaceholders.apiKey', {
+                            status: hasDefaultLlmKey
+                              ? t('configPage.linkedPlaceholders.configured')
+                              : t('configPage.linkedPlaceholders.notConfigured'),
+                          })}
+                          autoComplete="off"
+                        />
                       </Form.Item>
                       <Form.Item name="nanoLlmApiBase" label={t('configPage.advanced.nano.apiBase')}>
-                        <Input placeholder={t('configPage.advanced.nano.apiBasePlaceholder')} />
+                        <Input placeholder={t('configPage.linkedPlaceholders.apiBase', { base: defaultLlmApiBase })} />
                       </Form.Item>
                       <Form.Item name="nanoLlmModel" label={t('configPage.advanced.nano.model')}>
-                        <Input placeholder={t('configPage.advanced.nano.modelPlaceholder')} />
+                        <Input placeholder={t('configPage.advanced.nano.modelPlaceholder', { model: defaultLlmModel })} />
                       </Form.Item>
                       {validationState.nano.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.nano.error} style={{ marginBottom: 8 }} />}
                       {validationState.nano.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('nano')} loading={validationState.nano?.validating}>{t('configPage.validate')}</Button>
+                      <Tooltip title={nanoValidateDisabledReason || ''}>
+                        <Button
+                          size="small"
+                          icon={<CheckCircleOutlined />}
+                          onClick={() => handleValidate('nano')}
+                          loading={validationState.nano?.validating}
+                          disabled={Boolean(nanoValidateDisabledReason)}
+                        >
+                          {t('configPage.validate')}
+                        </Button>
+                      </Tooltip>
                     </Card>
 
                     {/* 分析 LLM */}
                     <Card size="small" title={t('configPage.analysis.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.analysis.hint')}><QuestionCircleOutlined /></Tooltip>}>
                       <Form.Item name="analysisLlmApiKey" label={t('configPage.analysis.apiKey')}>
-                        <Input.Password placeholder={t('configPage.analysis.apiKeyPlaceholder')} autoComplete="off" />
+                        <Input.Password
+                          placeholder={t('configPage.linkedPlaceholders.apiKey', {
+                            status: hasDefaultLlmKey
+                              ? t('configPage.linkedPlaceholders.configured')
+                              : t('configPage.linkedPlaceholders.notConfigured'),
+                          })}
+                          autoComplete="off"
+                        />
                       </Form.Item>
                       <Form.Item name="analysisLlmApiBase" label={t('configPage.analysis.apiBase')}>
-                        <Input placeholder={t('configPage.analysis.apiBasePlaceholder')} />
+                        <Input placeholder={t('configPage.linkedPlaceholders.apiBase', { base: defaultLlmApiBase })} />
                       </Form.Item>
                       <Form.Item name="analysisLlmModel" label={t('configPage.analysis.model')}>
-                        <Input placeholder={t('configPage.analysis.modelPlaceholder')} />
+                        <Input placeholder={t('configPage.analysis.modelPlaceholder', { model: defaultLlmModel })} />
                       </Form.Item>
                       {validationState.analysis?.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.analysis.error} style={{ marginBottom: 8 }} />}
                       {validationState.analysis?.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('analysis')} loading={validationState.analysis?.validating}>{t('configPage.validate')}</Button>
+                      <Tooltip title={analysisValidateDisabledReason || ''}>
+                        <Button
+                          size="small"
+                          icon={<CheckCircleOutlined />}
+                          onClick={() => handleValidate('analysis')}
+                          loading={validationState.analysis?.validating}
+                          disabled={Boolean(analysisValidateDisabledReason)}
+                        >
+                          {t('configPage.validate')}
+                        </Button>
+                      </Tooltip>
                     </Card>
 
                     {/* Embedding */}
                     <Card size="small" title={t('configPage.advanced.embedding.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.advanced.embedding.hint')}><QuestionCircleOutlined /></Tooltip>}>
                       <Form.Item name="embeddingApiKey" label={t('configPage.advanced.embedding.apiKey')}>
-                        <Input.Password placeholder={t('configPage.advanced.embedding.apiKeyPlaceholder')} autoComplete="off" />
+                        <Input.Password
+                          placeholder={t('configPage.linkedPlaceholders.apiKey', {
+                            status: hasDefaultLlmKey
+                              ? t('configPage.linkedPlaceholders.configured')
+                              : t('configPage.linkedPlaceholders.notConfigured'),
+                          })}
+                          autoComplete="off"
+                        />
                       </Form.Item>
                       <Form.Item name="embeddingApiBase" label={t('configPage.advanced.embedding.apiBase')}>
-                        <Input placeholder={t('configPage.advanced.embedding.apiBasePlaceholder')} />
+                        <Input placeholder={t('configPage.linkedPlaceholders.apiBase', { base: defaultLlmApiBase })} />
                       </Form.Item>
                       <Form.Item name="embeddingModel" label={t('configPage.advanced.embedding.model')}>
                         <Input placeholder={t('configPage.advanced.embedding.modelPlaceholder')} />
@@ -474,7 +592,17 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                       </Form.Item>
                       {validationState.embedding.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.embedding.error} style={{ marginBottom: 8 }} />}
                       {validationState.embedding.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('embedding')} loading={validationState.embedding?.validating}>{t('configPage.validate')}</Button>
+                      <Tooltip title={embeddingValidateDisabledReason || ''}>
+                        <Button
+                          size="small"
+                          icon={<CheckCircleOutlined />}
+                          onClick={() => handleValidate('embedding')}
+                          loading={validationState.embedding?.validating}
+                          disabled={Boolean(embeddingValidateDisabledReason)}
+                        >
+                          {t('configPage.validate')}
+                        </Button>
+                      </Tooltip>
                     </Card>
 
                     {/* Python 环境 */}
@@ -484,7 +612,9 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                       </Form.Item>
                       {validationState.python.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.python.error} style={{ marginBottom: 8 }} />}
                       {validationState.python.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('python')} loading={validationState.python?.validating}>{t('configPage.validate')}</Button>
+                      <Tooltip title={pythonValidateDisabledReason || ''}>
+                        <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('python')} loading={validationState.python?.validating}>{t('configPage.validate')}</Button>
+                      </Tooltip>
                     </Card>
 
                     {/* EasyPaper */}
@@ -493,17 +623,44 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                         <Input placeholder={t('configPage.advanced.easypaper.apiUrlPlaceholder')} />
                       </Form.Item>
                       <Form.Item name="easypaperLlmApiKey" label={t('configPage.advanced.easypaper.llmApiKey')}>
-                        <Input.Password placeholder={t('configPage.advanced.easypaper.llmApiKeyPlaceholder')} autoComplete="off" />
+                        <Input.Password
+                          placeholder={t('configPage.linkedPlaceholders.apiKey', {
+                            status: hasDefaultLlmKey
+                              ? t('configPage.linkedPlaceholders.configured')
+                              : t('configPage.linkedPlaceholders.notConfigured'),
+                          })}
+                          autoComplete="off"
+                        />
                       </Form.Item>
                       <Form.Item name="easypaperLlmModel" label={t('configPage.advanced.easypaper.llmModel')}>
-                        <Input placeholder={t('configPage.advanced.easypaper.llmModelPlaceholder')} />
+                        <Input placeholder={t('configPage.advanced.easypaper.llmModelPlaceholder', { model: defaultLlmModel })} />
                       </Form.Item>
                       <Form.Item name="easypaperVlmModel" label={t('configPage.advanced.easypaper.vlmModel')}>
-                        <Input placeholder={t('configPage.advanced.easypaper.vlmModelPlaceholder')} />
+                        <Input placeholder={t('configPage.advanced.easypaper.vlmModelPlaceholder', { model: defaultLlmModel })} />
                       </Form.Item>
                       <Form.Item name="easypaperVlmApiKey" label={t('configPage.advanced.easypaper.vlmApiKey')}>
-                        <Input.Password placeholder={t('configPage.advanced.easypaper.vlmApiKeyPlaceholder')} autoComplete="off" />
+                        <Input.Password
+                          placeholder={t('configPage.linkedPlaceholders.apiKey', {
+                            status: hasDefaultLlmKey
+                              ? t('configPage.linkedPlaceholders.configured')
+                              : t('configPage.linkedPlaceholders.notConfigured'),
+                          })}
+                          autoComplete="off"
+                        />
                       </Form.Item>
+                      {validationState.easypaperVlm.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.easypaperVlm.error} style={{ marginBottom: 8 }} />}
+                      {validationState.easypaperVlm.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
+                      <Tooltip title={easypaperVlmValidateDisabledReason || ''}>
+                        <Button
+                          size="small"
+                          icon={<CheckCircleOutlined />}
+                          onClick={() => handleValidate('easypaperVlm')}
+                          loading={validationState.easypaperVlm?.validating}
+                          disabled={Boolean(easypaperVlmValidateDisabledReason)}
+                        >
+                          {t('configPage.validate')}
+                        </Button>
+                      </Tooltip>
                     </Card>
 
                     {/* 文献检索 */}
@@ -521,6 +678,7 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                             icon={<CheckCircleOutlined />}
                             loading={validationState.literature?.validating}
                             onClick={() => handleValidate('literature')}
+                            disabled={Boolean(literatureValidateDisabledReason)}
                           >
                             {t('configPage.literature.validateConfig')}
                           </Button>
@@ -553,6 +711,7 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                 size="large"
                 icon={<SaveOutlined />}
                 onClick={handleSave}
+                disabled={Boolean(defaultValidateDisabledReason)}
                 loading={loading}
               >
                 {t('configPage.save')}
