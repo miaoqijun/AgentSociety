@@ -37,7 +37,7 @@ import json
 import re
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -274,7 +274,7 @@ def tool(
                 "return_value": return_value_repr,
                 "exception_occurred": exception_occurred,
                 "exception_info": exception_info,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         if inspect.iscoroutinefunction(func):

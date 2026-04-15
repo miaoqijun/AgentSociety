@@ -196,8 +196,8 @@
   },
   "configPage": {
     "title": "AI Social Scientist 配置",
-    "subtitle": "配置您的 AgentSociety 工作区环境",
-    "description": "按步骤配置您的环境，每一步都可以单独保存",
+    "subtitle": "按步骤配置工作区环境",
+    "description": "按照步骤完成环境配置，每一步都可以单独保存",
     "advancedConfig": "高级配置（可选）",
     "resetDefaults": "恢复默认值",
     "saveAndStart": "保存并启动",
@@ -206,23 +206,23 @@
     "validationFailed": "验证失败",
     "analysis": {
       "title": "数据分析 LLM",
-      "hint": "用于数据分析、洞察生成、报告撰写",
+      "hint": "用于数据分析、洞察生成和报告撰写（API Key/API URL 可留空并沿用上方默认 LLM 配置）",
       "apiKey": "API 密钥",
-      "apiKeyPlaceholder": "留空使用默认",
+      "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
       "apiBase": "API URL",
-      "apiBasePlaceholder": "留空使用默认",
+      "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
       "model": "模型",
-      "modelPlaceholder": "建议使用较强模型"
+      "modelPlaceholder": "默认值：gpt-5.4"
     },
     "python": {
       "title": "Python 环境",
       "hint": "Python 运行环境配置",
       "path": "Python 路径",
-      "pathPlaceholder": "python3 或留空自动检测"
+      "pathPlaceholder": "python3，或留空自动检测"
     },
     "literature": {
       "title": "文献检索服务",
-      "hint": "统一学术文献检索服务",
+      "hint": "统一的学术文献检索服务",
       "validateConfig": "验证配置",
       "validateSuccess": "验证成功"
     },
@@ -262,11 +262,11 @@
       "apiKey": "LLM API 密钥",
       "apiKeyRequired": "LLM API 密钥 *",
       "apiKeyRequiredHint": "用于默认对话、分析等核心功能",
-      "apiKeyPlaceholder": "sk-xxx 或您的 API 密钥",
+      "apiKeyPlaceholder": "请输入 API 密钥",
       "apiBase": "LLM API 基础URL",
-      "apiBasePlaceholder": "https://cloud.infini-ai.com/maas/v1",
+      "apiBasePlaceholder": "默认值：https://api.openai.com/v1",
       "modelName": "LLM 模型名称",
-      "modelPlaceholder": "qwen3-next-80b-a3b-instruct"
+      "modelPlaceholder": "默认值：gpt-5.4"
     },
     "backend": {
       "title": "后端服务配置",
@@ -276,36 +276,36 @@
     },
     "coder": {
       "title": "代码生成 LLM（可选）",
-      "hint": "用于代码生成的专用模型，留空则使用默认 LLM",
+      "hint": "用于代码生成的专用模型，可留空并沿用上方默认 LLM 配置",
       "apiKey": "代码生成 LLM API 密钥",
-      "apiKeyPlaceholder": "留空则使用默认",
+      "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
       "apiBase": "代码生成 LLM API 基础 URL",
-      "apiBasePlaceholder": "留空则使用默认",
+      "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
       "model": "代码生成 LLM 模型",
-      "modelPlaceholder": "glm-4.7"
+      "modelPlaceholder": "默认值：gpt-5.3-codex"
     },
     "advanced": {
       "embedding": {
         "title": "Embedding 模型",
-        "hint": "用于文本嵌入，留空则使用默认 LLM",
+        "hint": "用于文本嵌入（API Key/API URL 可留空并沿用上方默认 LLM 配置）",
         "apiKey": "Embedding API 密钥",
-        "apiKeyPlaceholder": "留空则使用默认 LLM 密钥",
+        "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
         "apiBase": "Embedding API 基础 URL",
-        "apiBasePlaceholder": "留空则使用默认 LLM URL",
+        "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
         "model": "Embedding 模型名称",
-        "modelPlaceholder": "bge-m3",
+        "modelPlaceholder": "默认值：text-embedding-3-large",
         "dims": "向量维度",
         "dimsPlaceholder": "1024"
       },
       "nano": {
         "title": "高频操作 LLM（可选）",
-        "hint": "用于高频快速操作的轻量级模型",
+        "hint": "用于高频快速操作的轻量级模型，可留空并沿用上方默认 LLM 配置",
         "apiKey": "高频操作 LLM API 密钥",
-        "apiKeyPlaceholder": "留空则使用默认",
+        "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
         "apiBase": "高频操作 LLM API 基础 URL",
-        "apiBasePlaceholder": "留空则使用默认",
+        "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
         "model": "高频操作 LLM 模型",
-        "modelPlaceholder": "qwen3-next-80b-a3b-instruct"
+        "modelPlaceholder": "默认值：gpt-5.4-nano"
       },
       "easypaper": {
         "title": "EasyPaper（可选）",
@@ -313,13 +313,13 @@
         "apiUrl": "EasyPaper API URL",
         "apiUrlPlaceholder": "http://localhost:8004",
         "llmApiKey": "EasyPaper 通用 LLM API Key",
-        "llmApiKeyPlaceholder": "与默认 LLM 一致可留空",
+        "llmApiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
         "llmModel": "EasyPaper LLM 模型",
-        "llmModelPlaceholder": "qwen3-next-80b-a3b-instruct",
+        "llmModelPlaceholder": "默认值：gpt-5.4",
         "vlmModel": "EasyPaper VLM 模型",
-        "vlmModelPlaceholder": "qwen3-vl-235b-a22b-thinking",
+        "vlmModelPlaceholder": "默认值：gpt-5.4",
         "vlmApiKey": "EasyPaper VLM API Key",
-        "vlmApiKeyPlaceholder": "与 LLM API Key 一致可留空"
+        "vlmApiKeyPlaceholder": "可留空（保存后默认与 LLM API Key 保持一致）"
       },
       "literature": {
         "title": "文献检索服务（可选）",

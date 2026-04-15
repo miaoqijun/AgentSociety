@@ -44,7 +44,7 @@ import gzip
 import json
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -92,7 +92,7 @@ class Checkpoint:
         """保存检查点。"""
         data = {
             "tick": tick,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "state": state,
         }
         path = self._path(tick)
@@ -191,7 +191,7 @@ class WriteAheadLog:
             "action": action,
             "arguments": arguments,
             "tick": tick,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": IntentStatus.PENDING.value,
         }
 
@@ -222,7 +222,7 @@ class WriteAheadLog:
             "intent_id": intent_id,
             "status": IntentStatus.COMPLETED.value,
             "result": result,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         entry = _json_dumps(result_entry) + "\n"

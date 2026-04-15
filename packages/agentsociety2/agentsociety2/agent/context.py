@@ -57,7 +57,7 @@ from __future__ import annotations
 import copy
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Literal, Optional
@@ -732,7 +732,7 @@ class AgentMemory:
 
     def add_decision(self, decision: str) -> None:
         self._data.setdefault("decisions", []).append(
-            {"decision": decision, "time": datetime.now().isoformat()}
+            {"decision": decision, "time": datetime.now(timezone.utc).isoformat()}
         )
         if len(self._data["decisions"]) > 20:
             self._data["decisions"] = self._data["decisions"][-20:]
@@ -740,7 +740,7 @@ class AgentMemory:
 
     def add_error(self, error: dict[str, str]) -> None:
         self._data.setdefault("errors", []).append(
-            {**error, "time": datetime.now().isoformat()}
+            {**error, "time": datetime.now(timezone.utc).isoformat()}
         )
         if len(self._data["errors"]) > 10:
             self._data["errors"] = self._data["errors"][-10:]
@@ -752,7 +752,7 @@ class AgentMemory:
 
     def complete_task(self, task: str) -> None:
         self._data.setdefault("completed_tasks", []).append(
-            {"task": task, "time": datetime.now().isoformat()}
+            {"task": task, "time": datetime.now(timezone.utc).isoformat()}
         )
         if self._data.get("current_task") == task:
             self._data["current_task"] = ""

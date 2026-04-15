@@ -6,7 +6,7 @@ Functions for formatting literature entries as markdown and managing filenames.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 
@@ -41,7 +41,7 @@ def format_article_as_markdown(article: Dict[str, Any], query: str) -> str:
     lines.append("")
     lines.append(f"**Search Query:** {query}")
     lines.append("")
-    lines.append(f"**Saved At:** {datetime.now().isoformat()}")
+    lines.append(f"**Saved At:** {datetime.now(timezone.utc).isoformat()}")
     lines.append("")
 
     if article.get("year"):

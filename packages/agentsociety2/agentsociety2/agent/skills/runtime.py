@@ -48,7 +48,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
@@ -525,7 +525,7 @@ class AgentSkillRuntime:
         if priority is not None:
             updates["priority"] = priority
         if updates:
-            updates["last_updated"] = datetime.now().isoformat()
+            updates["last_updated"] = datetime.now(timezone.utc).isoformat()
             self.update_agent_context(updates)
 
         if notes is not None:
@@ -602,7 +602,7 @@ class AgentSkillRuntime:
                                     break
 
         if updates:
-            updates["last_sync"] = datetime.now().isoformat()
+            updates["last_sync"] = datetime.now(timezone.utc).isoformat()
             self.update_agent_context(updates)
 
     def build_workspace_summary(self) -> str:
@@ -697,7 +697,7 @@ class AgentSkillRuntime:
             return
 
         event = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "agent_id": self._agent_id,
             "event_type": event_type,
             "tick": tick,

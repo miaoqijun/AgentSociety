@@ -395,8 +395,8 @@ export class ConfigPageViewProvider {
         break;
     }
 
-    // 如果 coder/nano/embedding 的 API Key 或 Base URL 为空，使用默认 LLM 的配置
-    if (!apiKey && llmType !== 'easypaperVlm') {
+    // 对非默认模型：若 API Key 或 Base URL 为空，则回落到默认 LLM 配置
+    if (!apiKey && llmType !== 'default') {
       apiKey = config.llmApiKey || '';
     }
     if (!apiBase) {

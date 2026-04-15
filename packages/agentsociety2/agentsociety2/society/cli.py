@@ -6,7 +6,7 @@ import json
 import os
 import sys
 import yaml
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -274,12 +274,12 @@ class ExperimentRunner:
         pid_data.update({
             "pid": os.getpid(),
             "status": status,
-            "start_time": pid_data.get("start_time", datetime.now().isoformat()),
+            "start_time": pid_data.get("start_time", datetime.now(timezone.utc).isoformat()),
             **kwargs,
         })
 
         if status == "completed" or status == "failed":
-            pid_data["end_time"] = datetime.now().isoformat()
+            pid_data["end_time"] = datetime.now(timezone.utc).isoformat()
 
         with open(self.pid_file, "w", encoding="utf-8") as f:
             json.dump(pid_data, f, indent=2, ensure_ascii=False)

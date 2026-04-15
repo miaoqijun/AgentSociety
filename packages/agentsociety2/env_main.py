@@ -37,7 +37,7 @@ async def main():
                 "litellm_params": {
                     "model": "openai/glm-4.7",
                     "api_key": os.getenv("API_KEY"),
-                    "api_base": "https://cloud.infini-ai.com/maas/v1",
+                    "api_base": "https://llmapi.fiblab.net",
                 },
             },
             {
@@ -45,7 +45,7 @@ async def main():
                 "litellm_params": {
                     "model": "openai/qwen2.5-14b-instruct",
                     "api_key": os.getenv("API_KEY"),
-                    "api_base": "https://cloud.infini-ai.com/maas/v1",
+                    "api_base": "https://llmapi.fiblab.net",
                 },
             },
             {
@@ -53,7 +53,7 @@ async def main():
                 "litellm_params": {
                     "model": "openai/bge-m3",
                     "api_key": os.getenv("API_KEY"),
-                    "api_base": "https://cloud.infini-ai.com/maas/v1",
+                    "api_base": "https://llmapi.fiblab.net",
                 },
             },
         ],

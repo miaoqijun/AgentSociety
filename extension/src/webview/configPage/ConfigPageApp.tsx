@@ -11,7 +11,6 @@ import {
   Space,
   notification,
   Collapse,
-  Select,
   Tooltip,
   Tag,
 } from 'antd';
@@ -22,37 +21,27 @@ import 'antd/dist/reset.css';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
-const { Panel } = Collapse;
-
-// OpenAI 预设模板
-const OPENAI_PRESET: Partial<ConfigValues> = {
-  llmApiBase: 'https://api.openai.com/v1',
-  llmModel: 'gpt-4o',
-  coderLlmModel: 'gpt-4o',
-  analysisLlmModel: 'gpt-4o',
-  embeddingModel: 'text-embedding-3-large',
-};
 
 const DEFAULT_VALUES: ConfigValues = {
   llmApiKey: '',
   backendHost: '127.0.0.1',
   backendPort: 8001,
   pythonPath: '',
-  llmApiBase: 'https://cloud.infini-ai.com/maas/v1',
-  llmModel: 'qwen3-next-80b-a3b-instruct',
+  llmApiBase: 'https://api.openai.com/v1',
+  llmModel: 'gpt-5.4',
   backendLogLevel: 'info',
   coderLlmApiKey: '',
-  coderLlmApiBase: '',
-  coderLlmModel: 'glm-4.7',
+  coderLlmApiBase: 'https://api.openai.com/v1',
+  coderLlmModel: 'gpt-5.3-codex',
   nanoLlmApiKey: '',
-  nanoLlmApiBase: '',
-  nanoLlmModel: 'qwen3-next-80b-a3b-instruct',
+  nanoLlmApiBase: 'https://api.openai.com/v1',
+  nanoLlmModel: 'gpt-5.4-nano',
   analysisLlmApiKey: '',
-  analysisLlmApiBase: '',
-  analysisLlmModel: 'glm-5',
+  analysisLlmApiBase: 'https://api.openai.com/v1',
+  analysisLlmModel: 'gpt-5.4',
   embeddingApiKey: '',
-  embeddingApiBase: '',
-  embeddingModel: 'bge-m3',
+  embeddingApiBase: 'https://api.openai.com/v1',
+  embeddingModel: 'text-embedding-3-large',
   embeddingDims: 1024,
   webSearchApiUrl: '',
   webSearchApiToken: '',
@@ -60,8 +49,8 @@ const DEFAULT_VALUES: ConfigValues = {
   miroflowDefaultAgent: 'mirothinker_v1.5_keep5_max200',
   easypaperApiUrl: '',
   easypaperLlmApiKey: '',
-  easypaperLlmModel: 'qwen3-next-80b-a3b-instruct',
-  easypaperVlmModel: 'qwen3-vl-235b-a22b-thinking',
+  easypaperLlmModel: 'gpt-5.4',
+  easypaperVlmModel: 'gpt-5.4',
   easypaperVlmApiKey: '',
   literatureSearchApiUrl: 'http://localhost:8008/api/search',
   literatureSearchApiKey: '',
@@ -101,19 +90,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     form.setFieldsValue(DEFAULT_VALUES);
     notification.info({
       message: t('configPage.resetDefaults'),
-      placement: 'top',
-    });
-  };
-
-  // Apply OpenAI preset
-  const handleApplyOpenAIPreset = () => {
-    const currentValues = form.getFieldsValue();
-    form.setFieldsValue({
-      ...currentValues,
-      ...OPENAI_PRESET,
-    });
-    notification.info({
-      message: 'OpenAI 预设已应用',
       placement: 'top',
     });
   };
@@ -374,7 +350,7 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
 
         {!workspaceInfo.hasWorkspace && (
           <Alert
-            message={t('configPage.noWorkspace')}
+            title={t('configPage.noWorkspace')}
             description={t('configPage.noWorkspaceHint')}
             type="warning"
             showIcon
@@ -384,18 +360,13 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
 
         <Form form={form} style={{ marginBottom: 24 }}>
           {/* ========== 必填配置 ========== */}
-          <Card 
+          <Card
             title={
               <Space>
                 <KeyOutlined />
                 <span>LLM 配置</span>
                 <Tag color="red">必填</Tag>
               </Space>
-            }
-            extra={
-              <Button size="small" onClick={handleApplyOpenAIPreset}>
-                OpenAI 预设
-              </Button>
             }
             style={{ marginBottom: 16 }}
           >
@@ -414,10 +385,10 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               <Input placeholder={t('configPage.llm.modelPlaceholder')} />
             </Form.Item>
             {validationState.default.error && (
-              <Alert type="error" message={t('configPage.validationFailed')} description={validationState.default.error} style={{ marginBottom: 12 }} />
+              <Alert type="error" title={t('configPage.validationFailed')} description={validationState.default.error} style={{ marginBottom: 12 }} />
             )}
             {validationState.default.valid && (
-              <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 12 }} />
+              <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 12 }} />
             )}
             <Button
               type="primary"
@@ -430,133 +401,143 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
           </Card>
 
           {/* ========== 可选配置（折叠）========== */}
-          <Collapse bordered={false} style={{ marginBottom: 16 }}>
-            <Panel header={t('configPage.advancedConfig')} key="advanced">
-              {/* 代码生成 LLM */}
-              <Card size="small" title={t('configPage.coder.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.coder.hint')}><QuestionCircleOutlined /></Tooltip>}>
-                <Form.Item name="coderLlmApiKey" label={t('configPage.coder.apiKey')}>
-                  <Input.Password placeholder={t('configPage.coder.apiKeyPlaceholder')} autoComplete="off" />
-                </Form.Item>
-                <Form.Item name="coderLlmApiBase" label={t('configPage.coder.apiBase')}>
-                  <Input placeholder={t('configPage.coder.apiBasePlaceholder')} />
-                </Form.Item>
-                <Form.Item name="coderLlmModel" label={t('configPage.coder.model')}>
-                  <Input placeholder={t('configPage.coder.modelPlaceholder')} />
-                </Form.Item>
-                {validationState.coder.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.coder.error} style={{ marginBottom: 8 }} />}
-                {validationState.coder.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('coder')} loading={validationState.coder?.validating}>{t('configPage.validate')}</Button>
-              </Card>
+          <Collapse
+            bordered={false}
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: 'advanced',
+                label: t('configPage.advancedConfig'),
+                children: (
+                  <>
+                    {/* 代码生成 LLM */}
+                    <Card size="small" title={t('configPage.coder.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.coder.hint')}><QuestionCircleOutlined /></Tooltip>}>
+                      <Form.Item name="coderLlmApiKey" label={t('configPage.coder.apiKey')}>
+                        <Input.Password placeholder={t('configPage.coder.apiKeyPlaceholder')} autoComplete="off" />
+                      </Form.Item>
+                      <Form.Item name="coderLlmApiBase" label={t('configPage.coder.apiBase')}>
+                        <Input placeholder={t('configPage.coder.apiBasePlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="coderLlmModel" label={t('configPage.coder.model')}>
+                        <Input placeholder={t('configPage.coder.modelPlaceholder')} />
+                      </Form.Item>
+                      {validationState.coder.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.coder.error} style={{ marginBottom: 8 }} />}
+                      {validationState.coder.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
+                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('coder')} loading={validationState.coder?.validating}>{t('configPage.validate')}</Button>
+                    </Card>
 
-              {/* 高频操作 LLM */}
-              <Card size="small" title={t('configPage.advanced.nano.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.advanced.nano.hint')}><QuestionCircleOutlined /></Tooltip>}>
-                <Form.Item name="nanoLlmApiKey" label={t('configPage.advanced.nano.apiKey')}>
-                  <Input.Password placeholder={t('configPage.advanced.nano.apiKeyPlaceholder')} autoComplete="off" />
-                </Form.Item>
-                <Form.Item name="nanoLlmApiBase" label={t('configPage.advanced.nano.apiBase')}>
-                  <Input placeholder={t('configPage.advanced.nano.apiBasePlaceholder')} />
-                </Form.Item>
-                <Form.Item name="nanoLlmModel" label={t('configPage.advanced.nano.model')}>
-                  <Input placeholder={t('configPage.advanced.nano.modelPlaceholder')} />
-                </Form.Item>
-                {validationState.nano.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.nano.error} style={{ marginBottom: 8 }} />}
-                {validationState.nano.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('nano')} loading={validationState.nano?.validating}>{t('configPage.validate')}</Button>
-              </Card>
+                    {/* 高频操作 LLM */}
+                    <Card size="small" title={t('configPage.advanced.nano.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.advanced.nano.hint')}><QuestionCircleOutlined /></Tooltip>}>
+                      <Form.Item name="nanoLlmApiKey" label={t('configPage.advanced.nano.apiKey')}>
+                        <Input.Password placeholder={t('configPage.advanced.nano.apiKeyPlaceholder')} autoComplete="off" />
+                      </Form.Item>
+                      <Form.Item name="nanoLlmApiBase" label={t('configPage.advanced.nano.apiBase')}>
+                        <Input placeholder={t('configPage.advanced.nano.apiBasePlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="nanoLlmModel" label={t('configPage.advanced.nano.model')}>
+                        <Input placeholder={t('configPage.advanced.nano.modelPlaceholder')} />
+                      </Form.Item>
+                      {validationState.nano.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.nano.error} style={{ marginBottom: 8 }} />}
+                      {validationState.nano.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
+                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('nano')} loading={validationState.nano?.validating}>{t('configPage.validate')}</Button>
+                    </Card>
 
-              {/* 分析 LLM */}
-              <Card size="small" title={t('configPage.analysis.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.analysis.hint')}><QuestionCircleOutlined /></Tooltip>}>
-                <Form.Item name="analysisLlmApiKey" label={t('configPage.analysis.apiKey')}>
-                  <Input.Password placeholder={t('configPage.analysis.apiKeyPlaceholder')} autoComplete="off" />
-                </Form.Item>
-                <Form.Item name="analysisLlmApiBase" label={t('configPage.analysis.apiBase')}>
-                  <Input placeholder={t('configPage.analysis.apiBasePlaceholder')} />
-                </Form.Item>
-                <Form.Item name="analysisLlmModel" label={t('configPage.analysis.model')}>
-                  <Input placeholder={t('configPage.analysis.modelPlaceholder')} />
-                </Form.Item>
-                {validationState.analysis?.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.analysis.error} style={{ marginBottom: 8 }} />}
-                {validationState.analysis?.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('analysis')} loading={validationState.analysis?.validating}>{t('configPage.validate')}</Button>
-              </Card>
+                    {/* 分析 LLM */}
+                    <Card size="small" title={t('configPage.analysis.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.analysis.hint')}><QuestionCircleOutlined /></Tooltip>}>
+                      <Form.Item name="analysisLlmApiKey" label={t('configPage.analysis.apiKey')}>
+                        <Input.Password placeholder={t('configPage.analysis.apiKeyPlaceholder')} autoComplete="off" />
+                      </Form.Item>
+                      <Form.Item name="analysisLlmApiBase" label={t('configPage.analysis.apiBase')}>
+                        <Input placeholder={t('configPage.analysis.apiBasePlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="analysisLlmModel" label={t('configPage.analysis.model')}>
+                        <Input placeholder={t('configPage.analysis.modelPlaceholder')} />
+                      </Form.Item>
+                      {validationState.analysis?.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.analysis.error} style={{ marginBottom: 8 }} />}
+                      {validationState.analysis?.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
+                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('analysis')} loading={validationState.analysis?.validating}>{t('configPage.validate')}</Button>
+                    </Card>
 
-              {/* Embedding */}
-              <Card size="small" title={t('configPage.advanced.embedding.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.advanced.embedding.hint')}><QuestionCircleOutlined /></Tooltip>}>
-                <Form.Item name="embeddingApiKey" label={t('configPage.advanced.embedding.apiKey')}>
-                  <Input.Password placeholder={t('configPage.advanced.embedding.apiKeyPlaceholder')} autoComplete="off" />
-                </Form.Item>
-                <Form.Item name="embeddingApiBase" label={t('configPage.advanced.embedding.apiBase')}>
-                  <Input placeholder={t('configPage.advanced.embedding.apiBasePlaceholder')} />
-                </Form.Item>
-                <Form.Item name="embeddingModel" label={t('configPage.advanced.embedding.model')}>
-                  <Input placeholder={t('configPage.advanced.embedding.modelPlaceholder')} />
-                </Form.Item>
-                <Form.Item name="embeddingDims" label={t('configPage.advanced.embedding.dims')}>
-                  <InputNumber min={64} max={4096} style={{ width: '100%' }} placeholder={t('configPage.advanced.embedding.dimsPlaceholder')} />
-                </Form.Item>
-                {validationState.embedding.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.embedding.error} style={{ marginBottom: 8 }} />}
-                {validationState.embedding.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('embedding')} loading={validationState.embedding?.validating}>{t('configPage.validate')}</Button>
-              </Card>
+                    {/* Embedding */}
+                    <Card size="small" title={t('configPage.advanced.embedding.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.advanced.embedding.hint')}><QuestionCircleOutlined /></Tooltip>}>
+                      <Form.Item name="embeddingApiKey" label={t('configPage.advanced.embedding.apiKey')}>
+                        <Input.Password placeholder={t('configPage.advanced.embedding.apiKeyPlaceholder')} autoComplete="off" />
+                      </Form.Item>
+                      <Form.Item name="embeddingApiBase" label={t('configPage.advanced.embedding.apiBase')}>
+                        <Input placeholder={t('configPage.advanced.embedding.apiBasePlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="embeddingModel" label={t('configPage.advanced.embedding.model')}>
+                        <Input placeholder={t('configPage.advanced.embedding.modelPlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="embeddingDims" label={t('configPage.advanced.embedding.dims')}>
+                        <InputNumber min={64} max={4096} style={{ width: '100%' }} placeholder={t('configPage.advanced.embedding.dimsPlaceholder')} />
+                      </Form.Item>
+                      {validationState.embedding.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.embedding.error} style={{ marginBottom: 8 }} />}
+                      {validationState.embedding.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
+                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('embedding')} loading={validationState.embedding?.validating}>{t('configPage.validate')}</Button>
+                    </Card>
 
-              {/* Python 环境 */}
-              <Card size="small" title={t('configPage.python.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.python.hint')}><QuestionCircleOutlined /></Tooltip>}>
-                <Form.Item name="pythonPath" label={t('configPage.python.path')}>
-                  <Input placeholder={t('configPage.python.pathPlaceholder')} />
-                </Form.Item>
-                {validationState.python.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.python.error} style={{ marginBottom: 8 }} />}
-                {validationState.python.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
-                <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('python')} loading={validationState.python?.validating}>{t('configPage.validate')}</Button>
-              </Card>
+                    {/* Python 环境 */}
+                    <Card size="small" title={t('configPage.python.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.python.hint')}><QuestionCircleOutlined /></Tooltip>}>
+                      <Form.Item name="pythonPath" label={t('configPage.python.path')}>
+                        <Input placeholder={t('configPage.python.pathPlaceholder')} />
+                      </Form.Item>
+                      {validationState.python.error && <Alert type="error" title={t('configPage.validationFailed')} description={validationState.python.error} style={{ marginBottom: 8 }} />}
+                      {validationState.python.valid && <Alert type="success" title={t('configPage.validationSuccess')} style={{ marginBottom: 8 }} />}
+                      <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('python')} loading={validationState.python?.validating}>{t('configPage.validate')}</Button>
+                    </Card>
 
-              {/* EasyPaper */}
-              <Card size="small" title={t('configPage.advanced.easypaper.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.advanced.easypaper.hint')}><QuestionCircleOutlined /></Tooltip>}>
-                <Form.Item name="easypaperApiUrl" label={t('configPage.advanced.easypaper.apiUrl')}>
-                  <Input placeholder={t('configPage.advanced.easypaper.apiUrlPlaceholder')} />
-                </Form.Item>
-                <Form.Item name="easypaperLlmApiKey" label={t('configPage.advanced.easypaper.llmApiKey')}>
-                  <Input.Password placeholder={t('configPage.advanced.easypaper.llmApiKeyPlaceholder')} autoComplete="off" />
-                </Form.Item>
-                <Form.Item name="easypaperLlmModel" label={t('configPage.advanced.easypaper.llmModel')}>
-                  <Input placeholder={t('configPage.advanced.easypaper.llmModelPlaceholder')} />
-                </Form.Item>
-                <Form.Item name="easypaperVlmModel" label={t('configPage.advanced.easypaper.vlmModel')}>
-                  <Input placeholder={t('configPage.advanced.easypaper.vlmModelPlaceholder')} />
-                </Form.Item>
-                <Form.Item name="easypaperVlmApiKey" label={t('configPage.advanced.easypaper.vlmApiKey')}>
-                  <Input.Password placeholder={t('configPage.advanced.easypaper.vlmApiKeyPlaceholder')} autoComplete="off" />
-                </Form.Item>
-              </Card>
+                    {/* EasyPaper */}
+                    <Card size="small" title={t('configPage.advanced.easypaper.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.advanced.easypaper.hint')}><QuestionCircleOutlined /></Tooltip>}>
+                      <Form.Item name="easypaperApiUrl" label={t('configPage.advanced.easypaper.apiUrl')}>
+                        <Input placeholder={t('configPage.advanced.easypaper.apiUrlPlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="easypaperLlmApiKey" label={t('configPage.advanced.easypaper.llmApiKey')}>
+                        <Input.Password placeholder={t('configPage.advanced.easypaper.llmApiKeyPlaceholder')} autoComplete="off" />
+                      </Form.Item>
+                      <Form.Item name="easypaperLlmModel" label={t('configPage.advanced.easypaper.llmModel')}>
+                        <Input placeholder={t('configPage.advanced.easypaper.llmModelPlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="easypaperVlmModel" label={t('configPage.advanced.easypaper.vlmModel')}>
+                        <Input placeholder={t('configPage.advanced.easypaper.vlmModelPlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="easypaperVlmApiKey" label={t('configPage.advanced.easypaper.vlmApiKey')}>
+                        <Input.Password placeholder={t('configPage.advanced.easypaper.vlmApiKeyPlaceholder')} autoComplete="off" />
+                      </Form.Item>
+                    </Card>
 
-              {/* 文献检索 */}
-              <Card size="small" title={t('configPage.literature.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.literature.hint')}><QuestionCircleOutlined /></Tooltip>}>
-                <Form.Item name="literatureSearchApiUrl" label={t('configPage.advanced.literature.apiUrl')}>
-                  <Input placeholder={t('configPage.advanced.literature.apiUrlPlaceholder')} />
-                </Form.Item>
-                <Form.Item name="literatureSearchApiKey" label="API Key">
-                  <Input.Password placeholder="lit-xxx" autoComplete="off" />
-                </Form.Item>
-                <Form.Item>
-                  <Space>
-                    <Button
-                      size="small"
-                      icon={<CheckCircleOutlined />}
-                      loading={validationState.literature?.validating}
-                      onClick={() => handleValidate('literature')}
-                    >
-                      {t('configPage.literature.validateConfig')}
-                    </Button>
-                    {validationState.literature?.valid === true && (
-                      <Text type="success">✓ {t('configPage.literature.validateSuccess')}</Text>
-                    )}
-                    {validationState.literature?.valid === false && (
-                      <Text type="danger">✗ {validationState.literature.error}</Text>
-                    )}
-                  </Space>
-                </Form.Item>
-              </Card>
-            </Panel>
-          </Collapse>
+                    {/* 文献检索 */}
+                    <Card size="small" title={t('configPage.literature.title')} style={{ marginBottom: 12 }} extra={<Tooltip title={t('configPage.literature.hint')}><QuestionCircleOutlined /></Tooltip>}>
+                      <Form.Item name="literatureSearchApiUrl" label={t('configPage.advanced.literature.apiUrl')}>
+                        <Input placeholder={t('configPage.advanced.literature.apiUrlPlaceholder')} />
+                      </Form.Item>
+                      <Form.Item name="literatureSearchApiKey" label="API Key">
+                        <Input.Password placeholder="lit-xxx" autoComplete="off" />
+                      </Form.Item>
+                      <Form.Item>
+                        <Space>
+                          <Button
+                            size="small"
+                            icon={<CheckCircleOutlined />}
+                            loading={validationState.literature?.validating}
+                            onClick={() => handleValidate('literature')}
+                          >
+                            {t('configPage.literature.validateConfig')}
+                          </Button>
+                          {validationState.literature?.valid === true && (
+                            <Text type="success">✓ {t('configPage.literature.validateSuccess')}</Text>
+                          )}
+                          {validationState.literature?.valid === false && (
+                            <Text type="danger">✗ {validationState.literature.error}</Text>
+                          )}
+                        </Space>
+                      </Form.Item>
+                    </Card>
+                  </>
+                ),
+              },
+            ]}
+          />
 
           {/* ========== 操作按钮 ========== */}
           <div style={{ textAlign: 'center', padding: '16px 0' }}>
