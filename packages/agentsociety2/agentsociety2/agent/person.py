@@ -26,8 +26,9 @@ from agentsociety2.agent.persistence import (
     Checkpoint,
     WorkspaceCleaner,
     SessionRecovery,
+    WriteAheadLog,
 )
-from agentsociety2.agent.concurrent import ParallelExecutor, RateLimiter, TaskManager
+from agentsociety2.agent.concurrent import ParallelExecutor, RateLimiter
 from agentsociety2.agent.context import (
     AgentMemory,
     StructuredSummary,
@@ -39,14 +40,12 @@ from agentsociety2.agent.prompt_builder import PromptBuilder, PromptCacheManager
 from agentsociety2.agent.skills import SkillRegistry, get_skill_registry
 from agentsociety2.agent.skills.runtime import AgentSkillRuntime
 from agentsociety2.agent.tool import (
-    BLOCKED_TOKENS,
+    VALID_TOOL_NAMES,
     ToolDecision,
     async_retry_on_transient,
     jr_dumps,
     jr_parse,
     json_dumps_tool_result_for_thread,
-    pagination_from_args,
-    slice_text_page,
     trunc_str,
 )
 from agentsociety2.agent.tool.loop_detection import (
@@ -183,6 +182,10 @@ class PersonAgent(AgentBase):
         self._agent_state: dict[str, Any] = self._coerce_llm_dict(init_state)
         self._capability_kwargs: dict[str, Any] = dict(capability_kwargs)
 
+        # ── 统一配置管理 ──
+        self._config = AgentConfig.from_kwargs(capability_kwargs)
+        self._ctx_config = self._config.context
+
         base_registry = get_skill_registry()
         self._skill_registry = SkillRegistry()
         self._skill_registry.copy_from(base_registry)
@@ -196,28 +199,20 @@ class PersonAgent(AgentBase):
 
         self._step_count = 0
         self._last_selected_skills: set[str] = set()
-        self._max_tool_rounds = max(
-            1, int(self._capability_kwargs.get("max_tool_rounds", 24))
-        )
-        self._bash_timeout_retries = max(
-            0, int(self._capability_kwargs.get("bash_timeout_retries", 1))
-        )
-        self._llm_transient_retries = max(
-            0, int(self._capability_kwargs.get("llm_transient_retries", 2))
-        )
+        # 统一从 AgentConfig 读取循环配置
+        self._max_tool_rounds = max(1, self._config.loop.max_rounds)
+        self._bash_timeout_retries = max(0, self._config.loop.bash_retries)
+        self._llm_transient_retries = max(0, self._config.loop.llm_transient_retries)
         self._tool_decision_max_retries = max(
-            0, int(self._capability_kwargs.get("tool_decision_max_retries", 10))
+            0, self._config.loop.tool_decision_max_retries
         )
-
-        # ── 统一配置管理 ──
-        self._config = AgentConfig.from_kwargs(capability_kwargs)
-        self._ctx_config = self._config.context
 
         # LLM 历史记录配置（供 AgentBase._record_llm_interaction 使用）
         self._llm_history_enabled = self._config.persistence.enable_llm_history
         self._llm_history_max_entries = self._config.persistence.llm_history_max_entries
 
         # 上下文缓存：避免重复读取相同文件（LRU 淘汰）
+        # 使用 threading.Lock 因为缓存操作都在同一个事件循环中顺序执行
         self._workspace_cache: OrderedDict[str, str] = OrderedDict()
         self._cache_valid_paths: set[str] = set()
         self._cache_max_entries: int = self._ctx_config.workspace_cache_max_entries
@@ -244,11 +239,9 @@ class PersonAgent(AgentBase):
         # 跨压缩轮次的滚动摘要（增量合并，持久化见 thread_compact_state.json）
         self._rolling_thread_summary: str = ""
 
-        # ── 系统提示词缓存 ──
+        # ── 系统提示词缓存（使用单一版本号简化逻辑）──
         self._prompt_cache: str | None = None
-        self._prompt_cache_version: int = 0
-        self._cached_skills: set[str] = set()
-        self._cached_ws_version: int = 0
+        self._prompt_cache_version: int = 0  # 单一版本号，任何变化递增
         # 新增：Prompt 缓存管理器
         self._prompt_cache_manager: PromptCacheManager | None = None
 
@@ -290,43 +283,39 @@ class PersonAgent(AgentBase):
         return set(self._selectable_skill_names)
 
     def _invalidate_prompt_cache(self) -> None:
-        """失效系统提示词缓存。"""
+        """失效系统提示词缓存，递增版本号。"""
         self._prompt_cache = None
         self._prompt_cache_version += 1
 
-    def _need_rebuild_prompt(self) -> bool:
-        """判断是否需要重建系统提示词。"""
+    def _need_rebuild_prompt(self, cached_version: int) -> bool:
+        """判断是否需要重建系统提示词。
+
+        :param cached_version: 之前缓存时的版本号
+        :return: 是否需要重建
+        """
         if self._prompt_cache is None:
             return True
-        if self._activated_skills != self._cached_skills:
-            return True
-        if self._workspace_state_version != self._cached_ws_version:
+        if cached_version != self._prompt_cache_version:
             return True
         return False
 
     def _workspace_preload_paths(self) -> list[str]:
         """获取预加载的 workspace 文件路径列表。
 
-        从 capability_kwargs['preload_workspace_paths'] 读取。
+        从 config.context.preload_workspace_paths 读取。
 
         :return: 路径字符串列表。
         """
-        raw = self._capability_kwargs.get("preload_workspace_paths")
-        if isinstance(raw, (list, tuple)):
-            return [str(x).strip() for x in raw if str(x).strip()]
-        return []
+        return self._config.context.preload_workspace_paths
 
     def _thread_key_state_paths(self) -> list[str]:
         """获取 thread 压缩时写入 KEY_STATE_JSON 的文件路径列表。
 
-        从 capability_kwargs['thread_key_state_paths'] 读取。
+        从 config.context.thread_key_state_paths 读取。
 
         :return: 路径字符串列表。
         """
-        raw = self._capability_kwargs.get("thread_key_state_paths")
-        if isinstance(raw, (list, tuple)):
-            return [str(x).strip() for x in raw if str(x).strip()]
-        return []
+        return self._config.context.thread_key_state_paths
 
     def _build_step_context(self) -> dict[str, Any]:
         """构建当前 step 的上下文快照。
@@ -404,17 +393,11 @@ class PersonAgent(AgentBase):
 
     def _workspace_read_chunk_cap(self) -> int:
         """获取单次文件读取的字符上限。"""
-        raw = self._capability_kwargs.get("workspace_read_chunk_chars")
-        if raw is None:
-            return self._ctx_config.workspace_read_chunk_cap
-        return max(4096, min(int(raw), 96_000))
+        return self._ctx_config.workspace_read_chunk_cap
 
     def _tool_result_thread_budget_chars(self) -> int:
         """获取单条工具结果的字符预算。"""
-        raw = self._capability_kwargs.get("tool_result_thread_budget_chars")
-        if raw is None:
-            return self._ctx_config.tool_result_thread_budget
-        return max(16_384, min(int(raw), 200_000))
+        return self._ctx_config.tool_result_thread_budget
 
     @staticmethod
     def _coerce_llm_dict(raw: Any) -> dict[str, Any]:
@@ -478,10 +461,7 @@ class PersonAgent(AgentBase):
 
         profile 过长时硬切并标记省略。
         """
-        max_total = max(
-            2000,
-            int(self._capability_kwargs.get("system_prompt_max_identity_chars", 10000)),
-        )
+        max_total = max(2000, self._config.context.system_prompt_max_identity_chars)
         raw_profile = (
             self._profile_for_prompt
             if self._profile_for_prompt is not None
@@ -599,7 +579,10 @@ class PersonAgent(AgentBase):
         :param t: 当前仿真时间。
         :return: system prompt 文本。
         """
-        if not self._need_rebuild_prompt() and self._prompt_cache is not None:
+        if (
+            not self._need_rebuild_prompt(self._prompt_cache_version)
+            and self._prompt_cache is not None
+        ):
             return self._prompt_cache
 
         base = super().get_system_prompt(tick, t)
@@ -611,8 +594,7 @@ class PersonAgent(AgentBase):
         result = base + builder.build()
 
         self._prompt_cache = result
-        self._cached_skills = set(self._activated_skills)
-        self._cached_ws_version = self._workspace_state_version
+        # 版本号在 _invalidate_prompt_cache 中已递增，此处无需更新
 
         return result
 
@@ -686,11 +668,7 @@ class PersonAgent(AgentBase):
                 self._workspace_snapshot_for_prompt[path] = v
 
         prof = self.get_profile()
-        plim = int(
-            self._capability_kwargs.get(
-                "profile_truncate_chars", self._ctx_config.profile_max_chars
-            )
-        )
+        plim = int(self._config.context.profile_max_chars)
         if isinstance(prof, str):
             self._profile_for_prompt = (
                 trunc_str(prof, plim) if len(prof) > plim else None
@@ -712,8 +690,8 @@ class PersonAgent(AgentBase):
         if not patterns:
             return True
 
-        signal = self._capability_kwargs.get("catalog_working_set_json")
-        if not signal or not str(signal).strip():
+        signal = self._config.context.catalog_working_set_json
+        if not signal:
             return True
         signal = str(signal).strip()
 
@@ -942,7 +920,8 @@ class PersonAgent(AgentBase):
             dep = str(dep).strip()
             if not dep:
                 continue
-            if not self._is_model_invocable_skill(dep):
+            dep_info = self._skill_registry.get_skill_info(dep, load_content=False)
+            if dep_info is None or not getattr(dep_info, "enabled", True):
                 missing.append(dep)
                 continue
             if dep not in self._all_visible_skill_names():
@@ -1225,6 +1204,27 @@ class PersonAgent(AgentBase):
                 }
         self._persist_agent_config()
 
+        # 扫描 custom skills（与后端 /scan 路径约定一致：<workspace>/custom/skills）。
+        custom_scan_roots: list[Path] = []
+        run_dir = getattr(self._env, "run_dir", None)
+        if run_dir:
+            custom_scan_roots.append(Path(run_dir))
+        env_workspace = self._config.workspace_path
+        if env_workspace:
+            custom_scan_roots.append(Path(str(env_workspace)))
+
+        scanned_custom_roots: set[Path] = set()
+        for root in custom_scan_roots:
+            root_abs = root.resolve()
+            if root_abs in scanned_custom_roots:
+                continue
+            scanned_custom_roots.add(root_abs)
+            added = self._skill_registry.scan_custom(root_abs)
+            if added:
+                logger.info(
+                    f"Agent {self.id}: loaded custom skills from {root_abs}: {added}"
+                )
+
         # 扫描环境模块提供的 skills
         for module in env.env_modules:
             skills_dirs = module.get_agent_skills_dirs()
@@ -1261,6 +1261,11 @@ class PersonAgent(AgentBase):
         self._session_recovery = SessionRecovery(workspace_root, self._checkpoint)
         self._cleaner = WorkspaceCleaner(workspace_root, self._config)
 
+        # 初始化预写日志（WAL）
+        self._wal = WriteAheadLog(
+            workspace_root, max_entries=self._config.persistence.checkpoint_max * 10
+        )
+
         # 尝试从最近的检查点恢复
         latest_tick = self._checkpoint.latest_tick()
         if latest_tick is not None:
@@ -1270,7 +1275,6 @@ class PersonAgent(AgentBase):
                 logger.info(
                     f"Agent {self.id}: restored from checkpoint at tick {latest_tick}"
                 )
-            logger.info(f"Agent {self.id}: found checkpoint at tick {latest_tick}")
 
         # 初始化持久化记忆
         try:
@@ -1280,6 +1284,11 @@ class PersonAgent(AgentBase):
         self._rolling_thread_summary = load_rolling_summary_from_workspace(
             self._skill_runtime.read_json
         )
+
+        try:
+            self._skill_runtime.refresh_workspace_documents()
+        except Exception as e:
+            logger.debug(f"Agent {self.id}: refresh_workspace_documents failed: {e}")
 
     def _collect_thread_key_state(self) -> dict[str, Any]:
         key_state: dict[str, Any] = {}
@@ -1435,17 +1444,8 @@ class PersonAgent(AgentBase):
                 )
             return await self.acompletion(msgs, stream=False)
 
-        tok_kw = self._capability_kwargs.get("tiktoken_encoding")
-        tik_enc = (
-            str(tok_kw).strip()
-            if isinstance(tok_kw, str) and str(tok_kw).strip()
-            else None
-        )
-        litellm_model = str(
-            self._capability_kwargs.get("model")
-            or self._capability_kwargs.get("llm_model")
-            or ""
-        )
+        tik_enc = self._config.context.tiktoken_encoding or None
+        litellm_model = self._config.model.model or ""
         prev_cc = self._compact_count
         r = await run_thread_compaction(
             thread_messages,
@@ -2147,8 +2147,18 @@ class PersonAgent(AgentBase):
                 payload = self._coerce_llm_dict(args.get("args", {}))
                 payload.setdefault("tick", tick)
                 payload.setdefault("time", t.isoformat())
+
+                # WAL: 记录执行意图
+                intent_id = self._wal.log_intent(
+                    action, {"skill_name": skill_name, "args": payload}, tick
+                )
+
                 out = await self.execute(skill_name, payload)
                 ok = bool(out.get("ok"))
+
+                # WAL: 记录执行结果
+                self._wal.log_result(intent_id, out, success=ok)
+
                 # skill 执行可能修改多个文件：统一失效缓存并更新版本
                 self._invalidate_all_workspace_cache()
                 self._bump_workspace_state_version()
@@ -2238,6 +2248,12 @@ class PersonAgent(AgentBase):
             if action == "workspace_write":
                 path = str(args.get("path", ""))
                 content = str(args.get("content", ""))
+
+                # WAL: 记录写入意图
+                intent_id = self._wal.log_intent(
+                    action, {"path": path, "size": len(content)}, tick
+                )
+
                 try:
                     self._skill_runtime.workspace_write(path, content)
                     # 失效缓存，确保下次读取时获取最新内容
@@ -2249,6 +2265,7 @@ class PersonAgent(AgentBase):
                         "ok": True,
                         "size": len(content),
                     }
+                    self._wal.log_result(intent_id, result_obj, success=True)
                 except Exception as e:
                     result_obj = {
                         "action": action,
@@ -2256,6 +2273,7 @@ class PersonAgent(AgentBase):
                         "ok": False,
                         "error": str(e),
                     }
+                    self._wal.log_result(intent_id, result_obj, success=False)
                 history.append(result_obj)
                 self._skill_runtime.append_tool_log(
                     {"tick": tick, "time": t.isoformat(), **result_obj}
@@ -2333,6 +2351,12 @@ class PersonAgent(AgentBase):
                 command = str(args.get("command", "")).strip()
                 timeout_sec = int(args.get("timeout_sec", 20))
                 timeout_sec = max(1, min(120, timeout_sec))
+
+                # WAL: 记录 bash 执行意图
+                intent_id = self._wal.log_intent(
+                    action, {"command": command[:200]}, tick
+                )
+
                 out = await self._run_bash_in_workspace(
                     command=command, timeout_sec=timeout_sec
                 )
@@ -2346,6 +2370,10 @@ class PersonAgent(AgentBase):
                     "stdout": trunc_str(bo, self._ctx_config.stdout_max_chars),
                     "stderr": trunc_str(be, self._ctx_config.stderr_max_chars),
                 }
+
+                # WAL: 记录执行结果
+                self._wal.log_result(intent_id, result_obj, success=ok)
+
                 history.append(result_obj)
                 self._skill_runtime.append_tool_log(
                     {"tick": tick, "time": t.isoformat(), **result_obj}
@@ -2438,11 +2466,7 @@ class PersonAgent(AgentBase):
                 continue
 
             # ── unsupported action：通知 LLM ──
-            valid_tools = (
-                "activate_skill, read_skill, execute_skill, bash, codegen, batch, "
-                "workspace_read, workspace_write, workspace_list, glob, grep, "
-                "enable_skill, disable_skill, done"
-            )
+            valid_tools = ", ".join(VALID_TOOL_NAMES)
             hint = ""
             sk = action.strip()
             if sk and self._skill_registry.get_skill_info(sk, load_content=False):
@@ -2476,7 +2500,26 @@ class PersonAgent(AgentBase):
         :param args: 技能参数。
         :returns: 执行结果字典。
         """
-        return await self._skill_runtime.execute(skill_name=skill_name, args=args)
+        # 为 executor: codegen 类型的技能提供回调
+        return await self._skill_runtime.execute(
+            skill_name=skill_name,
+            args=args,
+            codegen_executor=self._codegen_executor,
+        )
+
+    async def _codegen_executor(self, args: dict[str, Any]) -> dict[str, Any]:
+        """执行 codegen 类型技能的回调。
+
+        :param args: 包含 instruction 和 ctx 的参数字典。
+        :returns: codegen 执行结果。
+        """
+        instruction = args.get("instruction", "")
+        ctx = self._coerce_llm_dict(args.get("ctx", {}))
+        return await self._run_codegen(
+            instruction=instruction,
+            ctx=ctx,
+            template_mode=bool(args.get("template_mode", False)),
+        )
 
     async def step(self, tick: int, t: datetime) -> str:
         """执行一个仿真步并持久化会话状态与回放记录。
@@ -2508,7 +2551,7 @@ class PersonAgent(AgentBase):
         self._prepare_prompt_sidecars()
 
         # 执行工具循环，带超时保护
-        step_timeout = self._capability_kwargs.get("step_timeout_sec", 300)
+        step_timeout = self._config.loop.step_timeout
         try:
             async with asyncio.timeout(step_timeout):
                 logs, tool_history = await self._tool_loop(tick=tick, t=t)
@@ -2536,18 +2579,11 @@ class PersonAgent(AgentBase):
         # 将当前状态写入持久化记忆
         self.handoff_to_memory()
 
-        # 自动同步状态到 AGENT_CONTEXT.md
+        # 自动同步状态和文件清单
         try:
-            self._skill_runtime.sync_state_to_context()
+            self._skill_runtime.refresh_workspace_documents()
         except Exception as e:
-            logger.debug(f"Agent {self.id}: sync_state_to_context failed: {e}")
-
-        # 定期更新文件清单
-        if self._step_count % 10 == 0:
-            try:
-                self._skill_runtime.write_file_manifest()
-            except Exception as e:
-                logger.debug(f"Agent {self.id}: write_file_manifest failed: {e}")
+            logger.debug(f"Agent {self.id}: refresh_workspace_documents failed: {e}")
 
         # 检查点保存
         if (

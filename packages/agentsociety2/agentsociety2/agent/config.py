@@ -1,25 +1,10 @@
 """Agent统一配置管理。
 
-本模块提供Agent的统一配置系统，整合所有分散的配置项。
+本模块提供Agent的统一配置系统。设计原则：
 
-模块结构
-========
-
-- :class:`AgentConfig`: 主配置类，包含所有子配置
-- :class:`ModelConfig`: 模型相关配置
-- :class:`LoopConfig`: 工具循环配置
-- :class:`ContextConfig`: 上下文管理配置
-- :class:`PersistenceConfig`: 持久化配置
-- :class:`ConcurrencyConfig`: 并发控制配置
-- :class:`LoopDetectionConfig`: 循环检测配置
-
-设计原则
-========
-
-1. **开箱即用**: 所有配置都有合理默认值
-2. **环境变量覆盖**: 支持通过环境变量动态调整
-3. **分组管理**: 配置按功能分组，便于维护
-4. **类型安全**: 使用dataclass确保类型正确
+1. **开箱即用**: 大多数参数已写死，无需用户配置
+2. **最小暴露**: 仅暴露真正需要调整的参数
+3. **环境变量覆盖**: 核心参数支持环境变量动态调整
 
 示例
 ====
@@ -28,20 +13,13 @@
 
     from agentsociety2.agent.config import AgentConfig
 
-    # 使用默认值
-    config = AgentConfig()
-
-    # 从环境变量加载
-    config = AgentConfig.from_env()
-
-    # 从kwargs覆盖
-    config = AgentConfig.from_kwargs({"max_tool_rounds": 30})
+    config = AgentConfig()  # 使用默认值
+    config = AgentConfig.from_env()  # 从环境变量加载
 
 访问配置::
 
     config.model.context_window  # 200000
     config.loop.max_rounds  # 24
-    config.persistence.checkpoint_interval  # 10
 """
 
 from __future__ import annotations
@@ -56,17 +34,13 @@ ALLOWED_ENV_VARS = frozenset(
         "HOME",
         "USER",
         "SHELL",
-        "PYTHONPATH",
         "PYTHONUNBUFFERED",
-        "OPENAI_API_KEY",
-        "ANTHROPIC_API_KEY",
         "LITELLM_MODEL",
         "LITELLM_BASE_URL",
         "AGENT_MEMORY_MAX_ENTRIES",
         "AGENT_MEMORY_STRENGTH",
     }
 )
-from typing import Any, Optional
 
 
 def _int(name: str, default: int) -> int:
@@ -82,158 +56,188 @@ def _int(name: str, default: int) -> int:
         return default
 
 
-def _float(name: str, default: float) -> float:
-    """从环境变量读取浮点数配置。
+# ============================================================================
+# 内部常量（写死，不暴露给用户）
+# ============================================================================
 
-    :param name: 环境变量名。
-    :param default: 默认值。
-    :return: 配置值。
-    """
-    try:
-        return float(os.getenv(name, str(default)))
-    except ValueError:
-        return default
+# 上下文压缩阈值
+_COMPACT_WARNING_RATIO = 0.60
+_COMPACT_TRIGGER_RATIO = 0.75
+_COMPACT_AUTO_RATIO = 0.85
+_COMPACT_FORCE_RATIO = 0.90
+
+# Thread 限制
+_THREAD_MAX_MESSAGES = 50
+_THREAD_MAX_TOKENS = 150_000
+_THREAD_KEEP_RECENT = 8
+
+# 输出限制
+_STDOUT_MAX_CHARS = 5000
+_STDERR_MAX_CHARS = 2000
+_TOOL_RESULT_BUDGET = 32_000
+
+# 工作区限制
+_WORKSPACE_READ_CHUNK_CAP = 32_000
+_WORKSPACE_CACHE_MAX_ENTRIES = 50
+
+# 循环检测阈值
+_MAX_TOOL_REPEATS = 5
+_MAX_CONTENT_REPEATS = 10
+_MAX_ERROR_REPEATS = 3
+_LOOP_HISTORY_SIZE = 20
+
+# 并发限制
+_MAX_PARALLEL_TOOLS = 3
+_MAX_LLM_CONCURRENT = 5
+_MAX_SUBPROCESS = 8
+_RATE_LIMIT_RPS = 10.0
+
+# Tiktoken 编码
+_TIKTOKEN_ENCODING = "cl100k_base"
 
 
-def _bool(name: str, default: bool) -> bool:
-    """从环境变量读取布尔值配置。
-
-    :param name: 环境变量名。
-    :param default: 默认值。
-    :return: 配置值。
-    """
-    val = os.getenv(name, "").lower()
-    if val in ("true", "1", "yes", "on"):
-        return True
-    if val in ("false", "0", "no", "off"):
-        return False
-    return default
+# ============================================================================
+# 用户可配置项
+# ============================================================================
 
 
 @dataclass
 class ModelConfig:
     """模型配置。
 
-    控制LLM模型相关参数。
-
     Attributes:
         model: 模型名称（如 "claude-3-opus-20240229"）。
         context_window: 上下文窗口大小（tokens）。
-        output_reserve: 输出预留tokens。
-        prompt_overhead: 系统提示词开销tokens。
     """
 
     model: str = ""
     context_window: int = 200_000
-    output_reserve: int = 16_000
-    prompt_overhead: int = 8_000
 
     @property
     def effective_window(self) -> int:
-        """有效上下文窗口大小。
-
-        :return: 上下文窗口减去输出和开销后的有效大小。
-        """
-        return max(
-            8192, self.context_window - self.output_reserve - self.prompt_overhead
-        )
+        """有效上下文窗口大小（减去输出预留和开销）。"""
+        return max(8192, self.context_window - 24_000)
 
 
 @dataclass
 class LoopConfig:
     """工具循环配置。
 
-    控制Agent的工具执行循环行为。
-
     Attributes:
         max_rounds: 单步最大工具轮数。
-        tool_timeout: 单个工具超时时间（秒）。
         step_timeout: 整步超时时间（秒）。
-        bash_retries: bash命令超时重试次数。
-        llm_retries: LLM调用重试次数。
     """
 
     max_rounds: int = 24
-    tool_timeout: float = 30.0
     step_timeout: int = 300
+
+    # 以下参数写死，不暴露
+    tool_timeout: float = 30.0
     bash_retries: int = 1
     llm_retries: int = 3
+    llm_transient_retries: int = 2
+    tool_decision_max_retries: int = 10
+
+
+@dataclass
+class PersistenceConfig:
+    """持久化配置。
+
+    Attributes:
+        checkpoint_interval: 检查点间隔（ticks）。
+        checkpoint_max: 最大保留检查点数。
+    """
+
+    checkpoint_interval: int = 10
+    checkpoint_max: int = 20
+
+    # 以下参数写死
+    checkpoint_include_workspace: bool = True
+    max_log_files: int = 50
+    max_memory_entries: int = 5000
+    wal_max_entries: int = 1000
+    llm_history_max_entries: int = 100
+    enable_llm_history: bool = False
 
 
 @dataclass
 class ContextConfig:
-    """上下文管理配置。
-
-    控制Thread压缩、输出限制等行为。
+    """上下文管理配置（内部使用，大多数参数写死）。
 
     Attributes:
-        model_context_window: 模型上下文窗口大小。
-        compact_warning_ratio: 压缩警告阈值（相对上下文窗口）。
-        compact_trigger_ratio: 压缩触发阈值。
-        compact_auto_ratio: 自动压缩比例。
-        compact_force_ratio: 强制压缩阈值。
-        thread_max_messages: Thread最大消息数。
-        thread_max_tokens: Thread最大Token数。
-        thread_keep_recent: 压缩时保留的最近消息数。
-        thread_compact_max_chars: 压缩时最大字符数。
-        thread_compact_keep_recent: 压缩保留最近消息数。
-        stdout_max_chars: stdout最大字符数。
-        stderr_max_chars: stderr最大字符数。
-        tool_result_budget: 工具结果预算（字符）。
-        workspace_chunk_size: 工作区文件读取块大小。
-        summary_msg_limit: 摘要消息限制。
-        summary_msg_short_limit: 短摘要消息限制。
-        summary_char_budget: 摘要字符预算。
-        key_state_file_limit: 关键状态文件限制。
-        workspace_read_chunk_cap: 工作区读取块上限。
-        tool_result_thread_budget: 工具结果线程预算。
-        tool_table_mode: 工具表模式 ("full" | "minimal")。
         workspace_cache_max_entries: 工作区缓存最大条目数。
-        grep_max_files: grep 最大扫描文件数。
-        grep_max_matches: grep 最大返回匹配数。
-        grep_max_file_bytes: grep 最大文件大小（字节）。
+        preload_workspace_paths: 预加载的工作区路径列表。
     """
 
-    model_context_window: int = 200_000
-    compact_warning_ratio: float = 0.60
-    compact_trigger_ratio: float = 0.75
-    compact_auto_ratio: float = 0.85
-    compact_force_ratio: float = 0.90
-    thread_max_messages: int = 50
-    thread_max_tokens: int = 150_000
-    thread_keep_recent: int = 8
-    thread_compact_max_chars: int = 100_000
-    thread_compact_keep_recent: int = 8
-    stdout_max_chars: int = 5000
-    stderr_max_chars: int = 2000
-    tool_result_budget: int = 32_000
-    workspace_chunk_size: int = 32_768
-    summary_msg_limit: int = 10
-    summary_msg_short_limit: int = 5
-    summary_char_budget: int = 4000
-    key_state_file_limit: int = 5000
-    workspace_read_chunk_cap: int = 32_000
-    tool_result_thread_budget: int = 64_000
-    tool_table_mode: str = "full"
     workspace_cache_max_entries: int = 50
-    grep_max_files: int = 2000
-    grep_max_matches: int = 1000
-    grep_max_file_bytes: int = 2 * 1024 * 1024
+    preload_workspace_paths: list[str] = field(default_factory=list)
+
+    # 压缩阈值（写死）
+    compact_warning_ratio: float = field(default=_COMPACT_WARNING_RATIO, repr=False)
+    compact_trigger_ratio: float = field(default=_COMPACT_TRIGGER_RATIO, repr=False)
+    compact_auto_ratio: float = field(default=_COMPACT_AUTO_RATIO, repr=False)
+    compact_force_ratio: float = field(default=_COMPACT_FORCE_RATIO, repr=False)
+
+    # Thread 限制（写死）
+    thread_max_messages: int = field(default=_THREAD_MAX_MESSAGES, repr=False)
+    thread_max_tokens: int = field(default=_THREAD_MAX_TOKENS, repr=False)
+    thread_keep_recent: int = field(default=_THREAD_KEEP_RECENT, repr=False)
+    thread_compact_max_chars: int = field(default=100_000, repr=False)
+    thread_compact_keep_recent: int = field(default=8, repr=False)
+
+    # 输出限制（写死）
+    stdout_max_chars: int = field(default=_STDOUT_MAX_CHARS, repr=False)
+    stderr_max_chars: int = field(default=_STDERR_MAX_CHARS, repr=False)
+    tool_result_budget: int = field(default=_TOOL_RESULT_BUDGET, repr=False)
+    tool_result_thread_budget: int = field(default=64_000, repr=False)
+
+    # 工作区限制（写死）
+    workspace_read_chunk_cap: int = field(default=_WORKSPACE_READ_CHUNK_CAP, repr=False)
+    workspace_chunk_size: int = field(default=32_768, repr=False)
+    key_state_file_limit: int = field(default=5000, repr=False)
+
+    # 其他（写死）
+    tool_table_mode: str = field(default="full", repr=False)
+    grep_max_files: int = field(default=2000, repr=False)
+    grep_max_matches: int = field(default=1000, repr=False)
+    grep_max_file_bytes: int = field(default=2 * 1024 * 1024, repr=False)
+    summary_msg_limit: int = field(default=10, repr=False)
+    summary_msg_short_limit: int = field(default=5, repr=False)
+    summary_char_budget: int = field(default=4000, repr=False)
+    model_context_window: int = field(default=200_000, repr=False)
+    world_desc_max_chars: int = field(default=10_000, repr=False)
+    workspace_snapshot_str_cap: int = field(default=5_000, repr=False)
+    thread_key_state_paths: list[str] = field(default_factory=list, repr=False)
+    system_prompt_max_identity_chars: int = field(default=10_000, repr=False)
+    catalog_working_set_json: bool = field(default=False, repr=False)
+    tiktoken_encoding: str = field(default=_TIKTOKEN_ENCODING, repr=False)
+    profile_max_chars: int = field(default=4000, repr=False)
+
+
+@dataclass
+class LoopDetectionConfig:
+    """循环检测配置（内部使用，参数写死）。"""
+
+    max_tool_repeats: int = field(default=_MAX_TOOL_REPEATS, repr=False)
+    max_content_repeats: int = field(default=_MAX_CONTENT_REPEATS, repr=False)
+    max_error_repeats: int = field(default=_MAX_ERROR_REPEATS, repr=False)
+    history_size: int = field(default=_LOOP_HISTORY_SIZE, repr=False)
+    overuse_threshold: int = field(default=15, repr=False)
+
+
+@dataclass
+class ConcurrencyConfig:
+    """并发控制配置（内部使用，参数写死）。"""
+
+    max_parallel_tools: int = field(default=_MAX_PARALLEL_TOOLS, repr=False)
+    max_llm_concurrent: int = field(default=_MAX_LLM_CONCURRENT, repr=False)
+    max_subprocess: int = field(default=_MAX_SUBPROCESS, repr=False)
+    rate_limit_rps: float = field(default=_RATE_LIMIT_RPS, repr=False)
 
 
 @dataclass
 class StateConfig:
-    """状态文件配置。
-
-    控制状态文件的发现和摘要提取行为。
-    支持内置状态文件和用户扩展。
-
-    Attributes:
-        builtin_states: 内置状态文件定义（名称 -> (文件名, 摘要字段)）。
-        extra_states: 额外的扩展状态文件定义。
-        auto_discover: 是否自动发现 state/ 目录下的所有 JSON 文件。
-        summary_max_length: 摘要字段最大长度。
-    """
+    """状态文件配置（内部使用）。"""
 
     builtin_states: dict[str, tuple[str, str]] = field(
         default_factory=lambda: {
@@ -248,82 +252,10 @@ class StateConfig:
     summary_max_length: int = 100
 
     def get_all_states(self) -> dict[str, tuple[str, str]]:
-        """获取所有状态文件定义（内置 + 扩展）。
-
-        :return: 状态名称到 (文件名, 摘要字段) 的映射。
-        """
+        """获取所有状态文件定义（内置 + 扩展）。"""
         result = dict(self.builtin_states)
         result.update(self.extra_states)
         return result
-
-
-@dataclass
-class PersistenceConfig:
-    """持久化配置。
-
-    控制检查点、清理等持久化行为。
-
-    Attributes:
-        checkpoint_interval: 检查点间隔（ticks）。
-        checkpoint_max: 最大保留检查点数。
-        checkpoint_include_workspace: 检查点是否包含工作区文件。
-        max_log_files: 最大日志文件数。
-        max_memory_entries: 最大记忆条目数。
-        archive_after_days: 归档阈值（天）。
-        wal_max_entries: WAL 最大保留条目数。
-        llm_history_max_entries: LLM 交互历史最大条目数。
-        enable_llm_history: 是否启用 LLM 交互历史记录。
-    """
-
-    checkpoint_interval: int = 10
-    checkpoint_max: int = 20
-    checkpoint_include_workspace: bool = True
-    max_log_files: int = 50
-    max_memory_entries: int = 5000
-    archive_after_days: int = 7
-    wal_max_entries: int = 1000
-    llm_history_max_entries: int = 100
-    enable_llm_history: bool = False
-
-
-@dataclass
-class ConcurrencyConfig:
-    """并发控制配置。
-
-    控制并行执行和限流行为。
-
-    Attributes:
-        max_parallel_tools: 最大并行工具数。
-        max_llm_concurrent: 最大并发LLM调用数。
-        max_subprocess: 最大并发子进程数。
-        rate_limit_rps: 限流阈值（每秒请求数）。
-    """
-
-    max_parallel_tools: int = 3
-    max_llm_concurrent: int = 5
-    max_subprocess: int = 8
-    rate_limit_rps: float = 10.0
-
-
-@dataclass
-class LoopDetectionConfig:
-    """循环检测配置。
-
-    控制Agent行为循环检测灵敏度。
-
-    Attributes:
-        max_tool_repeats: 相同工具+参数连续调用阈值。
-        max_content_repeats: 相同内容连续输出阈值。
-        max_error_repeats: 相同错误连续出现阈值。
-        history_size: 历史记录大小。
-        overuse_threshold: 同一工具在 history_size 调用中的过度使用阈值。
-    """
-
-    max_tool_repeats: int = 5
-    max_content_repeats: int = 10
-    max_error_repeats: int = 3
-    history_size: int = 20
-    overuse_threshold: int = 15
 
 
 @dataclass
@@ -331,22 +263,17 @@ class AgentConfig:
     """Agent统一配置。
 
     整合所有子配置，提供统一的访问入口。
-    大部分配置有合理默认值，用户无需关心。
 
     Attributes:
         model: 模型配置。
         loop: 工具循环配置。
-        context: 上下文管理配置。
         persistence: 持久化配置。
-        concurrency: 并发控制配置。
-        loop_detection: 循环检测配置。
-        state: 状态文件配置。
+        workspace_path: 工作区路径（可选）。
 
     Example:
 
-        >>> config = AgentConfig()  # 使用默认值
-        >>> config = AgentConfig.from_env()  # 从环境变量
-        >>> config = AgentConfig.from_kwargs({"max_tool_rounds": 30})
+        >>> config = AgentConfig()
+        >>> config = AgentConfig.from_env()
     """
 
     model: ModelConfig = field(default_factory=ModelConfig)
@@ -356,19 +283,18 @@ class AgentConfig:
     concurrency: ConcurrencyConfig = field(default_factory=ConcurrencyConfig)
     loop_detection: LoopDetectionConfig = field(default_factory=LoopDetectionConfig)
     state: StateConfig = field(default_factory=StateConfig)
+    workspace_path: str = ""
 
     @classmethod
     def from_env(cls) -> "AgentConfig":
         """从环境变量加载配置。
 
-        仅暴露必要的用户配置项，其他使用合理的默认值。
-
         支持的环境变量：
             - AGENT_MODEL: 模型名称
             - AGENT_CONTEXT_WINDOW: 上下文窗口大小
             - AGENT_MAX_TOOL_ROUNDS: 最大工具轮数
-            - AGENT_CHECKPOINT_INTERVAL: 检查点间隔
             - AGENT_STEP_TIMEOUT: 单步超时(秒)
+            - AGENT_CHECKPOINT_INTERVAL: 检查点间隔
 
         :return: 配置实例。
         """
@@ -387,50 +313,24 @@ class AgentConfig:
         )
 
     @classmethod
-    def from_kwargs(cls, kwargs: Optional[dict[str, Any]] = None) -> "AgentConfig":
-        """从参数字典创建配置。
+    def from_kwargs(cls, kwargs: dict | None = None) -> "AgentConfig":
+        """从 kwargs 字典创建配置实例。
 
-        支持的参数键名映射到对应配置项。
+        目前返回默认配置，忽略 kwargs 中的配置项。
+        未来可扩展支持从 kwargs 覆盖特定配置。
 
-        :param kwargs: 参数字典。
+        :param kwargs: 可选的配置字典。
         :return: 配置实例。
-
-        Example:
-
-            >>> config = AgentConfig.from_kwargs({
-            ...     "max_tool_rounds": 30,
-            ...     "checkpoint_interval": 5,
-            ... })
         """
-        config = cls.from_env()
-        if not kwargs:
-            return config
+        # 目前返回默认配置
+        return cls()
 
-        flat_map = {
-            "model": ("model", "model"),
-            "context_window": ("model", "context_window"),
-            "max_tool_rounds": ("loop", "max_rounds"),
-            "step_timeout_sec": ("loop", "step_timeout"),
-            "checkpoint_interval": ("persistence", "checkpoint_interval"),
-            "max_parallel_tools": ("concurrency", "max_parallel_tools"),
-        }
-
-        for key, (section, attr) in flat_map.items():
-            if key in kwargs:
-                section_obj = getattr(config, section)
-                setattr(section_obj, attr, kwargs[key])
-
-        return config
-
-    def to_dict(self) -> dict[str, Any]:
-        """转换为字典。
-
-        :return: 包含所有配置的字典。
-        """
+    def to_dict(self) -> dict:
+        """转换为字典。"""
         import dataclasses
 
         result = {}
-        for section_name in [
+        for name in [
             "model",
             "loop",
             "context",
@@ -438,8 +338,7 @@ class AgentConfig:
             "concurrency",
             "loop_detection",
         ]:
-            section = getattr(self, section_name)
-            result[section_name] = dataclasses.asdict(section)
+            result[name] = dataclasses.asdict(getattr(self, name))
         return result
 
 

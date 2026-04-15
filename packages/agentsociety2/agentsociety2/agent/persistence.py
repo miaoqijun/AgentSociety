@@ -5,19 +5,27 @@
 模块结构
 ========
 
-- :class:`Checkpoint`: 检查点管理，支持崩溃恢复
-- :class:`WriteAheadLog`: 预写日志（追加写入 + 内存索引）
+- :class:`Checkpoint`: ACID检查点管理，支持崩溃恢复
+- :class:`WriteAheadLog`: 预写日志（追加写入 + 内存索引 + fsync）
 - :class:`WorkspaceCleaner`: 工作区清理
 - :class:`SessionRecovery`: 会话恢复上下文构建
 
-性能优化
+ACID保证
 ========
 
-WriteAheadLog 采用追加日志 + 内存索引架构：
+Checkpoint 实现原子写入：
 
-1. **追加写入**: log_intent 只追加，不重写文件
-2. **内存索引**: 维护 intent_id -> offset 映射
-3. **延迟压缩**: 超过 max_entries 时自动压缩
+1. **原子性**: 使用临时文件 + 原子重命名
+2. **一致性**: 包含版本号和校验和
+3. **持久性**: 写入后调用 fsync 刷新到磁盘
+
+WAL 特性
+========
+
+- 追加写入，不重写文件
+- 内存索引追踪 intent_id -> offset
+- 每次写入后 fsync 确保持久化
+- 压缩时保护 pending 状态
 
 示例
 ====
@@ -41,7 +49,9 @@ WriteAheadLog 采用追加日志 + 内存索引架构：
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
+import os
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -52,16 +62,23 @@ from typing import Any, Optional
 import json_repair
 
 from .config import AgentConfig
+from .tool.utils import json_dumps as _json_dumps
 
 
-def _json_dumps(obj: Any, indent: int | None = 2) -> str:
-    """JSON序列化辅助函数。
+def _compute_checksum(data: dict[str, Any]) -> str:
+    """计算数据的校验和。"""
+    content = _json_dumps(data, indent=None)
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
-    :param obj: 要序列化的对象。
-    :param indent: 缩进级别。
-    :return: JSON字符串。
-    """
-    return json.dumps(obj, ensure_ascii=False, indent=indent, default=str)
+
+def _fsync_path(path: Path) -> None:
+    """确保文件内容刷新到磁盘。"""
+    if path.exists():
+        fd = os.open(path, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
 
 class IntentStatus(str, Enum):
@@ -74,10 +91,13 @@ class IntentStatus(str, Enum):
 
 
 class Checkpoint:
-    """检查点管理器。
+    """ACID检查点管理器。
 
     支持保存和恢复Agent在特定tick的完整状态。
+    使用临时文件 + 原子重命名实现原子写入。
     """
+
+    VERSION = 1
 
     def __init__(self, workspace: Path, config: AgentConfig):
         self.workspace = workspace
@@ -88,31 +108,64 @@ class Checkpoint:
     def _path(self, tick: int) -> Path:
         return self.dir / f"checkpoint_{tick}.json"
 
+    def _temp_path(self, tick: int) -> Path:
+        return self.dir / f"checkpoint_{tick}.tmp"
+
     def save(self, tick: int, state: dict[str, Any]) -> Path:
-        """保存检查点。"""
+        """保存检查点（原子写入）。
+
+        :param tick: 时间步。
+        :param state: 状态数据。
+        :return: 检查点文件路径。
+        """
         data = {
+            "version": self.VERSION,
             "tick": tick,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "state": state,
         }
-        path = self._path(tick)
-        path.write_text(_json_dumps(data), encoding="utf-8")
+        data["checksum"] = _compute_checksum(data)
+
+        temp_path = self._temp_path(tick)
+        final_path = self._path(tick)
+
+        temp_path.write_text(_json_dumps(data), encoding="utf-8")
+        _fsync_path(temp_path)
+        temp_path.replace(final_path)
+        _fsync_path(self.dir)
+
         self._cleanup()
-        return path
+        return final_path
 
     def restore(self, tick: int) -> Optional[dict[str, Any]]:
-        """恢复检查点。"""
+        """恢复检查点。
+
+        :param tick: 时间步。
+        :return: 检查点数据，不存在返回 None。
+        """
         path = self._path(tick)
         if not path.exists():
             return None
-        return json_repair.loads(path.read_text(encoding="utf-8"))
+
+        try:
+            data = json_repair.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return None
+
+            # 验证校验和
+            expected = data.pop("checksum", None)
+            if expected and expected != _compute_checksum(data):
+                return None
+
+            return data
+        except Exception:
+            return None
 
     def latest_tick(self) -> Optional[int]:
         """获取最新检查点的tick。"""
         checkpoints = sorted(self.dir.glob("checkpoint_*.json"))
         if not checkpoints:
             return None
-        # 从文件名解析tick
         name = checkpoints[-1].stem
         parts = name.split("_")
         if len(parts) >= 2 and parts[1].isdigit():
@@ -131,7 +184,7 @@ class WriteAheadLog:
     """预写日志管理器。
 
     在工具执行前记录意图，执行后记录结果。
-    使用追加日志 + 内存索引，避免全量文件重写。
+    使用追加日志 + 内存索引，每次写入后 fsync 确保持久化。
 
     Attributes:
         path: 日志文件路径。
@@ -151,13 +204,10 @@ class WriteAheadLog:
         self.max_entries = max_entries
         self._counter = 0
         self._index: dict[str, int] = self._load_index()
-        self._pending: dict[str, dict[str, Any]] = {}
+        self._pending: dict[str, dict[str, Any]] = self._load_pending()
 
     def _load_index(self) -> dict[str, int]:
-        """从磁盘加载索引。
-
-        :return: intent_id -> 文件偏移量 的字典。
-        """
+        """从磁盘加载索引。"""
         if not self.index_path.exists():
             return {}
         try:
@@ -168,16 +218,53 @@ class WriteAheadLog:
             pass
         return {}
 
+    def _load_pending(self) -> dict[str, dict[str, Any]]:
+        """从 WAL 文件重建 pending 状态。"""
+        pending = {}
+        completed = set()
+
+        if not self.path.exists():
+            return pending
+
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json_repair.loads(line)
+                        intent_id = data.get("intent_id")
+                        status = data.get("status")
+
+                        if intent_id:
+                            if status == IntentStatus.PENDING.value:
+                                pending[intent_id] = data
+                            elif status in (
+                                IntentStatus.COMPLETED.value,
+                                IntentStatus.FAILED.value,
+                            ):
+                                completed.add(intent_id)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        # 移除已完成的
+        for intent_id in completed:
+            pending.pop(intent_id, None)
+
+        return pending
+
     def _save_index(self) -> None:
         """保存索引到磁盘。"""
         self.index_path.write_text(
             _json_dumps(self._index, indent=None), encoding="utf-8"
         )
+        _fsync_path(self.index_path)
 
     def log_intent(self, action: str, arguments: dict[str, Any], tick: int) -> str:
         """记录执行意图，返回意图ID。
-
-        追加写入，不重写文件。
 
         :param action: 工具名称。
         :param arguments: 工具参数。
@@ -195,13 +282,14 @@ class WriteAheadLog:
             "status": IntentStatus.PENDING.value,
         }
 
-        # 追加写入
         entry = _json_dumps(intent) + "\n"
         offset = self.path.stat().st_size if self.path.exists() else 0
+
         with open(self.path, "a", encoding="utf-8") as f:
             f.write(entry)
+            f.flush()
+            os.fsync(f.fileno())
 
-        # 更新索引
         self._index[intent_id] = offset
         self._pending[intent_id] = intent
         self._save_index()
@@ -209,18 +297,20 @@ class WriteAheadLog:
 
         return intent_id
 
-    def log_result(self, intent_id: str, result: dict[str, Any]) -> None:
+    def log_result(
+        self, intent_id: str, result: dict[str, Any], success: bool = True
+    ) -> None:
         """记录执行结果。
-
-        使用追加写入而非重写，通过内存索引追踪最新状态。
 
         :param intent_id: 意图 ID。
         :param result: 执行结果。
+        :param success: 是否成功。
         """
-        # 追加结果记录
         result_entry = {
             "intent_id": intent_id,
-            "status": IntentStatus.COMPLETED.value,
+            "status": (
+                IntentStatus.COMPLETED.value if success else IntentStatus.FAILED.value
+            ),
             "result": result,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
@@ -228,40 +318,55 @@ class WriteAheadLog:
         entry = _json_dumps(result_entry) + "\n"
         with open(self.path, "a", encoding="utf-8") as f:
             f.write(entry)
+            f.flush()
+            os.fsync(f.fileno())
 
-        # 从内存 pending 中移除
         self._pending.pop(intent_id, None)
 
     def get_pending(self) -> list[dict[str, Any]]:
-        """获取待处理意图列表。
-
-        :return: 待处理意图列表。
-        """
+        """获取待处理意图列表。"""
         return list(self._pending.values())
 
-    def _maybe_compact(self) -> None:
-        """当条目数超过限制时压缩文件。
+    def get_pending_after_tick(self, tick: int) -> list[dict[str, Any]]:
+        """获取指定 tick 之后的待处理意图。"""
+        return [
+            intent for intent in self._pending.values() if intent.get("tick", 0) > tick
+        ]
 
-        保留最近 max_entries 条记录。
-        """
+    def _maybe_compact(self) -> None:
+        """当条目数超过限制时压缩文件。保护 pending 状态。"""
         total_entries = len(self._index)
         if total_entries <= self.max_entries:
             return
 
+        pending_intent_ids = set(self._pending.keys())
+
         try:
-            # 读取所有行
             lines = self.path.read_text(encoding="utf-8").strip().split("\n")
             if len(lines) <= self.max_entries:
                 return
 
-            # 保留最近条目，重建索引
-            recent_lines = lines[-self.max_entries :]
-            self.path.write_text("\n".join(recent_lines) + "\n", encoding="utf-8")
+            # 保留包含 pending intent 的行 + 最近的行
+            kept_lines = []
+            for line in reversed(lines[-self.max_entries * 2 :]):
+                try:
+                    data = json_repair.loads(line)
+                    intent_id = data.get("intent_id")
+                    if (
+                        intent_id in pending_intent_ids
+                        or len(kept_lines) < self.max_entries
+                    ):
+                        kept_lines.insert(0, line)
+                except Exception:
+                    pass
+
+            self.path.write_text("\n".join(kept_lines) + "\n", encoding="utf-8")
+            _fsync_path(self.path)
 
             # 重建索引
             self._index.clear()
             offset = 0
-            for line in recent_lines:
+            for line in kept_lines:
                 try:
                     data = json_repair.loads(line)
                     intent_id = data.get("intent_id")
@@ -274,6 +379,53 @@ class WriteAheadLog:
             self._save_index()
         except Exception:
             pass
+
+    def clear_completed(self) -> int:
+        """清理已完成和失败的意图记录。返回清理数量。"""
+        if not self.path.exists():
+            return 0
+
+        pending_intent_ids = set(self._pending.keys())
+        lines_to_keep = []
+        cleaned = 0
+
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json_repair.loads(line)
+                        intent_id = data.get("intent_id")
+                        if intent_id in pending_intent_ids:
+                            lines_to_keep.append(line)
+                        else:
+                            cleaned += 1
+                    except Exception:
+                        pass
+
+            if cleaned > 0:
+                self.path.write_text("\n".join(lines_to_keep) + "\n", encoding="utf-8")
+                _fsync_path(self.path)
+
+                # 重建索引
+                self._index.clear()
+                offset = 0
+                for line in lines_to_keep:
+                    try:
+                        data = json_repair.loads(line)
+                        intent_id = data.get("intent_id")
+                        if intent_id:
+                            self._index[intent_id] = offset
+                    except Exception:
+                        pass
+                    offset += len(line.encode("utf-8")) + 1
+                self._save_index()
+        except Exception:
+            pass
+
+        return cleaned
 
 
 class WorkspaceCleaner:
@@ -311,6 +463,13 @@ class WorkspaceCleaner:
                 cp.unlink()
                 stats["files_removed"] += 1
 
+        # 清理 WAL 已完成记录
+        wal_dir = self.workspace / "wal"
+        if wal_dir.exists():
+            wal = WriteAheadLog(self.workspace, self.config.persistence.wal_max_entries)
+            cleaned = wal.clear_completed()
+            stats["wal_cleaned"] = cleaned
+
         # 归档旧文件
         archive_threshold = datetime.now() - timedelta(
             days=self.config.persistence.archive_after_days
@@ -323,9 +482,11 @@ class WorkspaceCleaner:
                 mtime = datetime.fromtimestamp(log_file.stat().st_mtime)
                 if mtime < archive_threshold:
                     archive_path = archive_dir / f"{log_file.name}.gz"
+                    temp_archive = archive_dir / f"{log_file.name}.tmp"
                     with open(log_file, "rb") as f_in:
-                        with gzip.open(archive_path, "wb") as f_out:
+                        with gzip.open(temp_archive, "wb") as f_out:
                             shutil.copyfileobj(f_in, f_out)
+                    temp_archive.replace(archive_path)
                     log_file.unlink()
 
         return stats
@@ -349,9 +510,15 @@ class WorkspaceCleaner:
 class SessionRecovery:
     """会话恢复上下文构建器。"""
 
-    def __init__(self, workspace: Path, checkpoint: Checkpoint):
+    def __init__(
+        self,
+        workspace: Path,
+        checkpoint: Checkpoint,
+        wal: Optional[WriteAheadLog] = None,
+    ):
         self.workspace = workspace
         self.checkpoint = checkpoint
+        self.wal = wal
 
     def build_context(self, current_tick: int) -> str:
         """构建恢复上下文。"""
@@ -367,7 +534,13 @@ class SessionRecovery:
         if ctx_path.exists():
             content = ctx_path.read_text(encoding="utf-8")
             if content:
-                parts.append(f"**Context**:\n{content[:500]}")
+                parts.append(f"**Context**:\n{content[:1000]}")
+
+        # 显示 WAL pending 意图
+        if self.wal:
+            pending = self.wal.get_pending_after_tick(latest or 0)
+            if pending:
+                parts.append(f"**Pending Intents**: {len(pending)}")
 
         state_summary = self._state_summary()
         if state_summary:
@@ -375,8 +548,12 @@ class SessionRecovery:
 
         return "\n\n".join(parts) if parts else ""
 
+    def build_recovery_context(self, current_tick: int) -> str:
+        """构建恢复上下文（build_context 的别名）。"""
+        return self.build_context(current_tick)
+
     def _state_summary(self) -> str:
-        """构建状态摘要（动态发现所有状态文件）。"""
+        """构建状态摘要。"""
         summaries = []
         state_dir = self.workspace / "state"
         if not state_dir.exists():
@@ -386,7 +563,6 @@ class SessionRecovery:
             try:
                 data = json_repair.loads(path.read_text())
                 key = path.stem
-                # 找第一个字符串值作为摘要
                 for v in data.values():
                     if isinstance(v, str) and v:
                         summaries.append(f"- {key}: {v[:50]}")

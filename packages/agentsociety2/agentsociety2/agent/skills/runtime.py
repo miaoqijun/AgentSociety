@@ -425,9 +425,13 @@ class AgentSkillRuntime:
                     lines.append("### Current State Files")
                     for filename in state_files:
                         lines.append(f"- `state/{filename}`")
-                        lines.append(f"- `state/{filename}`")
 
         return "\n".join(lines)
+
+    def refresh_workspace_documents(self) -> None:
+        """同步工作区动态文档。"""
+        self.sync_state_to_context()
+        self.write_file_manifest()
 
     # ==================== AGENT_CONTEXT.md Support ====================
 
@@ -782,50 +786,39 @@ class AgentSkillRuntime:
         if self._agent_work_dir is None:
             return ""
 
-        lines = [
-            "# Workspace Files",
-            "",
-            f"**Root**: `{self._agent_work_dir}`",
-            "",
-        ]
+        lines = ["# Workspace Files", "", f"**Root**: `{self._agent_work_dir}`", ""]
 
-        # 扫描各目录
-        for dir_name in ["state", "memory", "input", "logs"]:
-            dir_path = self._agent_work_dir / dir_name
-            if not dir_path.exists():
+        workspace_root = self._agent_work_dir
+        grouped_files: dict[str, list[Path]] = {}
+        root_files: list[Path] = []
+
+        for file_path in sorted(p for p in workspace_root.rglob("*") if p.is_file()):
+            rel = file_path.relative_to(workspace_root)
+            if any(part.startswith(".") for part in rel.parts):
                 continue
-
-            files = sorted(
-                f.name
-                for f in dir_path.iterdir()
-                if f.is_file() and not f.name.startswith(".")
-            )
-            if files:
-                lines.append(f"## {dir_name}/")
-                for f in files:
-                    file_path = dir_path / f
-                    size = file_path.stat().st_size
-                    size_str = self._format_file_size(size)
-                    lines.append(f"- `{dir_name}/{f}` ({size_str})")
-                lines.append("")
-
-        # 检查根目录文件
-        root_files = []
-        for f in self._agent_work_dir.iterdir():
-            if (
-                f.is_file()
-                and not f.name.startswith(".")
-                and f.suffix in [".md", ".json", ".txt"]
-            ):
-                root_files.append(f.name)
+            if len(rel.parts) == 1:
+                root_files.append(file_path)
+                continue
+            group = rel.parts[0]
+            grouped_files.setdefault(group, []).append(file_path)
 
         if root_files:
             lines.append("## Root Files")
-            for f in sorted(root_files):
-                file_path = self._agent_work_dir / f
+            for file_path in root_files:
+                rel = file_path.relative_to(workspace_root)
                 size = file_path.stat().st_size
                 size_str = self._format_file_size(size)
-                lines.append(f"- `{f}` ({size_str})")
+                lines.append(f"- `{rel.as_posix()}` ({size_str})")
+            lines.append("")
+
+        for group in sorted(grouped_files):
+            lines.append(f"## {group}/")
+            for file_path in grouped_files[group]:
+                rel = file_path.relative_to(workspace_root)
+                size = file_path.stat().st_size
+                size_str = self._format_file_size(size)
+                lines.append(f"- `{rel.as_posix()}` ({size_str})")
+            lines.append("")
 
         return "\n".join(lines)
 

@@ -3,9 +3,27 @@
 定义 LLM 输出的工具决策结构。
 """
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+VALID_TOOL_NAMES = (
+    "activate_skill",
+    "read_skill",
+    "execute_skill",
+    "workspace_read",
+    "workspace_write",
+    "workspace_list",
+    "enable_skill",
+    "disable_skill",
+    "bash",
+    "glob",
+    "grep",
+    "codegen",
+    "batch",
+    "done",
+)
 
 
 class ToolDecision(BaseModel):
@@ -19,7 +37,9 @@ class ToolDecision(BaseModel):
     :ivar summary: 执行摘要。
     """
 
-    tool_name: str = Field(
+    model_config = ConfigDict(extra="forbid")
+
+    tool_name: Literal[VALID_TOOL_NAMES] = Field(
         description=(
             "Exactly one of: activate_skill, read_skill, execute_skill, workspace_read, workspace_write, "
             "workspace_list, enable_skill, disable_skill, bash, glob, grep, codegen, batch, done. "

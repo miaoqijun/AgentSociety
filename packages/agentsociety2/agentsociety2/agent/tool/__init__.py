@@ -5,12 +5,19 @@ Components:
 - utils: JSON handling, string truncation, pagination, retry
 - loop_detection: Loop detection service to prevent infinite loops
 - security: Bash command security checking
+- sandbox: Lightweight workspace isolation and resource limits
 """
 
-from agentsociety2.agent.tool.decision import ToolDecision
+from agentsociety2.agent.tool.decision import ToolDecision, VALID_TOOL_NAMES
 from agentsociety2.agent.tool.loop_detection import (
     LoopDetectionConfig,
     LoopDetectionService,
+)
+from agentsociety2.agent.tool.sandbox import (
+    SecurityError,
+    WorkspaceSandbox,
+    get_safe_env,
+    set_process_limits,
 )
 from agentsociety2.agent.tool.security import (
     BLOCKED_PATTERNS,
@@ -33,6 +40,7 @@ from agentsociety2.agent.tool.utils import (
 
 __all__ = [
     "ToolDecision",
+    "VALID_TOOL_NAMES",
     "truncate",
     "trunc_str",
     "json_dumps",
@@ -49,4 +57,9 @@ __all__ = [
     "BLOCKED_TOKENS",
     "BLOCKED_PATTERNS",
     "BashSecurityChecker",
+    # Sandbox
+    "WorkspaceSandbox",
+    "SecurityError",
+    "set_process_limits",
+    "get_safe_env",
 ]

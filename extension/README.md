@@ -80,22 +80,22 @@ AGENTSOCIETY_LLM_MODEL=gpt-5.4
 
 # 代码生成 LLM 配置（可选，未设置时回退到 AGENTSOCIETY_LLM_*）
 AGENTSOCIETY_CODER_LLM_API_KEY=your_coder_api_key
-AGENTSOCIETY_CODER_LLM_API_BASE=https://apb.opel.net
+AGENTSOCIETY_CODER_LLM_API_BASE=https://api.openai.com/v1
 AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.4
 
 # 高频操作 LLM 配置（可选）
 AGENTSOCIETY_NANO_LLM_API_KEY=your_nano_api_key
-AGENTSOCIETY_NANO_LLM_API_BASE=https://apb.opel.net
+AGENTSOCIETY_NANO_LLM_API_BASE=https://api.openai.com/v1
 AGENTSOCIETY_NANO_LLM_MODEL=gpt-5.4-nano
 
 # 数据分析 LLM 配置（可选，用于数据分析、洞察生成、报告撰写）
 AGENTSOCIETY_ANALYSIS_LLM_API_KEY=your_analysis_api_key
-AGENTSOCIETY_ANALYSIS_LLM_API_BASE=https://apb.opel.net
+AGENTSOCIETY_ANALYSIS_LLM_API_BASE=https://api.openai.com/v1
 AGENTSOCIETY_ANALYSIS_LLM_MODEL=gpt-5.4
 
 # Embedding 模型配置（可选）
 AGENTSOCIETY_EMBEDDING_API_KEY=your_embedding_api_key
-AGENTSOCIETY_EMBEDDING_API_BASE=https://apb.opel.net
+AGENTSOCIETY_EMBEDDING_API_BASE=https://api.openai.com/v1
 AGENTSOCIETY_EMBEDDING_MODEL=text-embedding-3-large
 AGENTSOCIETY_EMBEDDING_DIMS=1024
 

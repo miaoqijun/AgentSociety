@@ -1,67 +1,74 @@
 """Skill discovery, metadata, and execution.
 
-Skills are discovered from `SKILL.md` YAML frontmatter (plus optional scripts) and
-exposed via a progressive-disclosure catalog: the model sees lightweight metadata
-and loads full skill content only after activation.
+Skills are discovered from `SKILL.md` YAML frontmatter and exposed via
+progressive-disclosure: the model sees lightweight metadata and loads
+full skill content only after activation.
 
-模块结构
-========
-
-- :class:`SkillInfo`: Skill元数据容器
-- :class:`SkillRegistry`: Skill注册表，负责发现、管理和执行
-
-Skill元数据字段
+Module Structure
 ================
 
-SKILL.md 的 YAML frontmatter 支持以下字段：
+- :class:`SkillInfo`: Skill metadata container
+- :class:`SkillRegistry`: Skill registry for discovery, management, and execution
 
-- name: Skill唯一标识
-- description: 简短描述
-- inputs: 输入文件列表（用于依赖发现）
-- outputs: 输出文件列表
-- script: 可选的Python脚本路径
-- requires: 依赖的其他skill名称
-- priority: 优先级
+Skill Metadata Fields
+=====================
 
-示例
-====
+SKILL.md YAML frontmatter supports:
 
-SKILL.md 示例::
+- name: Unique skill identifier
+- description: Short description for catalog display
+- inputs: Input file list (for dependency discovery)
+- outputs: Output file list
+- script: Optional Python script path
+- requires: Dependencies on other skills
+- priority: Priority for ordering
+
+Example
+=======
+
+SKILL.md::
 
     ---
     name: cognition
-    description: 生成情绪和意图状态
+    description: Generate emotion, needs, and intention
     inputs:
       - state/observation.txt
-      - state/needs.json
     outputs:
       - state/emotion.json
+      - state/needs.json
       - state/intention.json
     priority: 80
     ---
 
-使用示例::
+Usage::
 
     from agentsociety2.agent.skills import SkillRegistry, get_skill_registry
 
-    # 获取全局注册表
     registry = get_skill_registry()
 
-    # 列出可用技能
+    # List available skills
     for info in registry.list_enabled():
         print(f"{info.name}: {info.description}")
-        print(f"  inputs: {info.inputs}")
-        print(f"  outputs: {info.outputs}")
 
-    # 激活技能
+    # Activate skill
     content = registry.activate("cognition")
 
-    # 执行技能脚本
+    # Execute skill script
     result = await registry.execute(
-        skill_name="needs",
+        skill_name="memory",
         args={"observation": "..."},
         agent_work_dir=workspace,
     )
+
+Built-in Skills
+===============
+
+| Skill | Function |
+|-------|----------|
+| observation | Fetch environment perception |
+| cognition | Generate emotion, needs, intention |
+| memory | Long-term memory and relationships |
+| plan | Execute intentions via environment |
 """
 
 from __future__ import annotations
@@ -87,25 +94,6 @@ class SkillInfo:
 
     Skills are discovered from SKILL.md YAML frontmatter. This dataclass
     holds all metadata fields needed for skill discovery, activation, and execution.
-
-    :param name: Unique skill identifier.
-    :param description: Human-readable description for catalog display.
-    :param argument_hint: Hint for expected arguments format.
-    :param user_invocable: Whether this skill can be directly invoked by users.
-    :param allowed_tools: List of tools this skill is permitted to use.
-    :param script: Path to optional Python script (relative to skill directory).
-    :param executor: Execution mode (e.g., "codegen" for environment-routed skills).
-    :param source: Origin of skill: "builtin", "custom", or "env:<name>".
-    :param path: Absolute path to skill directory.
-    :param enabled: Whether skill is currently enabled.
-    :param disable_model_invocation: If True, hide from model selection catalog.
-    :param paths: Additional paths this skill provides access to.
-    :param requires: List of skill names that must be available.
-    :param inputs: List of input files this skill reads (for dependency discovery).
-    :param outputs: List of output files this skill produces.
-    :param priority: Priority for ordering (higher = more important).
-    :param skill_md: Cached content of SKILL.md file.
-    :param _skill_md_loaded: Internal flag tracking if SKILL.md was loaded.
     """
 
     name: str
@@ -125,7 +113,7 @@ class SkillInfo:
     outputs: list[str] = field(default_factory=list)
     priority: int = 0
     skill_md: str = ""
-    _skill_md_loaded: bool = False
+    skill_md_loaded: bool = field(default=False, repr=False)
 
     def copy(self) -> "SkillInfo":
         """创建浅拷贝，列表字段重新创建以避免共享。
@@ -150,7 +138,7 @@ class SkillInfo:
             outputs=list(self.outputs),
             priority=self.priority,
             skill_md=self.skill_md,
-            _skill_md_loaded=self._skill_md_loaded,
+            skill_md_loaded=self.skill_md_loaded,
         )
 
 
@@ -240,6 +228,12 @@ class SkillRegistry:
             return []
         new_names: list[str] = []
         for info in _discover_skills(custom_root, source="custom"):
+            # Built-in skills cannot be overridden.
+            if (
+                info.name in self._skills
+                and self._skills[info.name].source == "builtin"
+            ):
+                continue
             self._skills[info.name] = info
             new_names.append(info.name)
         return new_names
@@ -319,6 +313,77 @@ class SkillRegistry:
             if info.priority:
                 entry["priority"] = info.priority
             result.append(entry)
+        return result
+
+    # ---------- dependency validation ----------
+    def validate_dependencies(self) -> dict[str, Any]:
+        """Validate skill dependencies and detect cycles.
+
+        Returns:
+            Dict with 'valid' boolean, 'missing' list, and 'cycles' list.
+        """
+        missing: list[tuple[str, str]] = []
+        cycles: list[list[str]] = []
+
+        for name, info in self._skills.items():
+            for req in info.requires:
+                if req not in self._skills:
+                    missing.append((name, req))
+
+        visited: set[str] = set()
+        rec_stack: set[str] = set()
+
+        def detect_cycle(skill_name: str, path: list[str]) -> bool:
+            if skill_name in rec_stack:
+                cycle_start = path.index(skill_name)
+                cycles.append(path[cycle_start:] + [skill_name])
+                return True
+            if skill_name in visited:
+                return False
+            visited.add(skill_name)
+            rec_stack.add(skill_name)
+            info = self._skills.get(skill_name)
+            if info:
+                for req in info.requires:
+                    if detect_cycle(req, path + [skill_name]):
+                        break
+            rec_stack.remove(skill_name)
+            return False
+
+        for name in self._skills:
+            detect_cycle(name, [])
+
+        return {
+            "valid": len(missing) == 0 and len(cycles) == 0,
+            "missing": missing,
+            "cycles": cycles,
+        }
+
+    def get_dependency_order(self, skill_names: list[str]) -> list[str]:
+        """Return skills in dependency-resolved order.
+
+        Args:
+            skill_names: Skills to order.
+
+        Returns:
+            List with dependencies before dependents.
+        """
+        result: list[str] = []
+        visited: set[str] = set()
+
+        def visit(name: str) -> None:
+            if name in visited or name not in self._skills:
+                return
+            visited.add(name)
+            info = self._skills[name]
+            for req in info.requires:
+                if req in self._skills:
+                    visit(req)
+            result.append(name)
+
+        for name in skill_names:
+            visit(name)
+
         return result
 
     def list_with_state(
@@ -435,7 +500,7 @@ class SkillRegistry:
         info.inputs = _to_list(meta.get("inputs"))
         info.outputs = _to_list(meta.get("outputs"))
         info.priority = int(meta.get("priority", 0))
-        info._skill_md_loaded = False
+        info.skill_md_loaded = False
         info.skill_md = ""
         return True
 
@@ -607,7 +672,7 @@ def _discover_skills(root: Path, source: str) -> list[SkillInfo]:
             inputs=_to_list(meta.get("inputs")),
             outputs=_to_list(meta.get("outputs")),
             priority=int(meta.get("priority", 0)),
-            _skill_md_loaded=False,
+            skill_md_loaded=False,
         )
         result.append(info)
     return result
@@ -641,12 +706,12 @@ def _to_list(raw: Any) -> list[str]:
 
 
 def _ensure_skill_md_loaded(info: SkillInfo) -> str:
-    if info._skill_md_loaded:
+    if info.skill_md_loaded:
         return info.skill_md
     path = Path(info.path) / "SKILL.md"
     if path.exists():
         info.skill_md = path.read_text(encoding="utf-8")
-    info._skill_md_loaded = True
+    info.skill_md_loaded = True
     return info.skill_md
 
 

@@ -57,13 +57,15 @@ from .persistence import (
     IntentStatus,
 )
 from .concurrent import (
+    Priority,
+    PrioritizedTask,
+    PriorityScheduler,
     ParallelExecutor,
     RateLimiter,
     TaskManager,
-    get_executor,
-    get_limiter,
-    get_task_manager,
+    DeadlockDetector,
 )
+from .context import AgentMemory, AgentContext
 
 __all__ = [
     # 核心类
@@ -89,10 +91,14 @@ __all__ = [
     "SessionRecovery",
     "IntentStatus",
     # 并发
+    "Priority",
+    "PrioritizedTask",
+    "PriorityScheduler",
     "ParallelExecutor",
     "RateLimiter",
     "TaskManager",
-    "get_executor",
-    "get_limiter",
-    "get_task_manager",
+    "DeadlockDetector",
+    # 上下文
+    "AgentMemory",
+    "AgentContext",
 ]
