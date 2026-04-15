@@ -6,9 +6,36 @@
 ========
 
 - :class:`Checkpoint`: 检查点管理，支持崩溃恢复
-- :class:`WriteAheadLog`: 预写日志，确保精确恢复
+- :class:`WriteAheadLog`: 预写日志（追加写入 + 内存索引）
 - :class:`WorkspaceCleaner`: 工作区清理
 - :class:`SessionRecovery`: 会话恢复上下文构建
+
+性能优化
+========
+
+WriteAheadLog 采用追加日志 + 内存索引架构：
+
+1. **追加写入**: log_intent 只追加，不重写文件
+2. **内存索引**: 维护 intent_id -> offset 映射
+3. **延迟压缩**: 超过 max_entries 时自动压缩
+
+示例
+====
+
+基本使用::
+
+    from agentsociety2.agent.persistence import Checkpoint, WriteAheadLog
+
+    # 检查点
+    checkpoint = Checkpoint(workspace, config)
+    checkpoint.save(tick=100, state={"step_count": 42})
+    data = checkpoint.restore(100)
+
+    # 预写日志
+    wal = WriteAheadLog(workspace, max_entries=1000)
+    intent_id = wal.log_intent("workspace_write", {"path": "test.txt"}, tick=1)
+    wal.log_result(intent_id, {"ok": True})
+    pending = wal.get_pending()
 """
 
 from __future__ import annotations

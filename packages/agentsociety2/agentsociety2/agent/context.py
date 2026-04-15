@@ -1,7 +1,55 @@
 """Agent 上下文：配置阈值以外的记忆、thread 压缩、token 计量。
 
-- 与 context_config 分工：本文件负责「记忆 + 压缩算法 + 摘要 prompt」；config 仅 dataclass 与 capability 映射。
-- Token：优先 LiteLLM 的 token_counter（与路由模型名一致），失败再用 tiktoken，并与字符下界取 max 做保守估计。
+模块职责
+========
+
+- 与 context_config 分工：本文件负责「记忆 + 压缩算法 + 摘要 prompt」；config 仅 dataclass 与 capability 映射
+- Token：优先 LiteLLM 的 token_counter（与路由模型名一致），失败再用 tiktoken，并与字符下界取 max 做保守估计
+
+主要组件
+========
+
+- :class:`ThreadTokenCounter`: 消息 token 计数器
+- :class:`AgentMemory`: 持久化记忆（AGENT_MEMORY.md）
+- :class:`StructuredSummary`: 结构化摘要
+- :func:`run_thread_compaction`: Thread 分层压缩
+
+压缩策略
+========
+
+分层压缩机制：
+
+1. **Light pruning**: 去重相邻工具结果，按优先级丢弃低优先级消息
+2. **Medium compression**: 调用 LLM 生成结构化摘要
+3. **Heavy compression**: 滚动摘要合并，适用于极高利用率
+
+示例
+====
+
+基本使用::
+
+    from agentsociety2.agent.context import (
+        ThreadTokenCounter,
+        AgentMemory,
+        run_thread_compaction,
+    )
+
+    # Token 计数
+    counter = ThreadTokenCounter(litellm_model="claude-3-opus")
+    tokens = counter.count_messages(messages)
+
+    # 记忆管理
+    memory = AgentMemory(workspace_path)
+    memory.add_decision("Decided to go shopping")
+
+    # Thread 压缩
+    result = await run_thread_compaction(
+        thread_messages=messages,
+        agent_id=1,
+        cfg=config.context,
+        litellm_model="claude-3-opus",
+        ...
+    )
 """
 
 from __future__ import annotations

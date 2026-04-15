@@ -3,6 +3,65 @@
 Skills are discovered from `SKILL.md` YAML frontmatter (plus optional scripts) and
 exposed via a progressive-disclosure catalog: the model sees lightweight metadata
 and loads full skill content only after activation.
+
+模块结构
+========
+
+- :class:`SkillInfo`: Skill元数据容器
+- :class:`SkillRegistry`: Skill注册表，负责发现、管理和执行
+
+Skill元数据字段
+================
+
+SKILL.md 的 YAML frontmatter 支持以下字段：
+
+- name: Skill唯一标识
+- description: 简短描述
+- inputs: 输入文件列表（用于依赖发现）
+- outputs: 输出文件列表
+- script: 可选的Python脚本路径
+- requires: 依赖的其他skill名称
+- priority: 优先级
+
+示例
+====
+
+SKILL.md 示例::
+
+    ---
+    name: cognition
+    description: 生成情绪和意图状态
+    inputs:
+      - state/observation.txt
+      - state/needs.json
+    outputs:
+      - state/emotion.json
+      - state/intention.json
+    priority: 80
+    ---
+
+使用示例::
+
+    from agentsociety2.agent.skills import SkillRegistry, get_skill_registry
+
+    # 获取全局注册表
+    registry = get_skill_registry()
+
+    # 列出可用技能
+    for info in registry.list_enabled():
+        print(f"{info.name}: {info.description}")
+        print(f"  inputs: {info.inputs}")
+        print(f"  outputs: {info.outputs}")
+
+    # 激活技能
+    content = registry.activate("cognition")
+
+    # 执行技能脚本
+    result = await registry.execute(
+        skill_name="needs",
+        args={"observation": "..."},
+        agent_work_dir=workspace,
+    )
 """
 
 from __future__ import annotations

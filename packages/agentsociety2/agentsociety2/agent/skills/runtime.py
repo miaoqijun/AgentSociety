@@ -3,8 +3,47 @@ from __future__ import annotations
 """Agent 技能运行时（workspace + skill 执行）。
 
 该模块提供 :class:`~agentsociety2.agent.skills.runtime.AgentSkillRuntime`，用于把 PersonAgent 的
-“工作目录隔离、文件读写、thread/tool 日志、skill 激活与执行”等细节集中在一个组件内，
+"工作目录隔离、文件读写、thread/tool 日志、skill 激活与执行"等细节集中在一个组件内，
 避免 agent 主体过度膨胀。
+
+模块功能
+========
+
+- **Workspace 管理**: 独立工作区、文件读写、路径安全检查
+- **Skill 执行**: 技能激活、读取、执行
+- **日志管理**: Thread 消息、工具调用、会话状态持久化
+- **上下文维护**: AGENT_CONTEXT.md 自动更新、状态同步
+- **行为追踪**: 仿真行为事件记录与统计
+- **文件发现**: 自动生成 AGENT_FILES.md 文件清单
+
+类结构
+======
+
+- :class:`AgentSkillRuntime`: 主运行时类
+
+示例
+====
+
+基本使用::
+
+    from agentsociety2.agent.skills import SkillRegistry
+    from agentsociety2.agent.skills.runtime import AgentSkillRuntime
+
+    registry = SkillRegistry()
+    registry.scan_builtin()
+
+    runtime = AgentSkillRuntime(agent_id=1, registry=registry)
+    runtime.ensure_agent_work_dir(env_router)
+
+    # 文件操作
+    runtime.workspace_write("state/test.json", '{"key": "value"}')
+    content = runtime.workspace_read("state/test.json")
+
+    # 状态同步
+    runtime.sync_state_to_context()
+
+    # 文件清单
+    runtime.write_file_manifest()
 """
 
 import logging
@@ -17,7 +56,6 @@ import json_repair
 
 from agentsociety2.agent.skills import SkillRegistry
 from agentsociety2.agent.tool import jr_dumps
-
 logger = logging.getLogger(__name__)
 
 

@@ -361,12 +361,14 @@ class AgentConfig:
     def from_env(cls) -> "AgentConfig":
         """从环境变量加载配置。
 
+        仅暴露必要的用户配置项，其他使用合理的默认值。
+
         支持的环境变量：
             - AGENT_MODEL: 模型名称
             - AGENT_CONTEXT_WINDOW: 上下文窗口大小
             - AGENT_MAX_TOOL_ROUNDS: 最大工具轮数
             - AGENT_CHECKPOINT_INTERVAL: 检查点间隔
-            - ... 等
+            - AGENT_STEP_TIMEOUT: 单步超时(秒)
 
         :return: 配置实例。
         """
@@ -374,52 +376,13 @@ class AgentConfig:
             model=ModelConfig(
                 model=os.getenv("AGENT_MODEL", ""),
                 context_window=_int("AGENT_CONTEXT_WINDOW", 200_000),
-                output_reserve=_int("AGENT_OUTPUT_RESERVE", 16_000),
-                prompt_overhead=_int("AGENT_PROMPT_OVERHEAD", 8_000),
             ),
             loop=LoopConfig(
                 max_rounds=_int("AGENT_MAX_TOOL_ROUNDS", 24),
-                tool_timeout=_float("AGENT_TOOL_TIMEOUT", 30.0),
                 step_timeout=_int("AGENT_STEP_TIMEOUT", 300),
-                bash_retries=_int("AGENT_BASH_RETRIES", 1),
-                llm_retries=_int("AGENT_LLM_RETRIES", 3),
-            ),
-            context=ContextConfig(
-                compact_warning_ratio=_float("AGENT_COMPACT_WARNING", 0.60),
-                compact_trigger_ratio=_float("AGENT_COMPACT_TRIGGER", 0.75),
-                compact_force_ratio=_float("AGENT_COMPACT_FORCE", 0.90),
-                thread_max_messages=_int("AGENT_THREAD_MAX", 50),
-                thread_keep_recent=_int("AGENT_THREAD_KEEP", 8),
-                stdout_max_chars=_int("AGENT_STDOUT_MAX", 5000),
-                stderr_max_chars=_int("AGENT_STDERR_MAX", 2000),
-                tool_result_budget=_int("AGENT_TOOL_RESULT_BUDGET", 32_000),
-                workspace_chunk_size=_int("AGENT_WORKSPACE_CHUNK", 32_768),
-                workspace_cache_max_entries=_int("AGENT_WORKSPACE_CACHE_MAX", 50),
-                grep_max_files=_int("AGENT_GREP_MAX_FILES", 2000),
-                grep_max_matches=_int("AGENT_GREP_MAX_MATCHES", 1000),
-                grep_max_file_bytes=_int("AGENT_GREP_MAX_FILE_BYTES", 2 * 1024 * 1024),
             ),
             persistence=PersistenceConfig(
                 checkpoint_interval=_int("AGENT_CHECKPOINT_INTERVAL", 10),
-                checkpoint_max=_int("AGENT_CHECKPOINT_MAX", 20),
-                checkpoint_include_workspace=_bool("AGENT_CHECKPOINT_WORKSPACE", True),
-                max_log_files=_int("AGENT_MAX_LOG_FILES", 50),
-                max_memory_entries=_int("AGENT_MAX_MEMORY_ENTRIES", 5000),
-                archive_after_days=_int("AGENT_ARCHIVE_DAYS", 7),
-                wal_max_entries=_int("AGENT_WAL_MAX_ENTRIES", 1000),
-                llm_history_max_entries=_int("AGENT_LLM_HISTORY_MAX", 100),
-                enable_llm_history=_bool("AGENT_ENABLE_LLM_HISTORY", False),
-            ),
-            concurrency=ConcurrencyConfig(
-                max_parallel_tools=_int("AGENT_MAX_PARALLEL_TOOLS", 3),
-                max_llm_concurrent=_int("AGENT_MAX_LLM_CONCURRENT", 5),
-                max_subprocess=_int("AGENT_MAX_SUBPROCESS", 8),
-                rate_limit_rps=_float("AGENT_RATE_LIMIT", 10.0),
-            ),
-            loop_detection=LoopDetectionConfig(
-                max_repeats=_int("AGENT_LOOP_MAX_REPEATS", 4),
-                max_content_repeats=_int("AGENT_LOOP_MAX_CONTENT", 8),
-                history_size=_int("AGENT_LOOP_HISTORY", 16),
             ),
         )
 
