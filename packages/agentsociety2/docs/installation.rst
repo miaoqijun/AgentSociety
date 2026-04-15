@@ -81,7 +81,7 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    # Falls back to: AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE
    export AGENTSOCIETY_CODER_LLM_API_KEY="your-coder-api-key"      # Optional
    export AGENTSOCIETY_CODER_LLM_API_BASE="https://api.openai.com/v1"  # Optional
-   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.3-codex"                    # Optional
+   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.4"                    # Optional
 
    # Nano LLM (for high-frequency, low-latency operations)
    # Falls back to: AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE
@@ -121,7 +121,7 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    AGENT_MAX_TOOL_ROUNDS=24             # Max tool loop rounds
 
    # Optional - Specialized LLM instances (fallback to default)
-   AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.3-codex
+   AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.4
    AGENTSOCIETY_NANO_LLM_MODEL=gpt-5.4-nano
    AGENTSOCIETY_EMBEDDING_MODEL=text-embedding-3-large
    AGENTSOCIETY_EMBEDDING_DIMS=1024
