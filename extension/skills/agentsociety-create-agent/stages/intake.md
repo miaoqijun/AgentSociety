@@ -1,21 +1,21 @@
 # Intake
 
-Collect requirements before generating code:
+Collect requirements before generating code.
 
 ## Required Information
 
-- Agent role and main behaviors
-- Internal states to track (memory, mood, fatigue...)
-- Environment interaction needs
-- Profile fields that define the agent
+1. **Role and behaviors** - What does this agent do?
+2. **Internal states** - What needs tracking? (memory, mood, fatigue...)
+3. **Environment interaction** - What queries/actions?
+4. **Profile fields** - What defines this agent type?
 
 ## Clarification Points
 
-If unclear, ask the user:
+Ask the user if unclear:
 
 - What decisions does the agent make?
 - What triggers each behavior?
 - How do internal states affect decisions?
 - What environment queries/actions are needed?
 
-Do not guess beyond obvious defaults. Keep intake notes if they help review.
+Do not guess. Keep intake notes for review.

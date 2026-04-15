@@ -46,6 +46,7 @@ from agentsociety2.agent.tool import (
     jr_dumps,
     jr_parse,
     json_dumps_tool_result_for_thread,
+    pagination_from_args,
     trunc_str,
 )
 from agentsociety2.agent.tool.loop_detection import (

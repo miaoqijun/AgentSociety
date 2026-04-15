@@ -3,9 +3,7 @@
 ## Template 1: Simple Agent
 
 ```python
-"""
-{AgentName}: {Description}
-"""
+"""{AgentName}: {Description}"""
 
 from agentsociety2.agent.base import AgentBase
 from datetime import datetime
@@ -18,38 +16,25 @@ class {AgentName}(AgentBase):
 
     def __init__(self, id: int, profile: Any, name: str = None):
         super().__init__(id, profile, name)
-        self._custom_state: dict[str, Any] = {}
-        self._work_dir: Path | None = None
+        self._state: dict[str, Any] = {}
 
     @classmethod
     def mcp_description(cls) -> str:
-        return """{AgentName}: {Short Description}
-
-**Profile Fields:** {field_list}
-"""
+        return "{AgentName}: {Short Description}"
 
     async def init(self, env) -> None:
         await super().init(env)
-        run_dir = getattr(env, "run_dir", None)
-        if run_dir:
-            self._work_dir = Path(run_dir) / "agents" / f"agent_{self._id:04d}"
-            self._work_dir.mkdir(parents=True, exist_ok=True)
 
     async def ask(self, message: str, readonly: bool = True) -> str:
-        profile = self.get_profile()
-        prompt = f"You are {profile.get('name')}. Question: {message}"
-        response = await self.acompletion([{"role": "user", "content": prompt}])
+        response = await self.acompletion([{"role": "user", "content": message}])
         return response.choices[0].message.content or ""
 
     async def step(self, tick: int, t: datetime) -> str:
-        try:
-            _, obs = await self.ask_env({}, "Current state?", readonly=True)
-        except Exception as e:
-            obs = f"Error: {e}"
-        return f"Agent {self.name} observed: {obs}"
+        _, obs = await self.ask_env({}, "Current state?", readonly=True)
+        return f"Observed: {obs}"
 
     async def dump(self) -> dict:
-        return {"id": self._id, "name": self._name, "profile": self.get_profile()}
+        return {"id": self._id, "name": self._name}
 
     async def load(self, dump_data: dict):
         self._id = dump_data.get("id", self._id)
@@ -77,11 +62,7 @@ class {AgentName}(AgentBase):
 
     @classmethod
     def mcp_description(cls) -> str:
-        return """{AgentName}: {Short Description}
-
-**Profile Fields:** name, personality, {custom_fields}
-**Internal States:** memories, mood
-"""
+        return "{AgentName}: {Short Description}\nStates: memories, mood"
 
     async def init(self, env) -> None:
         await super().init(env)
@@ -89,9 +70,9 @@ class {AgentName}(AgentBase):
         if run_dir:
             self._work_dir = Path(run_dir) / "agents" / f"agent_{self._id:04d}"
             self._work_dir.mkdir(parents=True, exist_ok=True)
-            await self._load_state()
+            self._load_state()
 
-    async def _load_state(self):
+    def _load_state(self):
         if not self._work_dir:
             return
         state_file = self._work_dir / "state.json"
@@ -100,7 +81,7 @@ class {AgentName}(AgentBase):
             self._memories = data.get("memories", [])
             self._mood = data.get("mood", "calm")
 
-    async def _save_state(self):
+    def _save_state(self):
         if not self._work_dir:
             return
         (self._work_dir / "state.json").write_text(json.dumps({
@@ -117,18 +98,14 @@ class {AgentName}(AgentBase):
         return answer
 
     async def step(self, tick: int, t: datetime) -> str:
-        try:
-            _, obs = await self.ask_env({}, "Current state?", readonly=True)
-        except Exception as e:
-            obs = f"Error: {e}"
+        _, obs = await self.ask_env({}, "Current state?", readonly=True)
         self._memories.append({"content": obs})
-        await self._save_state()
-        return f"Agent {self.name} ({self._mood}): {obs}"
+        self._save_state()
+        return f"{self.name} ({self._mood}): {obs}"
 
     async def dump(self) -> dict:
         return {
             "id": self._id, "name": self._name,
-            "profile": self.get_profile(),
             "memories": self._memories, "mood": self._mood,
         }
 
@@ -156,10 +133,7 @@ class {AgentName}(AgentBase):
 
     @classmethod
     def mcp_description(cls) -> str:
-        return """{AgentName}: {Short Description}
-
-**Game:** {game_name}
-"""
+        return "{AgentName}: {Short Description}"
 
     async def ask(self, message: str, readonly: bool = True) -> str:
         response = await self.acompletion([{"role": "user", "content": message}])
@@ -167,28 +141,22 @@ class {AgentName}(AgentBase):
 
     async def step(self, tick: int, t: datetime) -> str:
         # Get game state
-        try:
-            _, state = await self.ask_env({}, "Get state", readonly=True)
-        except Exception as e:
-            return f"Error: {e}"
+        _, state = await self.ask_env({}, "Get state", readonly=True)
         
         # Make decision
         decision = await self._decide(state)
         
-        # Submit
-        try:
-            _, result = await self.ask_env(
-                {"variables": decision},
-                "Submit with {variables}",
-                readonly=False, template_mode=True
-            )
-        except Exception as e:
-            return f"Submit error: {e}"
+        # Submit action
+        _, result = await self.ask_env(
+            {"variables": decision},
+            "Submit with {variables}",
+            readonly=False, template_mode=True
+        )
         
         return f"{self.name}: {decision}"
 
     async def _decide(self, state: str) -> dict:
-        # Implement decision logic
+        # Implement game-specific logic
         return {}
 
     async def dump(self) -> dict:
@@ -200,11 +168,56 @@ class {AgentName}(AgentBase):
         self._history = dump_data.get("history", [])
 ```
 
+## Template 4: PersonAgent (Skill-Based)
+
+For complex agents requiring skill discovery and tool loops:
+
+```python
+"""{AgentName}: Complex agent with skills."""
+
+from agentsociety2.agent import PersonAgent
+from agentsociety2.agent.config import AgentConfig
+from datetime import datetime
+from typing import Any
+
+
+class {AgentName}(PersonAgent):
+    """{Description}
+    
+    Uses skill-based architecture for:
+    - observation: Environment perception
+    - cognition: Emotional state, needs, intentions
+    - plan: Action execution
+    """
+
+    @classmethod
+    def mcp_description(cls) -> str:
+        return """{AgentName}: {Short Description}
+
+Skills: observation, cognition, plan
+"""
+
+    async def step(self, tick: int, t: datetime) -> str:
+        # PersonAgent handles skill activation and tool loop
+        # Override to customize behavior
+        return await super().step(tick, t)
+```
+
 ## Selection Guide
 
-| Need | Template |
-|------|----------|
-| Basic decision-making | Template 1 |
-| Memory/emotion tracking | Template 2 |
-| Game participation | Template 3 |
-| No state persistence | Template 3 |
+| Need | Template | Key Features |
+|------|----------|--------------|
+| Basic decision-making | Template 1 | Minimal, no state |
+| Memory/emotion tracking | Template 2 | Persistent state, mood |
+| Game participation | Template 3 | No persistence, fast |
+| Complex behaviors | Template 4 | Skills, tools, persistence |
+
+## Key Differences
+
+| Feature | AgentBase | PersonAgent |
+|---------|-----------|-------------|
+| Workspace | Manual | Automatic |
+| Skills | None | Built-in |
+| Persistence | Manual | Checkpoint + WAL |
+| Tool Loop | Manual | Automatic |
+| LLM Calls | Manual | Managed |
