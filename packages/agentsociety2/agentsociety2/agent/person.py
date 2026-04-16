@@ -13,6 +13,7 @@ import asyncio
 import threading
 import re
 import shlex
+import difflib
 from collections import OrderedDict
 from collections.abc import Mapping
 from datetime import datetime
@@ -1859,6 +1860,49 @@ class PersonAgent(AgentBase):
             args = self._coerce_llm_dict(decision.arguments)
             skill_name = str(args.get("skill_name", "")).strip()
 
+            # ── tool_name 语义校验（避免 Pydantic 校验失败导致重试） ────────────────
+            # 允许模型犯错：把错误变成 TOOL_RESULT_JSON，给模型在同一步内纠正的机会。
+            if action not in VALID_TOOL_NAMES:
+                normalized = (
+                    action.lower()
+                    .replace("-", "_")
+                    .replace(" ", "_")
+                    .replace("__", "_")
+                    .strip("_")
+                )
+                candidates = list(VALID_TOOL_NAMES)
+                # 1) 可确定的归一化命中：直接纠正并继续（不需要额外一轮）
+                if normalized in VALID_TOOL_NAMES:
+                    logger.info(
+                        f"Agent {self.id}: normalized tool_name '{action}' -> '{normalized}'"
+                    )
+                    action = normalized
+                else:
+                    # 2) done=true 但 tool_name 写错：直接结束本步，避免无谓循环
+                    if bool(getattr(decision, "done", False)):
+                        logs.append(f"done:{decision.summary or 'step_complete'}")
+                        break
+
+                    close = difflib.get_close_matches(
+                        normalized, candidates, n=3, cutoff=0.6
+                    )
+                    hint = f" Did you mean: {', '.join(close)}?" if close else ""
+                    result_obj = {
+                        "action": action,
+                        "ok": False,
+                        "error": f"invalid tool_name: {action}. Supported: {', '.join(candidates)}.{hint}",
+                        "normalized": normalized,
+                    }
+                    history.append(result_obj)
+                    self._skill_runtime.append_tool_log(
+                        {"tick": tick, "time": t.isoformat(), **result_obj}
+                    )
+                    self._append_tool_result_to_thread(
+                        thread_messages, tick, t, result_obj
+                    )
+                    logs.append(f"invalid_tool:{action}")
+                    continue
+
             # 发送行为追踪事件
             self._skill_runtime.emit_behavior_event(
                 "tool_call",
@@ -2259,11 +2303,22 @@ class PersonAgent(AgentBase):
                 off, lim = pagination_from_args(args, cap)
                 try:
                     if not self._skill_runtime.workspace_exists(ws_read_path):
+                        try:
+                            all_files = self._skill_runtime.workspace_list(".")
+                        except Exception:
+                            all_files = []
+                        close = difflib.get_close_matches(
+                            ws_read_path, all_files, n=8, cutoff=0.55
+                        )
+                        sample = all_files[:30]
                         result_obj = {
                             "action": action,
                             "path": ws_read_path,
                             "ok": False,
                             "error": "file not found",
+                            "hint": "Call workspace_list(path) to inspect available files, or read AGENT_FILES.md for a generated file index.",
+                            "suggestions": close,
+                            "files_sample": sample,
                         }
                     else:
                         cached = self._get_cached_workspace_content(ws_read_path)

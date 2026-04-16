@@ -1,9 +1,16 @@
 """工具决策模型。
 
 定义 LLM 输出的工具决策结构。
+
+.. important::
+   这里不对 ``tool_name`` 做 ``Literal[...]`` 级别的强校验：LLM 偶发的拼写/变形会触发
+   Pydantic ValidationError，进而引发重试，浪费 token。
+
+   - **结构校验**：交给 Pydantic（字段存在、类型正确、extra forbid）
+   - **语义校验**：在运行时执行（PersonAgent 工具循环）并返回可恢复的错误对象
 """
 
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -39,7 +46,7 @@ class ToolDecision(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    tool_name: Literal[VALID_TOOL_NAMES] = Field(
+    tool_name: str = Field(
         description=(
             "Exactly one of: activate_skill, read_skill, execute_skill, workspace_read, workspace_write, "
             "workspace_list, enable_skill, disable_skill, bash, glob, grep, codegen, batch, done. "
