@@ -18,32 +18,42 @@ os.environ["MEM0_TELEMETRY"] = "False"
 # 禁用 ChromaDB 遥测（同样使用 Posthog）
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
+
 # 禁用 Posthog 客户端创建（在导入前）
 def _disable_posthog_import():
     """在模块导入前禁用 Posthog"""
     import sys
+
     # 创建一个假模块来阻止 posthog 导入
     class FakePosthog:
         class Posthog:
             def __init__(self, *args, **kwargs):
                 pass
+
             def capture(self, *args, **kwargs):
                 pass
+
             def disable(self):
                 pass
+
         def __getattr__(self, *args, **kwargs):
             return self.Posthog()
 
     # 将 posthog 添加到 sys.modules 以阻止其导入
-    sys.modules['posthog'] = FakePosthog()
-    sys.modules['posthog.client'] = FakePosthog()
-    sys.modules['posthog.capture'] = lambda *a, **k: None
+    sys.modules["posthog"] = FakePosthog()
+    sys.modules["posthog.client"] = FakePosthog()
+    sys.modules["posthog.capture"] = lambda *a, **k: None
+
 
 _disable_posthog_import()
 
 from agentsociety2.agent import AgentBase
 from agentsociety2.env import CodeGenRouter, EnvBase
-from agentsociety2.registry import get_registered_env_modules, get_registered_agent_modules, scan_and_register_custom_modules
+from agentsociety2.registry import (
+    get_registered_env_modules,
+    get_registered_agent_modules,
+    scan_and_register_custom_modules,
+)
 from agentsociety2.storage import ReplayWriter
 from agentsociety2.society.models import (
     InitConfig,
@@ -87,13 +97,18 @@ def _validate_env_early() -> None:
     # 确认 ChromaDB 遥测已禁用
     chroma_telemetry = os.getenv("ANONYMIZED_TELEMETRY", "False").lower()
     if chroma_telemetry not in ("false", "0", "no", ""):
-        errors.append(f"ANONYMIZED_TELEMETRY must be 'False', currently: {chroma_telemetry}")
+        errors.append(
+            f"ANONYMIZED_TELEMETRY must be 'False', currently: {chroma_telemetry}"
+        )
 
     if errors:
         print("❌ Environment configuration error:", file=sys.stderr)
         for error in errors:
             print(f"  Missing: {error}", file=sys.stderr)
-        print("\nPlease configure these in your .env file before running experiments.", file=sys.stderr)
+        print(
+            "\nPlease configure these in your .env file before running experiments.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
 
@@ -104,20 +119,19 @@ class ExperimentRunner:
         """
         初始化实验运行器
 
-        Args:
-            run_dir: run/ 目录路径，作为实验的 HOME 目录
+        :param run_dir: run/ 目录路径，作为实验的 HOME 目录。
         """
         self.run_dir = run_dir
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 创建必要的子目录
         self.artifacts_dir = self.run_dir / "artifacts"
         self.artifacts_dir.mkdir(exist_ok=True)
-        
+
         # 文件路径
         self.pid_file = self.run_dir / "pid.json"
         self.db_file = self.run_dir / "sqlite.db"
-        
+
         self.society: Optional[AgentSociety] = None
         self._should_terminate = False
 
@@ -128,42 +142,60 @@ class ExperimentRunner:
         # 检查主要 LLM 配置
         llm_api_key = os.getenv("AGENTSOCIETY_LLM_API_KEY", "")
         if not llm_api_key or not llm_api_key.strip():
-            errors.append("Missing required environment variable: AGENTSOCIETY_LLM_API_KEY")
+            errors.append(
+                "Missing required environment variable: AGENTSOCIETY_LLM_API_KEY"
+            )
 
         # 检查 coder LLM 配置（CodeGenRouter 需要）
         coder_api_key = os.getenv("AGENTSOCIETY_CODER_LLM_API_KEY") or llm_api_key
         if not coder_api_key or not coder_api_key.strip():
-            errors.append("Missing required environment variable: AGENTSOCIETY_CODER_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY")
+            errors.append(
+                "Missing required environment variable: AGENTSOCIETY_CODER_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
+            )
 
         # 检查 nano LLM 配置（用于 fallback）
         nano_api_key = os.getenv("AGENTSOCIETY_NANO_LLM_API_KEY") or llm_api_key
         if not nano_api_key or not nano_api_key.strip():
-            errors.append("Missing required environment variable: AGENTSOCIETY_NANO_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY")
+            errors.append(
+                "Missing required environment variable: AGENTSOCIETY_NANO_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
+            )
 
         # 检查 mem0 遥测是否禁用
         mem0_telemetry = os.getenv("MEM0_TELEMETRY", "False").lower()
         if mem0_telemetry not in ("false", "0", "no", ""):
-            errors.append(f"MEM0_TELEMETRY must be disabled (set to 'False'), currently: {mem0_telemetry}")
+            errors.append(
+                f"MEM0_TELEMETRY must be disabled (set to 'False'), currently: {mem0_telemetry}"
+            )
 
         # 检查 ChromaDB 遥测是否禁用
         chroma_telemetry = os.getenv("ANONYMIZED_TELEMETRY", "False").lower()
         if chroma_telemetry not in ("false", "0", "no", ""):
-            errors.append(f"ANONYMIZED_TELEMETRY must be disabled (set to 'False'), currently: {chroma_telemetry}")
+            errors.append(
+                f"ANONYMIZED_TELEMETRY must be disabled (set to 'False'), currently: {chroma_telemetry}"
+            )
 
         # 如果有错误，打印详细信息并退出
         if errors:
             logger.error("Environment validation failed:")
             for error in errors:
                 logger.error(f"  - {error}")
-            print("\n❌ Environment validation failed. Required configuration:", file=sys.stderr)
+            print(
+                "\n❌ Environment validation failed. Required configuration:",
+                file=sys.stderr,
+            )
             for error in errors:
                 print(f"  ❌ {error}", file=sys.stderr)
-            print("\nPlease set the required environment variables in your .env file.", file=sys.stderr)
+            print(
+                "\nPlease set the required environment variables in your .env file.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         logger.info("Environment validation passed")
         # 确认遥测已禁用
-        logger.info("Telemetry disabled: MEM0_TELEMETRY=False, ANONYMIZED_TELEMETRY=False")
+        logger.info(
+            "Telemetry disabled: MEM0_TELEMETRY=False, ANONYMIZED_TELEMETRY=False"
+        )
 
     def _load_config(self, config_path: Path) -> InitConfig:
         """加载并验证配置文件"""
@@ -176,8 +208,10 @@ class ExperimentRunner:
             elif config_path.suffix.lower() in [".yaml", ".yml"]:
                 data = yaml.safe_load(f)
             else:
-                raise ValueError(f"Unsupported config file format: {config_path.suffix}")
-        
+                raise ValueError(
+                    f"Unsupported config file format: {config_path.suffix}"
+                )
+
         # 使用pydantic验证配置
         try:
             return InitConfig.model_validate(data)
@@ -191,7 +225,7 @@ class ExperimentRunner:
 
         with open(steps_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
-        
+
         # 使用pydantic验证配置
         try:
             return StepsConfig.model_validate(data)
@@ -203,7 +237,10 @@ class ExperimentRunner:
     ) -> List[EnvBase]:
         """创建环境模块实例"""
         env_modules = []
-        env_type_map = {module_type: env_class for module_type, env_class in get_registered_env_modules()}
+        env_type_map = {
+            module_type: env_class
+            for module_type, env_class in get_registered_env_modules()
+        }
 
         for module_type in env_module_types:
             if module_type not in env_type_map:
@@ -273,14 +310,18 @@ class ExperimentRunner:
                     pid_data = json.load(f)
             except (json.JSONDecodeError, IOError):
                 pass
-        
+
         # 更新基本字段
-        pid_data.update({
-            "pid": os.getpid(),
-            "status": status,
-            "start_time": pid_data.get("start_time", datetime.now(timezone.utc).isoformat()),
-            **kwargs,
-        })
+        pid_data.update(
+            {
+                "pid": os.getpid(),
+                "status": status,
+                "start_time": pid_data.get(
+                    "start_time", datetime.now(timezone.utc).isoformat()
+                ),
+                **kwargs,
+            }
+        )
 
         if status == "completed" or status == "failed":
             pid_data["end_time"] = datetime.now(timezone.utc).isoformat()
@@ -327,7 +368,7 @@ class ExperimentRunner:
             agent_configs = config.agents
             env_module_types = [m.module_type for m in env_modules_config]
             env_kwargs = {m.module_type: m.kwargs for m in env_modules_config}
-            
+
             # 转换agent配置为字典格式（用于_create_agents方法）
             agent_args = [
                 {
@@ -403,23 +444,30 @@ class ExperimentRunner:
                     break
 
                 step_type = step.type
-                
+
                 # 更新进度到 pid.json
                 self._update_progress()
 
                 try:
                     if isinstance(step, RunStep):
-                        logger.info(f"Running {step.num_steps} steps with tick={step.tick}")
+                        logger.info(
+                            f"Running {step.num_steps} steps with tick={step.tick}"
+                        )
+
                         # 创建定期更新进度的任务
                         async def update_progress_periodically():
                             while not self._should_terminate:
                                 await asyncio.sleep(1)  # 每秒更新一次
                                 if self.society and not self._should_terminate:
                                     self._update_progress()
-                        
-                        progress_task = asyncio.create_task(update_progress_periodically())
+
+                        progress_task = asyncio.create_task(
+                            update_progress_periodically()
+                        )
                         try:
-                            await self.society.run(num_steps=step.num_steps, tick=step.tick)
+                            await self.society.run(
+                                num_steps=step.num_steps, tick=step.tick
+                            )
                         finally:
                             progress_task.cancel()
                             try:
@@ -433,15 +481,19 @@ class ExperimentRunner:
                         logger.info(f"Asking: {step.question}")
                         answer = await self.society.ask(step.question)
                         logger.info(f"Answer: {answer}")
-                        
+
                         # 保存结果到artifacts目录，使用模拟时间作为文件命名，Markdown格式
                         sim_time = self.society.current_time
                         timestamp = sim_time.strftime("%Y%m%d_%H%M%S")
-                        artifact_file = self.artifacts_dir / f"ask_step_{step_idx}_{timestamp}.md"
+                        artifact_file = (
+                            self.artifacts_dir / f"ask_step_{step_idx}_{timestamp}.md"
+                        )
                         with open(artifact_file, "w", encoding="utf-8") as f:
                             # YAML front matter
                             f.write("---\n")
-                            f.write(f"question: {yaml.dump(step.question, allow_unicode=True, default_flow_style=False).rstrip()}\n")
+                            f.write(
+                                f"question: {yaml.dump(step.question, allow_unicode=True, default_flow_style=False).rstrip()}\n"
+                            )
                             f.write("---\n\n")
                             # Markdown content
                             f.write(f"{answer}\n")
@@ -449,17 +501,24 @@ class ExperimentRunner:
 
                     elif isinstance(step, InterveneStep):
                         logger.info(f"Intervening: {step.instruction}")
-                        intervene_result = await self.society.intervene(step.instruction)
+                        intervene_result = await self.society.intervene(
+                            step.instruction
+                        )
                         logger.info(f"Result: {intervene_result}")
-                        
+
                         # 保存结果到artifacts目录，使用模拟时间作为文件命名，Markdown格式
                         sim_time = self.society.current_time
                         timestamp = sim_time.strftime("%Y%m%d_%H%M%S")
-                        artifact_file = self.artifacts_dir / f"intervene_step_{step_idx}_{timestamp}.md"
+                        artifact_file = (
+                            self.artifacts_dir
+                            / f"intervene_step_{step_idx}_{timestamp}.md"
+                        )
                         with open(artifact_file, "w", encoding="utf-8") as f:
                             # YAML front matter
                             f.write("---\n")
-                            f.write(f"instruction: {yaml.dump(step.instruction, allow_unicode=True, default_flow_style=False).rstrip()}\n")
+                            f.write(
+                                f"instruction: {yaml.dump(step.instruction, allow_unicode=True, default_flow_style=False).rstrip()}\n"
+                            )
                             f.write("---\n\n")
                             # Markdown content
                             f.write(f"{intervene_result}\n")
@@ -503,13 +562,16 @@ class ExperimentRunner:
                     else:
                         logger.warning(f"Unknown step type: {step_type}, skipping")
                         continue
-                    
+
                     # 更新进度到 pid.json（步骤完成）
                     self._update_progress()
 
                 except Exception as e:
-                    logger.error(f"Error executing step {step_idx} ({step_type}): {e}", exc_info=True)
-                    
+                    logger.error(
+                        f"Error executing step {step_idx} ({step_type}): {e}",
+                        exc_info=True,
+                    )
+
                     # 更新进度到 pid.json（步骤失败）
                     self._update_progress()
 

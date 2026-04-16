@@ -18,21 +18,18 @@ def get_available_models(
     """
     获取当前可用的模型列表，输出 JSON 结构，仅包含关键的 'id' 字段。
 
-    Args:
-        api_base: OpenAI 兼容 API 基础 URL，通常以 /v1 结尾
-        api_key: API 密钥；未提供则读 ``AGENTSOCIETY_LLM_API_KEY``（需由调用方加载 .env）
-        timeout: 请求超时时间（秒）
+    :param api_base: OpenAI 兼容 API 基础 URL，通常以 ``/v1`` 结尾。
+    :param api_key: API 密钥；未提供则读 ``AGENTSOCIETY_LLM_API_KEY``（需由调用方加载 ``.env``）。
+    :param timeout: 请求超时时间（秒）。
 
-    Returns:
-        List[Dict[str, str]]: 模型列表，格式如下（``id`` 以服务商返回为准）：
+    :returns: 模型列表，格式如下（``id`` 以服务商返回为准）：
         [
             {"id": "gpt-5.4"},
             {"id": "gpt-5.4-nano"}
         ]
 
-    Raises:
-        ValueError: 当缺少必要的 API key 时
-        RuntimeError: 当网络请求失败或响应格式异常时
+    :raises ValueError: 当缺少必要的 API key 时。
+    :raises RuntimeError: 当网络请求失败或响应格式异常时。
     """
     # 与 Config.LLM_* 一致：入参 > AGENTSOCIETY_* > 与 config 相同的默认 base
     base = (api_base or os.getenv("AGENTSOCIETY_LLM_API_BASE", "").strip()) or (

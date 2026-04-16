@@ -54,6 +54,7 @@ from litellm import AllMessageValues
 from litellm.exceptions import RateLimitError
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
+
 try:
     from litellm.types.router import RouterRateLimitError
 except Exception:  # pragma: no cover - compatibility across litellm versions
@@ -96,10 +97,9 @@ class TokenUsageStats(BaseModel):
     """
     Token usage statistics for a model.
 
-    Attributes:
-        call_count: Number of API calls made.
-        input_tokens: Total number of input tokens consumed.
-        output_tokens: Total number of output tokens consumed.
+    :ivar call_count: Number of API calls made.
+    :ivar input_tokens: Total number of input tokens consumed.
+    :ivar output_tokens: Total number of output tokens consumed.
     """
 
     call_count: int = 0
@@ -111,9 +111,8 @@ class FinalAnswerResponse(BaseModel):
     """
     Pydantic model for LLM final answer response.
 
-    Attributes:
-        status: Execution status (success, in_progress, fail, error)
-        summary: Summary of what was accomplished or what went wrong
+    :ivar status: Execution status (success, in_progress, fail, error).
+    :ivar summary: Summary of what was accomplished or what went wrong.
     """
 
     status: Literal["success", "in_progress", "fail", "error"]
@@ -124,12 +123,11 @@ class ToolInfo(BaseModel):
     """
     Pydantic model for tool information.
 
-    Attributes:
-        function_parts: Parsed function parts (signature, docstring, etc.)
-        name: Tool name
-        description: Tool description
-        readonly: Whether the tool is readonly
-        kind: Tool kind (None, "observe", or "statistics")
+    :ivar function_parts: Parsed function parts (signature, docstring, etc.).
+    :ivar name: Tool name.
+    :ivar description: Tool description.
+    :ivar readonly: Whether the tool is readonly.
+    :ivar kind: Tool kind (None, "observe", or "statistics").
     """
 
     function_parts: FunctionParts
@@ -231,7 +229,11 @@ class RouterBase(ABC):
 
     @abstractmethod
     async def ask(
-        self, ctx: dict, instruction: str, readonly: bool = False, template_mode: bool = False
+        self,
+        ctx: dict,
+        instruction: str,
+        readonly: bool = False,
+        template_mode: bool = False,
     ) -> Tuple[dict, str]:
         """与环境交互的统一入口（由子类实现具体路由策略）。
 
@@ -359,12 +361,12 @@ class RouterBase(ABC):
         :raises ValueError: 超过重试次数仍失败时抛出。
         """
         logger = get_logger()
-        
+
         if max_retries is None:
             max_retries = self.max_llm_call_retry
         else:
             max_retries = max(max_retries, 1)
-        
+
         if model == "coder":
             router = self.coder_router
             model_name = self.codegen_model_name
@@ -375,7 +377,7 @@ class RouterBase(ABC):
             raise ValueError(f"Invalid model: {model}")
 
         last_error = None
-        
+
         for attempt in range(max_retries + 1):
             try:
                 response = await router.acompletion(
@@ -397,10 +399,12 @@ class RouterBase(ABC):
                             stats = self._token_usage_stats[model]
                             stats.call_count += 1
                             stats.input_tokens += getattr(usage, "prompt_tokens", 0)
-                            stats.output_tokens += getattr(usage, "completion_tokens", 0)
+                            stats.output_tokens += getattr(
+                                usage, "completion_tokens", 0
+                            )
 
                 return response
-                
+
             except Exception as e:
                 if _is_rate_limit_like_error(e):
                     # If this is the last attempt, raise the error
@@ -740,7 +744,9 @@ Your corrected response:
         if self._world_description is None:
             async with self._generate_world_description_lock:
                 if self._world_description is None:
-                    self._world_description = await self.generate_world_description_from_tools()
+                    self._world_description = (
+                        await self.generate_world_description_from_tools()
+                    )
         return self._world_description
 
     async def generate_world_description_from_tools(self) -> str:
@@ -828,7 +834,7 @@ Your generated world description:"""
 
             router, model_name = get_llm_router_and_model("coder")
             max_retries = self.max_llm_call_retry
-            
+
             for attempt in range(max_retries + 1):
                 try:
                     response = await router.acompletion(
@@ -869,16 +875,26 @@ Your generated world description:"""
             # Append custom world descriptions from environment modules
             custom_descriptions = []
             for env_module in self.env_modules:
-                if hasattr(env_module, 'get_world_description') and callable(env_module.get_world_description):
+                if hasattr(env_module, "get_world_description") and callable(
+                    env_module.get_world_description
+                ):
                     try:
                         custom_desc = env_module.get_world_description()
-                        if custom_desc and isinstance(custom_desc, str) and custom_desc.strip():
+                        if (
+                            custom_desc
+                            and isinstance(custom_desc, str)
+                            and custom_desc.strip()
+                        ):
                             custom_descriptions.append(custom_desc.strip())
                     except Exception as e:
-                        logger.warning(f"Failed to get custom world description from {env_module.name}: {e}")
+                        logger.warning(
+                            f"Failed to get custom world description from {env_module.name}: {e}"
+                        )
 
             if custom_descriptions:
-                world_description = world_description + "\n\n" + "\n\n".join(custom_descriptions)
+                world_description = (
+                    world_description + "\n\n" + "\n\n".join(custom_descriptions)
+                )
 
             logger.info(f"  ✓ 成功生成世界描述（长度: {len(world_description)} 字符）")
 
@@ -960,7 +976,10 @@ Your generated world description:"""
         return modules_info
 
     def _filter_tools_info(
-        self, tools_info: ToolsInfoDict, readonly: bool | None = None, kind: str | None = None
+        self,
+        tools_info: ToolsInfoDict,
+        readonly: bool | None = None,
+        kind: str | None = None,
     ) -> ToolsInfoDict:
         """
         根据 readonly 和 kind 过滤工具信息。
@@ -1008,7 +1027,9 @@ Your generated world description:"""
         """
         return self._pydantic_collector.get_collected_models()
 
-    def _format_tools_pyi(self, modules_info: ToolsInfoDict, max_body_code_lines: int) -> str:
+    def _format_tools_pyi(
+        self, modules_info: ToolsInfoDict, max_body_code_lines: int
+    ) -> str:
         """
         将工具信息格式化为类似 pyi 文件的 Python 代码格式。
 
@@ -1030,7 +1051,9 @@ Your generated world description:"""
         lines: List[str] = []
         lines.append("# Type definitions for environment modules")
         lines.append("from pydantic import BaseModel, Field")
-        lines.append("from typing import Any, Optional, Union, List, Dict, Literal, Tuple")
+        lines.append(
+            "from typing import Any, Optional, Union, List, Dict, Literal, Tuple"
+        )
         lines.append("from datetime import datetime")
         lines.append("")
 
@@ -1045,7 +1068,9 @@ Your generated world description:"""
 
         if len(modules_info) > 0:
             lines.append("# Environment modules")
-            lines.append("# These are what you can call to interact with the environment.")
+            lines.append(
+                "# These are what you can call to interact with the environment."
+            )
         else:
             lines.append("# No environment modules")
             lines.append("# You can't interact with the environment.")
