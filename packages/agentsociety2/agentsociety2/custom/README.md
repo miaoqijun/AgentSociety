@@ -129,6 +129,12 @@ curl -X POST http://localhost:8001/api/v1/custom/test \
 
 系统会在内存中运行测试并返回结果。
 
+> 注意：扫描/注册规则（与后端 scanner/registry 一致）
+>
+> - 只扫描工作区的 `custom/agents/**/*.py` 与 `custom/envs/**/*.py`
+> - 路径中包含 `examples/` 的文件会被跳过（示例仅供参考，不参与注册）
+> - **类必须在该文件内定义**（不能仅 import 后 re-export），否则不会被接受/注册
+
 ## 详解
 
 ### Agent 必需方法
@@ -137,7 +143,7 @@ curl -X POST http://localhost:8001/api/v1/custom/test \
 
 | 方法 | 说明 |
 |------|------|
-| `mcp_description()` | 返回模块描述（类方法） |
+| `mcp_description()` | 返回模块描述（类方法，**建议覆盖**；`AgentBase` 有默认描述） |
 | `ask(message, readonly)` | 回答来自环境的问题 |
 | `step(tick, t)` | 执行一个仿真步骤 |
 | `dump()` | 序列化 Agent 状态 |

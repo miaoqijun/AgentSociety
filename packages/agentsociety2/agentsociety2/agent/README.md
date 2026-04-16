@@ -55,7 +55,7 @@ agent/
 ├── tool/              # 工具模块
 │   ├── decision.py    # ToolDecision 模型
 │   ├── loop_detection.py  # 循环检测
-│   ├── sandbox.py     # 工作区隔离
+│   ├── security.py    # bash 命令安全检查（黑名单 token/模式/危险子串）
 │   └── utils.py       # 工具函数
 ├── skills/            # 技能系统
 │   ├── __init__.py    # SkillRegistry
@@ -64,7 +64,7 @@ agent/
 │   ├── cognition/     # 情绪、需求、意图
 │   ├── memory/        # 长期记忆、关系
 │   └── plan/          # 行动执行
-└── benchmark/         # 性能基准测试
+└── init_utils.py      # 初始化工具（内部使用）
 ```
 
 ## 核心组件

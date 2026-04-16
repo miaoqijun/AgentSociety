@@ -259,7 +259,7 @@ Set your LLM API credentials via environment variables:
 # Default LLM (required - used for most operations)
 export AGENTSOCIETY_LLM_API_KEY="your-api-key"
 export AGENTSOCIETY_LLM_API_BASE="https://api.openai.com/v1"
-export AGENTSOCIETY_LLM_MODEL="gpt-4o-mini"
+export AGENTSOCIETY_LLM_MODEL="gpt-5.4"
 ```
 
 **Optional Configuration**
@@ -271,20 +271,20 @@ For specialized tasks, you can configure separate LLM instances:
 # Falls back to default LLM if not set
 export AGENTSOCIETY_CODER_LLM_API_KEY="your-coder-api-key"
 export AGENTSOCIETY_CODER_LLM_API_BASE="https://api.openai.com/v1"
-export AGENTSOCIETY_CODER_LLM_MODEL="gpt-4o"
+export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.4"
 
 # Nano LLM (for high-frequency, low-latency operations)
 # Falls back to default LLM if not set
 export AGENTSOCIETY_NANO_LLM_API_KEY="your-nano-api-key"
 export AGENTSOCIETY_NANO_LLM_API_BASE="https://api.openai.com/v1"
-export AGENTSOCIETY_NANO_LLM_MODEL="gpt-4o-mini"
+export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.4-nano"
 
 # Embedding Model (for text embeddings and semantic search)
 # Falls back to default LLM if not set
 export AGENTSOCIETY_EMBEDDING_API_KEY="your-embedding-api-key"
 export AGENTSOCIETY_EMBEDDING_API_BASE="https://api.openai.com/v1"
-export AGENTSOCIETY_EMBEDDING_MODEL="text-embedding-3-small"
-export AGENTSOCIETY_EMBEDDING_DIMS="1536"
+export AGENTSOCIETY_EMBEDDING_MODEL="text-embedding-3-large"
+export AGENTSOCIETY_EMBEDDING_DIMS="1024"
 
 # Data directory (optional, default: ./agentsociety_data)
 export AGENTSOCIETY_HOME_DIR="/path/to/your/data"
@@ -296,6 +296,11 @@ Or use a `.env` file:
 cp .env.example .env
 # Edit .env with your credentials
 ```
+
+.. note::
+
+   The upstream code validates ``AGENTSOCIETY_LLM_API_KEY`` at import time. Make sure it is set
+   before importing `agentsociety2` (or load `.env` early in your entrypoint).
 
 ## Examples
 

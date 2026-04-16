@@ -110,6 +110,12 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
 
 .. code-block:: bash
 
+   # 推荐：从仓库模板复制（若你在源码仓库内）
+   cp .env.example .env
+   # 然后编辑 .env 填入 API Key
+
+.. code-block:: bash
+
    # Required - LLM API Configuration
    AGENTSOCIETY_LLM_API_KEY=your-api-key
    AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1

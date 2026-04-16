@@ -82,7 +82,7 @@ AgentSociety 2 支持创建和注册自定义智能体和环境模块，
    * - Method
      - Description
    * - ``mcp_description()``
-     - 返回模块描述（类方法）
+     - 返回模块描述（类方法，建议覆盖；``AgentBase``/``EnvBase`` 有默认描述）
    * - ``ask()``
      - 回答环境的问题
    * - ``step()``
@@ -142,7 +142,11 @@ AgentSociety 2 支持创建和注册自定义智能体和环境模块，
 * ``step()`` 必须存在
 * 默认应支持无参实例化 ``cls()``
 * 若模块需要观察能力，应提供 readonly ``kind="observe"`` 工具
-* 应提供可调用且信息完整的 ``mcp_description()``
+* 建议提供信息完整的 ``mcp_description()``（未覆盖时会显示基类默认描述）
+
+.. note::
+
+   扫描器会跳过路径中包含 ``examples/`` 的文件（示例仅供参考，不参与注册）。
 
 @tool 装饰器
 ~~~~~~~~~~~~~~~~~~~
