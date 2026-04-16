@@ -105,9 +105,8 @@ _TIKTOKEN_ENCODING = "cl100k_base"
 class ModelConfig:
     """模型配置。
 
-    Attributes:
-        model: 模型名称（如 "claude-3-opus-20240229"）。
-        context_window: 上下文窗口大小（tokens）。
+    :ivar model: 模型名称（如 ``"claude-3-opus-20240229"``）。
+    :ivar context_window: 上下文窗口大小（tokens）。
     """
 
     model: str = ""
@@ -123,9 +122,8 @@ class ModelConfig:
 class LoopConfig:
     """工具循环配置。
 
-    Attributes:
-        max_rounds: 单步最大工具轮数。
-        step_timeout: 整步超时时间（秒）。
+    :ivar max_rounds: 单步最大工具轮数。
+    :ivar step_timeout: 整步超时时间（秒）。
     """
 
     max_rounds: int = 24
@@ -143,9 +141,8 @@ class LoopConfig:
 class PersistenceConfig:
     """持久化配置。
 
-    Attributes:
-        checkpoint_interval: 检查点间隔（ticks）。
-        checkpoint_max: 最大保留检查点数。
+    :ivar checkpoint_interval: 检查点间隔（ticks）。
+    :ivar checkpoint_max: 最大保留检查点数。
     """
 
     checkpoint_interval: int = 10
@@ -164,9 +161,8 @@ class PersistenceConfig:
 class ContextConfig:
     """上下文管理配置（内部使用，大多数参数写死）。
 
-    Attributes:
-        workspace_cache_max_entries: 工作区缓存最大条目数。
-        preload_workspace_paths: 预加载的工作区路径列表。
+    :ivar workspace_cache_max_entries: 工作区缓存最大条目数。
+    :ivar preload_workspace_paths: 预加载的工作区路径列表。
     """
 
     workspace_cache_max_entries: int = 50
@@ -264,11 +260,14 @@ class AgentConfig:
 
     整合所有子配置，提供统一的访问入口。
 
-    Attributes:
-        model: 模型配置。
-        loop: 工具循环配置。
-        persistence: 持久化配置。
-        workspace_path: 工作区路径（可选）。
+    :ivar model: 模型配置。
+    :ivar loop: 工具循环配置。
+    :ivar context: 上下文管理配置。
+    :ivar persistence: 持久化配置。
+    :ivar concurrency: 并发控制配置。
+    :ivar loop_detection: 循环检测配置。
+    :ivar state: 状态文件配置。
+    :ivar workspace_path: 工作区路径（可选）。
 
     Example:
 

@@ -846,11 +846,8 @@ class PersonAgent(AgentBase):
     def _check_allowed_tools_for_action(self, action: str) -> dict[str, Any] | None:
         """统一处理 allowed-tools 拦截。
 
-        Args:
-            action: 工具名称。
-
-        Returns:
-            None 表示允许，否则返回错误对象。
+        :param action: 工具名称。
+        :returns: ``None`` 表示允许，否则返回错误对象。
         """
         guarded_actions = {
             "workspace_read",
@@ -1238,8 +1235,7 @@ class PersonAgent(AgentBase):
         7. 激活环境模块声明的默认技能
         8. 获取世界描述
 
-        Args:
-            env: 环境路由器实例。
+        :param env: 环境路由器实例。
         """
         await super().init(env=env)
         self._skill_runtime.ensure_agent_work_dir(self._env)

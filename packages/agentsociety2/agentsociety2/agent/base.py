@@ -105,15 +105,14 @@ class LLMInteractionHistory:
     用于记录 Agent 与 LLM 之间的完整交互历史，包括请求消息、
     响应内容、时间戳等信息。支持通过开关控制是否启用记录。
 
-    Attributes:
-        agent_id: 智能体 ID。
-        model_name: 调用的模型名称。
-        messages: 发送给 LLM 的消息列表。
-        response: LLM 的响应对象。
-        tick: 当前仿真步的时间尺度（秒）。
-        t: 当前仿真时间。
-        method_name: 调用 LLM 的方法名。
-        timestamp: 记录创建时间。
+    :ivar agent_id: 智能体 ID。
+    :ivar model_name: 调用的模型名称。
+    :ivar messages: 发送给 LLM 的消息列表。
+    :ivar response: LLM 的响应对象。
+    :ivar tick: 当前仿真步的时间尺度（秒）。
+    :ivar t: 当前仿真时间。
+    :ivar method_name: 调用 LLM 的方法名。
+    :ivar timestamp: 记录创建时间。
     """
 
     agent_id: int
@@ -251,8 +250,7 @@ class AgentBase(ABC):
         返回稳定的身份键（id, agent_id, person_id），由框架提供，
         与具体 skill 无关。后合并时覆盖模型误传。
 
-        Returns:
-            包含 id, agent_id, person_id 的字典。
+        :returns: 包含 id, agent_id, person_id 的字典。
         """
         i = self.id
         return {"id": i, "agent_id": i, "person_id": i}
@@ -272,12 +270,11 @@ class AgentBase(ABC):
     ):
         """记录 LLM 交互到历史列表（需启用）。
 
-        Args:
-            messages: 发送给 LLM 的消息列表。
-            response: LLM 返回的响应对象。
-            tick: 当前仿真步的时间尺度（秒）。
-            t: 当前仿真时间。
-            method_name: 调用 LLM 的方法名称。
+        :param messages: 发送给 LLM 的消息列表。
+        :param response: LLM 返回的响应对象。
+        :param tick: 当前仿真步的时间尺度（秒）。
+        :param t: 当前仿真时间。
+        :param method_name: 调用 LLM 的方法名称。
         """
         # 从子类获取配置，默认禁用
         enabled = getattr(self, "_llm_history_enabled", False)
@@ -307,8 +304,7 @@ class AgentBase(ABC):
     def _record_token_usage(self, response: Any) -> None:
         """记录 LLM 调用的 token 使用统计。
 
-        Args:
-            response: LLM 响应对象，需包含 usage 信息。
+        :param response: LLM 响应对象，需包含 usage 信息。
         """
         if not isinstance(response, ModelResponse):
             return
@@ -327,9 +323,8 @@ class AgentBase(ABC):
     def _log_token_usage_stats(self, model_name: str, stats: TokenUsageStats) -> None:
         """记录当前 token 使用统计到日志。
 
-        Args:
-            model_name: 模型名称。
-            stats: Token 使用统计对象。
+        :param model_name: 模型名称。
+        :param stats: Token 使用统计对象。
         """
         self._logger.info(
             "Agent %s token usage - model=%s calls=%s input=%s output=%s",
@@ -343,8 +338,7 @@ class AgentBase(ABC):
     def get_llm_interaction_history(self) -> list[LLMInteractionHistory]:
         """获取所有 LLM 交互历史记录的副本。
 
-        Returns:
-            LLM 交互历史记录列表的浅拷贝。
+        :returns: LLM 交互历史记录列表的浅拷贝。
         """
         return self._llm_interaction_history.copy()
 
@@ -355,8 +349,7 @@ class AgentBase(ABC):
     def get_token_usages(self) -> dict[str, TokenUsageStats]:
         """获取 Token 使用统计的副本。
 
-        Returns:
-            按模型名索引的 Token 使用统计字典。
+        :returns: 按模型名索引的 Token 使用统计字典。
         """
         return self._token_usage_stats.copy()
 
@@ -371,9 +364,8 @@ class AgentBase(ABC):
 
         由 skill 的 run() 函数调用，用于注册或更新自己的状态。
 
-        Args:
-            skill_name: skill 名称
-            state: 该 skill 的状态对象（可以是任意类型）
+        :param skill_name: skill 名称。
+        :param state: 该 skill 的状态对象（可以是任意类型）。
 
         Example:
             技能实现中（无论是 prompt-only 还是 subprocess），都可以通过 Agent 对象维护自己的状态::
@@ -387,33 +379,24 @@ class AgentBase(ABC):
     def get_skill_state(self, skill_name: str) -> Any:
         """获取某个 skill 的状态。
 
-        Args:
-            skill_name: skill 名称
-
-        Returns:
-            该 skill 的状态对象，如果不存在则返回 None
+        :param skill_name: skill 名称。
+        :returns: 该 skill 的状态对象，如果不存在则返回 ``None``。
         """
         return self._skill_states.get(skill_name)
 
     def has_skill_state(self, skill_name: str) -> bool:
         """检查某个 skill 是否有状态。
 
-        Args:
-            skill_name: skill 名称
-
-        Returns:
-            是否存在该 skill 的状态
+        :param skill_name: skill 名称。
+        :returns: 是否存在该 skill 的状态。
         """
         return skill_name in self._skill_states
 
     def clear_skill_state(self, skill_name: str) -> bool:
         """清除某个 skill 的状态。
 
-        Args:
-            skill_name: skill 名称
-
-        Returns:
-            是否成功清除（如果不存在则返回 False）
+        :param skill_name: skill 名称。
+        :returns: 是否成功清除（如果不存在则返回 ``False``）。
         """
         if skill_name in self._skill_states:
             del self._skill_states[skill_name]
@@ -423,8 +406,7 @@ class AgentBase(ABC):
     def get_all_skill_states(self) -> dict[str, Any]:
         """获取所有 skill 状态的副本。
 
-        Returns:
-            所有 skill 状态的字典副本
+        :returns: 所有 skill 状态的字典副本。
         """
         return self._skill_states.copy()
 
@@ -508,12 +490,9 @@ class AgentBase(ABC):
     ):
         """向 LLM 发送补全请求。
 
-        Args:
-            messages: 消息列表，包含角色和内容。
-            stream: 是否启用流式响应。默认 False。
-
-        Returns:
-            ModelResponse 或 CustomStreamWrapper，取决于 stream 参数。
+        :param messages: 消息列表，包含角色和内容。
+        :param stream: 是否启用流式响应。默认 ``False``。
+        :returns: ``ModelResponse`` 或 ``CustomStreamWrapper``，取决于 ``stream`` 参数。
         """
         assert (
             self._router is not None and self._model_name is not None
@@ -540,13 +519,10 @@ class AgentBase(ABC):
 
         自动在消息前添加系统提示，包含智能体身份、仿真时间上下文等信息。
 
-        Args:
-            messages: 消息列表，包含角色和内容。
-            tick: 当前仿真步的时间尺度（秒）。
-            t: 当前仿真时间。
-
-        Returns:
-            LLM 响应对象。
+        :param messages: 消息列表，包含角色和内容。
+        :param tick: 当前仿真步的时间尺度（秒）。
+        :param t: 当前仿真时间。
+        :returns: LLM 响应对象。
         """
         assert (
             self._router is not None and self._model_name is not None
@@ -575,12 +551,9 @@ class AgentBase(ABC):
         生成的提示词将预置到 LLM 消息中，使 LLM 理解自身作为 AgentSociety
         仿真环境中模拟真实人类行为的智能体角色。
 
-        Args:
-            tick: 当前仿真步的时间尺度（秒）。范围从 60 秒（1分钟）到约一个月。
-            t: 当前仿真步结束后的时间。
-
-        Returns:
-            完整的系统提示词字符串，包含时间上下文、仿真环境说明和行为指南。
+        :param tick: 当前仿真步的时间尺度（秒）。范围从 60 秒（1分钟）到约一个月。
+        :param t: 当前仿真步结束后的时间。
+        :returns: 完整的系统提示词字符串，包含时间上下文、仿真环境说明和行为指南。
         """
         # Format time scale description
         if tick < 3600:  # Less than 1 hour
@@ -648,15 +621,12 @@ Remember: You are simulating a real person living in a simulated world. Your beh
 
         封装了与仿真环境的交互，支持模板模式和上下文变量替换。
 
-        Args:
-            ctx: 上下文字典，可包含 'variables' 键用于模板模式。
-            message: 请求消息。在模板模式下作为模板指令处理。
-            readonly: 是否只读模式。
-            template_mode: 是否启用模板模式。启用时，message 中的
-                {variable_name} 变量将从 ctx['variables'] 中替换。
-
-        Returns:
-            元组 (ctx, answer): 更新后的上下文和环境响应。
+        :param ctx: 上下文字典，可包含 ``variables`` 键用于模板模式。
+        :param message: 请求消息。在模板模式下作为模板指令处理。
+        :param readonly: 是否只读模式。
+        :param template_mode: 是否启用模板模式。启用时，``message`` 中的
+            ``{variable_name}`` 变量将从 ``ctx['variables']`` 中替换。
+        :returns: 元组 ``(ctx, answer)``：更新后的上下文与环境响应。
         """
         assert self._env is not None, "Environment is not initialized"
         merged_ctx = {**ctx, **self.env_codegen_ctx_overlay()}
@@ -673,8 +643,7 @@ Remember: You are simulating a real person living in a simulated world. Your beh
 
         子类应在调用父类 init 后执行额外的初始化逻辑。
 
-        Args:
-            env: 环境路由器实例。
+        :param env: 环境路由器实例。
         """
         self._env = env
 
@@ -682,8 +651,7 @@ Remember: You are simulating a real person living in a simulated world. Your beh
     async def dump(self) -> dict:
         """序列化智能体状态为字典。
 
-        Returns:
-            可序列化的字典，包含智能体完整状态。
+        :returns: 可序列化的字典，包含智能体完整状态。
         """
         raise NotImplementedError
 
@@ -691,8 +659,7 @@ Remember: You are simulating a real person living in a simulated world. Your beh
     async def load(self, dump_data: dict):
         """从字典反序列化智能体状态。
 
-        Args:
-            dump_data: 包含智能体状态的字典。
+        :param dump_data: 包含智能体状态的字典。
         """
         raise NotImplementedError
 
@@ -700,12 +667,9 @@ Remember: You are simulating a real person living in a simulated world. Your beh
     async def ask(self, message: str, readonly: bool = True) -> str:
         """处理来自环境的问题。
 
-        Args:
-            message: 问题消息。
-            readonly: 是否只读模式。
-
-        Returns:
-            智能体的回答字符串。
+        :param message: 问题消息。
+        :param readonly: 是否只读模式。
+        :returns: 智能体的回答字符串。
         """
         raise NotImplementedError
 
@@ -713,12 +677,9 @@ Remember: You are simulating a real person living in a simulated world. Your beh
     async def step(self, tick: int, t: datetime) -> str:
         """执行一个仿真步。
 
-        Args:
-            tick: 当前仿真步的时间尺度（秒）。
-            t: 当前仿真时间。
-
-        Returns:
-            步执行结果的描述字符串。
+        :param tick: 当前仿真步的时间尺度（秒）。
+        :param t: 当前仿真时间。
+        :returns: 步执行结果的描述字符串。
         """
         raise NotImplementedError
 
@@ -732,8 +693,7 @@ Remember: You are simulating a real person living in a simulated world. Your beh
     def get_profile(self) -> Dict[str, Any]:
         """获取智能体画像。
 
-        Returns:
-            包含智能体画像数据的字典。子类可重写以返回结构化数据。
+        :returns: 包含智能体画像数据的字典。子类可重写以返回结构化数据。
         """
         if isinstance(self._profile, dict):
             return self._profile
@@ -768,28 +728,24 @@ Remember: You are simulating a real person living in a simulated world. Your beh
         如果验证失败，则立即把错误反馈给 LLM 并重试；如果遇到 429（速率限制）
         错误，则改为使用二进制指数退避。最终返回验证通过的模型实例。
 
-        Args:
-            model_type: 用于验证的 Pydantic 模型类型。
-            messages: 发送给 LLM 的消息列表。
-            tick: 当前仿真步的时间尺度（秒）。
-            t: 当前仿真时间。
-            max_retries: 最大重试次数（默认 10）。
-            base_delay: 429 错误发生时指数退避的基准延迟秒数（默认 1.0）。
-                仅用于 429 速率限制错误。其他错误立即重试。
-            max_delay: 指数退避的最大延迟秒数（默认 60.0）。
-            error_feedback_prompt: 可选的自定义错误反馈提示模板。
-                如为 None，将使用默认提示模板。模板应包含 {error_message} 占位符。
+        :param model_type: 用于验证的 Pydantic 模型类型。
+        :param messages: 发送给 LLM 的消息列表。
+        :param tick: 当前仿真步的时间尺度（秒）。
+        :param t: 当前仿真时间。
+        :param max_retries: 最大重试次数（默认 10）。
+        :param base_delay: 429 错误发生时指数退避的基准延迟秒数（默认 1.0）。
+            仅用于 429 速率限制错误。其他错误立即重试。
+        :param max_delay: 指数退避的最大延迟秒数（默认 60.0）。
+        :param error_feedback_prompt: 可选的自定义错误反馈提示模板。
+            如为 None，将使用默认提示模板。模板应包含 ``{error_message}`` 占位符。
 
-        Returns:
-            验证通过的 Pydantic 模型实例。
+        :returns: 验证通过的 Pydantic 模型实例。
+        :raises ValueError: 响应无法解析，或在所有重试后仍验证失败。
+        :raises AssertionError: LLM 未初始化。
 
-        Raises:
-            ValueError: 响应无法解析或验证所有重试后失败。
-            AssertionError: LLM 未初始化。
-
-        Note:
-            二进制指数退避仅在检测到 429（速率限制）错误时应用。
-            对于验证错误和其他非速率限制错误，函数立即重试以向 LLM 提供更快的反馈。
+        .. note::
+           二进制指数退避仅在检测到 429（速率限制）错误时应用。
+           对于验证错误和其他非速率限制错误，函数立即重试以向 LLM 提供更快的反馈。
         """
         assert (
             self._router is not None and self._model_name is not None

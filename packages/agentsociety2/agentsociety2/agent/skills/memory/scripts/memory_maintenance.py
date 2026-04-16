@@ -174,12 +174,9 @@ class MemoryMaintenance:
     ) -> dict[str, Any]:
         """Run memory maintenance: decay old memories, remove forgotten ones.
 
-        Args:
-            current_tick: Current simulation tick.
-            accessed_tags: Tags of memories that were recently accessed (for reinforcement).
-
-        Returns:
-            Statistics about the maintenance operation.
+        :param current_tick: Current simulation tick.
+        :param accessed_tags: Tags of memories that were recently accessed (for reinforcement).
+        :returns: Statistics about the maintenance operation.
         """
         memories = self.load_memories()
 

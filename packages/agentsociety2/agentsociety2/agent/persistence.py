@@ -186,10 +186,9 @@ class WriteAheadLog:
     在工具执行前记录意图，执行后记录结果。
     使用追加日志 + 内存索引，每次写入后 fsync 确保持久化。
 
-    Attributes:
-        path: 日志文件路径。
-        index_path: 索引文件路径。
-        max_entries: 最大保留条目数。
+    :ivar path: 日志文件路径。
+    :ivar index_path: 索引文件路径。
+    :ivar max_entries: 最大保留条目数。
     """
 
     def __init__(self, workspace: Path, max_entries: int = 1000):

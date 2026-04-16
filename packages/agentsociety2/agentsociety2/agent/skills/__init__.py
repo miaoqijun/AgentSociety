@@ -217,11 +217,8 @@ class SkillRegistry:
         Looks for skills in `<workspace_path>/custom/skills/`.
         Custom skills can override environment skills but not built-in skills.
 
-        Args:
-            workspace_path: Root path containing `custom/skills/` directory.
-
-        Returns:
-            List of skill names that were added.
+        :param workspace_path: Root path containing ``custom/skills/`` directory.
+        :returns: List of skill names that were added.
         """
         custom_root = Path(workspace_path) / "custom" / "skills"
         if not custom_root.is_dir():
@@ -247,15 +244,12 @@ class SkillRegistry:
         Environment skills can override other environment skills and custom skills,
         but not built-in skills.
 
-        Args:
-            skills_dir: Directory containing skill subdirectories with SKILL.md files.
-            env_name: Name of the environment module (for source tracking).
+        :param skills_dir: Directory containing skill subdirectories with ``SKILL.md`` files.
+        :param env_name: Name of the environment module (for source tracking).
+        :returns: List of skill names that were added.
 
-        Returns:
-            List of skill names that were added.
-
-        See Also:
-            EnvBase.get_agent_skills_dirs(): Method that provides skill directories.
+        .. seealso::
+           :meth:`agentsociety2.env.base.EnvBase.get_agent_skills_dirs`
         """
         if not skills_dir.is_dir():
             return []
@@ -319,8 +313,7 @@ class SkillRegistry:
     def validate_dependencies(self) -> dict[str, Any]:
         """Validate skill dependencies and detect cycles.
 
-        Returns:
-            Dict with 'valid' boolean, 'missing' list, and 'cycles' list.
+        :returns: Dict with ``valid`` boolean, ``missing`` list, and ``cycles`` list.
         """
         missing: list[tuple[str, str]] = []
         cycles: list[list[str]] = []
@@ -362,11 +355,8 @@ class SkillRegistry:
     def get_dependency_order(self, skill_names: list[str]) -> list[str]:
         """Return skills in dependency-resolved order.
 
-        Args:
-            skill_names: Skills to order.
-
-        Returns:
-            List with dependencies before dependents.
+        :param skill_names: Skills to order.
+        :returns: List with dependencies before dependents.
         """
         result: list[str] = []
         visited: set[str] = set()

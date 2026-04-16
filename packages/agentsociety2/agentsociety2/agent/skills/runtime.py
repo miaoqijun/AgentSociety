@@ -65,11 +65,10 @@ class AgentSkillRuntime:
 
     PersonAgent 仅通过组合使用该组件，避免把 skill/workspace 执行细节堆在 agent 主体里。
 
-    Attributes:
-        _agent_id: Agent ID。
-        _registry: Skill 注册表。
-        _agent_work_dir: Agent 工作目录。
-        _state_config: 状态文件配置（可选）。
+    :ivar _agent_id: Agent ID。
+    :ivar _registry: Skill 注册表。
+    :ivar _agent_work_dir: Agent 工作目录。
+    :ivar _state_config: 状态文件配置（可选）。
     """
 
     def __init__(

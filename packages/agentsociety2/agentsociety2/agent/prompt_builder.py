@@ -64,11 +64,10 @@ from typing import Any, Optional
 class PromptSection:
     """Prompt片段。
 
-    Attributes:
-        title: 片段标题。
-        content: 片段内容。
-        priority: 优先级（越高越靠前）。
-        is_static: 是否为静态段（可缓存）。
+    :ivar title: 片段标题。
+    :ivar content: 片段内容。
+    :ivar priority: 优先级（越高越靠前）。
+    :ivar is_static: 是否为静态段（可缓存）。
     """
 
     title: str
@@ -98,10 +97,9 @@ class PromptBuilder:
     提供链式API构建系统提示词，各部分按优先级排序。
     支持静态段/动态段分离，优化 Token 缓存。
 
-    Attributes:
-        _sections: Prompt片段列表。
-        _static_cache: 静态段缓存。
-        _static_cache_key: 缓存键（用于判断是否需要重建）。
+    :ivar _sections: Prompt 片段列表。
+    :ivar _static_cache: 静态段缓存。
+    :ivar _static_cache_key: 缓存键（用于判断是否需要重建）。
 
     Example:
 
@@ -395,10 +393,9 @@ class PromptCacheManager:
 
     管理 Agent 的 Prompt 缓存生命周期，追踪缓存命中率和 Token 节省。
 
-    Attributes:
-        cache_hits: 缓存命中次数。
-        cache_misses: 缓存未命中次数。
-        tokens_saved: 节省的 Token 数（估算）。
+    :ivar cache_hits: 缓存命中次数。
+    :ivar cache_misses: 缓存未命中次数。
+    :ivar tokens_saved: 节省的 Token 数（估算）。
 
     Example:
 
