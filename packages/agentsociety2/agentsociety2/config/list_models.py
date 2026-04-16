@@ -20,36 +20,29 @@ def get_available_models(
 
     Args:
         api_base: OpenAI 兼容 API 基础 URL，通常以 /v1 结尾
-        api_key: API 密钥，若未提供则从环境变量读取（需要调用者提前加载 .env 文件）
+        api_key: API 密钥；未提供则读 ``AGENTSOCIETY_LLM_API_KEY``（需由调用方加载 .env）
         timeout: 请求超时时间（秒）
 
     Returns:
-        List[Dict[str, str]]: 模型列表，格式如下：
+        List[Dict[str, str]]: 模型列表，格式如下（``id`` 以服务商返回为准）：
         [
-            {"id": "qwen2.5-72b-instruct"},
-            {"id": "deepseek-r1"}
+            {"id": "gpt-5.4"},
+            {"id": "gpt-5.4-nano"}
         ]
 
     Raises:
         ValueError: 当缺少必要的 API key 时
         RuntimeError: 当网络请求失败或响应格式异常时
     """
-    base = (
-        api_base
-        or os.getenv("AGENTSOCIETY_LLM_API_BASE", "").strip()
-        or os.getenv("API_BASE", "").strip()
-        or "https://llmapi.fiblab.net"
+    # 与 Config.LLM_* 一致：入参 > AGENTSOCIETY_* > 与 config 相同的默认 base
+    base = (api_base or os.getenv("AGENTSOCIETY_LLM_API_BASE", "").strip()) or (
+        "https://api.openai.com/v1"
     )
-    key = (
-        api_key
-        or os.getenv("AGENTSOCIETY_LLM_API_KEY", "").strip()
-        or os.getenv("API_KEY", "").strip()
-    )
+    key = (api_key or os.getenv("AGENTSOCIETY_LLM_API_KEY", "").strip()) or ""
 
     if not key:
         raise ValueError(
-            "缺少 API key，请通过入参或环境变量 "
-            "AGENTSOCIETY_LLM_API_KEY / API_KEY 提供"
+            "缺少 API key，请通过入参或环境变量 AGENTSOCIETY_LLM_API_KEY 提供"
         )
 
     base = base.rstrip("/")
@@ -57,8 +50,6 @@ def get_available_models(
         url = base
     elif base.endswith("/v1") or base.endswith("/maas/v1"):
         url = f"{base}/models"
-    elif base == "https://llmapi.fiblab.net":
-        url = f"{base}/v1/models"
     else:
         url = f"{base}/models"
     headers = {

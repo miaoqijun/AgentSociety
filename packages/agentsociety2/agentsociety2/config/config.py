@@ -127,25 +127,25 @@ class Config:
     """
 
     LLM_API_BASE: str = os.getenv(
-        "AGENTSOCIETY_LLM_API_BASE", "https://llmapi.fiblab.net"
+        "AGENTSOCIETY_LLM_API_BASE", "https://api.openai.com/v1"
     )
     """
     Base URL endpoint for the default LLM API service.
 
     Environment variable: AGENTSOCIETY_LLM_API_BASE
-    Default: "https://llmapi.fiblab.net"
+    Default: "https://api.openai.com/v1"
 
     This should point to the API endpoint that supports OpenAI-compatible API calls.
     The URL should include the protocol (https://) and the base path, but not the
     specific model endpoint (e.g., /chat/completions).
     """
 
-    LLM_MODEL: str = os.getenv("AGENTSOCIETY_LLM_MODEL", "qwen3-next-80b-a3b-instruct")
+    LLM_MODEL: str = os.getenv("AGENTSOCIETY_LLM_MODEL", "gpt-5.4")
     """
     Model identifier for the default LLM used in general operations.
 
     Environment variable: AGENTSOCIETY_LLM_MODEL
-    Default: "qwen3-next-80b-a3b-instruct"
+    Default: "gpt-5.4"
 
     This model is used for most language understanding and generation tasks that don't
     require specialized models. The model name should match what your API provider expects.
@@ -224,12 +224,12 @@ class Config:
     response times.
     """
 
-    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or LLM_MODEL
+    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or "gpt-5.4-nano"
     """
     Model identifier for high-frequency, low-latency operations.
 
     Environment variable: AGENTSOCIETY_NANO_LLM_MODEL
-    Default: Falls back to LLM_MODEL if not set
+    Default: "gpt-5.4-nano"
 
     This model is used for operations that require fast responses, such as memory
     retrieval, quick reasoning, and other tasks where latency is critical. Typically,
@@ -310,12 +310,14 @@ class Config:
     or different pricing models for embedding tasks.
     """
 
-    EMBEDDING_MODEL: str = os.getenv("AGENTSOCIETY_EMBEDDING_MODEL", "bge-m3")
+    EMBEDDING_MODEL: str = os.getenv(
+        "AGENTSOCIETY_EMBEDDING_MODEL", "text-embedding-3-large"
+    )
     """
     Model identifier for text embedding generation.
 
     Environment variable: AGENTSOCIETY_EMBEDDING_MODEL
-    Default: "bge-m3"
+    Default: "text-embedding-3-large"
 
     This model is used to convert text into dense vector representations (embeddings).
     The embeddings are used for semantic search, similarity matching, and storing
