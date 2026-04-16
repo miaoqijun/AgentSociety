@@ -1,6 +1,6 @@
 # Intake
 
-Collect requirements before generating code.
+Collect requirements before generating code. You can finish `design.md` in the same turn; splitting into two passes is optional.
 
 ## Required Information
 

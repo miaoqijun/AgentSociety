@@ -11,14 +11,14 @@ Verify the generated Agent meets all requirements.
 
 ## Recommended Methods
 
-- [ ] `@classmethod def mcp_description(cls) -> str`
+- [ ] Override `@classmethod def mcp_description(cls) -> str` (base class has a generic default; override for profile/schema docs in the module picker)
 - [ ] `async def init(self, env: RouterBase) -> None`
 
 ## Inheritance
 
-- [ ] Class inherits from `AgentBase`
+- [ ] Class inherits from `AgentBase` or `PersonAgent` (latter fits tools/skills/heavier workspace agents). Runtime registration accepts **any** `AgentBase` subclass in the file; this skill’s `validate.py` only recognizes **direct** bases named `AgentBase` or `PersonAgent` in the AST.
 - [ ] Class is not abstract
-- [ ] `super().__init__()` is called in `__init__`
+- [ ] `super().__init__(...)` matches the **immediate** base: `AgentBase` uses `(id, profile, name=None)`; `PersonAgent` adds `init_state` and `**capability_kwargs` (see `agentsociety2.agent.person.PersonAgent`)
 
 ## Code Quality
 
@@ -26,10 +26,11 @@ Verify the generated Agent meets all requirements.
 - [ ] `dump()` returns JSON-serializable dict
 - [ ] `load()` restores all state from dump
 - [ ] Profile accessed via `.get(key, default)`
-- [ ] Environment calls wrapped in try/except
+- [ ] Clear policy for `ask_env` / env failures (retry, default, or re-raise)—avoid silent swallowing
 
 ## Registration
 
-- [ ] File is in `custom/agents/` (not `examples/`)
+- [ ] File lives under workspace `custom/agents/` (not under an `examples/` path if you want it scanned)
+- [ ] The agent **class is defined in that file** (`cls.__module__` must match the loaded file); importing a ready-made class from another module without re-declaring it here will not register
 - [ ] File name matches class concept
-- [ ] `mcp_description()` documents profile fields
+- [ ] Overridden `mcp_description()` documents profile fields when behavior is non-trivial

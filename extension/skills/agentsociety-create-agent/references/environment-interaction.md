@@ -85,14 +85,14 @@ ctx, response = await self.ask_env(
 
 ## Error Handling
 
-Always wrap environment calls:
+When `ask_env` fails, behavior should be **predictable**: log, degrade to a default, or **re-raise** for upper layers—avoid bare `except` that hides everything. If you catch exceptions, keep the scope narrow (e.g. timeout or specific types only).
 
 ```python
 try:
     _, result = await self.ask_env({}, "Query", readonly=True)
-except Exception as e:
-    self.logger.warning(f"Environment error: {e}")
-    result = "Unknown"
+except TimeoutError:
+    self.logger.warning("env query timed out")
+    result = ""
 ```
 
 ## Readonly vs Read-Write

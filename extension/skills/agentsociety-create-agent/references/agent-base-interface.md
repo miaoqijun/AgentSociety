@@ -55,6 +55,8 @@ decision = await self.acompletion_with_pydantic_validation(
 
 ## Environment Interaction
 
+Minimal examples below; templates, context overlay, and error handling live in **`environment-interaction.md`** (single place to maintain).
+
 ```python
 # Query (readonly)
 ctx, response = await self.ask_env(

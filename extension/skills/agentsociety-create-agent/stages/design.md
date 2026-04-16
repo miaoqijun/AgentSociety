@@ -6,8 +6,8 @@ Make key architectural decisions.
 
 ### 1. Base Class
 
-- [ ] `AgentBase` - Simple behaviors, recommended for most cases
-- [ ] `PersonAgent` - Complex behaviors with skill discovery
+- [ ] `AgentBase` — simple behavior, you own state, no built-in skill loop
+- [ ] `PersonAgent` — skills / tool loop / built-in workspace and persistence
 
 ### 2. Workspace
 

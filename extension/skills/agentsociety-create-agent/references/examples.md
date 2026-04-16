@@ -1,10 +1,10 @@
 # Agent Examples
 
-Reference implementations in the codebase.
+Reference implementations in this repo (paths relative to the **agentsociety repo root**; Python imports remain `agentsociety2....`).
 
 ## SimpleAgent
 
-`agentsociety2/custom/agents/examples/simple_agent.py`
+`packages/agentsociety2/agentsociety2/custom/agents/examples/simple_agent.py`
 
 - Basic `ask()` with profile prompts
 - Simple `step()` with environment observation
@@ -14,7 +14,7 @@ Reference implementations in the codebase.
 
 ## AdvancedAgent
 
-`agentsociety2/custom/agents/examples/advanced_agent.py`
+`packages/agentsociety2/agentsociety2/custom/agents/examples/advanced_agent.py`
 
 - Memory system (`_memories` list)
 - Mood tracking (`_mood` state)
@@ -24,7 +24,7 @@ Reference implementations in the codebase.
 
 ## PublicGoodsAgent
 
-`agentsociety2/contrib/agent/public_goods_agent.py`
+`packages/agentsociety2/agentsociety2/contrib/agent/public_goods_agent.py`
 
 - Complex `ask_env()` with template mode
 - History tracking

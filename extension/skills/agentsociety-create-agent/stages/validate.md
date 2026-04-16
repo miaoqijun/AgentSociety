@@ -1,34 +1,31 @@
 # Validate
 
-Run validation and fix issues.
+## Script (automated checks)
 
-## Validation Script
+Replace the path with your workspace:
 
 ```bash
-python scripts/validate.py --file custom/agents/my_agent.py
+python scripts/validate.py --file /path/to/workspace/custom/agents/my_agent.py
+python scripts/validate.py --file ... --json
 ```
 
-## Validation Checks
+## Manual checklist
 
-- [ ] Inherits from `AgentBase`
-- [ ] Implements `ask()` (async)
-- [ ] Implements `step()` (async)
-- [ ] Implements `dump()` (async)
-- [ ] Implements `load()` (async)
-- [ ] Has `mcp_description()` method
-- [ ] Can be imported without errors
+Before merge/release, walk through **`checklists/compatibility.md`** (signatures, inheritance, `mcp_description`, paths)—not duplicated here.
 
-## After Validation
+## After it passes
 
-1. Fix any errors reported
-2. Run VSCode command "Scan Custom Modules"
-3. Run VSCode command "Test Custom Modules"
+1. Fix anything reported by the script or checklist  
+2. **Scan Custom Modules**  
+3. Run **Test Custom Modules** if you need runtime smoke tests  
 
-## Common Issues
+## Common issues
 
-| Issue | Fix |
-|-------|-----|
-| Missing method | Implement the method |
-| Not async | Add `async` keyword |
-| No mcp_description | Add `@classmethod def mcp_description(cls)` |
-| Import error | Check imports and PYTHON_PATH |
+| Symptom | What to do |
+|---------|------------|
+| No agent class found | Direct base name must be `AgentBase` or `PersonAgent` in AST; if you use an alias, ensure the module imports and MRO still includes `AgentBase`. If the class only subclasses an intermediate base, refactor so `AgentBase`/`PersonAgent` appears in the direct bases **or** rely on Scan-only checks and fix runtime issues manually |
+| Missing `async` | All four required methods must be `async def` (the VS Code scanner does not check this) |
+| Abstract class | Implement every abstract method from `AgentBase` |
+| Import errors | Dependencies, `PYTHONPATH`, circular imports |
+| Generic module blurb | Override `@classmethod def mcp_description(cls) -> str`; `AgentBase` already provides a fallback description |
+| Scan passes but agent breaks at runtime | Scanner only checks attribute names exist; run this script plus instantiating the class in a small test |

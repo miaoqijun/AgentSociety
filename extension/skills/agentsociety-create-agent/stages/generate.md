@@ -4,7 +4,7 @@ Write the Agent code.
 
 ## Output Location
 
-`custom/agents/<agent_name>.py`
+`custom/agents/<agent_name>.py` (or a nested path such as `custom/agents/<package>/<agent_name>.py`). Avoid `examples/` if the file should be picked up by **Scan Custom Modules**.
 
 ## Generation Steps
 
@@ -25,6 +25,6 @@ Write the Agent code.
 ## Code Quality
 
 - Use async for all required methods
-- Handle errors with try/except
+- Env or LLM failures should be handled predictably (do not blanket-swallow exceptions)
 - Use `.get(key, default)` for profile access
 - Keep dump/load symmetric

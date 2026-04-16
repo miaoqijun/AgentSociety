@@ -23,6 +23,27 @@ from typing import Any
 REQUIRED_METHODS = ["ask", "step", "dump", "load"]
 OPTIONAL_METHODS = ["init", "mcp_description", "get_system_prompt", "get_profile"]
 
+# Subclass either one directly (PersonAgent subclasses AgentBase)
+ALLOWED_DIRECT_BASES = frozenset({"AgentBase", "PersonAgent"})
+
+
+def _base_names_from_expr(expr: ast.expr) -> set[str]:
+    names: set[str] = set()
+    if isinstance(expr, ast.Name):
+        names.add(expr.id)
+    elif isinstance(expr, ast.Attribute):
+        names.add(expr.attr)
+    elif isinstance(expr, ast.Subscript):
+        names |= _base_names_from_expr(expr.value)
+    return names
+
+
+def _class_direct_agent_bases(class_def: ast.ClassDef) -> set[str]:
+    out: set[str] = set()
+    for base in class_def.bases:
+        out |= _base_names_from_expr(base)
+    return out & ALLOWED_DIRECT_BASES
+
 
 def validate_file(file_path: Path) -> dict[str, Any]:
     """Validate an Agent Python file.
@@ -71,23 +92,19 @@ def validate_file(file_path: Path) -> dict[str, Any]:
         result["errors"].append(f"Syntax error: {e}")
         return result
 
-    # Find classes
+    # Find classes that directly extend AgentBase or PersonAgent
     agent_classes = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef):
-            # Check if inherits from AgentBase
-            for base in node.bases:
-                base_name = ""
-                if isinstance(base, ast.Name):
-                    base_name = base.id
-                elif isinstance(base, ast.Attribute):
-                    base_name = base.attr
-                if base_name == "AgentBase":
-                    agent_classes.append(node)
+        if isinstance(node, ast.ClassDef) and _class_direct_agent_bases(node):
+            agent_classes.append(node)
 
     if not agent_classes:
         result["valid"] = False
-        result["errors"].append("No class inheriting from AgentBase found")
+        result["errors"].append(
+            "No class inheriting from AgentBase or PersonAgent found "
+            "(AST only recognizes direct bases named AgentBase or PersonAgent; "
+            "if you use an alias, ensure the module imports and MRO still includes AgentBase)"
+        )
         return result
 
     if len(agent_classes) > 1:
@@ -117,6 +134,7 @@ def validate_file(file_path: Path) -> dict[str, Any]:
             # Check if async
             method_node = methods[method]
             if not isinstance(method_node, ast.AsyncFunctionDef):
+                result["valid"] = False
                 result["errors"].append(f"Method '{method}' should be async")
 
     # Check mcp_description
