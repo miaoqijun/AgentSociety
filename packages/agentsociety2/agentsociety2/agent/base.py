@@ -88,6 +88,7 @@ def _is_rate_limit_like_error(error: Exception) -> bool:
         or "try again in" in err_text
     )
 
+
 __all__ = [
     "AgentBase",
     "LLMInteractionHistory",
@@ -616,7 +617,9 @@ You interact with the world built by multiple environment modules through an env
 
 Remember: You are simulating a real person living in a simulated world. Your behavior should be natural, time-appropriate, and consistent with human psychology and social norms."""
 
-    async def ask_env(self, ctx: dict, message: str, readonly: bool, template_mode: bool = False):
+    async def ask_env(
+        self, ctx: dict, message: str, readonly: bool, template_mode: bool = False
+    ):
         """向环境路由器发送请求。
 
         封装了与仿真环境的交互，支持模板模式和上下文变量替换。

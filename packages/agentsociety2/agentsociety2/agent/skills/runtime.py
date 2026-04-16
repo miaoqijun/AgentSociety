@@ -57,6 +57,7 @@ import json_repair
 
 from agentsociety2.agent.skills import SkillRegistry
 from agentsociety2.agent.tool import jr_dumps
+
 logger = logging.getLogger(__name__)
 
 

@@ -40,7 +40,7 @@ PromptBuilder采用链式API，各部分可独立配置：
 基本使用::
 
     from agentsociety2.agent.prompt_builder import PromptBuilder
-    
+
     builder = PromptBuilder()
     builder.add_identity(1, "Alice", profile)
     builder.add_tool_protocol()
@@ -115,7 +115,9 @@ class PromptBuilder:
         self._static_cache: Optional[str] = None
         self._static_cache_key: Optional[str] = None
 
-    def add_section(self, title: str, content: str, priority: int = 0, is_static: bool = False) -> "PromptBuilder":
+    def add_section(
+        self, title: str, content: str, priority: int = 0, is_static: bool = False
+    ) -> "PromptBuilder":
         """添加Prompt片段。
 
         :param title: 片段标题。
@@ -136,8 +138,12 @@ class PromptBuilder:
         :return: 基于静态段内容的哈希键。
         """
         import hashlib
+
         static_sections = [s for s in self._sections if s.is_static]
-        content = "|".join(f"{s.title}:{s.content}" for s in sorted(static_sections, key=lambda x: -x.priority))
+        content = "|".join(
+            f"{s.title}:{s.content}"
+            for s in sorted(static_sections, key=lambda x: -x.priority)
+        )
         return hashlib.md5(content.encode()).hexdigest()[:16]
 
     def add_identity(self, agent_id: int, name: str, profile: Any) -> "PromptBuilder":
@@ -149,9 +155,12 @@ class PromptBuilder:
         :return: self。
         """
         import json
+
         identity = {"id": agent_id, "name": name, "profile": profile}
         content = json.dumps(identity, ensure_ascii=False, indent=2)
-        return self.add_section("Agent Identity", content, priority=100, is_static=False)
+        return self.add_section(
+            "Agent Identity", content, priority=100, is_static=False
+        )
 
     def add_world_description(self, description: str) -> "PromptBuilder":
         """添加世界描述（静态段，通常不变）。
@@ -162,7 +171,9 @@ class PromptBuilder:
         if not description:
             return self
         content = f"Environment-specific modules, tools, and conventions:\n\n{description.strip()}"
-        return self.add_section("World Description", content, priority=95, is_static=True)
+        return self.add_section(
+            "World Description", content, priority=95, is_static=True
+        )
 
     def add_workspace_structure(self, structure: str) -> "PromptBuilder":
         """添加工作区结构说明（静态段）。
@@ -172,9 +183,13 @@ class PromptBuilder:
         """
         if not structure:
             return self
-        return self.add_section("Workspace Structure", structure, priority=92, is_static=True)
+        return self.add_section(
+            "Workspace Structure", structure, priority=92, is_static=True
+        )
 
-    def add_context(self, context: dict[str, Any], max_chars: int = 2000) -> "PromptBuilder":
+    def add_context(
+        self, context: dict[str, Any], max_chars: int = 2000
+    ) -> "PromptBuilder":
         """添加Agent上下文（动态段）。
 
         :param context: 上下文字典。
@@ -197,7 +212,9 @@ class PromptBuilder:
         if content:
             lines.append(f"\n## Notes\n{content[:max_chars]}")
 
-        return self.add_section("Agent Context", "\n".join(lines), priority=80, is_static=False)
+        return self.add_section(
+            "Agent Context", "\n".join(lines), priority=80, is_static=False
+        )
 
     def add_workspace_summary(self, summary: str) -> "PromptBuilder":
         """添加工作区摘要（动态段）。
@@ -207,7 +224,9 @@ class PromptBuilder:
         """
         if not summary:
             return self
-        return self.add_section("Workspace Summary", summary, priority=75, is_static=False)
+        return self.add_section(
+            "Workspace Summary", summary, priority=75, is_static=False
+        )
 
     def add_recovery_context(self, context: str) -> "PromptBuilder":
         """添加会话恢复上下文（动态段）。
@@ -217,7 +236,9 @@ class PromptBuilder:
         """
         if not context:
             return self
-        return self.add_section("Session Recovery", context, priority=70, is_static=False)
+        return self.add_section(
+            "Session Recovery", context, priority=70, is_static=False
+        )
 
     def add_state_snapshot(self, state: dict[str, Any]) -> "PromptBuilder":
         """添加预加载状态快照（动态段）。
@@ -228,11 +249,14 @@ class PromptBuilder:
         if not state:
             return self
         import json
+
         content = (
             "Snapshot of workspace files. May be stale after writes.\n"
             f"```json\n{json.dumps(state, ensure_ascii=False, indent=1)}\n```"
         )
-        return self.add_section("Workspace State", content, priority=60, is_static=False)
+        return self.add_section(
+            "Workspace State", content, priority=60, is_static=False
+        )
 
     def add_tool_protocol(self) -> "PromptBuilder":
         """添加工具协议说明（静态段，可缓存）。
@@ -275,7 +299,13 @@ Use `activate_skill` to load full SKILL.md, then follow it.
         if not catalog:
             return self
         import json
-        return self.add_section("Skill Catalog", json.dumps(catalog, ensure_ascii=False, indent=1), priority=45, is_static=True)
+
+        return self.add_section(
+            "Skill Catalog",
+            json.dumps(catalog, ensure_ascii=False, indent=1),
+            priority=45,
+            is_static=True,
+        )
 
     def add_activated_skills(self, skills: set[str]) -> "PromptBuilder":
         """添加已激活技能列表（动态段）。
@@ -286,7 +316,13 @@ Use `activate_skill` to load full SKILL.md, then follow it.
         if not skills:
             return self
         import json
-        return self.add_section("Activated Skills", json.dumps(sorted(skills), ensure_ascii=False), priority=40, is_static=False)
+
+        return self.add_section(
+            "Activated Skills",
+            json.dumps(sorted(skills), ensure_ascii=False),
+            priority=40,
+            is_static=False,
+        )
 
     def add_constraints(self, constraints: Optional[str]) -> "PromptBuilder":
         """添加环境约束（动态段）。
@@ -296,7 +332,9 @@ Use `activate_skill` to load full SKILL.md, then follow it.
         """
         if not constraints:
             return self
-        return self.add_section("Constraints", constraints, priority=30, is_static=False)
+        return self.add_section(
+            "Constraints", constraints, priority=30, is_static=False
+        )
 
     def build(self, base: str = "") -> str:
         """构建完整Prompt。
@@ -332,7 +370,7 @@ Use `activate_skill` to load full SKILL.md, then follow it.
             rendered = section.render()
             if rendered:
                 parts.append(rendered)
-        
+
         self._static_cache = "\n".join(parts)
         self._static_cache_key = cache_key
         return self._static_cache
@@ -412,7 +450,9 @@ class PromptCacheManager:
         self.cache_misses: int = 0
         self.tokens_saved: int = 0
 
-    def get_or_build_static(self, builder: PromptBuilder, base: str = "") -> tuple[str, bool]:
+    def get_or_build_static(
+        self, builder: PromptBuilder, base: str = ""
+    ) -> tuple[str, bool]:
         """获取或构建静态段。
 
         :param builder: PromptBuilder 实例。
@@ -420,13 +460,13 @@ class PromptCacheManager:
         :return: (静态段文本, 是否命中缓存) 元组。
         """
         new_key = builder._compute_static_cache_key()
-        
+
         if self._cached_static is not None and self._cache_key == new_key:
             self.cache_hits += 1
             # 估算节省的 Token（粗略：字符数 / 4）
             self.tokens_saved += len(self._cached_static) // 4
             return self._cached_static, True
-        
+
         # 缓存未命中，构建并缓存
         self.cache_misses += 1
         static_prompt = builder.build_static(base)
@@ -466,7 +506,11 @@ class ToolTableBuilder:
 
     TOOLS = (
         ("activate_skill", "skill_name, arguments", "Load skill instructions"),
-        ("read_skill", "skill_name, path, offset?, limit?", "Read skill file (paginated)"),
+        (
+            "read_skill",
+            "skill_name, path, offset?, limit?",
+            "Read skill file (paginated)",
+        ),
         ("execute_skill", "skill_name, args", "Run skill subprocess"),
         ("bash", "command, timeout_sec", "Shell command in workspace"),
         ("codegen", "instruction, ctx", "Send instruction to environment"),
