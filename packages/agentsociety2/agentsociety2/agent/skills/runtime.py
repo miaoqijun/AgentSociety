@@ -53,10 +53,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
-import json_repair
-
 from agentsociety2.agent.skills import SkillRegistry
-from agentsociety2.agent.tool import jr_dumps
+from agentsociety2.agent.tool import jr_dumps, jr_parse
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +306,7 @@ class AgentSkillRuntime:
         raw = self.workspace_read(relative_path)
         if not raw:
             return default
-        return json_repair.loads(raw)
+        return jr_parse(raw)
 
     def read_recent_tool_logs(self, limit: int = 20) -> list[dict[str, Any]]:
         """读取最近 N 条工具调用日志。"""
@@ -327,7 +325,7 @@ class AgentSkillRuntime:
         else:
             with path.open("r", encoding="utf-8") as f:
                 source = [line for line in f if line.strip()]
-        return [json_repair.loads(line) for line in source]
+        return [jr_parse(line) for line in source]
 
     def append_thread_message(
         self,
@@ -379,7 +377,7 @@ class AgentSkillRuntime:
         for line in recent:
             if not line.strip():
                 continue
-            obj = json_repair.loads(line)
+            obj = jr_parse(line)
             role = str(obj.get("role", "")).strip()
             content = str(obj.get("content", ""))
             if role in {"user", "assistant"} and content:
@@ -649,7 +647,7 @@ class AgentSkillRuntime:
                     if path.exists():
                         processed.add(filename)
                         try:
-                            data = json_repair.loads(path.read_text())
+                            data = jr_parse(path.read_text())
                             value = data.get(summary_field, "")
                             if value:
                                 display_name = state_name.replace("_", " ").title()
@@ -661,7 +659,7 @@ class AgentSkillRuntime:
                 for state_file in state_files:
                     if state_file.name not in processed:
                         try:
-                            data = json_repair.loads(state_file.read_text())
+                            data = jr_parse(state_file.read_text())
                             # 找第一个字符串值作为摘要
                             for v in data.values():
                                 if isinstance(v, str) and v:
@@ -734,7 +732,7 @@ class AgentSkillRuntime:
             for line in f:
                 if line.strip():
                     try:
-                        events.append(json_repair.loads(line))
+                        events.append(jr_parse(line))
                     except Exception:
                         pass
 

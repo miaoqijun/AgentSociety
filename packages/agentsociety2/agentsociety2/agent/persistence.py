@@ -50,24 +50,20 @@ from __future__ import annotations
 
 import gzip
 import hashlib
-import json
 import os
 import shutil
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
-import json_repair
-
 from .config import AgentConfig
-from .tool.utils import json_dumps as _json_dumps
+from .tool.utils import jr_dumps as _jr_dumps, jr_parse
 
 
 def _compute_checksum(data: dict[str, Any]) -> str:
     """计算数据的校验和。"""
-    content = _json_dumps(data, indent=None)
+    content = _jr_dumps(data, indent=None)
     return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
 
@@ -129,7 +125,7 @@ class Checkpoint:
         temp_path = self._temp_path(tick)
         final_path = self._path(tick)
 
-        temp_path.write_text(_json_dumps(data), encoding="utf-8")
+        temp_path.write_text(_jr_dumps(data), encoding="utf-8")
         _fsync_path(temp_path)
         temp_path.replace(final_path)
         _fsync_path(self.dir)
@@ -148,7 +144,7 @@ class Checkpoint:
             return None
 
         try:
-            data = json_repair.loads(path.read_text(encoding="utf-8"))
+            data = jr_parse(path.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
                 return None
 
@@ -210,7 +206,7 @@ class WriteAheadLog:
         if not self.index_path.exists():
             return {}
         try:
-            data = json_repair.loads(self.index_path.read_text(encoding="utf-8"))
+            data = jr_parse(self.index_path.read_text(encoding="utf-8"))
             if isinstance(data, dict):
                 return {k: int(v) for k, v in data.items() if isinstance(v, (int, str))}
         except Exception:
@@ -232,7 +228,7 @@ class WriteAheadLog:
                     if not line:
                         continue
                     try:
-                        data = json_repair.loads(line)
+                        data = jr_parse(line)
                         intent_id = data.get("intent_id")
                         status = data.get("status")
 
@@ -258,7 +254,7 @@ class WriteAheadLog:
     def _save_index(self) -> None:
         """保存索引到磁盘。"""
         self.index_path.write_text(
-            _json_dumps(self._index, indent=None), encoding="utf-8"
+            _jr_dumps(self._index, indent=None), encoding="utf-8"
         )
         _fsync_path(self.index_path)
 
@@ -281,7 +277,7 @@ class WriteAheadLog:
             "status": IntentStatus.PENDING.value,
         }
 
-        entry = _json_dumps(intent) + "\n"
+        entry = _jr_dumps(intent) + "\n"
         offset = self.path.stat().st_size if self.path.exists() else 0
 
         with open(self.path, "a", encoding="utf-8") as f:
@@ -314,7 +310,7 @@ class WriteAheadLog:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
-        entry = _json_dumps(result_entry) + "\n"
+        entry = _jr_dumps(result_entry) + "\n"
         with open(self.path, "a", encoding="utf-8") as f:
             f.write(entry)
             f.flush()
@@ -349,7 +345,7 @@ class WriteAheadLog:
             kept_lines = []
             for line in reversed(lines[-self.max_entries * 2 :]):
                 try:
-                    data = json_repair.loads(line)
+                    data = jr_parse(line)
                     intent_id = data.get("intent_id")
                     if (
                         intent_id in pending_intent_ids
@@ -367,7 +363,7 @@ class WriteAheadLog:
             offset = 0
             for line in kept_lines:
                 try:
-                    data = json_repair.loads(line)
+                    data = jr_parse(line)
                     intent_id = data.get("intent_id")
                     if intent_id:
                         self._index[intent_id] = offset
@@ -395,7 +391,7 @@ class WriteAheadLog:
                     if not line:
                         continue
                     try:
-                        data = json_repair.loads(line)
+                        data = jr_parse(line)
                         intent_id = data.get("intent_id")
                         if intent_id in pending_intent_ids:
                             lines_to_keep.append(line)
@@ -413,7 +409,7 @@ class WriteAheadLog:
                 offset = 0
                 for line in lines_to_keep:
                     try:
-                        data = json_repair.loads(line)
+                        data = jr_parse(line)
                         intent_id = data.get("intent_id")
                         if intent_id:
                             self._index[intent_id] = offset
@@ -560,7 +556,7 @@ class SessionRecovery:
 
         for path in sorted(state_dir.glob("*.json")):
             try:
-                data = json_repair.loads(path.read_text())
+                data = jr_parse(path.read_text())
                 key = path.stem
                 for v in data.values():
                     if isinstance(v, str) and v:

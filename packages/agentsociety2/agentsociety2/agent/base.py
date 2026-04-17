@@ -43,8 +43,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional, Type, TypeVar, overload
 
-import json_repair
-from agentsociety2.config import extract_json
+from agentsociety2.agent.tool.utils import jr_parse_from_llm
 from agentsociety2.env.router_base import RouterBase, TokenUsageStats
 from agentsociety2.logger import get_logger
 from agentsociety2.config import get_llm_router_and_model
@@ -56,18 +55,6 @@ from litellm.types.router import RouterRateLimitError
 from pydantic import BaseModel, ValidationError
 
 T = TypeVar("T", bound=BaseModel)
-
-
-def _llm_content_to_parsed_json(content: str) -> Any:
-    """从 LLM 正文中取出 JSON 片段并用 json_repair 解析为 Python 对象。"""
-    json_str = extract_json(content)
-    if json_str is None:
-        s = content.strip()
-        if s.startswith(("{", "[")):
-            json_str = s
-    if json_str is None or not str(json_str).strip():
-        raise ValueError("Failed to extract JSON from LLM response")
-    return json_repair.loads(json_str)
 
 
 def _is_rate_limit_like_error(error: Exception) -> bool:
@@ -808,7 +795,7 @@ Your corrected response:
                     raise ValueError("LLM returned empty content")
                 conversation_messages.append({"role": "assistant", "content": content})
 
-                parsed_data = _llm_content_to_parsed_json(content)
+                parsed_data = jr_parse_from_llm(content)
 
                 # Validate against Pydantic model
                 try:

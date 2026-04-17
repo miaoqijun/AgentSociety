@@ -10,13 +10,10 @@ JSON 容错策略：
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import Mapping
 from typing import Any
 
 import json_repair
-
-# BLOCKED_TOKENS 已移至 agentsociety2.agent.tool.security
 
 
 def truncate(text: str, max_len: int) -> str:
@@ -74,7 +71,7 @@ def _serialize_for_json(obj: Any) -> Any:
     return str(obj)
 
 
-def json_dumps(obj: Any, indent: int | None = 2) -> str:
+def jr_dumps(obj: Any, indent: int | None = 2) -> str:
     """JSON 序列化（带容错处理）。
 
     自动处理不可序列化类型，确保输出有效 JSON。
@@ -82,24 +79,12 @@ def json_dumps(obj: Any, indent: int | None = 2) -> str:
     :param obj: 要序列化的对象。
     :param indent: 缩进级别。
     :return: JSON 字符串。
-    :rtype: str
     """
     serialized = _serialize_for_json(obj)
-    result = json.dumps(serialized, ensure_ascii=False, indent=indent)
-    # 使用 json_repair 验证并修复输出
-    try:
-        json_repair.loads(result)
-        return result
-    except Exception:
-        # 如果仍有问题，重新序列化
-        return json_repair.dumps(serialized, indent=indent, ensure_ascii=False)
+    return json_repair.dumps(serialized, indent=indent, ensure_ascii=False)
 
 
-#: JSON 序列化别名
-jr_dumps = json_dumps
-
-
-def json_parse(text: str) -> Any:
+def jr_parse(text: str) -> Any:
     """容错 JSON 解析。
 
     自动修复常见 JSON 错误：
@@ -110,15 +95,32 @@ def json_parse(text: str) -> Any:
 
     :param text: JSON 文本。
     :return: 解析后的对象。
-    :rtype: Any
     """
     if not text or not text.strip():
         return None
     return json_repair.loads(text)
 
 
-#: JSON 解析别名
-jr_parse = json_parse
+def jr_parse_from_llm(content: str) -> Any:
+    """从 LLM 响应中提取并解析 JSON。
+
+    先从文本中提取 JSON 片段（支持 Markdown code fence），
+    再用 json_repair 容错解析。
+
+    :param content: LLM 响应文本。
+    :return: 解析后的 Python 对象。
+    :raises ValueError: 无法从文本中提取 JSON。
+    """
+    from agentsociety2.config import extract_json
+
+    json_str = extract_json(content)
+    if json_str is None:
+        s = content.strip()
+        if s.startswith(("{", "[")):
+            json_str = s
+    if json_str is None or not str(json_str).strip():
+        raise ValueError("Failed to extract JSON from LLM response")
+    return json_repair.loads(json_str)
 
 
 def paginate(items: list[Any], page: int, size: int) -> dict[str, Any]:
@@ -198,9 +200,8 @@ def json_dumps_tool_result_for_thread(
     :param result: 工具结果字典。
     :param budget: 字符预算。
     :return: 预算内的 JSON 字符串。
-    :rtype: str
     """
-    s = json_dumps(result, indent=None)
+    s = jr_dumps(result, indent=None)
     if len(s) <= budget:
         return s
     truncated = {}
@@ -209,7 +210,7 @@ def json_dumps_tool_result_for_thread(
             truncated[k] = truncate(v, budget // 4)
         else:
             truncated[k] = v
-    return json_dumps(truncated, indent=None)
+    return jr_dumps(truncated, indent=None)
 
 
 async def async_retry_on_transient(

@@ -396,7 +396,7 @@ class PersonAgent(AgentBase):
         parsed: list[Any] = []
         for line in recent:
             try:
-                parsed.append(json_repair.loads(line))
+                parsed.append(jr_parse(line))
             except Exception:
                 parsed.append(line)
         return parsed

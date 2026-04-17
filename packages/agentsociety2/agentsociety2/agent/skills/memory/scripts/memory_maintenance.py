@@ -11,7 +11,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import os
 import sys
@@ -20,20 +19,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+import json_repair
+
 
 def json_loads(s: str) -> Any:
-    """Load JSON with repair fallback."""
-    try:
-        return json.loads(s)
-    except json.JSONDecodeError:
-        import json_repair
-
-        return json_repair.loads(s)
+    """Load JSON with auto-repair."""
+    return json_repair.loads(s)
 
 
 def json_dumps(obj: Any, indent: int | None = 2) -> str:
     """Dump JSON with consistent formatting."""
-    return json.dumps(obj, ensure_ascii=False, indent=indent, default=str)
+    return json_repair.dumps(obj, indent=indent, ensure_ascii=False)
 
 
 @dataclass

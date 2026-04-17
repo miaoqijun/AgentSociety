@@ -262,9 +262,7 @@ class AgentSocietyHelper:
                         continue
                     return "Planning failed: Empty model response"
 
-                self._log_llm_raw_response(
-                    f"planning attempt {retry + 1}", response
-                )
+                self._log_llm_raw_response(f"planning attempt {retry + 1}", response)
                 plan_data = self._parse_json_response(response)
 
                 # Check if this is a direct answer (no planning needed)
@@ -377,9 +375,7 @@ class AgentSocietyHelper:
                         continue
                     return None
 
-                self._log_llm_raw_response(
-                    f"replanning attempt {retry + 1}", response
-                )
+                self._log_llm_raw_response(f"replanning attempt {retry + 1}", response)
                 plan_data = self._parse_json_response(response)
                 raw_steps = plan_data.get("steps", [])
 

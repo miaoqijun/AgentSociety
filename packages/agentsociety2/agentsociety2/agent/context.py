@@ -62,12 +62,11 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Literal, Optional
 
-import json_repair
 from pydantic import BaseModel, field_validator
 from ruamel.yaml import YAML
 
 from agentsociety2.agent.config import ContextConfig
-from agentsociety2.agent.tool.utils import json_dumps as _json_dumps
+from agentsociety2.agent.tool.utils import jr_dumps as _jr_dumps, jr_parse
 from agentsociety2.logger import get_logger
 
 logger = get_logger()
@@ -308,7 +307,7 @@ def _tool_result_fingerprint(content: str) -> Optional[str]:
         return None
     try:
         rest = content.split("\n", 1)[1].strip()
-        d = json_repair.loads(rest)
+        d = jr_parse(rest)
         if not isinstance(d, dict):
             return None
         action = d.get("action")
@@ -330,7 +329,7 @@ def _message_priority(msg: dict[str, str], index_in_old: int, old_len: int) -> f
         return score
     try:
         rest = content.split("\n", 1)[1].strip()
-        d = json_repair.loads(rest)
+        d = jr_parse(rest)
         if not isinstance(d, dict):
             return score
         if d.get("ok") is False:
@@ -435,7 +434,7 @@ def infer_compact_focus(
         if not c.startswith("TOOL_RESULT_JSON:"):
             continue
         try:
-            d = json_repair.loads(c.split("\n", 1)[1].strip())
+            d = jr_parse(c.split("\n", 1)[1].strip())
         except Exception:
             continue
         if isinstance(d, dict) and d.get("ok") is False:
@@ -826,7 +825,7 @@ def save_thread_compact_state(
     """
     workspace_write(
         "logs/thread_compact_state.json",
-        _json_dumps(
+        _jr_dumps(
             {
                 "rolling_summary": rolling_summary,
                 "last_tier": tier,
@@ -1060,7 +1059,7 @@ async def run_thread_compaction(
             rolling = summary_text[:8000]
             parsed: Any = None
             try:
-                parsed = json_repair.loads(summary_text)
+                parsed = jr_parse(summary_text)
             except Exception:
                 pass
             if isinstance(parsed, dict):
@@ -1094,7 +1093,7 @@ async def run_thread_compaction(
             {
                 "role": "user",
                 "content": "KEY_STATE_JSON:\n"
-                + _json_dumps(
+                + _jr_dumps(
                     {
                         "workspace_state_version": workspace_state_version,
                         "compact_count": new_compact_count,
