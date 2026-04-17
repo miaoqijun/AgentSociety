@@ -37,7 +37,11 @@ from agentsociety2.agent.context import (
     run_thread_compaction,
     save_thread_compact_state,
 )
-from agentsociety2.agent.prompt_builder import PromptBuilder, PromptCacheManager
+from agentsociety2.agent.prompt_builder import (
+    PromptBuilder,
+    PromptCacheManager,
+    ToolTableBuilder,
+)
 from agentsociety2.agent.skills import SkillRegistry, get_skill_registry
 from agentsociety2.agent.skills.runtime import AgentSkillRuntime
 from agentsociety2.agent.tool import (
@@ -78,77 +82,6 @@ class PersonAgent(AgentBase):
             "PersonAgent: Minimal skills-first agent. "
             "Uses progressive skill loading and isolated agent workspace."
         )
-
-    _TOOL_SPECS: tuple[tuple[str, str, str], ...] = (
-        (
-            "activate_skill",
-            "skill_name, arguments",
-            "Load skill instructions (optional args)",
-        ),
-        (
-            "read_skill",
-            "skill_name, path, offset?, limit?",
-            "Read skill file (paginate with offset/limit)",
-        ),
-        ("execute_skill", "skill_name, args", "Run a skill's subprocess script"),
-        ("bash", "command, timeout_sec", "Shell command in workspace"),
-        ("codegen", "instruction, ctx", "Send instruction to the environment"),
-        (
-            "workspace_read",
-            "path, offset?, limit?",
-            "Read workspace file (paginate with offset/limit)",
-        ),
-        ("workspace_write", "path, content", "Write file"),
-        ("workspace_list", "path", "List files"),
-        ("glob", "glob, path", "Find files by pattern"),
-        ("grep", "pattern, glob, path", "Search file contents"),
-        ("enable_skill", "skill_name", "Reveal a hidden skill"),
-        ("disable_skill", "skill_name", "Hide a skill"),
-        (
-            "batch",
-            "operations",
-            "Execute multiple operations in one call",
-        ),
-        ("done", "(done=true, summary)", "Finish this step"),
-    )
-
-    # 精简版工具表（仅名称和用途，不含详细参数说明）
-    _TOOL_SPECS_MINIMAL: tuple[tuple[str, str], ...] = (
-        ("activate_skill", "Load and activate a skill by name"),
-        ("read_skill", "Read skill documentation files"),
-        ("execute_skill", "Execute skill's subprocess"),
-        ("bash", "Run shell commands"),
-        ("codegen", "Send instructions to simulation environment"),
-        ("workspace_read", "Read files from your workspace"),
-        ("workspace_write", "Write files to your workspace"),
-        ("workspace_list", "List workspace directory contents"),
-        ("glob", "Find files by pattern"),
-        ("grep", "Search file contents"),
-        ("enable_skill", "Make a hidden skill visible"),
-        ("disable_skill", "Hide a skill from catalog"),
-        ("batch", "Execute multiple operations together"),
-        ("done", "Finish this simulation step"),
-    )
-
-    @classmethod
-    def _render_tool_table(cls) -> str:
-        lines = ["| Tool | Arguments | Purpose |", "|------|-----------|----------|"]
-        for name, arguments, purpose in cls._TOOL_SPECS:
-            lines.append(f"| {name} | {arguments} | {purpose} |")
-        return "\n".join(lines)
-
-    @classmethod
-    def _render_tool_table_minimal(cls) -> str:
-        """渲染精简版工具表（减少 Token 消耗）。
-
-        仅显示工具名称和简短描述，详细参数按需查询。
-
-        :return: 精简版工具表 Markdown。
-        """
-        lines = ["| Tool | Purpose |", "|------|---------|"]
-        for name, purpose in cls._TOOL_SPECS_MINIMAL:
-            lines.append(f"| {name} | {purpose} |")
-        return "\n".join(lines)
 
     def __init__(
         self,
@@ -244,8 +177,8 @@ class PersonAgent(AgentBase):
         # ── 系统提示词缓存（使用单一版本号简化逻辑）──
         self._prompt_cache: str | None = None
         self._prompt_cache_version: int = 0  # 单一版本号，任何变化递增
-        # 新增：Prompt 缓存管理器
-        self._prompt_cache_manager: PromptCacheManager | None = None
+        # 分段 system prompt 的静态段缓存（与 PromptBuilder 内容哈希联动）
+        self._prompt_cache_manager = PromptCacheManager()
 
         # ── 循环检测 ──
         self._loop_detector = LoopDetectionService(self._config.loop_detection)
@@ -260,9 +193,6 @@ class PersonAgent(AgentBase):
         # ── 并发控制 ──
         self._parallel_executor = ParallelExecutor(self._config)
         self._rate_limiter = RateLimiter(self._config.concurrency.rate_limit_rps)
-
-        # ── Prompt 缓存管理器 ──
-        self._prompt_cache_manager = PromptCacheManager()
 
     def _update_workspace_cache(self, path: str, content: str) -> None:
         """更新缓存并执行 LRU 淘汰。
@@ -288,6 +218,7 @@ class PersonAgent(AgentBase):
         """失效系统提示词缓存，递增版本号。"""
         self._prompt_cache = None
         self._prompt_cache_version += 1
+        self._prompt_cache_manager.invalidate()
 
     def _need_rebuild_prompt(self, cached_version: int) -> bool:
         """判断是否需要重建系统提示词。
@@ -570,9 +501,9 @@ class PersonAgent(AgentBase):
 
         builder.add_tool_protocol()
         if self._ctx_config.tool_table_mode == "minimal":
-            builder.add_tools(self._render_tool_table_minimal())
+            builder.add_tools(ToolTableBuilder.render_minimal())
         else:
-            builder.add_tools(self._render_tool_table())
+            builder.add_tools(ToolTableBuilder.render())
 
         visible_names = sorted(self._all_visible_skill_names())
         catalog_names: list[str] = []
@@ -669,11 +600,11 @@ class PersonAgent(AgentBase):
         """
         base = super().get_system_prompt(tick, t)
         builder = PromptBuilder()
-
         self._build_prompt_static_segment(builder)
+        static_part, _ = self._prompt_cache_manager.get_or_build_static(builder, base)
         self._build_prompt_dynamic_segment(builder, tick)
-
-        return builder.build_segmented(base)
+        dynamic_part = builder.build_dynamic()
+        return static_part, dynamic_part
 
     # ── Thread Management ─────────────────────────────────────────────────────
 

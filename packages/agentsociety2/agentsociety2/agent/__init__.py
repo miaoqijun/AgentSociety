@@ -48,7 +48,7 @@ from .config import (
     StateConfig,
     ALLOWED_ENV_VARS,
 )
-from .prompt_builder import PromptBuilder, ToolTableBuilder
+from .prompt_builder import PromptBuilder, PromptCacheManager, ToolTableBuilder
 from .persistence import (
     Checkpoint,
     WriteAheadLog,
@@ -83,6 +83,7 @@ __all__ = [
     "ALLOWED_ENV_VARS",
     # Prompt
     "PromptBuilder",
+    "PromptCacheManager",
     "ToolTableBuilder",
     # 持久化
     "Checkpoint",

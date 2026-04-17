@@ -7,8 +7,8 @@
 
 - :class:`PromptBuilder`: 模块化Prompt构建器
 - :class:`PromptSection`: Prompt片段
-- :class:`ToolTableBuilder`: 工具表构建器
-- :class:`PromptCacheManager`: 缓存管理器
+- :class:`ToolTableBuilder`: 工具表 Markdown（与 PersonAgent 共用）
+- :class:`PromptCacheManager`: 静态段跨次复用（分段 system prompt）
 
 设计理念
 ========
@@ -46,18 +46,22 @@ PromptBuilder采用链式API，各部分可独立配置：
     builder.add_tool_protocol()
     prompt = builder.build()
 
-分段构建::
+分段构建（静态段由 :class:`PromptCacheManager` 跨次复用）::
 
+    manager = PromptCacheManager()
     builder = PromptBuilder()
-    static_prompt = builder.build_static()  # 可缓存
-    dynamic_prompt = builder.build_dynamic(tick, t)  # 每次重建
+    # ... add 静态段 ...
+    static_text, _ = manager.get_or_build_static(builder, base="")
+    # ... add 动态段 ...
+    dynamic_text = builder.build_dynamic()
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Optional
+import hashlib
+import json
+from dataclasses import dataclass
+from typing import Any, ClassVar, Optional
 
 
 @dataclass
@@ -85,12 +89,6 @@ class PromptSection:
         return f"\n# {self.title}\n{self.content}\n"
 
 
-# 静态段优先级范围：90-200
-STATIC_PRIORITY_RANGE = (90, 200)
-# 动态段优先级范围：0-89
-DYNAMIC_PRIORITY_RANGE = (0, 89)
-
-
 class PromptBuilder:
     """模块化Prompt构建器。
 
@@ -98,8 +96,6 @@ class PromptBuilder:
     支持静态段/动态段分离，优化 Token 缓存。
 
     :ivar _sections: Prompt 片段列表。
-    :ivar _static_cache: 静态段缓存。
-    :ivar _static_cache_key: 缓存键（用于判断是否需要重建）。
 
     Example:
 
@@ -112,8 +108,6 @@ class PromptBuilder:
     def __init__(self):
         """初始化构建器。"""
         self._sections: list[PromptSection] = []
-        self._static_cache: Optional[str] = None
-        self._static_cache_key: Optional[str] = None
 
     def add_section(
         self, title: str, content: str, priority: int = 0, is_static: bool = False
@@ -128,8 +122,6 @@ class PromptBuilder:
         """
         if content:
             self._sections.append(PromptSection(title, content, priority, is_static))
-            if is_static:
-                self._static_cache = None  # 失效缓存
         return self
 
     def _compute_static_cache_key(self) -> str:
@@ -137,8 +129,6 @@ class PromptBuilder:
 
         :return: 基于静态段内容的哈希键。
         """
-        import hashlib
-
         static_sections = [s for s in self._sections if s.is_static]
         content = "|".join(
             f"{s.title}:{s.content}"
@@ -154,8 +144,6 @@ class PromptBuilder:
         :param profile: Agent画像。
         :return: self。
         """
-        import json
-
         identity = {"id": agent_id, "name": name, "profile": profile}
         content = json.dumps(identity, ensure_ascii=False, indent=2)
         return self.add_section(
@@ -248,7 +236,6 @@ class PromptBuilder:
         """
         if not state:
             return self
-        import json
 
         content = (
             "Snapshot of workspace files. May be stale after writes.\n"
@@ -298,7 +285,6 @@ Use `activate_skill` to load full SKILL.md, then follow it.
         """
         if not catalog:
             return self
-        import json
 
         return self.add_section(
             "Skill Catalog",
@@ -315,7 +301,6 @@ Use `activate_skill` to load full SKILL.md, then follow it.
         """
         if not skills:
             return self
-        import json
 
         return self.add_section(
             "Activated Skills",
@@ -353,16 +338,11 @@ Use `activate_skill` to load full SKILL.md, then follow it.
     def build_static(self, base: str = "") -> str:
         """构建静态段（可缓存部分）。
 
-        静态段包含工具协议、工具表、技能目录等不常变化的内容。
-        适合使用 Prompt Caching。
+        跨请求复用请配合 :class:`PromptCacheManager`；本方法在单次 builder 上无状态缓存。
 
         :param base: 基础提示词（可选）。
         :return: 静态段文本。
         """
-        cache_key = self._compute_static_cache_key()
-        if self._static_cache is not None and self._static_cache_key == cache_key:
-            return self._static_cache
-
         static_sections = [s for s in self._sections if s.is_static]
         sorted_sections = sorted(static_sections, key=lambda s: -s.priority)
         parts = [base] if base else []
@@ -370,10 +350,7 @@ Use `activate_skill` to load full SKILL.md, then follow it.
             rendered = section.render()
             if rendered:
                 parts.append(rendered)
-
-        self._static_cache = "\n".join(parts)
-        self._static_cache_key = cache_key
-        return self._static_cache
+        return "\n".join(parts)
 
     def build_dynamic(self, base: str = "") -> str:
         """构建动态段（每次重建部分）。
@@ -392,37 +369,12 @@ Use `activate_skill` to load full SKILL.md, then follow it.
                 parts.append(rendered)
         return "\n".join(parts)
 
-    def build_segmented(self, base: str = "") -> tuple[str, str]:
-        """分段构建，返回静态段和动态段。
-
-        用于支持 Anthropic 的 Prompt Caching：
-        - 静态段添加 cache_control: {"type": "ephemeral"}
-        - 动态段不添加缓存控制
-
-        :param base: 基础提示词。
-        :return: (静态段, 动态段) 元组。
-        """
-        return self.build_static(base), self.build_dynamic()
-
     def clear(self) -> "PromptBuilder":
         """清空所有片段。
 
         :return: self。
         """
         self._sections.clear()
-        self._static_cache = None
-        self._static_cache_key = None
-        return self
-
-    def invalidate_static_cache(self) -> "PromptBuilder":
-        """手动失效静态段缓存。
-
-        当技能目录等静态内容变化时调用。
-
-        :return: self。
-        """
-        self._static_cache = None
-        self._static_cache_key = None
         return self
 
 
@@ -495,43 +447,66 @@ class PromptCacheManager:
 
 
 class ToolTableBuilder:
-    """工具表构建器。
+    """PersonAgent 工具表的单一数据源（完整版 + 精简版 Markdown）。"""
 
-    提供标准化的工具表格式。
-
-    Example:
-
-        >>> table = ToolTableBuilder.render()
-    """
-
-    TOOLS = (
-        ("activate_skill", "skill_name, arguments", "Load skill instructions"),
+    TOOLS: ClassVar[tuple[tuple[str, str, str], ...]] = (
+        (
+            "activate_skill",
+            "skill_name, arguments",
+            "Load skill instructions (optional args)",
+        ),
         (
             "read_skill",
             "skill_name, path, offset?, limit?",
-            "Read skill file (paginated)",
+            "Read skill file (paginate with offset/limit)",
         ),
-        ("execute_skill", "skill_name, args", "Run skill subprocess"),
+        ("execute_skill", "skill_name, args", "Run a skill's subprocess script"),
         ("bash", "command, timeout_sec", "Shell command in workspace"),
-        ("codegen", "instruction, ctx", "Send instruction to environment"),
-        ("workspace_read", "path, offset?, limit?", "Read workspace file (paginated)"),
+        ("codegen", "instruction, ctx", "Send instruction to the environment"),
+        (
+            "workspace_read",
+            "path, offset?, limit?",
+            "Read workspace file (paginate with offset/limit)",
+        ),
         ("workspace_write", "path, content", "Write file"),
         ("workspace_list", "path", "List files"),
         ("glob", "glob, path", "Find files by pattern"),
         ("grep", "pattern, glob, path", "Search file contents"),
         ("enable_skill", "skill_name", "Reveal a hidden skill"),
         ("disable_skill", "skill_name", "Hide a skill"),
-        ("batch", "operations", "Execute multiple operations"),
+        ("batch", "operations", "Execute multiple operations in one call"),
         ("done", "(done=true, summary)", "Finish this step"),
+    )
+
+    TOOLS_MINIMAL: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("activate_skill", "Load and activate a skill by name"),
+        ("read_skill", "Read skill documentation files"),
+        ("execute_skill", "Execute skill's subprocess"),
+        ("bash", "Run shell commands"),
+        ("codegen", "Send instructions to simulation environment"),
+        ("workspace_read", "Read files from your workspace"),
+        ("workspace_write", "Write files to your workspace"),
+        ("workspace_list", "List workspace directory contents"),
+        ("glob", "Find files by pattern"),
+        ("grep", "Search file contents"),
+        ("enable_skill", "Make a hidden skill visible"),
+        ("disable_skill", "Hide a skill from catalog"),
+        ("batch", "Execute multiple operations together"),
+        ("done", "Finish this simulation step"),
     )
 
     @classmethod
     def render(cls) -> str:
-        """渲染工具表。
-
-        :return: Markdown格式的工具表。
-        """
+        """完整工具表（含参数列）。"""
         lines = ["| Tool | Arguments | Purpose |", "|------|-----------|----------|"]
         for name, args, purpose in cls.TOOLS:
             lines.append(f"| {name} | {args} | {purpose} |")
+        return "\n".join(lines)
+
+    @classmethod
+    def render_minimal(cls) -> str:
+        """精简工具表（省 token）。"""
+        lines = ["| Tool | Purpose |", "|------|---------|"]
+        for name, purpose in cls.TOOLS_MINIMAL:
+            lines.append(f"| {name} | {purpose} |")
         return "\n".join(lines)

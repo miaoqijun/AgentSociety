@@ -69,7 +69,7 @@ wheels = [
 
 [[package]]
 name = "agentsociety2"
-version = "2.1.2"
+version = "2.1.5"
 source = { editable = "packages/agentsociety2" }
 dependencies = [
     { name = "aiohttp" },
@@ -110,6 +110,7 @@ dependencies = [
     { name = "statsmodels" },
     { name = "stringcase" },
     { name = "sweetviz" },
+    { name = "tiktoken" },
     { name = "torch" },
     { name = "transformers" },
     { name = "ultralytics" },
@@ -209,6 +210,7 @@ requires-dist = [
     { name = "statsmodels", specifier = ">=0.14.0" },
     { name = "stringcase", specifier = ">=1.2.0" },
     { name = "sweetviz", specifier = ">=2.3.0" },
+    { name = "tiktoken", specifier = ">=0.8.0" },
     { name = "torch", specifier = ">=2.9.1" },
     { name = "transformers", specifier = ">=4.57.3" },
     { name = "ultralytics", specifier = ">=8.3.243" },
@@ -7238,9 +7240,9 @@ dependencies = [
     { name = "scipy" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ea/cc/a30efc5d6c8de367e01933262154c4cd60585c8db60db6f31bd4859a4a0f/sweetviz-2.3.1.tar.gz", hash = "sha256:076bcab57835db167789e68949340f074dee2da78a24eaaaf211d2735f38b691" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ea/cc/a30efc5d6c8de367e01933262154c4cd60585c8db60db6f31bd4859a4a0f/sweetviz-2.3.1.tar.gz", hash = "sha256:076bcab57835db167789e68949340f074dee2da78a24eaaaf211d2735f38b691", size = 15099229, upload-time = "2023-11-29T13:27:56.99Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/89/50/8d3f7ca820267a38b42c64778db0f186d85cec6e3f0c5210eab9c16e783f/sweetviz-2.3.1-py3-none-any.whl", hash = "sha256:9ac785dd78f8555f6d57a2e4fee3853e6c5ace9706de19f30697c409ff9de429" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/89/50/8d3f7ca820267a38b42c64778db0f186d85cec6e3f0c5210eab9c16e783f/sweetviz-2.3.1-py3-none-any.whl", hash = "sha256:9ac785dd78f8555f6d57a2e4fee3853e6c5ace9706de19f30697c409ff9de429", size = 15112426, upload-time = "2023-11-29T13:27:52.923Z" },
 ]
 
 [[package]]

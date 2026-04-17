@@ -54,7 +54,6 @@
 
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from io import StringIO
@@ -325,9 +324,20 @@ def _dedupe_adjacent_tool_results(
 
 
 def _drop_lowest_priority_one(old: list[dict[str, str]]) -> bool:
+    """删除优先级最低的一条消息（原地修改）。
+
+    避免每次全量扫描：预先计算所有优先级，找到最小值后删除。
+    """
     if len(old) <= _MIN_OLD_SEGMENTS:
         return False
-    worst_i = min(range(len(old)), key=lambda i: _message_priority(old[i], i, len(old)))
+    # 一次遍历找到最小优先级索引
+    worst_i = 0
+    worst_score = _message_priority(old[0], 0, len(old))
+    for i in range(1, len(old)):
+        score = _message_priority(old[i], i, len(old))
+        if score < worst_score:
+            worst_score = score
+            worst_i = i
     del old[worst_i]
     return True
 
@@ -347,10 +357,10 @@ def light_prune_thread_messages(
 ) -> tuple[list[dict[str, str]], LightPruneStats]:
     stats = LightPruneStats()
     if len(messages) <= keep_recent + 1:
-        return copy.deepcopy(messages), stats
+        return messages[:], stats
 
     recent = messages[-keep_recent:]
-    old = copy.deepcopy(messages[:-keep_recent])
+    old = messages[:-keep_recent]
     old, dd = _dedupe_adjacent_tool_results(old)
     stats.dedupe_drops = dd
 
