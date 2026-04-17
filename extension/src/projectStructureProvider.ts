@@ -2298,15 +2298,15 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
           if (stat.isFile() && entry.startsWith('synthesis_report_')) {
             // 匹配带语言后缀的文件: synthesis_report_YYYYMMDD_HHMMSS_(zh|en).(html|md)
-            const langMatch = entry.match(/^synthesis_report_(\d+)_(zh|en)\.(html|md)$/);
+            const langMatch = entry.match(/^synthesis_report_([\d_]+)_(zh|en)\.(html|md)$/);
             // 匹配通用文件: synthesis_report_YYYYMMDD_HHMMSS.(html|md)
-            const genericMatch = entry.match(/^synthesis_report_(\d+)\.(html|md)$/);
+            const genericMatch = entry.match(/^synthesis_report_([\d_]+)\.(html|md)$/);
 
             if (langMatch) {
               const timestamp = langMatch[1];
               const lang = langMatch[2];
               const ext = langMatch[3];
-              const key = `${timestamp}_${ext}`;
+              const key = `${timestamp}.${ext}`;
 
               if (!reportGroups[key]) {
                 reportGroups[key] = {};
@@ -2315,7 +2315,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
             } else if (genericMatch) {
               const timestamp = genericMatch[1];
               const ext = genericMatch[2];
-              const key = `${timestamp}_${ext}`;
+              const key = `${timestamp}.${ext}`;
 
               if (!reportGroups[key]) {
                 reportGroups[key] = {};
@@ -2327,7 +2327,12 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
         // 生成显示项：优先显示语言特定版本，如果没有则显示通用版本
         for (const [key, paths] of Object.entries(reportGroups)) {
-          const [timestamp, ext] = key.split('_');
+          const dotIndex = key.lastIndexOf('.');
+          if (dotIndex < 0) {
+            continue;
+          }
+          const timestamp = key.slice(0, dotIndex);
+          const ext = key.slice(dotIndex + 1);
           const isHtml = ext === 'html';
 
           if (isHtml) {
@@ -3169,7 +3174,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           );
 
           if (result === localize('projectStructure.updateSkills.viewDetails') ||
-              result === localize('projectStructure.updateSkills.viewInstructions')) {
+            result === localize('projectStructure.updateSkills.viewInstructions')) {
             // Show the Workspace Manager output channel
             this.workspaceManager.showOutput();
           }
