@@ -190,13 +190,13 @@ Python API
 .. code-block:: bash
 
    # 默认 LLM
-   export AGENTSOCIETY_LLM_MODEL="qwen2.5-14b-instruct"
+   export AGENTSOCIETY_LLM_MODEL="gpt-5.4"
 
    # 代码生成（实验设计、分析）
-   export AGENTSOCIETY_CODER_LLM_MODEL="qwen2.5-72b-instruct"
+   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.4"
 
    # 高频操作（智能体生成）
-   export AGENTSOCIETY_NANO_LLM_MODEL="qwen2.5-7b-instruct"
+   export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.4-nano"
 
 Agent Skills
 --------------------

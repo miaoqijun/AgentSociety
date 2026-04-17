@@ -6,6 +6,8 @@ Two-Tier Plan-and-Execute Router Implementation
 import json
 import re
 from typing import Tuple, Dict, Any, List
+
+import json_repair
 from litellm import AllMessageValues
 
 from agentsociety2.logger import get_logger
@@ -84,7 +86,11 @@ class TwoTierPlanExecuteRouter(RouterBase):
             self._module_readonly_tools[module_name] = readonly_tools
 
     async def ask(
-        self, ctx: dict, instruction: str, readonly: bool = False
+        self,
+        ctx: dict,
+        instruction: str,
+        readonly: bool = False,
+        template_mode: bool = False,
     ) -> Tuple[dict, str]:
         """
         使用双层Plan-and-Execute模式处理指令。
@@ -93,6 +99,7 @@ class TwoTierPlanExecuteRouter(RouterBase):
             ctx: 上下文字典
             instruction: 指令字符串
             readonly: 是否只读模式
+            template_mode: 模板模式（TwoTierPlanExecuteRouter 不使用，仅为签名兼容）
 
         Returns:
             (ctx, answer) 元组
@@ -187,7 +194,9 @@ class TwoTierPlanExecuteRouter(RouterBase):
                 break
 
         # 构建过程文本
-        process_text = json.dumps(execution_log, indent=2, default=str) if execution_log else ""
+        process_text = (
+            json.dumps(execution_log, indent=2, default=str) if execution_log else ""
+        )
         # 使用基类的generate_final_answer生成最终答案
         final_answer, determined_status = await self.generate_final_answer(
             ctx, instruction, results, process_text, "unknown", error
@@ -342,14 +351,14 @@ Your selection and plan:"""
         json_match = re.search(r"\{[\s\S]*\}", text)
         if json_match:
             try:
-                return json.loads(json_match.group())
-            except json.JSONDecodeError:
+                return json_repair.loads(json_match.group())
+            except Exception:
                 pass
 
         # 尝试直接解析
         try:
-            return json.loads(text)
-        except json.JSONDecodeError:
+            return json_repair.loads(text)
+        except Exception:
             pass
 
         return {}

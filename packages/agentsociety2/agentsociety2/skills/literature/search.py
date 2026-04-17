@@ -6,7 +6,7 @@ Core functions for searching academic literature and managing results.
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Literal, Optional
 from litellm import AllMessageValues
@@ -214,7 +214,7 @@ async def _save_literature_to_workspace(
     papers_dir.mkdir(parents=True, exist_ok=True)
 
     saved_files = []
-    timestamp = datetime.now().isoformat().replace(":", "-").replace(".", "-")[:19]
+    timestamp = datetime.now(timezone.utc).isoformat().replace(":", "-").replace(".", "-")[:19]
 
     articles = result.get("articles", [])
     json_entries = []
@@ -241,7 +241,7 @@ async def _save_literature_to_workspace(
                 "file_type": "markdown",
                 "source": "literature_search",
                 "query": result.get("query"),
-                "saved_at": datetime.now().isoformat(),
+                "saved_at": datetime.now(timezone.utc).isoformat(),
             }
 
             # Add other fields to extra_fields
@@ -280,7 +280,7 @@ async def _save_literature_to_workspace(
 
         # Create or update index
         if existing_index is None:
-            now = datetime.now().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             existing_index = LiteratureIndex(
                 entries=[],
                 created_at=now,
@@ -294,7 +294,7 @@ async def _save_literature_to_workspace(
                 existing_index.entries.append(entry)
 
         # Update update time
-        existing_index.updated_at = datetime.now().isoformat()
+        existing_index.updated_at = datetime.now(timezone.utc).isoformat()
 
         # Save updated JSON
         with open(json_filepath, "w", encoding="utf-8") as f:

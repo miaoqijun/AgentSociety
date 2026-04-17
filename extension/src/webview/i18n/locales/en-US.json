@@ -196,8 +196,8 @@
   },
   "configPage": {
     "title": "AI Social Scientist Configuration",
-    "subtitle": "Configure your AgentSociety workspace environment",
-    "description": "Configure your environment step by step, each step can be saved individually",
+    "subtitle": "Configure your workspace step by step",
+    "description": "Complete the environment setup step by step. Each step can be saved independently.",
     "advancedConfig": "Advanced Configuration (optional)",
     "resetDefaults": "Reset to Defaults",
     "saveAndStart": "Save and Start",
@@ -206,19 +206,19 @@
     "validationFailed": "Validation Failed",
     "analysis": {
       "title": "Data Analysis LLM",
-      "hint": "For data analysis, insight generation, and report writing",
+      "hint": "For data analysis, insight generation, and report writing (API key/base can be left blank to reuse the default LLM configuration above)",
       "apiKey": "API Key",
-      "apiKeyPlaceholder": "Leave empty to use default",
+      "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
       "apiBase": "API URL",
-      "apiBasePlaceholder": "Leave empty to use default",
+      "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
       "model": "Model",
-      "modelPlaceholder": "Recommended: use a stronger model"
+      "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
     },
     "python": {
       "title": "Python Environment",
       "hint": "Python runtime environment configuration",
       "path": "Python Path",
-      "pathPlaceholder": "python3 or leave empty for auto-detection"
+      "pathPlaceholder": "python3, or leave empty to auto-detect"
     },
     "literature": {
       "title": "Literature Search Service",
@@ -262,11 +262,11 @@
       "apiKey": "LLM API Key",
       "apiKeyRequired": "LLM API Key *",
       "apiKeyRequiredHint": "For core functions like default chat, analysis, etc.",
-      "apiKeyPlaceholder": "sk-xxx or your API key",
+      "apiKeyPlaceholder": "Enter your API key",
       "apiBase": "LLM API Base URL",
-      "apiBasePlaceholder": "https://cloud.infini-ai.com/maas/v1",
+      "apiBasePlaceholder": "Default: https://api.openai.com/v1",
       "modelName": "LLM Model Name",
-      "modelPlaceholder": "qwen3-next-80b-a3b-instruct"
+      "modelPlaceholder": "Default: gpt-5.4"
     },
     "backend": {
       "title": "Backend Service Configuration",
@@ -276,36 +276,36 @@
     },
     "coder": {
       "title": "Code Generation LLM (optional)",
-      "hint": "Dedicated model for code generation, falls back to default LLM if empty",
+      "hint": "Dedicated model for code generation; leave blank to reuse the default LLM configuration above",
       "apiKey": "Code Generation LLM API Key",
-      "apiKeyPlaceholder": "Leave empty to use default",
+      "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
       "apiBase": "Code Generation LLM API Base URL",
-      "apiBasePlaceholder": "Leave empty to use default",
+      "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
       "model": "Code Generation LLM Model",
-      "modelPlaceholder": "glm-4.7"
+      "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
     },
     "advanced": {
       "embedding": {
         "title": "Embedding Model",
-        "hint": "For text embedding, falls back to default LLM if empty",
+        "hint": "For text embedding (API key/base can be left blank to reuse the default LLM configuration above)",
         "apiKey": "Embedding API Key",
-        "apiKeyPlaceholder": "Leave empty to use default LLM key",
+        "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
         "apiBase": "Embedding API Base URL",
-        "apiBasePlaceholder": "Leave empty to use default LLM URL",
+        "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
         "model": "Embedding Model Name",
-        "modelPlaceholder": "bge-m3",
+        "modelPlaceholder": "Default: text-embedding-3-large",
         "dims": "Vector Dimensions",
         "dimsPlaceholder": "1024"
       },
       "nano": {
         "title": "High-Frequency LLM (optional)",
-        "hint": "Lightweight model for high-frequency fast operations",
+        "hint": "Lightweight model for high-frequency operations; leave blank to reuse the default LLM configuration above",
         "apiKey": "High-Frequency LLM API Key",
-        "apiKeyPlaceholder": "Leave empty to use default",
+        "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
         "apiBase": "High-Frequency LLM API Base URL",
-        "apiBasePlaceholder": "Leave empty to use default",
+        "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
         "model": "High-Frequency LLM Model",
-        "modelPlaceholder": "qwen3-next-80b-a3b-instruct"
+        "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
       },
       "easypaper": {
         "title": "EasyPaper (optional)",
@@ -313,13 +313,13 @@
         "apiUrl": "EasyPaper API URL",
         "apiUrlPlaceholder": "http://localhost:8004",
         "llmApiKey": "EasyPaper General LLM API Key",
-        "llmApiKeyPlaceholder": "Leave empty if same as default LLM",
+        "llmApiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
         "llmModel": "EasyPaper LLM Model",
-        "llmModelPlaceholder": "qwen3-next-80b-a3b-instruct",
+        "llmModelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})",
         "vlmModel": "EasyPaper VLM Model",
-        "vlmModelPlaceholder": "qwen3-vl-235b-a22b-thinking",
+        "vlmModelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})",
         "vlmApiKey": "EasyPaper VLM API Key",
-        "vlmApiKeyPlaceholder": "Leave empty if same as LLM API Key"
+        "vlmApiKeyPlaceholder": "Leave blank (it will default to the LLM API key after saving)"
       },
       "literature": {
         "title": "Literature Search Service (optional)",
@@ -341,9 +341,18 @@
       "apiKeyMissing": "Please enter LLM API Key",
       "apiBaseMissing": "Please enter LLM API Base URL"
     },
+    "linkedPlaceholders": {
+      "apiKey": "Leave blank to reuse the default LLM key above ({{status}})",
+      "apiBase": "Leave blank to reuse the default LLM API base URL above (current: {{base}})",
+      "configured": "configured",
+      "notConfigured": "not configured"
+    },
     "validation": {
       "failed": "Validation failed, please check API key and base URL",
       "emptyApiKey": "API Key or Base URL is empty",
+      "needsApiKey": "Please enter the current API key, or fill in the default LLM API key above",
+      "needsApiBase": "Please enter the current API URL, or fill in the default LLM API URL above",
+      "literatureUrlRequired": "Please enter Literature Search API URL",
       "invalidKey": "API Key is invalid or expired",
       "invalidUrl": "API address is incorrect. Please check if the address includes /v1 path",
       "serverError": "Server error",

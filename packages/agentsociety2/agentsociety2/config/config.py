@@ -127,25 +127,25 @@ class Config:
     """
 
     LLM_API_BASE: str = os.getenv(
-        "AGENTSOCIETY_LLM_API_BASE", "https://cloud.infini-ai.com/maas/v1"
+        "AGENTSOCIETY_LLM_API_BASE", "https://api.openai.com/v1"
     )
     """
     Base URL endpoint for the default LLM API service.
 
     Environment variable: AGENTSOCIETY_LLM_API_BASE
-    Default: "https://cloud.infini-ai.com/maas/v1"
+    Default: "https://api.openai.com/v1"
 
     This should point to the API endpoint that supports OpenAI-compatible API calls.
     The URL should include the protocol (https://) and the base path, but not the
     specific model endpoint (e.g., /chat/completions).
     """
 
-    LLM_MODEL: str = os.getenv("AGENTSOCIETY_LLM_MODEL", "qwen3-next-80b-a3b-instruct")
+    LLM_MODEL: str = os.getenv("AGENTSOCIETY_LLM_MODEL", "gpt-5.4")
     """
     Model identifier for the default LLM used in general operations.
 
     Environment variable: AGENTSOCIETY_LLM_MODEL
-    Default: "qwen3-next-80b-a3b-instruct"
+    Default: "gpt-5.4"
 
     This model is used for most language understanding and generation tasks that don't
     require specialized models. The model name should match what your API provider expects.
@@ -183,14 +183,12 @@ class Config:
     or region for better performance or cost optimization.
     """
 
-    CODER_LLM_MODEL: str = os.getenv(
-        "AGENTSOCIETY_CODER_LLM_MODEL", "glm-4.7"
-    )
+    CODER_LLM_MODEL: str = os.getenv("AGENTSOCIETY_CODER_LLM_MODEL") or LLM_MODEL
     """
     Model identifier for code generation and programming tasks.
 
     Environment variable: AGENTSOCIETY_CODER_LLM_MODEL
-    Default: "glm-4.7"
+    Default: Falls back to LLM_MODEL if not set
 
     This model is specifically used for code generation, code analysis, and other
     programming-related operations. Choose a model that is optimized for code understanding
@@ -214,9 +212,7 @@ class Config:
     key allows you to use a faster or cheaper model for these high-frequency operations.
     """
 
-    NANO_LLM_API_BASE: str = (
-        os.getenv("AGENTSOCIETY_NANO_LLM_API_BASE") or LLM_API_BASE
-    )
+    NANO_LLM_API_BASE: str = os.getenv("AGENTSOCIETY_NANO_LLM_API_BASE") or LLM_API_BASE
     """
     Base URL endpoint for the nano LLM API.
 
@@ -228,14 +224,12 @@ class Config:
     response times.
     """
 
-    NANO_LLM_MODEL: str = os.getenv(
-        "AGENTSOCIETY_NANO_LLM_MODEL", "qwen3-next-80b-a3b-instruct"
-    )
+    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or "gpt-5.4-nano"
     """
     Model identifier for high-frequency, low-latency operations.
 
     Environment variable: AGENTSOCIETY_NANO_LLM_MODEL
-    Default: "qwen3-next-80b-a3b-instruct"
+    Default: "gpt-5.4-nano"
 
     This model is used for operations that require fast responses, such as memory
     retrieval, quick reasoning, and other tasks where latency is critical. Typically,
@@ -273,14 +267,12 @@ class Config:
     or a different service.
     """
 
-    ANALYSIS_LLM_MODEL: str = os.getenv(
-        "AGENTSOCIETY_ANALYSIS_LLM_MODEL", "qwen3-next-80b-a3b-instruct"
-    )
+    ANALYSIS_LLM_MODEL: str = os.getenv("AGENTSOCIETY_ANALYSIS_LLM_MODEL") or LLM_MODEL
     """
     Model identifier for data analysis and report generation tasks.
 
     Environment variable: AGENTSOCIETY_ANALYSIS_LLM_MODEL
-    Default: "qwen3-next-80b-a3b-instruct"
+    Default: Falls back to LLM_MODEL if not set
 
     This model is specifically used for data analysis, insight generation,
     visualization planning, and report writing. Choose a model with strong
@@ -318,12 +310,14 @@ class Config:
     or different pricing models for embedding tasks.
     """
 
-    EMBEDDING_MODEL: str = os.getenv("AGENTSOCIETY_EMBEDDING_MODEL", "bge-m3")
+    EMBEDDING_MODEL: str = os.getenv(
+        "AGENTSOCIETY_EMBEDDING_MODEL", "text-embedding-3-large"
+    )
     """
     Model identifier for text embedding generation.
 
     Environment variable: AGENTSOCIETY_EMBEDDING_MODEL
-    Default: "bge-m3"
+    Default: "text-embedding-3-large"
 
     This model is used to convert text into dense vector representations (embeddings).
     The embeddings are used for semantic search, similarity matching, and storing
@@ -663,7 +657,9 @@ class Config:
                 },
             ]
             logger.info("Nano LLM configured: model=%s api_base=%s", model, api_base)
-            logger.debug("Nano model_list: %s", _redact_router_config_for_log(model_list))
+            logger.debug(
+                "Nano model_list: %s", _redact_router_config_for_log(model_list)
+            )
             return Router(
                 model_list=model_list,
                 cache_responses=True,
@@ -694,18 +690,12 @@ class Config:
     @classmethod
     def get_web_search_api_token(cls) -> str:
         """Get web search MCP token, preferring the latest environment value."""
-        return (
-            os.getenv("WEB_SEARCH_API_TOKEN", "").strip()
-            or cls.WEB_SEARCH_API_TOKEN
-        )
+        return os.getenv("WEB_SEARCH_API_TOKEN", "").strip() or cls.WEB_SEARCH_API_TOKEN
 
     @classmethod
     def get_miroflow_default_llm(cls) -> str:
         """Get default MiroFlow LLM, preferring the latest environment value."""
-        return (
-            os.getenv("MIROFLOW_DEFAULT_LLM", "").strip()
-            or cls.MIROFLOW_DEFAULT_LLM
-        )
+        return os.getenv("MIROFLOW_DEFAULT_LLM", "").strip() or cls.MIROFLOW_DEFAULT_LLM
 
     @classmethod
     def get_miroflow_default_agent(cls) -> str:

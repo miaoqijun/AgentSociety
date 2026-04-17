@@ -13,7 +13,7 @@ import argparse
 import asyncio
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import aiohttp
 
@@ -131,7 +131,7 @@ def init_custom_modules(target_dir: Path, force: bool = False) -> dict:
 
 ```python
 from agentsociety2.agent.base import AgentBase
-from datetime import datetime
+from datetime import datetime, timezone
 
 class MyAgent(AgentBase):
     @classmethod
@@ -540,8 +540,8 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
                 if not index_file.exists():
                     index_data = {
                         "version": "1.0",
-                        "created_at": datetime.now().isoformat(),
-                        "updated_at": datetime.now().isoformat(),
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
                         "entries": []
                     }
                     index_file.write_text(json.dumps(index_data, indent=2, ensure_ascii=False))

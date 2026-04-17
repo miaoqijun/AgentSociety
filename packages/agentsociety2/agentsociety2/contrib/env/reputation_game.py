@@ -8,7 +8,7 @@ This optimized version uses Pydantic for better validation and type safety.
 import asyncio
 import json
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import ClassVar, Dict, List, Optional
 
@@ -496,7 +496,7 @@ Your task is to use the available functions to manage agent reputations, payoffs
                 recipient_rep=self._reputation_to_str(recipient_rep),
                 cost=cost,
                 benefit=benefit,
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             )
             self._action_log.append(log_entry)
             # Keep log length (last 1000 entries)

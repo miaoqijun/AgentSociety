@@ -267,6 +267,23 @@ PersonAgent workspace
 * ``step_replay.jsonl``: 每个 step 的工具历史
 * ``tool_calls.jsonl``: 工具调用日志
 * ``thread_messages.jsonl``: 最近 thread 消息
+* ``AGENT_CONTEXT.md``: 动态维护的上下文文件（身份、状态摘要、最近事件）
+* ``AGENT_FILES.md``: 工作区文件清单（每 10 步自动更新）
+
+**状态文件 (state/)**：
+
+内置状态文件通过配置定义，支持用户扩展：
+
+* ``emotion.json``: 情绪状态
+* ``intention.json``: 意图状态
+* ``needs.json``: 需求状态
+* ``plan_state.json``: 规划状态
+* 用户自定义: 任何 ``state/*.json`` 文件都会被自动发现
+
+**WAL (Write-Ahead Log)**：
+
+* ``wal/wal.jsonl``: 操作日志（追加写入，内存索引）
+* ``wal/index.json``: 操作索引
 
 这些文件适合调试 agent 行为、恢复 thread 上下文、检查技能执行过程。
 

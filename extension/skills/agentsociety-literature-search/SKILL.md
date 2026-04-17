@@ -78,13 +78,13 @@ LITERATURE_SEARCH_API_KEY=lit-your-api-key-here
 
 Or configure via the VSCode extension settings page:
 1. Open the extension configuration page
-2. Find the "文献检索" (Literature Search) card
+2. Open the Literature Search section on the configuration page
 3. Enter API URL and API Key
-4. Click "验证配置" (Validate Config) to verify the connection
+4. Use **Validate configuration** (or equivalent) to verify the connection
 
 ## Validation
 
-The "验证配置" button performs two checks:
+Validation performs two checks:
 1. **Health Check**: Verifies the service is running (`/health` endpoint)
 2. **Auth Check**: Validates the API Key (`/api/stats` endpoint)
 

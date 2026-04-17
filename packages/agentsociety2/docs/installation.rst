@@ -68,7 +68,7 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    # Default LLM (Required - for most operations)
    export AGENTSOCIETY_LLM_API_KEY="your-api-key"
    export AGENTSOCIETY_LLM_API_BASE="https://api.openai.com/v1"
-   export AGENTSOCIETY_LLM_MODEL="gpt-4o-mini"
+   export AGENTSOCIETY_LLM_MODEL="gpt-5.4"
 
 **可选配置**
 
@@ -81,20 +81,20 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    # Falls back to: AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE
    export AGENTSOCIETY_CODER_LLM_API_KEY="your-coder-api-key"      # Optional
    export AGENTSOCIETY_CODER_LLM_API_BASE="https://api.openai.com/v1"  # Optional
-   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-4o"                    # Optional
+   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.4"                    # Optional
 
    # Nano LLM (for high-frequency, low-latency operations)
    # Falls back to: AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE
    export AGENTSOCIETY_NANO_LLM_API_KEY="your-nano-api-key"        # Optional
    export AGENTSOCIETY_NANO_LLM_API_BASE="https://api.openai.com/v1"  # Optional
-   export AGENTSOCIETY_NANO_LLM_MODEL="gpt-4o-mini"                # Optional
+   export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.4-nano"                # Optional
 
    # Embedding model (for text embedding and semantic search)
    # Falls back to: AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE
    export AGENTSOCIETY_EMBEDDING_API_KEY="your-embedding-api-key"  # Optional
    export AGENTSOCIETY_EMBEDDING_API_BASE="https://api.openai.com/v1"  # Optional
-   export AGENTSOCIETY_EMBEDDING_MODEL="text-embedding-3-small"   # Optional
-   export AGENTSOCIETY_EMBEDDING_DIMS="1536"                      # Optional
+   export AGENTSOCIETY_EMBEDDING_MODEL="text-embedding-3-large"   # Optional
+   export AGENTSOCIETY_EMBEDDING_DIMS="1024"                      # Optional
 
 **数据目录**
 
@@ -110,17 +110,35 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
 
 .. code-block:: bash
 
-   # Required
+   # 推荐：从仓库模板复制（若你在源码仓库内）
+   cp .env.example .env
+   # 然后编辑 .env 填入 API Key
+
+.. code-block:: bash
+
+   # Required - LLM API Configuration
    AGENTSOCIETY_LLM_API_KEY=your-api-key
    AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1
-   AGENTSOCIETY_LLM_MODEL=gpt-4o-mini
+   AGENTSOCIETY_LLM_MODEL=gpt-5.4
 
-   # Optional (example)
-   AGENTSOCIETY_CODER_LLM_MODEL=gpt-4o
-   AGENTSOCIETY_NANO_LLM_MODEL=gpt-4o-mini
-   AGENTSOCIETY_EMBEDDING_MODEL=text-embedding-3-small
-   AGENTSOCIETY_EMBEDDING_DIMS=1536
+   # Optional - Agent Behavior Configuration
+   AGENT_MODEL=gpt-5.4              # Override model for agents
+   AGENT_CONTEXT_WINDOW=200000          # Model context window
+   AGENT_MAX_TOOL_ROUNDS=24             # Max tool loop rounds
+
+   # Optional - Specialized LLM instances (fallback to default)
+   AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.4
+   AGENTSOCIETY_NANO_LLM_MODEL=gpt-5.4-nano
+   AGENTSOCIETY_EMBEDDING_MODEL=text-embedding-3-large
+   AGENTSOCIETY_EMBEDDING_DIMS=1024
    AGENTSOCIETY_HOME_DIR=./agentsociety_data
+
+.. note::
+
+   **环境变量区分**：
+
+   - ``AGENTSOCIETY_LLM_*``: 全局 LLM API 配置，用于模型调用
+   - ``AGENT_*``: Agent 行为配置，如上下文窗口大小、工具循环轮数等
 
 **遥测设置**
 

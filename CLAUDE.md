@@ -280,6 +280,15 @@ LLM routing via `agentsociety2.config`:
 
 **Configuration validation**: The framework validates required configuration at module load time and will raise a ValueError if `AGENTSOCIETY_LLM_API_KEY` or `AGENTSOCIETY_LLM_API_BASE` are not set.
 
+.. note::
+
+   Current defaults (when the corresponding env vars are not set):
+
+   - `AGENTSOCIETY_LLM_API_BASE`: `https://api.openai.com/v1`
+   - `AGENTSOCIETY_LLM_MODEL`: `gpt-5.4`
+   - `AGENTSOCIETY_NANO_LLM_MODEL`: `gpt-5.4-nano`
+   - `AGENTSOCIETY_EMBEDDING_MODEL`: `text-embedding-3-large` (dims: `1024`)
+
 ### Frontend Architecture
 
 - React 18 with TypeScript
@@ -403,7 +412,7 @@ sequenceDiagram
     E-->>R: Tool signatures
     R->>L: Generate tool call code
     L-->>R: Python code
-    R->>R: Execute in sandbox
+    R->>R: Execute (safety checks)
     R->>T: Call tool(agent_id, ...)
     T-->>R: Result
     R-->>A: Formatted response

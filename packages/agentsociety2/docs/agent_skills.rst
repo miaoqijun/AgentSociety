@@ -83,6 +83,10 @@ SKILL.md 格式
      - Skill 名称（唯一标识）。
    * - ``description``
      - 给选择器看的功能描述，尽量具体、可判别。
+   * - ``inputs``
+     - 可选，依赖的输入文件列表（如 ``["state/emotion.json"]``）。
+   * - ``outputs``
+     - 可选，输出的文件列表（如 ``["memory/episodic.json"]``）。
    * - ``script``
      - 可选，脚本路径（如 ``scripts/main.py``）。
    * - ``executor``
@@ -179,6 +183,8 @@ Memory 语义
    ---
    name: hello_skill
    description: Add a short greeting into step log
+   inputs: []
+   outputs: []
    requires: []
    ---
 

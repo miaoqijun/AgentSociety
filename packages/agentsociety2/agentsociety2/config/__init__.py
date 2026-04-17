@@ -7,7 +7,6 @@
 - **get_llm_router_and_model**: 同时获取 Router 和模型名称
 - **get_model_name**: 获取指定角色的模型名称
 - **extract_json**: 从 LLM 响应中提取 JSON
-- **get_available_models**: 列出 API 可用的模型列表
 
 角色类型：
 - ``default``: 默认 LLM（通用任务）
@@ -24,7 +23,6 @@
 - ``AGENTSOCIETY_EMBEDDING_*``: Embedding 模型配置
 """
 
-from .list_models import get_available_models
 from .config import (
     Config,
     get_llm_router,
@@ -34,7 +32,6 @@ from .config import (
 )
 
 __all__ = [
-    "get_available_models",
     "Config",
     "get_llm_router",
     "get_llm_router_and_model",
