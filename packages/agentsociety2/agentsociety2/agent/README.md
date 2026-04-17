@@ -64,7 +64,6 @@ agent/
 │   ├── cognition/     # 情绪、需求、意图
 │   ├── memory/        # 长期记忆、关系
 │   └── plan/          # 行动执行
-└── init_utils.py      # 初始化工具（内部使用）
 ```
 
 ## 核心组件
