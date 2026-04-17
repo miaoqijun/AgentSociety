@@ -48,42 +48,25 @@ from agentsociety2.env.router_base import RouterBase, TokenUsageStats
 from agentsociety2.logger import get_logger
 from agentsociety2.config import get_llm_router_and_model
 from litellm import AllMessageValues
-from litellm.exceptions import RateLimitError
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
-from litellm.types.router import RouterRateLimitError
 from pydantic import BaseModel, ValidationError
 
 T = TypeVar("T", bound=BaseModel)
 
 
-def _is_rate_limit_like_error(error: Exception) -> bool:
-    """判断异常是否“类似速率限制”。
+def _is_rate_limit_error(error: Exception) -> bool:
+    """判断是否为速率限制错误。"""
+    from litellm.exceptions import RateLimitError
+    from litellm.types.router import RouterRateLimitError
 
-    :param error: 捕获到的异常对象。
-    :returns: 若可判定为 429/无可用 deployment 等限流相关错误则返回 ``True``。
-    """
-    if isinstance(error, (RateLimitError, RouterRateLimitError)):
-        return True
-    # Fallback for version differences where RouterRateLimitError class is not importable.
-    err_type_name = type(error).__name__
-    err_text = str(error).lower()
-    return (
-        err_type_name == "RouterRateLimitError"
-        or "routerratelimiterror" in err_text
-        or "no deployments available for selected model" in err_text
-        or "try again in" in err_text
-    )
+    return isinstance(error, (RateLimitError, RouterRateLimitError))
 
 
 __all__ = [
     "AgentBase",
     "LLMInteractionHistory",
 ]
-
-# 默认配置常量
-_DEFAULT_LLM_HISTORY_ENABLED = False
-_DEFAULT_LLM_HISTORY_MAX_ENTRIES = 100
 
 
 @dataclass
@@ -839,7 +822,7 @@ Your corrected response:
                     # No delay for validation errors
 
             except Exception as e:
-                if _is_rate_limit_like_error(e):
+                if _is_rate_limit_error(e):
                     # If this is the last attempt, raise the error
                     if attempt >= max_retries:
                         raise ValueError(

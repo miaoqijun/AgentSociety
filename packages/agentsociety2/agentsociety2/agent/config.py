@@ -69,11 +69,11 @@ _COMPACT_FORCE_RATIO = 0.90
 # Thread 限制
 _THREAD_MAX_MESSAGES = 50
 _THREAD_MAX_TOKENS = 150_000
-_THREAD_KEEP_RECENT = 8
+_THREAD_KEEP_RECENT = 12
 
 # 输出限制
-_STDOUT_MAX_CHARS = 5000
-_STDERR_MAX_CHARS = 2000
+_STDOUT_MAX_CHARS = 10_000
+_STDERR_MAX_CHARS = 5_000
 _TOOL_RESULT_BUDGET = 32_000
 
 # 工作区限制
@@ -87,7 +87,7 @@ _MAX_ERROR_REPEATS = 3
 _LOOP_HISTORY_SIZE = 20
 
 # 并发限制
-_MAX_PARALLEL_TOOLS = 3
+_MAX_PARALLEL_TOOLS = 5
 _MAX_LLM_CONCURRENT = 5
 _MAX_SUBPROCESS = 8
 _RATE_LIMIT_RPS = 10.0
@@ -105,7 +105,7 @@ _TIKTOKEN_ENCODING = "cl100k_base"
 class ModelConfig:
     """模型配置。
 
-    :ivar model: 模型名称（如 ``"claude-3-opus-20240229"``）。
+    :ivar model: 模型名称。
     :ivar context_window: 上下文窗口大小（tokens）。
     """
 
@@ -223,7 +223,7 @@ class LoopDetectionConfig:
 
 @dataclass
 class ConcurrencyConfig:
-    """并发控制配置（内部使用，参数写死）。"""
+    """并发控制配置（内部使用）。"""
 
     max_parallel_tools: int = field(default=_MAX_PARALLEL_TOOLS, repr=False)
     max_llm_concurrent: int = field(default=_MAX_LLM_CONCURRENT, repr=False)

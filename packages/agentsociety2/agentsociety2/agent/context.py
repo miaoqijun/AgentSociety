@@ -55,7 +55,6 @@
 from __future__ import annotations
 
 import copy
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from io import StringIO
@@ -78,45 +77,7 @@ _yaml.default_flow_style = False
 _MIN_OLD_SEGMENTS = 2
 _ROLE_OVERHEAD_TOKENS = 4
 
-_LITELLM_TOKEN_COUNTER: Callable[..., Any] | None
-try:
-    from litellm import token_counter as _litellm_token_counter_impl
-
-    _LITELLM_TOKEN_COUNTER = _litellm_token_counter_impl
-except ImportError:
-    _LITELLM_TOKEN_COUNTER = None
-
-
-def normalize_litellm_model_id(model: str) -> str:
-    """规范化 LiteLLM 模型名用于本地 token 计数。
-
-    LiteLLM 常见 ``provider/model`` 形式：取最右段作为 tokenizer 匹配用 id。
-
-    :param model: LiteLLM 路由模型名。
-    :type model: str
-    :return: 规范化后的模型 id（不含 provider 前缀）。
-    :rtype: str
-    """
-    s = (model or "").strip()
-    if not s:
-        return ""
-    if "/" in s:
-        s = s.rsplit("/", 1)[-1].strip()
-    return s
-
-
-def default_tiktoken_encoding_for_model(model_id: str) -> str:
-    """返回统一的 tiktoken 编码名。
-
-    不再根据模型名判断，统一使用 cl100k_base 作为通用近似。
-    当 LiteLLM 可用时，优先使用其精确计数。
-
-    :param model_id: 模型 id（忽略）。
-    :type model_id: str
-    :return: tiktoken 编码名。
-    :rtype: str
-    """
-    return "cl100k_base"
+from litellm import token_counter as _LITELLM_TOKEN_COUNTER
 
 
 class ThreadTokenCounter:
@@ -139,10 +100,7 @@ class ThreadTokenCounter:
         :type encoding_name: str | None
         """
         self.litellm_model = (litellm_model or "").strip()
-        self.normalized_model = normalize_litellm_model_id(self.litellm_model)
-        self.encoding_name = encoding_name or default_tiktoken_encoding_for_model(
-            self.normalized_model
-        )
+        self.encoding_name = encoding_name or "cl100k_base"
         self._encoder: Any = None
         self._approx_chars_per_token = 3.5
         try:
@@ -204,7 +162,7 @@ class ThreadTokenCounter:
         :return: 估算 token 数。
         :rtype: int
         """
-        if self.litellm_model and _LITELLM_TOKEN_COUNTER is not None:
+        if self.litellm_model:
             try:
                 raw = _LITELLM_TOKEN_COUNTER(
                     model=self.litellm_model, messages=messages
@@ -591,24 +549,6 @@ class StructuredSummary(BaseModel):
     def limit_errors_size(cls, v: list[dict[str, str]]) -> list[dict[str, str]]:
         """限制错误列表最大 5 条。"""
         return v[:5] if len(v) > 5 else v
-
-    def to_dict(self) -> dict[str, Any]:
-        """将结构化摘要转为字典。
-
-        :return: 结构化摘要的字典表示。
-        :rtype: dict[str, Any]
-        """
-        return {
-            "primary_goal": self.primary_goal,
-            "current_status": self.current_status,
-            "completed_actions": self.completed_actions,
-            "pending_actions": self.pending_actions,
-            "key_files_written": self.key_files_written,
-            "active_skill": self.active_skill,
-            "blockers": self.blockers,
-            "errors_encountered": self.errors_encountered,
-            "workspace_version": self.workspace_version,
-        }
 
     def to_prompt_content(self) -> str:
         """将结构化摘要转为可注入上下文的文本。
