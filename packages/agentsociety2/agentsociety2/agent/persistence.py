@@ -445,6 +445,22 @@ class WorkspaceCleaner:
                 log.unlink()
                 stats["files_removed"] += 1
 
+        # 清理对话历史文件
+        history_dir = log_dir / "thread_history"
+        if history_dir.exists():
+            history_files = sorted(
+                history_dir.glob("compact_*.jsonl"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            max_history = getattr(
+                self.config.persistence, "thread_history_max_files", 20
+            )
+            for hf in history_files[max_history:]:
+                stats["bytes_freed"] += hf.stat().st_size
+                hf.unlink()
+                stats["files_removed"] += 1
+
         # 清理检查点
         cp_dir = self.workspace / "checkpoints"
         if cp_dir.exists():

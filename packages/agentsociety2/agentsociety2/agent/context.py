@@ -795,6 +795,33 @@ class ThreadCompactResult:
     tier: str = ""
 
 
+def save_thread_history_before_compact(
+    workspace_write: Callable[[str, str], str],
+    thread_messages: list[dict[str, str]],
+    compact_count: int,
+) -> str:
+    """压缩前保存完整对话历史到文件。
+
+    借鉴 Cursor 的做法：压缩时将完整对话历史保存为文件，
+    Agent 可通过搜索找回关键事实，弥补有损压缩带来的信息丢失。
+
+    :param workspace_write: workspace 写入函数（签名：workspace_write(path, content) -> str）。
+    :param thread_messages: 当前完整的 thread 消息列表。
+    :param compact_count: 当前压缩次数（用于文件命名）。
+    :return: 保存的历史文件路径。
+    """
+    history_path = f"logs/thread_history/compact_{compact_count:04d}.jsonl"
+    lines = []
+    for m in thread_messages:
+        lines.append(_jr_dumps(m, indent=None))
+    content = "\n".join(lines) + "\n" if lines else ""
+    workspace_write(history_path, content)
+    logger.debug(
+        f"Saved thread history before compact: {history_path} ({len(thread_messages)} messages)"
+    )
+    return history_path
+
+
 async def run_thread_compaction(
     thread_messages: list[dict[str, str]],
     *,
@@ -810,6 +837,7 @@ async def run_thread_compaction(
     run_summary_llm: Callable[[list[dict[str, str]]], Awaitable[Any]],
     collect_key_state: Callable[[], dict[str, Any]],
     memory_prompt: str,
+    workspace_write: Optional[Callable[[str, str], str]] = None,
 ) -> ThreadCompactResult:
     """执行 thread 分层压缩并返回紧凑后的 messages。
 
@@ -841,9 +869,17 @@ async def run_thread_compaction(
     :type collect_key_state: Callable[[], dict[str, Any]]
     :param memory_prompt: 持久化记忆注入用文本（可为空）。
     :type memory_prompt: str
+    :param workspace_write: 可选的 workspace 写入函数，用于保存压缩前的对话历史。
+    :type workspace_write: Callable[[str, str], str] | None
     :return: 压缩后的结果对象。
     :rtype: ThreadCompactResult
     """
+    # 压缩前保存完整对话历史（如果提供了 workspace_write）
+    if workspace_write is not None and thread_messages:
+        save_thread_history_before_compact(
+            workspace_write, thread_messages, compact_count
+        )
+
     cw = cfg.model_context_window
     max_chars = cfg.thread_compact_max_chars
     keep_recent = cfg.thread_compact_keep_recent

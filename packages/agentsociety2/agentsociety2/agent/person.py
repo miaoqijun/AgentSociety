@@ -53,6 +53,7 @@ from agentsociety2.agent.tool import (
     json_dumps_tool_result_for_thread,
     pagination_from_args,
     trunc_str,
+    BashSecurityChecker,
 )
 from agentsociety2.agent.tool.loop_detection import (
     LoopDetectionService,
@@ -969,10 +970,9 @@ class PersonAgent(AgentBase):
                 "stderr": "empty command",
             }
         # SECURITY: Use BashSecurityChecker for comprehensive protection
-        from agentsociety2.agent.tool.security import BashSecurityChecker
-
         security_checker = BashSecurityChecker()
-        is_safe, reason = security_checker.check(command)
+        work_dir = self._skill_runtime.workspace_root()
+        is_safe, reason = security_checker.check(command, workspace=str(work_dir))
         if not is_safe:
             return {
                 "ok": False,
@@ -1448,6 +1448,7 @@ class PersonAgent(AgentBase):
             run_summary_llm=_run_compact_llm,
             collect_key_state=self._collect_thread_key_state,
             memory_prompt=self._memory.to_prompt_context() if self._memory else "",
+            workspace_write=self._skill_runtime.workspace_write,
         )
         self._last_utilization = r.last_utilization
         self._rolling_thread_summary = r.rolling_thread_summary

@@ -143,10 +143,12 @@ class PersistenceConfig:
 
     :ivar checkpoint_interval: 检查点间隔（ticks）。
     :ivar checkpoint_max: 最大保留检查点数。
+    :ivar thread_history_max_files: 最大保留的对话历史文件数。
     """
 
     checkpoint_interval: int = 10
     checkpoint_max: int = 20
+    thread_history_max_files: int = 20
 
     # 以下参数写死
     checkpoint_include_workspace: bool = True
