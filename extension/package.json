@@ -26,6 +26,11 @@
           "id": "projectStructureView",
           "name": "Project Structure",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "id": "skillMarketplace",
+          "name": "Skill Marketplace",
+          "when": "workspaceFolderCount > 0"
         }
       ]
     },
@@ -103,6 +108,11 @@
         "command": "aiSocialScientist.openConfigPage",
         "title": "AI Social Scientist: Open Configuration",
         "icon": "$(settings)"
+      },
+      {
+        "command": "aiSocialScientist.openSkillMarketplace",
+        "title": "AI Social Scientist: Open Skill Marketplace",
+        "icon": "$(extensions)"
       },
       {
         "command": "aiSocialScientist.scanCustomModules",

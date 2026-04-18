@@ -40,6 +40,7 @@ import { PidStatusViewer } from './pidStatusViewer';
 import { JsonViewer } from './jsonViewer';
 import { YamlViewer } from './yamlViewer';
 import { hasConfiguredLlmApiKey, migrateLegacySettingsToEnv } from './runtimeConfig';
+import { SkillMarketplaceProvider } from './skillMarketplaceProvider';
 
 // 全局后端服务管理器实例（管理 FastAPI 后端进程的启动、停止、重启）
 let backendManager: BackendManager | null = null;
@@ -503,6 +504,25 @@ export function activate(context: vscode.ExtensionContext) {
     'aiSocialScientist.openConfigPage',
     () => {
       ConfigPageViewProvider.createOrShow(context, vscode.ViewColumn.Beside);
+    }
+  );
+
+  // ========== Skill Marketplace ==========
+  const outputChannel = vscode.window.createOutputChannel('Skill Marketplace');
+  const skillMarketplaceProvider = new SkillMarketplaceProvider(context.extensionUri, outputChannel);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      SkillMarketplaceProvider.viewType,
+      skillMarketplaceProvider,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    )
+  );
+
+  const openSkillMarketplaceCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.openSkillMarketplace',
+    () => {
+      vscode.commands.executeCommand('workbench.view.extension.aiSocialScientist');
+      vscode.commands.executeCommand('workbench.action.focusSideBar');
     }
   );
 
@@ -980,6 +1000,7 @@ export function activate(context: vscode.ExtensionContext) {
     showBackendStatusCommand,
     backendStatusMenuCommand,
     openConfigPageCommand,
+    openSkillMarketplaceCommand,
     scanCustomModulesCommand,
     testCustomModulesCommand,
     listCustomModulesCommand,

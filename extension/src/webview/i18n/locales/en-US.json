@@ -361,5 +361,36 @@
       "timeout": "Request timed out, please check network connection or API address",
       "unknownError": "Unknown error"
     }
+  },
+  "skillMarketplace": {
+    "title": "Skill Marketplace",
+    "subtitle": "Discover and install curated skills",
+    "categories": "Categories",
+    "searchPlaceholder": "Search skills...",
+    "refresh": "Refresh",
+    "loading": "Loading skills...",
+    "noSkills": "No skills found",
+    "skillCount": "{{count}} skills",
+    "install": "Install",
+    "installing": "Installing...",
+    "installed": "Installed",
+    "installSuccess": "Successfully installed {{name}}",
+    "installFailed": "Installation failed: {{error}}",
+    "uninstall": "Uninstall",
+    "uninstallSuccess": "Successfully uninstalled",
+    "uninstallConfirmTitle": "Confirm Uninstall",
+    "uninstallConfirmContent": "Are you sure you want to uninstall this skill?",
+    "openFolder": "Open Folder",
+    "workspace": "Workspace",
+    "global": "Global",
+    "version": "Version",
+    "author": "Author",
+    "tags": "Tags",
+    "compatibility": "Compatibility",
+    "viewOnGithub": "View on GitHub",
+    "error": "An error occurred",
+    "noRegistry": "Unable to load skill registry",
+    "installLocation": "Install Location",
+    "installLocationHint": "Choose where to install skills: workspace (current project only) or global (available for all projects)"
   }
 }

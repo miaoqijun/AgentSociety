@@ -7,6 +7,7 @@ const entries = {
   replay: './src/webview/replay/index.tsx',
   configPage: './src/webview/configPage/index.tsx',
   initConfig: './src/webview/initConfig/index.tsx',
+  skillMarketplace: './src/webview/skillMarketplace/index.tsx',
 };
 
 const createConfig = (name, entry) => ({
