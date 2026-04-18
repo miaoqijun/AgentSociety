@@ -106,12 +106,17 @@
       },
       {
         "command": "aiSocialScientist.openSkillMarketplace",
-        "title": "AI Social Scientist: Skill Management",
+        "title": "AI Social Scientist: Skills",
         "icon": "$(extensions)"
       },
       {
         "command": "aiSocialScientist.openSkillSourcesSettings",
-        "title": "AI Social Scientist: Skill Marketplace Sources (Settings)",
+        "title": "AI Social Scientist: Agent Skill Marketplace Sources (Settings)",
+        "icon": "$(repo)"
+      },
+      {
+        "command": "aiSocialScientist.openClaudeSkillSourcesSettings",
+        "title": "AI Social Scientist: Claude Skill Marketplace Sources (Settings)",
         "icon": "$(repo)"
       },
       {
@@ -342,7 +347,7 @@
         },
         "agentSkills.skillSources": {
           "type": "array",
-          "markdownDescription": "技能市场 **GitHub 目录源**（与 Agent 运行时技能列表无关）。默认提供 [anthropics/skills](https://github.com/anthropics/skills) 一条公开源；可在此数组中 **追加** 更多 `{ owner, repo, branch, skillsPath }` 对象以合并多个仓库目录。留空则不从远程拉取市场列表。拉取失败时面板会显示原因，不会用本地假数据顶替。若遇 API 限流可配置 `agentSkills.githubToken`。",
+          "markdownDescription": "**仅用于 Agent 运行时技能市场**（安装到 `custom/skills`）。与 `agentSkills.claudeSkillSources` 独立，可配置不同 GitHub 仓库。每项为 `{ owner, repo, branch?, skillsPath? }`；留空则 Agent 市场不拉取远程列表。若遇 API 限流可配置 `agentSkills.githubToken`。",
           "default": [
             {
               "owner": "anthropics",
@@ -351,7 +356,7 @@
               "skillsPath": "skills"
             }
           ],
-          "description": "技能市场 GitHub 源列表；默认可用一条，可自行追加或清空。",
+          "description": "Agent 技能市场 GitHub 源（安装到 custom/skills）。",
           "items": {
             "type": "object",
             "markdownDescription": "单仓库：`owner`/`repo` 为 GitHub 路径；`branch` 默认 main；`skillsPath` 为仓库内技能根目录（相对路径，对应 GitHub API contents 下列出的子目录）。也可用 `path` 代替 `skillsPath`。",
@@ -372,6 +377,42 @@
               "skillsPath": {
                 "type": "string",
                 "description": "仓库内技能根目录，如 skills"
+              }
+            }
+          }
+        },
+        "agentSkills.claudeSkillSources": {
+          "type": "array",
+          "markdownDescription": "**仅用于 Claude 目录技能市场**（安装到 `.claude/skills`）。与 `agentSkills.skillSources` 独立。默认 [anthropics/skills](https://github.com/anthropics/skills)；可改为其它仓库或追加多项。留空则 Claude 市场不拉取。",
+          "default": [
+            {
+              "owner": "anthropics",
+              "repo": "skills",
+              "branch": "main",
+              "skillsPath": "skills"
+            }
+          ],
+          "description": "Claude 技能市场 GitHub 源（安装到 .claude/skills）。",
+          "items": {
+            "type": "object",
+            "markdownDescription": "单仓库：`owner`/`repo` 为 GitHub 路径；`branch` 默认 main；`skillsPath` 为仓库内技能根目录。也可用 `path` 代替 `skillsPath`。",
+            "properties": {
+              "owner": {
+                "type": "string",
+                "description": "组织或用户名"
+              },
+              "repo": {
+                "type": "string",
+                "description": "仓库名"
+              },
+              "branch": {
+                "type": "string",
+                "default": "main",
+                "description": "分支名"
+              },
+              "skillsPath": {
+                "type": "string",
+                "description": "仓库内技能根目录"
               }
             }
           }

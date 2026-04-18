@@ -713,6 +713,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'settings',
           undefined
         );
+        settingsItem.tooltip = localize('projectStructure.settings.tooltip');
         items.push(settingsItem);
         return items;
       }
@@ -725,15 +726,17 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'settings',
           undefined
         );
+        settingsItem.tooltip = localize('projectStructure.settings.tooltip');
         items.push(settingsItem);
 
         // 显示说明信息
         const infoItem = new ProjectItem(
-          'API Key required / 需要配置 API 密钥',
+          localize('projectStructure.apiKeyRequired.label'),
           vscode.TreeItemCollapsibleState.None,
           'initWorkspace',
           undefined
         );
+        infoItem.tooltip = localize('projectStructure.apiKeyRequired.tooltip');
         items.push(infoItem);
         return items;
       }
@@ -747,6 +750,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'settings',
           undefined
         );
+        settingsItem.tooltip = localize('projectStructure.settings.tooltip');
         items.push(settingsItem);
 
         const initItem = new ProjectItem(
@@ -757,8 +761,9 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         );
         initItem.command = {
           command: 'aiSocialScientist.initProject',
-          title: 'Initialize Workspace'
+          title: localize('extension.initProject.commandTitle'),
         };
+        initItem.tooltip = localize('extension.initProject.tooltip');
         items.push(initItem);
 
         return items;
@@ -771,6 +776,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         'settings',
         undefined
       );
+      settingsItem.tooltip = localize('projectStructure.settings.tooltip');
       items.push(settingsItem);
 
       // 添加 AI Chat 入口
@@ -782,8 +788,9 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       );
       aiChatItem.command = {
         command: 'aiSocialScientist.openChat',
-        title: 'Open AI Chat'
+        title: localize('extension.aiChat.commandTitle'),
       };
+      aiChatItem.tooltip = localize('extension.aiChat.tooltip');
       items.push(aiChatItem);
 
       // 如果工作区目录结构不完整，显示修复按钮
@@ -796,13 +803,14 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         );
         fixItem.command = {
           command: 'aiSocialScientist.fixWorkspace',
-          title: 'Fix Workspace Directory'
+          title: localize('extension.fixWorkspace.commandTitle'),
         };
+        fixItem.tooltip = localize('extension.fixWorkspace.tooltip');
         items.push(fixItem);
       }
 
       // 添加项目状态概览（统计信息）
-      const statsOverview = this.getProjectStats(workspacePath, isChinese);
+      const statsOverview = this.getProjectStats(workspacePath);
       if (statsOverview) {
         const statsItem = new ProjectItem(
           statsOverview.label,
@@ -810,6 +818,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'projectStats',
           undefined
         );
+        statsItem.description = statsOverview.description;
         statsItem.tooltip = statsOverview.tooltip;
         if (statsOverview.failedExperiments > 0) {
           statsItem.iconPath = makeThemeIcon('warning', 'charts.red');
@@ -822,19 +831,17 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       }
 
       const skillMgmt = new ProjectItem(
-        isChinese ? '技能管理' : 'Skills',
+        localize('projectStructure.skillManagement.label'),
         vscode.TreeItemCollapsibleState.None,
         'skillManagement',
         undefined
       );
       skillMgmt.command = {
         command: 'aiSocialScientist.openSkillMarketplace',
-        title: 'Skill Management'
+        title: localize('projectStructure.skillManagement.commandTitle'),
       };
-      skillMgmt.description = isChinese ? '运行时 / Claude 目录 / GitHub 市场' : 'Runtime · Claude dirs · GitHub';
-      skillMgmt.tooltip = isChinese
-        ? '打开技能管理面板：Agent 运行时与 Claude 目录技能分栏；市场仅使用设置中的 GitHub 源'
-        : 'Skill panel: Agent runtime vs Claude folder skills; marketplace uses configured GitHub sources only';
+      skillMgmt.description = localize('projectStructure.skillManagement.description');
+      skillMgmt.tooltip = localize('projectStructure.skillManagement.tooltip');
       items.push(skillMgmt);
 
       const prefillItem = new ProjectItem(
@@ -843,19 +850,18 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         'prefillParamsGroup',
         undefined
       );
-      prefillItem.description = isChinese ? '环境 / 智能体' : 'env / agents';
-      prefillItem.tooltip = isChinese
-        ? '打开环境与智能体参数管理（模拟前预填）'
-        : 'Open environment & agent prefill settings for simulation';
+      prefillItem.description = localize('projectStructure.prefillParams.description');
+      prefillItem.tooltip = localize('projectStructure.prefillParams.tooltip');
       items.push(prefillItem);
 
-      // 添加 Research Topic 节点
-      items.push(new ProjectItem(
+      const topicItem = new ProjectItem(
         localize('projectStructure.researchTopic'),
         vscode.TreeItemCollapsibleState.Expanded,
         'topic',
         topicFile
-      ));
+      );
+      topicItem.tooltip = localize('projectStructure.researchTopic.tooltip');
+      items.push(topicItem);
 
       return items;
     }
@@ -2153,9 +2159,9 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
    */
   private getProjectStats(
     workspacePath: string,
-    isChinese: boolean
   ): {
     label: string;
+    description: string;
     tooltip: string;
     totalExperiments: number;
     completedExperiments: number;
@@ -2207,32 +2213,25 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
     const pendingExperiments = Math.max(totalExperiments - trackedExperiments, 0);
     const completionRate = Math.round((completedExperiments / totalExperiments) * 100);
 
-    // 状态优先：总览只保留实验状态相关信息，确保一眼可读
-    const labelParts: string[] = isChinese
-      ? [
-        `运行 ${runningExperiments}`,
-        `失败 ${failedExperiments}`,
-        `待运行 ${pendingExperiments}`,
-        `完成 ${completedExperiments}/${totalExperiments}`
-      ]
-      : [
-        `Run ${runningExperiments}`,
-        `Failed ${failedExperiments}`,
-        `Pending ${pendingExperiments}`,
-        `Done ${completedExperiments}/${totalExperiments}`
-      ];
+    const labelParts: string[] = [
+      localize('projectStructure.experimentStats.run', runningExperiments),
+      localize('projectStructure.experimentStats.failed', failedExperiments),
+      localize('projectStructure.experimentStats.pending', pendingExperiments),
+      localize('projectStructure.experimentStats.done', completedExperiments, totalExperiments),
+    ];
 
     const tooltipLines: string[] = [
-      isChinese ? '实验状态总览' : 'Experiment Status Overview',
+      localize('projectStructure.experimentStats.tooltipTitle'),
       labelParts.join(' | '),
-      isChinese ? `完成率 ${completionRate}%` : `Completion ${completionRate}%`
+      localize('projectStructure.experimentStats.completionRate', completionRate),
     ];
     if (unknownExperiments > 0) {
-      tooltipLines.push(isChinese ? `未知状态 ${unknownExperiments}` : `Unknown ${unknownExperiments}`);
+      tooltipLines.push(localize('projectStructure.experimentStats.unknown', unknownExperiments));
     }
 
     return {
-      label: labelParts.join(' | '),
+      label: localize('projectStructure.experimentStats.label'),
+      description: labelParts.join(' | '),
       tooltip: tooltipLines.join('\n'),
       totalExperiments,
       completedExperiments,
@@ -2593,6 +2592,10 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
    * Update extension-bundled skills by re-syncing to workspace .claude/skills/
    * This includes both AgentSociety skills and official Claude Code office skills (pdf, docx, xlsx, pptx).
    */
+  syncBundledClaudeSkillToWorkspace(skillName: string): { success: boolean; message: string } {
+    return this.workspaceManager.syncSingleBundledSkill(skillName);
+  }
+
   async updateExtensionSkills(): Promise<void> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
@@ -2601,7 +2604,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
     }
 
     // Declare in outer scope to be accessible in both steps
-    let syncResult: { success: boolean; message: string; created: string[] };
+    let syncResult: { success: boolean; message: string; created: string[]; synced: string[] };
 
     // 启动批量操作模式，暂停文件监视器的自动刷新
     this.batchOperationInProgress = true;
@@ -2629,7 +2632,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           }
 
           progress.report({ increment: 50 });
-          this.outputChannel.appendLine(`[updateExtensionSkills] Synced ${syncResult.created.length} AgentSociety skills`);
+          this.outputChannel.appendLine(`[updateExtensionSkills] Synced ${syncResult.synced.length} AgentSociety skills`);
         }
       );
 
@@ -2650,7 +2653,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           const officeSkillsResult = await this.workspaceManager.copyOfficialOfficeSkills();
 
           // Combine results for user message
-          const agentSocietyCount = syncResult.created.length;
+          const agentSocietyCount = syncResult.synced.length;
           const officeSkillsCount = officeSkillsResult.downloaded.length;
           const totalSkills = agentSocietyCount + officeSkillsCount;
 

@@ -902,6 +902,24 @@ export class ApiClient {
     }
   }
 
+  async archiveAgentSkill(name: string): Promise<AgentSkillsSimpleResponse> {
+    try {
+      const url = `${this.getBackendUrl()}/api/v1/agent-skills/archive`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      return await response.json() as AgentSkillsSimpleResponse;
+    } catch (error) {
+      this.log(`Archive agent skill failed: ${error}`);
+      throw this.handleFetchError(error, '归档 Skill 失败');
+    }
+  }
+
   async reloadAgentSkill(name: string): Promise<AgentSkillsSimpleResponse> {
     try {
       const url = `${this.getBackendUrl()}/api/v1/agent-skills/reload`;

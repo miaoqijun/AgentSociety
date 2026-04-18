@@ -514,7 +514,13 @@ export function activate(context: vscode.ExtensionContext) {
   const openSkillMarketplaceCommand = vscode.commands.registerCommand(
     'aiSocialScientist.openSkillMarketplace',
     () => {
-      SkillMarketplacePanel.createOrShow(context, skillMarketplaceOutputChannel, apiClient, vscode.ViewColumn.One);
+      SkillMarketplacePanel.createOrShow(
+        context,
+        skillMarketplaceOutputChannel,
+        apiClient,
+        projectStructureProvider,
+        vscode.ViewColumn.One
+      );
     }
   );
 
@@ -522,6 +528,13 @@ export function activate(context: vscode.ExtensionContext) {
     'aiSocialScientist.openSkillSourcesSettings',
     async () => {
       await vscode.commands.executeCommand('workbench.action.openSettings', 'agentSkills.skillSources');
+    }
+  );
+
+  const openClaudeSkillSourcesSettingsCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.openClaudeSkillSourcesSettings',
+    async () => {
+      await vscode.commands.executeCommand('workbench.action.openSettings', 'agentSkills.claudeSkillSources');
     }
   );
 
@@ -908,6 +921,7 @@ export function activate(context: vscode.ExtensionContext) {
     openConfigPageCommand,
     openSkillMarketplaceCommand,
     openSkillSourcesSettingsCommand,
+    openClaudeSkillSourcesSettingsCommand,
     scanCustomModulesCommand,
     testCustomModulesCommand,
     listCustomModulesCommand,

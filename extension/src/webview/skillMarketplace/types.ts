@@ -34,6 +34,8 @@ export interface ClaudeCodeSkill {
   description?: string;
   files: string[];
   origin: 'workspace' | 'global';
+  /** false：目录在 .agentsociety-disabled-skills 保管区，Claude 不会当技能加载 */
+  active?: boolean;
 }
 
 // ============ Built-in Skills（插件自带，只读） ============
@@ -68,12 +70,11 @@ export interface MarketplaceSkill {
   compatibility: string[];
   version?: string;
   homepage?: string;
-  // 安装目标类型
-  installTarget: 'agent' | 'claudeCode' | 'both';
+  installTarget: 'agent' | 'claudeCode';
 }
 
 export type MarketplaceLoadError =
-  | { code: 'NO_SKILL_SOURCES' }
+  | { code: 'NO_SKILL_SOURCES'; channel: 'agent' | 'claude' }
   | { code: 'NETWORK'; message: string }
   | { code: 'GITHUB_SOURCE_FAILED'; source: string; message: string };
 
@@ -82,14 +83,18 @@ export interface MarketplaceLoadPayload {
   errors: MarketplaceLoadError[];
 }
 
+export interface MarketplaceChannelsPayload {
+  agent: MarketplaceLoadPayload;
+  claude: MarketplaceLoadPayload;
+}
+
 export interface SkillSource {
   name: string;
   owner: string;
   repo: string;
   branch?: string;
   path?: string;
-  // 该仓库的 skill 类型
-  skillType: 'agent' | 'claudeCode' | 'both';
+  skillType: 'agent' | 'claudeCode';
 }
 
 // ============ 安装相关 ============
@@ -149,61 +154,65 @@ export interface SkillManagementState {
 
 export interface ExtensionMessage {
   type:
-    | 'ready'
-    // Agent Skills
-    | 'listAgentSkills'
-    | 'enableAgentSkill'
-    | 'disableAgentSkill'
-    | 'reloadAgentSkill'
-    | 'removeAgentSkill'
-    | 'fetchAgentSkillDetail'
-    | 'fetchLocalSkillMarkdown'
-    | 'importAgentSkill'
-    | 'importClaudeCodeSkill'
-    // Claude Code Skills
-    | 'listClaudeCodeSkills'
-    | 'openClaudeCodeSkill'
-    | 'deleteClaudeCodeSkill'
-    // Built-in Skills
-    | 'listBuiltinSkills'
-    | 'scanAgentSkills'
-    | 'refreshMarketplace'
-    | 'updateExtensionSkills'
-    | 'openAgentSkillDoc'
-    | 'openLocalSkillMarkdown'
-    // Marketplace
-    | 'installAgentSkill'
-    | 'installClaudeCodeSkill'
-    | 'openSkillFolder'
-    | 'openExternal'
-    | 'openSkillSourcesSettings';
+  | 'ready'
+  // Agent Skills
+  | 'listAgentSkills'
+  | 'enableAgentSkill'
+  | 'disableAgentSkill'
+  | 'reloadAgentSkill'
+  | 'removeAgentSkill'
+  | 'fetchAgentSkillDetail'
+  | 'fetchLocalSkillMarkdown'
+  | 'importAgentSkill'
+  | 'importClaudeCodeSkill'
+  // Claude Code Skills
+  | 'listClaudeCodeSkills'
+  | 'openClaudeCodeSkill'
+  | 'deleteClaudeCodeSkill'
+  // Built-in Skills
+  | 'listBuiltinSkills'
+  | 'scanAgentSkills'
+  | 'refreshMarketplace'
+  | 'updateExtensionSkills'
+  | 'openAgentSkillDoc'
+  | 'openLocalSkillMarkdown'
+  // Marketplace
+  | 'installAgentSkill'
+  | 'installClaudeCodeSkill'
+  | 'openSkillFolder'
+  | 'openExternal'
+  | 'openSkillSourcesSettings'
+  | 'openClaudeSkillSourcesSettings'
+  | 'syncOneClaudeSkillFromVsix'
+  | 'setClaudeSkillActive'
+  | 'purgeClaudeCodeSkill';
   payload?: unknown;
 }
 
 export interface WebviewMessage {
   type:
-    // Agent Skills
-    | 'agentSkillsLoaded'
-    | 'agentSkillEnabled'
-    | 'agentSkillDisabled'
-    | 'agentSkillReloaded'
-    | 'agentSkillRemoved'
-    | 'agentSkillImported'
-    | 'agentSkillDetailLoaded'
-    | 'localSkillMarkdownLoaded'
-    | 'skillDetailError'
-    // Claude Code Skills
-    | 'claudeCodeSkillsLoaded'
-    | 'claudeCodeSkillImported'
-    | 'claudeCodeSkillDeleted'
-    // Built-in Skills
-    | 'builtinSkillsLoaded'
-    // Marketplace
-    | 'marketplaceSkillsLoaded'
-    | 'installProgress'
-    | 'installComplete'
-    | 'installFailed'
-    // 通用
-    | 'error';
+  // Agent Skills
+  | 'agentSkillsLoaded'
+  | 'agentSkillEnabled'
+  | 'agentSkillDisabled'
+  | 'agentSkillReloaded'
+  | 'agentSkillRemoved'
+  | 'agentSkillImported'
+  | 'agentSkillDetailLoaded'
+  | 'localSkillMarkdownLoaded'
+  | 'skillDetailError'
+  // Claude Code Skills
+  | 'claudeCodeSkillsLoaded'
+  | 'claudeCodeSkillImported'
+  | 'claudeCodeSkillDeleted'
+  // Built-in Skills
+  | 'builtinSkillsLoaded'
+  // Marketplace
+  | 'marketplaceSkillsLoaded'
+  | 'installProgress'
+  | 'installComplete'
+  | 'installFailed'
+  // 通用
+  | 'error';
   payload?: unknown;
 }

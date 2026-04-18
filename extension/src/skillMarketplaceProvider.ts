@@ -1,19 +1,28 @@
 /**
- * 技能管理 Webview：Agent 运行时技能（后端 API）与 Claude 目录技能（.claude/skills）分栏；
- * 技能市场仅从用户配置的 GitHub 源拉取，无静默回退与占位 stub。
+ * 技能管理 Webview：Agent（后端 API）与 Claude（.claude/skills）；
+ * 市场条目来自用户在设置中配置的 GitHub 源。
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
-import type { MarketplaceSkill, AgentSkill, ClaudeCodeSkill, BuiltinSkill } from './webview/skillMarketplace/types';
+import type {
+  MarketplaceSkill,
+  AgentSkill,
+  ClaudeCodeSkill,
+  BuiltinSkill,
+  MarketplaceLoadError,
+} from './webview/skillMarketplace/types';
 import { ApiClient } from './apiClient';
+import type { ProjectStructureProvider } from './projectStructureProvider';
 
 const PANEL_VIEW_TYPE = 'aiSocialScientist.skillMarketplace';
 
 const GITHUB_API_TIMEOUT_MS = 45_000;
 const GITHUB_RAW_TIMEOUT_MS = 28_000;
+
+const CLAUDE_DISABLED_VAULT = '.agentsociety-disabled-skills';
 
 const CATEGORY_MAP: Record<string, { id: string; name: string; nameZh: string }> = {
   pdf: { id: 'document', name: 'Document Processing', nameZh: '文档处理' },
@@ -34,6 +43,32 @@ const CATEGORY_MAP: Record<string, { id: string; name: string; nameZh: string }>
 
 type GitHubContentItem = { name: string; type: string; path: string };
 
+function skillMdPathInDir(skillDir: string): string | null {
+  const exact = path.join(skillDir, 'SKILL.md');
+  if (fs.existsSync(exact)) {
+    return exact;
+  }
+  try {
+    for (const f of fs.readdirSync(skillDir)) {
+      if (f.toLowerCase() === 'skill.md') {
+        return path.join(skillDir, f);
+      }
+    }
+  } catch {
+    /* unreadable */
+  }
+  return null;
+}
+
+function markdownBodyForPreview(full: string): string {
+  const normalized = full.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+  const match = normalized.match(/^---\n[\s\S]*?\n---\s*\n?/);
+  if (match && match.index === 0) {
+    return normalized.slice(match[0].length).trim();
+  }
+  return normalized.trim();
+}
+
 export class SkillMarketplacePanel {
   public static current: SkillMarketplacePanel | undefined;
 
@@ -42,18 +77,21 @@ export class SkillMarketplacePanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _webview: vscode.Webview;
   private readonly _apiClient: ApiClient;
+  private readonly _projectStructureProvider: ProjectStructureProvider;
 
   private constructor(
     extensionUri: vscode.Uri,
     outputChannel: vscode.OutputChannel,
     panel: vscode.WebviewPanel,
-    apiClient: ApiClient
+    apiClient: ApiClient,
+    projectStructureProvider: ProjectStructureProvider
   ) {
     this._extensionUri = extensionUri;
     this._outputChannel = outputChannel;
     this._panel = panel;
     this._webview = panel.webview;
     this._apiClient = apiClient;
+    this._projectStructureProvider = projectStructureProvider;
 
     this._webview.options = {
       enableScripts: true,
@@ -88,16 +126,30 @@ export class SkillMarketplacePanel {
             await this._reloadAgentSkill(data.payload.name);
             break;
           case 'removeAgentSkill':
-            await this._removeAgentSkill(data.payload.name);
+            await this._archiveAgentSkill(data.payload.name);
             break;
 
           // Claude Code Skills
           case 'listClaudeCodeSkills':
             await this._loadClaudeCodeSkills();
             break;
-          case 'deleteClaudeCodeSkill':
-            await this._deleteClaudeCodeSkill(data.payload.name);
+          case 'setClaudeSkillActive': {
+            const pl = data.payload as { name?: string; origin?: string; active?: boolean };
+            const name = typeof pl?.name === 'string' ? pl.name : '';
+            const origin = pl?.origin === 'global' ? 'global' : 'workspace';
+            if (typeof pl?.active !== 'boolean') {
+              break;
+            }
+            await this._setClaudeSkillActive(name, origin, pl.active);
             break;
+          }
+          case 'purgeClaudeCodeSkill': {
+            const pl = data.payload as { name?: string; origin?: string };
+            const name = typeof pl?.name === 'string' ? pl.name : '';
+            const origin = pl?.origin === 'global' ? 'global' : 'workspace';
+            await this._purgeClaudeCodeSkill(name, origin);
+            break;
+          }
 
           // Marketplace
           case 'refreshMarketplace':
@@ -152,6 +204,21 @@ export class SkillMarketplacePanel {
           case 'openSkillSourcesSettings':
             await vscode.commands.executeCommand('workbench.action.openSettings', 'agentSkills.skillSources');
             break;
+          case 'openClaudeSkillSourcesSettings':
+            await vscode.commands.executeCommand('workbench.action.openSettings', 'agentSkills.claudeSkillSources');
+            break;
+          case 'syncOneClaudeSkillFromVsix': {
+            const payload = data.payload as { name?: string } | undefined;
+            const name = typeof payload?.name === 'string' ? payload.name : '';
+            const r = this._projectStructureProvider.syncBundledClaudeSkillToWorkspace(name);
+            if (r.success) {
+              vscode.window.showInformationMessage(r.message);
+            } else {
+              vscode.window.showErrorMessage(r.message);
+            }
+            await this._loadClaudeCodeSkills();
+            break;
+          }
         }
       },
       undefined,
@@ -171,6 +238,7 @@ export class SkillMarketplacePanel {
     context: vscode.ExtensionContext,
     outputChannel: vscode.OutputChannel,
     apiClient: ApiClient,
+    projectStructureProvider: ProjectStructureProvider,
     column: vscode.ViewColumn = vscode.ViewColumn.One
   ): void {
     if (SkillMarketplacePanel.current) {
@@ -190,7 +258,13 @@ export class SkillMarketplacePanel {
     );
 
     context.subscriptions.push(panel);
-    SkillMarketplacePanel.current = new SkillMarketplacePanel(context.extensionUri, outputChannel, panel, apiClient);
+    SkillMarketplacePanel.current = new SkillMarketplacePanel(
+      context.extensionUri,
+      outputChannel,
+      panel,
+      apiClient,
+      projectStructureProvider
+    );
   }
 
   private _normalizeSkillSources(
@@ -297,6 +371,7 @@ export class SkillMarketplacePanel {
     try {
       const response = await this._apiClient.enableAgentSkill(name);
       await this._postMessage({ type: 'agentSkillEnabled', payload: { message: response.message } });
+      await this._loadAgentSkills();
     } catch (error: any) {
       await this._postMessage({ type: 'error', payload: `Failed to enable skill: ${error.message}` });
     }
@@ -306,6 +381,7 @@ export class SkillMarketplacePanel {
     try {
       const response = await this._apiClient.disableAgentSkill(name);
       await this._postMessage({ type: 'agentSkillDisabled', payload: { message: response.message } });
+      await this._loadAgentSkills();
     } catch (error: any) {
       await this._postMessage({ type: 'error', payload: `Failed to disable skill: ${error.message}` });
     }
@@ -315,14 +391,16 @@ export class SkillMarketplacePanel {
     try {
       const response = await this._apiClient.reloadAgentSkill(name);
       await this._postMessage({ type: 'agentSkillReloaded', payload: { message: response.message } });
+      await this._loadAgentSkills();
     } catch (error: any) {
       await this._postMessage({ type: 'error', payload: `Failed to reload skill: ${error.message}` });
     }
   }
 
-  private async _removeAgentSkill(name: string): Promise<void> {
+  private async _archiveAgentSkill(name: string): Promise<void> {
     try {
-      const response = await this._apiClient.removeAgentSkill(name);
+      const response = await this._apiClient.archiveAgentSkill(name);
+      vscode.window.showInformationMessage(response.message);
       await this._postMessage({ type: 'agentSkillRemoved', payload: { message: response.message } });
       await this._loadAgentSkills();
     } catch (error: any) {
@@ -351,11 +429,11 @@ export class SkillMarketplacePanel {
       try {
         const names = fs.readdirSync(skillsDir).filter((name) => {
           const skillPath = path.join(skillsDir, name);
-          return fs.statSync(skillPath).isDirectory() && fs.existsSync(path.join(skillPath, 'SKILL.md'));
+          return fs.statSync(skillPath).isDirectory() && skillMdPathInDir(skillPath) !== null;
         });
         for (const name of names) {
           const skillPath = path.join(skillsDir, name);
-          const mdPath = path.join(skillPath, 'SKILL.md');
+          const mdPath = skillMdPathInDir(skillPath)!;
           const content = fs.readFileSync(mdPath, 'utf-8');
           const frontmatter = this._parseFrontmatter(content);
           skills.push({
@@ -373,8 +451,8 @@ export class SkillMarketplacePanel {
   }
 
   private _openLocalSkillMarkdown(skillDir: string): void {
-    const mdPath = path.join(skillDir, 'SKILL.md');
-    if (!fs.existsSync(mdPath)) {
+    const mdPath = skillMdPathInDir(skillDir);
+    if (!mdPath) {
       vscode.window.showWarningMessage('SKILL.md not found');
       return;
     }
@@ -406,54 +484,153 @@ export class SkillMarketplacePanel {
     try {
       const entries = fs.readdirSync(dirPath, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const skillPath = path.join(dirPath, entry.name);
-          const skillMdPath = path.join(skillPath, 'SKILL.md');
-          const hasSkillMd = fs.existsSync(skillMdPath);
-
-          let description: string | undefined;
-          if (hasSkillMd) {
-            const content = fs.readFileSync(skillMdPath, 'utf-8');
-            const frontmatter = this._parseFrontmatter(content);
-            description = frontmatter.description;
-          }
-
-          const files = fs.readdirSync(skillPath).filter(f => !f.startsWith('.'));
-
-          skills.push({
-            name: entry.name,
-            path: skillPath,
-            hasSkillMd,
-            description,
-            files,
-            origin
-          });
+        if (!entry.isDirectory() || entry.name.startsWith('.')) {
+          continue;
         }
+        const skillPath = path.join(dirPath, entry.name);
+        const mdPath = skillMdPathInDir(skillPath);
+        const hasSkillMd = mdPath !== null;
+
+        let description: string | undefined;
+        if (hasSkillMd && mdPath) {
+          const content = fs.readFileSync(mdPath, 'utf-8');
+          const frontmatter = this._parseFrontmatter(content);
+          description = typeof frontmatter.description === 'string' ? frontmatter.description : undefined;
+        }
+
+        const files = fs.readdirSync(skillPath).filter(f => !f.startsWith('.'));
+
+        skills.push({
+          name: entry.name,
+          path: skillPath,
+          hasSkillMd,
+          description,
+          files,
+          origin,
+          active: true,
+        });
       }
     } catch (error: any) {
       this._outputChannel.appendLine(`[SkillManagement] Failed to scan ${dirPath}: ${error.message}`);
     }
+
+    this._scanClaudeDisabledVault(dirPath, skills, origin);
   }
 
-  private async _deleteClaudeCodeSkill(skillName: string): Promise<void> {
+  private _scanClaudeDisabledVault(parentSkillsDir: string, skills: ClaudeCodeSkill[], origin: 'workspace' | 'global'): void {
+    const vault = path.join(parentSkillsDir, CLAUDE_DISABLED_VAULT);
+    if (!fs.existsSync(vault)) {
+      return;
+    }
     try {
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-      const paths = [
-        workspaceFolder ? path.join(workspaceFolder.uri.fsPath, '.claude', 'skills', skillName) : null,
-        path.join(process.env.HOME || process.env.USERPROFILE || '', '.claude', 'skills', skillName)
-      ].filter(Boolean) as string[];
-
-      for (const skillPath of paths) {
-        if (fs.existsSync(skillPath)) {
-          fs.rmSync(skillPath, { recursive: true, force: true });
-          this._outputChannel.appendLine(`[SkillManagement] Deleted skill: ${skillPath}`);
+      const entries = fs.readdirSync(vault, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory() || entry.name.startsWith('.')) {
+          continue;
         }
+        const skillPath = path.join(vault, entry.name);
+        const mdPath = skillMdPathInDir(skillPath);
+        const hasSkillMd = mdPath !== null;
+        let description: string | undefined;
+        if (hasSkillMd && mdPath) {
+          const content = fs.readFileSync(mdPath, 'utf-8');
+          const frontmatter = this._parseFrontmatter(content);
+          description = typeof frontmatter.description === 'string' ? frontmatter.description : undefined;
+        }
+        const files = fs.readdirSync(skillPath).filter(f => !f.startsWith('.'));
+        skills.push({
+          name: entry.name,
+          path: skillPath,
+          hasSkillMd,
+          description,
+          files,
+          origin,
+          active: false,
+        });
       }
+    } catch (error: any) {
+      this._outputChannel.appendLine(`[SkillManagement] Failed to scan vault ${vault}: ${error.message}`);
+    }
+  }
 
-      await this._postMessage({ type: 'claudeCodeSkillDeleted', payload: { name: skillName } });
+  private async _setClaudeSkillActive(name: string, origin: 'workspace' | 'global', active: boolean): Promise<void> {
+    const wf = vscode.workspace.workspaceFolders?.[0];
+    if (!name.trim()) {
+      return;
+    }
+    if (origin === 'workspace' && !wf) {
+      vscode.window.showErrorMessage('请先打开工作区文件夹');
+      return;
+    }
+    const home = process.env.HOME || process.env.USERPROFILE || '';
+    const skillsRoot =
+      origin === 'workspace'
+        ? path.join(wf!.uri.fsPath, '.claude', 'skills')
+        : path.join(home, '.claude', 'skills');
+    const vaultDir = path.join(skillsRoot, CLAUDE_DISABLED_VAULT);
+    const activePath = path.join(skillsRoot, name);
+    const vaultPath = path.join(vaultDir, name);
+
+    try {
+      if (active) {
+        if (!fs.existsSync(vaultPath)) {
+          vscode.window.showWarningMessage(`未在保管目录找到已关闭的技能: ${name}`);
+          return;
+        }
+        if (fs.existsSync(activePath)) {
+          vscode.window.showErrorMessage(`技能目录已存在，无法启用: ${name}`);
+          return;
+        }
+        fs.renameSync(vaultPath, activePath);
+        vscode.window.showInformationMessage(`已启用 Claude 技能「${name}」`);
+      } else {
+        if (!fs.existsSync(activePath)) {
+          vscode.window.showWarningMessage(`未找到启用的技能目录: ${name}`);
+          return;
+        }
+        fs.mkdirSync(vaultDir, { recursive: true });
+        if (fs.existsSync(vaultPath)) {
+          vscode.window.showErrorMessage(`保管目录已有同名技能，请手动处理冲突: ${name}`);
+          return;
+        }
+        fs.renameSync(activePath, vaultPath);
+        vscode.window.showInformationMessage(`已关闭 Claude 技能「${name}」（文件在 .claude/skills/${CLAUDE_DISABLED_VAULT}/）`);
+      }
       await this._loadClaudeCodeSkills();
     } catch (error: any) {
-      await this._postMessage({ type: 'error', payload: `Failed to delete skill: ${error.message}` });
+      vscode.window.showErrorMessage(error?.message || String(error));
+    }
+  }
+
+  private async _purgeClaudeCodeSkill(name: string, origin: 'workspace' | 'global'): Promise<void> {
+    const wf = vscode.workspace.workspaceFolders?.[0];
+    const home = process.env.HOME || process.env.USERPROFILE || '';
+    const roots: string[] = [];
+    if (origin === 'workspace' && wf) {
+      roots.push(path.join(wf.uri.fsPath, '.claude', 'skills'));
+    }
+    if (origin === 'global' && home) {
+      roots.push(path.join(home, '.claude', 'skills'));
+    }
+    if (!name.trim()) {
+      return;
+    }
+    try {
+      for (const skillsRoot of roots) {
+        const activePath = path.join(skillsRoot, name);
+        const vaultPath = path.join(skillsRoot, CLAUDE_DISABLED_VAULT, name);
+        for (const p of [activePath, vaultPath]) {
+          if (fs.existsSync(p)) {
+            fs.rmSync(p, { recursive: true, force: true });
+            this._outputChannel.appendLine(`[SkillManagement] Purged Claude skill: ${p}`);
+          }
+        }
+      }
+      vscode.window.showInformationMessage(`已永久删除磁盘上的技能目录: ${name}`);
+      await this._postMessage({ type: 'claudeCodeSkillDeleted', payload: { name } });
+      await this._loadClaudeCodeSkills();
+    } catch (error: any) {
+      await this._postMessage({ type: 'error', payload: `Failed to purge skill: ${error.message}` });
     }
   }
 
@@ -513,8 +690,8 @@ export class SkillMarketplacePanel {
       });
       return;
     }
-    const mdPath = path.join(skillDir, 'SKILL.md');
-    if (!fs.existsSync(mdPath)) {
+    const mdPath = skillMdPathInDir(skillDir);
+    if (!mdPath) {
       await this._postMessage({
         type: 'localSkillMarkdownLoaded',
         payload: { path: skillDir, content: '' }
@@ -530,50 +707,71 @@ export class SkillMarketplacePanel {
       });
       return;
     }
-    const content = fs.readFileSync(mdPath, 'utf-8');
+    const raw = fs.readFileSync(mdPath, 'utf-8');
+    const body = markdownBodyForPreview(raw);
+    const content =
+      body.length > 0
+        ? body
+        : raw.replace(/^\uFEFF/, '').trim().length > 0
+          ? '__SKILL_MD_META_ONLY__'
+          : '';
     await this._postMessage({ type: 'localSkillMarkdownLoaded', payload: { path: skillDir, content } });
   }
 
   // ============ Marketplace ============
 
   private async _loadMarketplaceSkills(): Promise<void> {
-    const raw = vscode.workspace.getConfiguration('agentSkills').get<unknown>('skillSources');
-    const sources = this._normalizeSkillSources(Array.isArray(raw) ? raw : []);
-    const errors: Array<
-      | { code: 'NO_SKILL_SOURCES' }
-      | { code: 'NETWORK'; message: string }
-      | { code: 'GITHUB_SOURCE_FAILED'; source: string; message: string }
-    > = [];
-    const remote: MarketplaceSkill[] = [];
+    const agentRaw = vscode.workspace.getConfiguration('agentSkills').get<unknown>('skillSources');
+    const claudeRaw = vscode.workspace.getConfiguration('agentSkills').get<unknown>('claudeSkillSources');
+    const agentSources = this._normalizeSkillSources(Array.isArray(agentRaw) ? agentRaw : []);
+    const claudeSources = this._normalizeSkillSources(Array.isArray(claudeRaw) ? claudeRaw : []);
 
-    if (sources.length === 0) {
-      errors.push({ code: 'NO_SKILL_SOURCES' });
-      await this._postMessage({ type: 'marketplaceSkillsLoaded', payload: { skills: [], errors } });
-      return;
-    }
+    const loadOneChannel = async (
+      sources: Array<{ owner: string; repo: string; branch: string; skillsPath: string }>,
+      channel: 'agent' | 'claude',
+      installTarget: 'agent' | 'claudeCode'
+    ): Promise<{ skills: MarketplaceSkill[]; errors: MarketplaceLoadError[] }> => {
+      const errors: MarketplaceLoadError[] = [];
+      const remote: MarketplaceSkill[] = [];
 
-    for (const source of sources) {
-      const label = `${source.owner}/${source.repo}`;
-      try {
-        const skills = await this._fetchSkillsFromGitHub(source);
-        remote.push(...skills);
-      } catch (error: any) {
-        const msg = error?.message || String(error);
-        this._outputChannel.appendLine(`[SkillManagement] Marketplace source ${label}: ${msg}`);
-        if (this._isNetworkOrTimeoutError(error)) {
-          errors.push({ code: 'NETWORK', message: `${label}: ${msg}` });
-        } else {
-          errors.push({ code: 'GITHUB_SOURCE_FAILED', source: label, message: msg });
+      if (sources.length === 0) {
+        errors.push({ code: 'NO_SKILL_SOURCES', channel });
+        return { skills: [], errors };
+      }
+
+      for (const source of sources) {
+        const label = `${source.owner}/${source.repo}`;
+        try {
+          const skills = await this._fetchSkillsFromGitHub(source, installTarget);
+          remote.push(...skills);
+        } catch (error: any) {
+          const msg = error?.message || String(error);
+          this._outputChannel.appendLine(`[SkillManagement] Marketplace source ${label}: ${msg}`);
+          if (this._isNetworkOrTimeoutError(error)) {
+            errors.push({ code: 'NETWORK', message: `${label}: ${msg}` });
+          } else {
+            errors.push({ code: 'GITHUB_SOURCE_FAILED', source: label, message: msg });
+          }
         }
       }
-    }
 
-    const merged = this._dedupeMarketplaceSkills(remote);
-    await this._postMessage({ type: 'marketplaceSkillsLoaded', payload: { skills: merged, errors } });
+      return { skills: this._dedupeMarketplaceSkills(remote), errors };
+    };
+
+    const [agentPayload, claudePayload] = await Promise.all([
+      loadOneChannel(agentSources, 'agent', 'agent'),
+      loadOneChannel(claudeSources, 'claude', 'claudeCode'),
+    ]);
+
+    await this._postMessage({
+      type: 'marketplaceSkillsLoaded',
+      payload: { agent: agentPayload, claude: claudePayload },
+    });
   }
 
   private async _fetchSkillsFromGitHub(
-    source: { owner: string; repo: string; branch: string; skillsPath: string }
+    source: { owner: string; repo: string; branch: string; skillsPath: string },
+    installTarget: 'agent' | 'claudeCode'
   ): Promise<MarketplaceSkill[]> {
     const { owner, repo, branch, skillsPath } = source;
     const base = `https://api.github.com/repos/${owner}/${repo}/contents`;
@@ -606,7 +804,7 @@ export class SkillMarketplacePanel {
     for (let i = 0; i < dirs.length; i += concurrency) {
       const batch = dirs.slice(i, i + concurrency);
       const batchResults = await Promise.all(
-        batch.map((item) => this._fetchSkillInfo(owner, repo, branch, item.path, item.name))
+        batch.map((item) => this._fetchSkillInfo(owner, repo, branch, item.path, item.name, installTarget))
       );
       for (const skillInfo of batchResults) {
         if (skillInfo) {
@@ -623,7 +821,8 @@ export class SkillMarketplacePanel {
     repo: string,
     branch: string,
     skillPath: string,
-    skillName: string
+    skillName: string,
+    installTarget: 'agent' | 'claudeCode'
   ): Promise<MarketplaceSkill | null> {
     try {
       const skillMdUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${skillPath}/SKILL.md`;
@@ -662,9 +861,9 @@ export class SkillMarketplacePanel {
         branch,
         path: skillPath,
         tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [skillName],
-        compatibility: ['claude', 'copilot', 'cursor'],
+        compatibility: installTarget === 'claudeCode' ? ['claude', 'copilot', 'cursor'] : ['agent'],
         version: frontmatter.version || '1.0.0',
-        installTarget: 'both'
+        installTarget
       };
     } catch (error: any) {
       this._outputChannel.appendLine(`[SkillManagement] Skip ${skillName}: ${error.message}`);
