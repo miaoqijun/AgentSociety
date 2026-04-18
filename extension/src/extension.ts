@@ -40,7 +40,7 @@ import { PidStatusViewer } from './pidStatusViewer';
 import { JsonViewer } from './jsonViewer';
 import { YamlViewer } from './yamlViewer';
 import { hasConfiguredLlmApiKey, migrateLegacySettingsToEnv } from './runtimeConfig';
-import { SkillMarketplaceProvider } from './skillMarketplaceProvider';
+import { SkillMarketplacePanel } from './skillMarketplaceProvider';
 
 // 全局后端服务管理器实例（管理 FastAPI 后端进程的启动、停止、重启）
 let backendManager: BackendManager | null = null;
@@ -507,22 +507,21 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // ========== Skill Marketplace ==========
-  const outputChannel = vscode.window.createOutputChannel('Skill Marketplace');
-  const skillMarketplaceProvider = new SkillMarketplaceProvider(context.extensionUri, outputChannel);
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      SkillMarketplaceProvider.viewType,
-      skillMarketplaceProvider,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
-  );
+  // ========== Skill Marketplace（编辑器区域面板，避免侧边栏过窄） ==========
+  const skillMarketplaceOutputChannel = vscode.window.createOutputChannel('Skill Marketplace');
+  context.subscriptions.push(skillMarketplaceOutputChannel);
 
   const openSkillMarketplaceCommand = vscode.commands.registerCommand(
     'aiSocialScientist.openSkillMarketplace',
     () => {
-      vscode.commands.executeCommand('workbench.view.extension.aiSocialScientist');
-      vscode.commands.executeCommand('workbench.action.focusSideBar');
+      SkillMarketplacePanel.createOrShow(context, skillMarketplaceOutputChannel, apiClient, vscode.ViewColumn.One);
+    }
+  );
+
+  const openSkillSourcesSettingsCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.openSkillSourcesSettings',
+    async () => {
+      await vscode.commands.executeCommand('workbench.action.openSettings', 'agentSkills.skillSources');
     }
   );
 
@@ -586,37 +585,6 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // ========== Agent Skills Commands ==========
-
-  const scanAgentSkillsCommand = vscode.commands.registerCommand(
-    'aiSocialScientist.scanAgentSkills',
-    async () => {
-      await projectStructureProvider.scanAgentSkills();
-    }
-  );
-
-  const importAgentSkillCommand = vscode.commands.registerCommand(
-    'aiSocialScientist.importAgentSkill',
-    async () => {
-      await projectStructureProvider.importAgentSkill();
-    }
-  );
-
-  const toggleAgentSkillCommand = vscode.commands.registerCommand(
-    'aiSocialScientist.toggleAgentSkill',
-    async (item: any) => {
-      await projectStructureProvider.toggleAgentSkill(item);
-    }
-  );
-
-  const reloadAgentSkillCommand = vscode.commands.registerCommand(
-    'aiSocialScientist.reloadAgentSkill',
-    async (item: any) => {
-      await projectStructureProvider.reloadAgentSkill(item);
-    }
-  );
-
-  // 打开 Skill 文档命令
   const openAgentSkillDocCommand = vscode.commands.registerCommand(
     'aiSocialScientist.openAgentSkillDoc',
     async (skillName: string, skillPath: string, isBuiltin: boolean) => {
@@ -624,72 +592,10 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // 删除自定义 Skill 命令
-  const removeAgentSkillCommand = vscode.commands.registerCommand(
-    'aiSocialScientist.removeAgentSkill',
-    async (item: any) => {
-      if (!item) { return; }
-
-      // 获取 skill 名称
-      const skillName = item.skillName;
-      if (!skillName) {
-        vscode.window.showErrorMessage(localize('extension.skill.noName'));
-        return;
-      }
-
-      // 确认删除
-      const confirm = await vscode.window.showWarningMessage(
-        localize('projectStructure.skillRemoveConfirm', skillName),
-        { modal: true },
-        localize('extension.deleteLiterature.confirmButton'),
-        localize('extension.deleteLiterature.cancelButton')
-      );
-
-      if (confirm !== localize('extension.deleteLiterature.confirmButton')) {
-        return;
-      }
-
-      try {
-        const response = await apiClient.removeAgentSkill(skillName);
-        if (response.success) {
-          vscode.window.showInformationMessage(response.message);
-          await projectStructureProvider.refreshAgentSkillsCache();
-          projectStructureProvider.refresh();
-        }
-      } catch (error: any) {
-        vscode.window.showErrorMessage(localize('extension.skill.deleteFailed', error.message || error));
-      }
-    }
-  );
-
   const updateExtensionSkillsCommand = vscode.commands.registerCommand(
     'aiSocialScientist.updateExtensionSkills',
     async () => {
       await projectStructureProvider.updateExtensionSkills();
-    }
-  );
-
-  // 打开 Skill 目录命令
-  const openSkillFolderCommand = vscode.commands.registerCommand(
-    'aiSocialScientist.openSkillFolder',
-    async (item: any) => {
-      if (!item) { return; }
-
-      // 获取 skill 目录路径
-      const skillDirPath = item.skillDirPath || item.filePath;
-      if (!skillDirPath) {
-        vscode.window.showErrorMessage(localize('extension.skill.noDirPath'));
-        return;
-      }
-
-      // 在 VSCode 中打开文件夹
-      const folderUri = vscode.Uri.file(skillDirPath);
-      try {
-        // 在新窗口中打开文件夹
-        vscode.commands.executeCommand('revealFileInOS', folderUri);
-      } catch (error: any) {
-        vscode.window.showErrorMessage(`打开 Skill 目录失败: ${error.message || error}`);
-      }
     }
   );
 
@@ -1001,17 +907,12 @@ export function activate(context: vscode.ExtensionContext) {
     backendStatusMenuCommand,
     openConfigPageCommand,
     openSkillMarketplaceCommand,
+    openSkillSourcesSettingsCommand,
     scanCustomModulesCommand,
     testCustomModulesCommand,
     listCustomModulesCommand,
-    scanAgentSkillsCommand,
-    importAgentSkillCommand,
-    toggleAgentSkillCommand,
-    reloadAgentSkillCommand,
     openAgentSkillDocCommand,
-    removeAgentSkillCommand,
     updateExtensionSkillsCommand,
-    openSkillFolderCommand,
     formatJsonCommand,
     viewLiteratureIndexCommand,
     viewStepsYamlCommand,

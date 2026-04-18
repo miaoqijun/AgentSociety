@@ -222,13 +222,11 @@ workspace/
 - 预览
 - 在编辑器中打开
 
-### 4. Agent Skills 管理
+### 4. 技能管理（Agent 运行时 + Claude 目录 + 市场）
 
-通过左侧边栏的 Skills 面板：
-- 查看可用的 Agent Skills
-- 导入自定义 Skills
-- 启用/禁用 Skills
-- 查看 Skill 详情
+- 在 **项目结构** 侧栏点击 **技能管理**，在编辑器中打开面板（Agent 运行时 / Claude 目录 分栏）。
+- **技能市场** 使用设置项 `agentSkills.skillSources`：默认提供一条公开 GitHub 源，可在设置中 **追加** 更多仓库或清空；面板内可一键 **打开市场源设置**。建议遇 API 限流时配置 `agentSkills.githubToken`。
+- 市场仅从配置的源 **实时拉取**，失败会在面板提示原因，不用本地列表冒充远程结果。
 
 ### 5. 参数预填充
 

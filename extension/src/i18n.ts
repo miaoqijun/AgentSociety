@@ -148,23 +148,6 @@ const translations: Record<string, Record<string, string>> = {
 
     // projectStructureProvider.ts - settings
     'projectStructure.settings': '配置设置',
-    'projectStructure.agentSkills': 'Agent Skills',
-    'projectStructure.extensionSkills': 'AgentSociety Skills',
-    'projectStructure.agentSkillsScan': '扫描 Skills',
-    'projectStructure.agentSkillsImport': '导入 Skill',
-    'projectStructure.agentSkillsBuiltin': '内置 Skills',
-    'projectStructure.agentSkillsCustom': '自定义 Skills',
-    'projectStructure.agentSkillsEmpty': '暂无 Skills，点击扫描或导入',
-    'projectStructure.skillEnabled': '已启用',
-    'projectStructure.skillDisabled': '已禁用',
-    'projectStructure.skillPriority': '优先级',
-    'projectStructure.skillRemove': '删除 Skill',
-    'projectStructure.skillRemoveConfirm': '确定要删除自定义 Skill "{0}" 吗？此操作无法撤销。',
-    'projectStructure.skillImportLocal': '从本地目录导入 Skill',
-    'projectStructure.skillImportPlaceholder': '选择 Skill 导入方式',
-    'projectStructure.extensionSkillsUpdate': '更新 Skills',
-    'projectStructure.extensionSkillsUpdateSuccess': '已更新 {0} 个 Skills',
-    'projectStructure.extensionSkillsUpdateFailed': '更新 Skills 失败: {0}',
 
     // backendManager.ts
     'backendManager.openSettings': '打开设置',
@@ -410,23 +393,6 @@ const translations: Record<string, Record<string, string>> = {
 
     // projectStructureProvider.ts - settings
     'projectStructure.settings': 'Settings',
-    'projectStructure.agentSkills': 'Agent Skills',
-    'projectStructure.extensionSkills': 'AgentSociety Skills',
-    'projectStructure.agentSkillsScan': 'Scan Skills',
-    'projectStructure.agentSkillsImport': 'Import Skill',
-    'projectStructure.agentSkillsBuiltin': 'Built-in Skills',
-    'projectStructure.agentSkillsCustom': 'Custom Skills',
-    'projectStructure.agentSkillsEmpty': 'No Skills found. Click to scan or import.',
-    'projectStructure.skillEnabled': 'Enabled',
-    'projectStructure.skillDisabled': 'Disabled',
-    'projectStructure.skillPriority': 'Priority',
-    'projectStructure.skillRemove': 'Remove Skill',
-    'projectStructure.skillRemoveConfirm': 'Are you sure you want to remove custom skill "{0}"? This action cannot be undone.',
-    'projectStructure.skillImportLocal': 'Import Skill from local directory',
-    'projectStructure.skillImportPlaceholder': 'Select Skill import method',
-    'projectStructure.extensionSkillsUpdate': 'Update Skills',
-    'projectStructure.extensionSkillsUpdateSuccess': 'Updated {0} Skills',
-    'projectStructure.extensionSkillsUpdateFailed': 'Failed to update Skills: {0}',
 
     // backendManager.ts
     'backendManager.openSettings': 'Open Settings',

@@ -26,11 +26,6 @@
           "id": "projectStructureView",
           "name": "Project Structure",
           "when": "workspaceFolderCount > 0"
-        },
-        {
-          "id": "skillMarketplace",
-          "name": "Skill Marketplace",
-          "when": "workspaceFolderCount > 0"
         }
       ]
     },
@@ -111,8 +106,13 @@
       },
       {
         "command": "aiSocialScientist.openSkillMarketplace",
-        "title": "AI Social Scientist: Open Skill Marketplace",
+        "title": "AI Social Scientist: Skill Management",
         "icon": "$(extensions)"
+      },
+      {
+        "command": "aiSocialScientist.openSkillSourcesSettings",
+        "title": "AI Social Scientist: Skill Marketplace Sources (Settings)",
+        "icon": "$(repo)"
       },
       {
         "command": "aiSocialScientist.scanCustomModules",
@@ -128,31 +128,6 @@
         "command": "aiSocialScientist.listCustomModules",
         "title": "AI Social Scientist: List Custom Modules",
         "icon": "$(list-tree)"
-      },
-      {
-        "command": "aiSocialScientist.scanAgentSkills",
-        "title": "AI Social Scientist: Scan Agent Skills",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "aiSocialScientist.importAgentSkill",
-        "title": "AI Social Scientist: Import Agent Skill",
-        "icon": "$(cloud-download)"
-      },
-      {
-        "command": "aiSocialScientist.toggleAgentSkill",
-        "title": "AI Social Scientist: Toggle Agent Skill",
-        "icon": "$(check)"
-      },
-      {
-        "command": "aiSocialScientist.reloadAgentSkill",
-        "title": "AI Social Scientist: Reload Agent Skill",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "aiSocialScientist.openSkillFolder",
-        "title": "AI Social Scientist: Open Skill Folder in File Manager",
-        "icon": "$(folder)"
       },
       {
         "command": "aiSocialScientist.formatJsonFile",
@@ -173,11 +148,6 @@
         "command": "aiSocialScientist.viewExperimentResults",
         "title": "AI Social Scientist: View Experiment Results",
         "icon": "$(graph)"
-      },
-      {
-        "command": "aiSocialScientist.removeAgentSkill",
-        "title": "AI Social Scientist: Remove Custom Skill",
-        "icon": "$(trash)"
       },
       {
         "command": "aiSocialScientist.copyFilePath",
@@ -216,7 +186,13 @@
       }
     ],
     "menus": {
-      "view/title": [],
+      "view/title": [
+        {
+          "command": "aiSocialScientist.openSkillMarketplace",
+          "when": "view == projectStructureView && workspaceFolderCount > 0",
+          "group": "navigation@1"
+        }
+      ],
       "view/item/context": [
         {
           "command": "aiSocialScientist.openReplay",
@@ -236,36 +212,6 @@
         {
           "command": "aiSocialScientist.openMarkdownInEditor",
           "when": "view == projectStructureView && viewItem =~ /markdown/",
-          "group": "2_actions"
-        },
-        {
-          "command": "aiSocialScientist.toggleAgentSkill",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem.*enabled/",
-          "group": "1_actions@1"
-        },
-        {
-          "command": "aiSocialScientist.toggleAgentSkill",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem.*disabled/",
-          "group": "1_actions@1"
-        },
-        {
-          "command": "aiSocialScientist.removeAgentSkill",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem.*custom/",
-          "group": "1_actions@2"
-        },
-        {
-          "command": "aiSocialScientist.reloadAgentSkill",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem/",
-          "group": "1_actions@2"
-        },
-        {
-          "command": "aiSocialScientist.openSkillFolder",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem/",
-          "group": "2_actions"
-        },
-        {
-          "command": "aiSocialScientist.openSkillFolder",
-          "when": "view == projectStructureView && viewItem == extensionSkillItem",
           "group": "2_actions"
         },
         {
@@ -387,6 +333,48 @@
           ],
           "description": "Chat面板打开的视图列位置",
           "markdownDescription": "指定 Chat 面板打开时使用的视图列位置。选择固定的列（如 `two`、`three`）可以避免在打开其他页面（如 Replay）时 Chat 页面被替换或消失。默认为 `beside`（在当前编辑器旁边）。"
+        },
+        "agentSkills.githubToken": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub token（可选）。用于提高 api.github.com 速率限制，便于技能市场拉取目录与元数据。",
+          "markdownDescription": "可选。填写 [Personal Access Token](https://github.com/settings/tokens) 后，技能市场请求 GitHub API 时附带认证，避免匿名 60 次/小时限流导致加载失败。"
+        },
+        "agentSkills.skillSources": {
+          "type": "array",
+          "markdownDescription": "技能市场 **GitHub 目录源**（与 Agent 运行时技能列表无关）。默认提供 [anthropics/skills](https://github.com/anthropics/skills) 一条公开源；可在此数组中 **追加** 更多 `{ owner, repo, branch, skillsPath }` 对象以合并多个仓库目录。留空则不从远程拉取市场列表。拉取失败时面板会显示原因，不会用本地假数据顶替。若遇 API 限流可配置 `agentSkills.githubToken`。",
+          "default": [
+            {
+              "owner": "anthropics",
+              "repo": "skills",
+              "branch": "main",
+              "skillsPath": "skills"
+            }
+          ],
+          "description": "技能市场 GitHub 源列表；默认可用一条，可自行追加或清空。",
+          "items": {
+            "type": "object",
+            "markdownDescription": "单仓库：`owner`/`repo` 为 GitHub 路径；`branch` 默认 main；`skillsPath` 为仓库内技能根目录（相对路径，对应 GitHub API contents 下列出的子目录）。也可用 `path` 代替 `skillsPath`。",
+            "properties": {
+              "owner": {
+                "type": "string",
+                "description": "组织或用户名，如 anthropics"
+              },
+              "repo": {
+                "type": "string",
+                "description": "仓库名，如 skills"
+              },
+              "branch": {
+                "type": "string",
+                "default": "main",
+                "description": "分支名"
+              },
+              "skillsPath": {
+                "type": "string",
+                "description": "仓库内技能根目录，如 skills"
+              }
+            }
+          }
         }
       }
     }
