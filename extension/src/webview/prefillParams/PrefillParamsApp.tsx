@@ -1,6 +1,9 @@
 import * as React from 'react';
 import { ConfigProvider, Input, Card, Typography, Spin, Alert, Empty, Space, Badge, Tabs, Tag, Button } from 'antd';
-import { SearchOutlined, ReloadOutlined, PlayCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
+import {
+  SearchOutlined, ReloadOutlined, PlayCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { VSCodeAPI, ClassInfo, AvailableClasses, PrefillParams } from './types';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
@@ -153,6 +156,10 @@ export const PrefillParamsApp: React.FC<PrefillParamsAppProps> = ({ vscode }) =>
     });
   };
 
+  const handleOpenPrefillJson = () => {
+    vscode.postMessage({ command: 'openPrefillParamsJson' });
+  };
+
   const handleClassSelect = (item: ClassItem) => {
     setSelectedClass(item);
   };
@@ -247,251 +254,260 @@ export const PrefillParamsApp: React.FC<PrefillParamsAppProps> = ({ vscode }) =>
           color: palette.editorForeground,
         }}
       >
-      <div
-        style={{
-          padding: '12px',
-          borderBottom: `1px solid ${palette.panelBorder}`,
-          flexShrink: 0,
-          backgroundColor: palette.editorBackground,
-        }}
-      >
-        <Space style={{ width: '100%' }} direction="vertical" size="small">
-          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-            <Title level={5} style={{ margin: 0 }}>
-              {t('prefillParams.groupTitle')}
-            </Title>
-            <ReloadOutlined
-              onClick={handleRefresh}
-              style={{ cursor: 'pointer', fontSize: '16px' }}
-              title={t('prefillParams.refresh')}
-            />
-          </Space>
-
-          <Space
-            style={{
-              width: '100%',
-              justifyContent: 'space-between',
-              fontSize: '12px',
-              color: palette.descriptionForeground,
-            }}
-          >
-            <Space split={<span>|</span>}>
-              <span>{t('prefillParams.classInfo.builtin')}: {builtinCount}</span>
-              <span>{t('prefillParams.classInfo.custom')}: {customCount}</span>
-            </Space>
-          </Space>
-
-          <Tabs
-            activeKey={activeTab}
-            onChange={(key) => {
-              setActiveTab(key as 'env_module' | 'agent');
-              setSelectedClass(null);
-            }}
-            style={{ marginBottom: 0 }}
-            items={[
-              {
-                key: 'env_module',
-                label: `${t('prefillParams.classInfo.envModule')} (${classes.filter(c => c.kind === 'env_module').length})`,
-              },
-              {
-                key: 'agent',
-                label: `${t('prefillParams.classInfo.agent')} (${classes.filter(c => c.kind === 'agent').length})`,
-              },
-            ]}
-          />
-          <Search
-            placeholder={t('prefillParams.searchPlaceholder')}
-            allowClear
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: '100%' }}
-          />
-        </Space>
-      </div>
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <div
           style={{
-            width: '340px',
-            background: palette.surfaceMuted,
-            borderRight: `1px solid ${palette.panelBorder}`,
-            overflowY: 'auto',
+            padding: '12px',
+            borderBottom: `1px solid ${palette.panelBorder}`,
             flexShrink: 0,
+            backgroundColor: palette.editorBackground,
           }}
         >
-          <div style={{ padding: '8px' }}>
-            {filteredClasses.length === 0 ? (
-              <Empty description={t('prefillParams.noClasses')} style={{ marginTop: '40px' }} />
-            ) : (
-              filteredClasses.map((item) => {
-                const key = `${item.kind}-${item.type}`;
-                const testStatus = testStatuses[key] || 'idle';
-                const testResult = testResults[key];
-                const isCustom = item.info.is_custom;
+          <Space style={{ width: '100%' }} direction="vertical" size="small">
+            <Space style={{ width: '100%', justifyContent: 'space-between', alignItems: 'center' }} wrap>
+              <Title level={5} style={{ margin: 0 }}>
+                {t('prefillParams.groupTitle')}
+              </Title>
+              <Space size="small" wrap>
+                <Button type="default" size="small" icon={<FileTextOutlined />} onClick={handleOpenPrefillJson}>
+                  {t('prefillParams.openConfigFile')}
+                </Button>
+                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleRefresh}>
+                  {t('prefillParams.refresh')}
+                </Button>
+              </Space>
+            </Space>
 
-                return (
-                  <Card
-                    key={key}
-                    size="small"
-                    style={{
-                      marginBottom: '8px',
-                      cursor: 'pointer',
-                      border:
-                        selectedClass?.type === item.type &&
-                          selectedClass?.kind === item.kind
-                          ? `2px solid ${palette.focusBorder}`
-                          : `1px solid ${palette.panelBorder}`,
-                      backgroundColor: isCustom ? palette.surfaceBackground : palette.surfaceMuted,
-                    }}
-                    onClick={() => handleClassSelect(item)}
-                    hoverable
-                  >
-                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                        <Space>
-                          <Badge
-                            status={item.info.has_prefill ? 'success' : 'default'}
-                            text={
-                            <Text strong>
-                              {item.type}
-                            </Text>
-                          }
-                          />
+            <Alert type="info" showIcon message={t('prefillParams.introHintTitle')} description={t('prefillParams.introHintBody')} style={{ fontSize: 12 }} />
+
+            <Space
+              style={{
+                width: '100%',
+                justifyContent: 'space-between',
+                fontSize: '12px',
+                color: palette.descriptionForeground,
+              }}
+            >
+              <Space split={<span>|</span>}>
+                <span>{t('prefillParams.classInfo.builtin')}: {builtinCount}</span>
+                <span>{t('prefillParams.classInfo.custom')}: {customCount}</span>
+              </Space>
+            </Space>
+
+            <Tabs
+              activeKey={activeTab}
+              onChange={(key) => {
+                setActiveTab(key as 'env_module' | 'agent');
+                setSelectedClass(null);
+              }}
+              style={{ marginBottom: 0 }}
+              items={[
+                {
+                  key: 'env_module',
+                  label: `${t('prefillParams.classInfo.envModule')} (${classes.filter(c => c.kind === 'env_module').length})`,
+                },
+                {
+                  key: 'agent',
+                  label: `${t('prefillParams.classInfo.agent')} (${classes.filter(c => c.kind === 'agent').length})`,
+                },
+              ]}
+            />
+            <Search
+              placeholder={t('prefillParams.searchPlaceholder')}
+              allowClear
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: '100%' }}
+            />
+          </Space>
+        </div>
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <div
+            style={{
+              width: '340px',
+              background: palette.surfaceMuted,
+              borderRight: `1px solid ${palette.panelBorder}`,
+              overflowY: 'auto',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ padding: '8px' }}>
+              {filteredClasses.length === 0 ? (
+                <Empty description={t('prefillParams.noClasses')} style={{ marginTop: '40px' }} />
+              ) : (
+                filteredClasses.map((item) => {
+                  const key = `${item.kind}-${item.type}`;
+                  const testStatus = testStatuses[key] || 'idle';
+                  const testResult = testResults[key];
+                  const isCustom = item.info.is_custom;
+
+                  return (
+                    <Card
+                      key={key}
+                      size="small"
+                      style={{
+                        marginBottom: '8px',
+                        cursor: 'pointer',
+                        border:
+                          selectedClass?.type === item.type &&
+                            selectedClass?.kind === item.kind
+                            ? `2px solid ${palette.focusBorder}`
+                            : `1px solid ${palette.panelBorder}`,
+                        backgroundColor: isCustom ? palette.surfaceBackground : palette.surfaceMuted,
+                      }}
+                      onClick={() => handleClassSelect(item)}
+                      hoverable
+                    >
+                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                          <Space>
+                            <Badge
+                              status={item.info.has_prefill ? 'success' : 'default'}
+                              text={
+                                <Text strong>
+                                  {item.type}
+                                </Text>
+                              }
+                            />
+                          </Space>
+                          <Tag color={isCustom ? 'blue' : 'default'}>
+                            {isCustom
+                              ? t('prefillParams.classInfo.custom')
+                              : t('prefillParams.classInfo.builtin')}
+                          </Tag>
                         </Space>
-                        <Tag color={isCustom ? 'blue' : 'default'}>
-                          {isCustom
-                            ? t('prefillParams.classInfo.custom')
-                            : t('prefillParams.classInfo.builtin')}
-                        </Tag>
-                      </Space>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        {item.info.class_name}
-                      </Text>
+                        <Text
+                          type="secondary"
+                          style={{ fontSize: '12px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          title={item.info.class_name}
+                        >
+                          {item.info.class_name}
+                        </Text>
 
-                      {/* 自定义模块显示测试按钮和状态 */}
-                      {isCustom && (
-                        <Space style={{ width: '100%' }} size="small">
-                          <Button
-                            size="small"
-                            icon={<PlayCircleOutlined />}
-                            loading={testStatus === 'testing'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTestModule(item);
-                            }}
-                          >
-                            {t('prefillParams.classInfo.test')}
-                          </Button>
-                          {getTestIcon(testStatus)}
-                        </Space>
-                      )}
-
-                      {testStatus !== 'idle' && testResult && (
-                        <Alert
-                          message={testStatus === 'success' ? t('prefillParams.test.success') : t('prefillParams.test.failed')}
-                          description={
-                            <Text
-                              style={{
-                                fontSize: '12px',
-                                display: 'block',
-                                maxHeight: '60px',
-                                overflow: 'auto',
-                                whiteSpace: 'pre-wrap'
+                        {/* 自定义模块显示测试按钮和状态 */}
+                        {isCustom && (
+                          <Space style={{ width: '100%' }} size="small">
+                            <Button
+                              size="small"
+                              icon={<PlayCircleOutlined />}
+                              loading={testStatus === 'testing'}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTestModule(item);
                               }}
                             >
-                              {testResult}
-                            </Text>
-                          }
-                          type={testStatus === 'success' ? 'success' : 'error'}
-                          showIcon
-                          style={{ padding: '4px 8px', fontSize: '12px' }}
-                        />
-                      )}
+                              {t('prefillParams.classInfo.test')}
+                            </Button>
+                            {getTestIcon(testStatus)}
+                          </Space>
+                        )}
 
-                      {item.info.has_prefill && (
-                        <Text type="success" style={{ fontSize: '12px' }}>
-                          {t('prefillParams.classInfo.hasPrefill')}
-                        </Text>
-                      )}
-                    </Space>
-                  </Card>
-                );
-              })
+                        {testStatus !== 'idle' && testResult && (
+                          <Alert
+                            message={testStatus === 'success' ? t('prefillParams.test.success') : t('prefillParams.test.failed')}
+                            description={
+                              <Text
+                                style={{
+                                  fontSize: '12px',
+                                  display: 'block',
+                                  maxHeight: '60px',
+                                  overflow: 'auto',
+                                  whiteSpace: 'pre-wrap'
+                                }}
+                              >
+                                {testResult}
+                              </Text>
+                            }
+                            type={testStatus === 'success' ? 'success' : 'error'}
+                            showIcon
+                            style={{ padding: '4px 8px', fontSize: '12px' }}
+                          />
+                        )}
+
+                        {item.info.has_prefill && (
+                          <Text type="success" style={{ fontSize: '12px' }}>
+                            {t('prefillParams.classInfo.hasPrefill')}
+                          </Text>
+                        )}
+                      </Space>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </div>
+          <div
+            style={{
+              flex: 1,
+              padding: '16px',
+              overflowY: 'auto',
+              minWidth: 0,
+            }}
+          >
+            {selectedClass ? (
+              <div>
+                <Space style={{ marginBottom: '8px' }}>
+                  <Title level={4} style={{ margin: 0 }}>
+                    {selectedClass.type}
+                  </Title>
+                  <Badge
+                    status={selectedClass.info.has_prefill ? 'success' : 'default'}
+                  />
+                  <Tag color={selectedClass.info.is_custom ? 'blue' : 'default'}>
+                    {selectedClass.info.is_custom
+                      ? t('prefillParams.classInfo.custom')
+                      : t('prefillParams.classInfo.builtin')}
+                  </Tag>
+                </Space>
+                <Paragraph>
+                  <Text strong>{t('prefillParams.classInfo.className')}: </Text>
+                  <Text code>{selectedClass.info.class_name}</Text>
+                </Paragraph>
+                <Paragraph>
+                  <Text strong>{t('prefillParams.classInfo.kind')}: </Text>
+                  <Text>
+                    {selectedClass.kind === 'env_module'
+                      ? t('prefillParams.classInfo.envModule')
+                      : t('prefillParams.classInfo.agent')}
+                  </Text>
+                </Paragraph>
+                <div style={{ marginTop: '16px' }}>
+                  <Text strong>{t('prefillParams.classInfo.description')}: </Text>
+                  <div style={{ marginTop: '8px' }}>
+                    <MarkdownRenderer
+                      content={selectedClass.info.description}
+                      isDark={isDark}
+                    />
+                  </div>
+                </div>
+                <div style={{ marginTop: '24px' }}>
+                  <Title level={5}>{t('prefillParams.classInfo.prefillParams')}</Title>
+                  {Object.keys(selectedClass.params).length === 0 ? (
+                    <Alert
+                      message={t('prefillParams.classInfo.noPrefillParams')}
+                      type="info"
+                      showIcon
+                    />
+                  ) : (
+                    <JsonViewer
+                      data={selectedClass.params}
+                      isDark={isDark}
+                      showCopy={true}
+                      showExpandCollapse={true}
+                      defaultExpandDepth={3}
+                      maxHeight="min(520px, calc(100vh - 280px))"
+                    />
+                  )}
+                </div>
+              </div>
+            ) : (
+              <Empty
+                description={t('prefillParams.selectClass')}
+                style={{ marginTop: '100px' }}
+              />
             )}
           </div>
         </div>
-        <div
-          style={{
-            flex: 1,
-            padding: '16px',
-            overflowY: 'auto',
-            minWidth: 0,
-          }}
-        >
-          {selectedClass ? (
-            <div>
-              <Space style={{ marginBottom: '8px' }}>
-                <Title level={4} style={{ margin: 0 }}>
-                  {selectedClass.type}
-                </Title>
-                <Badge
-                  status={selectedClass.info.has_prefill ? 'success' : 'default'}
-                />
-                <Tag color={selectedClass.info.is_custom ? 'blue' : 'default'}>
-                  {selectedClass.info.is_custom
-                    ? t('prefillParams.classInfo.custom')
-                    : t('prefillParams.classInfo.builtin')}
-                </Tag>
-              </Space>
-              <Paragraph>
-                <Text strong>{t('prefillParams.classInfo.className')}: </Text>
-                <Text code>{selectedClass.info.class_name}</Text>
-              </Paragraph>
-              <Paragraph>
-                <Text strong>{t('prefillParams.classInfo.kind')}: </Text>
-                <Text>
-                  {selectedClass.kind === 'env_module'
-                    ? t('prefillParams.classInfo.envModule')
-                    : t('prefillParams.classInfo.agent')}
-                </Text>
-              </Paragraph>
-              <div style={{ marginTop: '16px' }}>
-                <Text strong>{t('prefillParams.classInfo.description')}: </Text>
-                <div style={{ marginTop: '8px' }}>
-                  <MarkdownRenderer
-                    content={selectedClass.info.description}
-                    isDark={isDark}
-                  />
-                </div>
-              </div>
-              <div style={{ marginTop: '24px' }}>
-                <Title level={5}>{t('prefillParams.classInfo.prefillParams')}</Title>
-                {Object.keys(selectedClass.params).length === 0 ? (
-                  <Alert
-                    message={t('prefillParams.classInfo.noPrefillParams')}
-                    type="info"
-                    showIcon
-                  />
-                ) : (
-                  <JsonViewer
-                    data={selectedClass.params}
-                    isDark={isDark}
-                    showCopy={true}
-                    showExpandCollapse={true}
-                    defaultExpandDepth={2}
-                    maxHeight="400px"
-                  />
-                )}
-              </div>
-            </div>
-          ) : (
-            <Empty
-              description={t('prefillParams.selectClass')}
-              style={{ marginTop: '100px' }}
-            />
-          )}
-        </div>
-      </div>
       </div>
     </ConfigProvider>
   );

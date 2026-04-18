@@ -41,6 +41,14 @@ export class ProjectItem extends vscode.TreeItem {
   public moduleType?: string;
   public className?: string;
 
+  /** 实验总览下按假设拆分的子行（缓存于父节点，供 getChildren 使用） */
+  public experimentHypothesisSummaries?: Array<{
+    hypDir: string;
+    label: string;
+    description: string;
+    tooltip: string;
+  }>;
+
   /**
    * 构造函数
    * @param label - 节点显示的文本标签
@@ -54,7 +62,7 @@ export class ProjectItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-    public readonly type: 'initWorkspace' | 'configureEnv' | 'fixWorkspace' | 'aiChat' | 'topic' | 'hypothesis' | 'experiment' | 'paper' | 'file' | 'papers' | 'userdata' | 'prefillParams' | 'prefillParamsGroup' | 'prefillParamsEnv' | 'prefillParamsAgent' | 'settings' | 'custom' | 'customScan' | 'customTest' | 'customClean' | 'customAgentItem' | 'customEnvItem' | 'customAgentsGroup' | 'customEnvsGroup' | 'customWorkspace' | 'presentation' | 'presentationHypothesis' | 'presentationExperiment' | 'synthesis' | 'reportHtml' | 'reportMd' | 'skillManagement' | 'datasets' | 'datasetItem' | 'paperPdfGroup' | 'paperMdGroup' | 'paperJsonGroup' | 'pidJson' | 'experimentInitGroup' | 'experimentRunGroup' | 'projectStats',
+    public readonly type: 'initWorkspace' | 'configureEnv' | 'fixWorkspace' | 'aiChat' | 'topic' | 'hypothesis' | 'experiment' | 'paper' | 'file' | 'papers' | 'userdata' | 'prefillParams' | 'prefillParamsGroup' | 'prefillParamsEnv' | 'prefillParamsAgent' | 'settings' | 'custom' | 'customScan' | 'customTest' | 'customClean' | 'customAgentItem' | 'customEnvItem' | 'customAgentsGroup' | 'customEnvsGroup' | 'customWorkspace' | 'presentation' | 'presentationHypothesis' | 'presentationExperiment' | 'synthesis' | 'reportHtml' | 'reportMd' | 'skillManagement' | 'datasets' | 'datasetItem' | 'paperPdfGroup' | 'paperMdGroup' | 'paperJsonGroup' | 'pidJson' | 'experimentInitGroup' | 'experimentRunGroup' | 'projectStats' | 'experimentStatsHypothesis',
     public readonly filePath?: string
   ) {
     // 调用父类构造函数，初始化树节点
@@ -134,6 +142,7 @@ export class ProjectItem extends vscode.TreeItem {
       'experimentInitGroup': 'settings-gear', // 实验配置文件组
       'experimentRunGroup': 'graph-line', // 实验运行结果组
       'projectStats': 'graph', // 项目统计概览
+      'experimentStatsHypothesis': 'lightbulb', // 实验总览下按假设汇总
     };
 
     // 对于 paper 和 file 类型，根据文件扩展名设置图标
@@ -185,12 +194,20 @@ export class ProjectItem extends vscode.TreeItem {
       this.iconPath = makeThemeIcon('beaker', 'charts.blue');
     } else if (type === 'projectStats') {
       this.iconPath = makeThemeIcon('graph', 'charts.blue');
+    } else if (type === 'experimentStatsHypothesis') {
+      this.iconPath = makeThemeIcon('lightbulb', 'charts.orange');
     }
 
     // 如果提供了文件路径，设置点击命令
     // 当用户点击这个节点时，会执行相应的命令打开文件
     if (filePath) {
-      if (type === 'reportHtml' || (ext === 'html' && (type === 'presentationExperiment' || type === 'synthesis'))) {
+      if (type === 'experimentStatsHypothesis') {
+        this.command = {
+          command: 'revealInExplorer',
+          title: localize('projectStructure.experimentStats.revealHypothesis'),
+          arguments: [vscode.Uri.file(filePath)],
+        };
+      } else if (type === 'reportHtml' || (ext === 'html' && (type === 'presentationExperiment' || type === 'synthesis'))) {
         // HTML 报告文件使用默认浏览器打开（不依赖 Live Preview 扩展）
         this.command = {
           command: 'livePreview.start.preview.atFile',
@@ -812,14 +829,18 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       // 添加项目状态概览（统计信息）
       const statsOverview = this.getProjectStats(workspacePath);
       if (statsOverview) {
+        const hypoSummaries = this.buildExperimentHypothesisSummaries(workspacePath);
         const statsItem = new ProjectItem(
           statsOverview.label,
-          vscode.TreeItemCollapsibleState.None,
+          hypoSummaries.length > 0
+            ? vscode.TreeItemCollapsibleState.Collapsed
+            : vscode.TreeItemCollapsibleState.None,
           'projectStats',
           undefined
         );
         statsItem.description = statsOverview.description;
         statsItem.tooltip = statsOverview.tooltip;
+        statsItem.experimentHypothesisSummaries = hypoSummaries.length > 0 ? hypoSummaries : undefined;
         if (statsOverview.failedExperiments > 0) {
           statsItem.iconPath = makeThemeIcon('warning', 'charts.red');
         } else if (statsOverview.runningExperiments > 0) {
@@ -867,6 +888,28 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
     }
 
     if (element.type === 'skillManagement') {
+      return [];
+    }
+
+    if (element.type === 'projectStats') {
+      const summaries = element.experimentHypothesisSummaries;
+      if (!summaries?.length) {
+        return [];
+      }
+      return summaries.map((s) => {
+        const row = new ProjectItem(
+          s.label,
+          vscode.TreeItemCollapsibleState.None,
+          'experimentStatsHypothesis',
+          s.hypDir
+        );
+        row.description = s.description;
+        row.tooltip = s.tooltip;
+        return row;
+      });
+    }
+
+    if (element.type === 'experimentStatsHypothesis') {
       return [];
     }
 
@@ -2155,6 +2198,96 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
   }
 
   /**
+   * 按假设目录汇总实验状态，作为「实验进度」节点的子行。
+   */
+  private buildExperimentHypothesisSummaries(workspacePath: string): Array<{
+    hypDir: string;
+    label: string;
+    description: string;
+    tooltip: string;
+  }> {
+    const out: Array<{
+      hypDir: string;
+      label: string;
+      description: string;
+      tooltip: string;
+    }> = [];
+    const hypothesisDirs = this.findDirectories(workspacePath, /^hypothesis_\d+$/);
+    for (const hypDir of hypothesisDirs) {
+      const experimentDirs = this.findDirectories(hypDir, /^experiment_\d+$/);
+      const totalExperiments = experimentDirs.length;
+      if (totalExperiments === 0) {
+        continue;
+      }
+      let completedExperiments = 0;
+      let runningExperiments = 0;
+      let failedExperiments = 0;
+      let unknownExperiments = 0;
+      let trackedExperiments = 0;
+      for (const expDir of experimentDirs) {
+        const pidFile = path.join(expDir, 'run', 'pid.json');
+        if (!fs.existsSync(pidFile)) {
+          continue;
+        }
+        trackedExperiments++;
+        try {
+          const pidContent = fs.readFileSync(pidFile, 'utf-8');
+          const pidData = JSON.parse(pidContent);
+          const status = this.normalizeExperimentStatus(pidData.status);
+          if (status === 'completed') {
+            completedExperiments++;
+          } else if (status === 'running') {
+            runningExperiments++;
+          } else if (status === 'failed') {
+            failedExperiments++;
+          } else {
+            unknownExperiments++;
+          }
+        } catch {
+          unknownExperiments++;
+        }
+      }
+      const pendingExperiments = Math.max(totalExperiments - trackedExperiments, 0);
+      const completionRate = Math.round((completedExperiments / totalExperiments) * 100);
+      const dirName = path.basename(hypDir);
+      const match = dirName.match(/^hypothesis_(\d+)$/);
+      const shortLabel = match
+        ? `${localize('projectStructure.hypothesis')} ${match[1]}`
+        : dirName;
+      const description = localize(
+        'projectStructure.experimentStats.hypothesisCompact',
+        completedExperiments,
+        totalExperiments,
+        completionRate,
+        runningExperiments,
+        failedExperiments,
+        pendingExperiments
+      );
+      const tooltipParts = [
+        shortLabel,
+        localize(
+          'projectStructure.experimentStats.hypothesisDetail',
+          completedExperiments,
+          totalExperiments,
+          runningExperiments,
+          failedExperiments,
+          pendingExperiments,
+          unknownExperiments,
+          completionRate
+        ),
+        localize('projectStructure.experimentStats.revealHypothesisHint'),
+      ];
+      out.push({
+        hypDir,
+        label: shortLabel,
+        description,
+        tooltip: tooltipParts.join('\n'),
+      });
+    }
+    return out;
+  }
+
+  /**
    * 获取项目统计概览
    */
   private getProjectStats(
@@ -2213,17 +2346,21 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
     const pendingExperiments = Math.max(totalExperiments - trackedExperiments, 0);
     const completionRate = Math.round((completedExperiments / totalExperiments) * 100);
 
-    const labelParts: string[] = [
-      localize('projectStructure.experimentStats.run', runningExperiments),
-      localize('projectStructure.experimentStats.failed', failedExperiments),
-      localize('projectStructure.experimentStats.pending', pendingExperiments),
-      localize('projectStructure.experimentStats.done', completedExperiments, totalExperiments),
-    ];
+    const description = localize(
+      'projectStructure.experimentStats.compact',
+      completedExperiments,
+      totalExperiments,
+      completionRate,
+      runningExperiments,
+      failedExperiments,
+      pendingExperiments
+    );
 
     const tooltipLines: string[] = [
       localize('projectStructure.experimentStats.tooltipTitle'),
-      labelParts.join(' | '),
+      description,
       localize('projectStructure.experimentStats.completionRate', completionRate),
+      localize('projectStructure.experimentStats.expandHint'),
     ];
     if (unknownExperiments > 0) {
       tooltipLines.push(localize('projectStructure.experimentStats.unknown', unknownExperiments));
@@ -2231,7 +2368,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
     return {
       label: localize('projectStructure.experimentStats.label'),
-      description: labelParts.join(' | '),
+      description,
       tooltip: tooltipLines.join('\n'),
       totalExperiments,
       completedExperiments,

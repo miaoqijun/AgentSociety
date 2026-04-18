@@ -172,6 +172,12 @@ const translations: Record<string, Record<string, string>> = {
     'projectStructure.experimentStats.tooltipTitle': '实验状态总览',
     'projectStructure.experimentStats.completionRate': '完成率 {0}%',
     'projectStructure.experimentStats.unknown': '未知状态 {0}',
+    'projectStructure.experimentStats.compact': '完成 {0}/{1}（{2}%）· 运行{3} · 失败{4} · 待跑{5}',
+    'projectStructure.experimentStats.expandHint': '展开可查看各假设下的实验汇总；点击子项在资源管理器中定位该假设目录。',
+    'projectStructure.experimentStats.hypothesisCompact': '{0}/{1}（{2}%）· 运行{3} · 失败{4} · 待{5}',
+    'projectStructure.experimentStats.hypothesisDetail': '完成 {0}/{1} · 运行 {2} · 失败 {3} · 待跟踪 {4} · 状态未识别 {5} · 完成率 {6}%',
+    'projectStructure.experimentStats.revealHypothesis': '在资源管理器中显示',
+    'projectStructure.experimentStats.revealHypothesisHint': '点击本项可在资源管理器中展开并定位到该假设目录。',
 
     // backendManager.ts
     'backendManager.openSettings': '打开设置',
@@ -441,6 +447,12 @@ const translations: Record<string, Record<string, string>> = {
     'projectStructure.experimentStats.tooltipTitle': 'Experiment status overview',
     'projectStructure.experimentStats.completionRate': 'Completion {0}%',
     'projectStructure.experimentStats.unknown': 'Unknown status {0}',
+    'projectStructure.experimentStats.compact': '{0}/{1} done ({2}%) · run {3} · fail {4} · queued {5}',
+    'projectStructure.experimentStats.expandHint': 'Expand for per-hypothesis breakdown. Click a row to reveal that folder in the Explorer.',
+    'projectStructure.experimentStats.hypothesisCompact': '{0}/{1} ({2}%) · run {3} · fail {4} · q {5}',
+    'projectStructure.experimentStats.hypothesisDetail': 'Done {0}/{1} · running {2} · failed {3} · no pid yet {4} · other {5} · {6}%',
+    'projectStructure.experimentStats.revealHypothesis': 'Reveal in Explorer',
+    'projectStructure.experimentStats.revealHypothesisHint': 'Click to reveal this hypothesis folder in the Explorer.',
 
     // backendManager.ts
     'backendManager.openSettings': 'Open Settings',
