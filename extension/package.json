@@ -352,7 +352,7 @@
         },
         "agentSkills.skillSources": {
           "type": "array",
-          "markdownDescription": "**仅用于 Agent 运行时技能市场**（安装到 `custom/skills`）。与 `agentSkills.claudeSkillSources` 独立。默认无内置源；创建好仓库后在此添加 `{ owner, repo, branch?, skillsPath? }`。留空则 Agent 市场仅显示加载说明、不拉取远程列表。若遇 API 限流可配置 `agentSkills.githubToken`。",
+          "markdownDescription": "**仅供 Agent 运行时技能市场使用**：从 GitHub 拉取列表并安装到工作区的 `custom/skills`。与本分组下方的「Claude 技能源」互不混用。默认无任何仓库；按需添加条目，形如 `{ owner, repo, branch?, skillsPath? }`。若留空，市场里仅显示提示、不会请求远程列表。触发 GitHub API 限流时，可在「GitHub Token」项填写令牌。",
           "default": [],
           "description": "Agent 技能市场 GitHub 源（安装到 custom/skills）。",
           "items": {
@@ -381,7 +381,7 @@
         },
         "agentSkills.claudeSkillSources": {
           "type": "array",
-          "markdownDescription": "**仅用于 Claude 目录技能市场**（安装到 `.claude/skills`）。与 `agentSkills.skillSources` 独立。默认包含 Anthropic 官方示例、[obra/superpowers](https://github.com/obra/superpowers) 开发向技能集、[everything-claude-code](https://github.com/affaan-m/everything-claude-code) 的 `.agents/skills`。可按需增删；留空则不拉取远程列表。若遇 API 限流可配置 `agentSkills.githubToken`。",
+          "markdownDescription": "**仅供 Claude 目录技能市场使用**：安装到 `.claude/skills`，与上方的「Agent 技能源」互不混用。默认包含 Anthropic 官方示例、[obra/superpowers](https://github.com/obra/superpowers) 开发向技能集、[everything-claude-code](https://github.com/affaan-m/everything-claude-code) 的 `.agents/skills`。可按需增删；留空则不请求远程列表。触发 API 限流时可使用本分组下的 GitHub Token。",
           "default": [
             {
               "owner": "anthropics",

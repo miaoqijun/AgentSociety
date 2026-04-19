@@ -299,9 +299,9 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
           ? t('skillManagement.marketplaceErr.noSourcesAgent')
           : t('skillManagement.marketplaceErr.noSourcesClaude');
       case 'NETWORK':
-        return t('skillManagement.marketplaceErr.network', { message: e.message });
+        return t('skillManagement.marketplaceErr.network');
       case 'GITHUB_SOURCE_FAILED':
-        return t('skillManagement.marketplaceErr.sourceFailed', { source: e.source, message: e.message });
+        return t('skillManagement.marketplaceErr.sourceFailed', { source: e.source });
       default:
         return '';
     }
