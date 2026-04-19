@@ -196,6 +196,11 @@
           "command": "aiSocialScientist.openSkillMarketplace",
           "when": "view == projectStructureView && workspaceFolderCount > 0",
           "group": "navigation@1"
+        },
+        {
+          "command": "aiSocialScientist.openConfigPage",
+          "when": "view == projectStructureView && workspaceFolderCount > 0",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -206,12 +211,12 @@
         },
         {
           "command": "aiSocialScientist.deleteLiterature",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && viewItem !~ /literatureIndex/))",
           "group": "1_modification"
         },
         {
           "command": "aiSocialScientist.renameLiterature",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && viewItem !~ /literatureIndex/))",
           "group": "1_modification"
         },
         {
@@ -221,7 +226,7 @@
         },
         {
           "command": "aiSocialScientist.formatJsonFile",
-          "when": "view == projectStructureView && viewItem =~ /json/",
+          "when": "view == projectStructureView && (viewItem =~ / json$/ || viewItem =~ /^json / || viewItem == pidJson)",
           "group": "2_actions"
         },
         {
@@ -241,32 +246,32 @@
         },
         {
           "command": "aiSocialScientist.viewJsonFile",
-          "when": "view == projectStructureView && viewItem =~ /json/",
+          "when": "view == projectStructureView && (viewItem =~ / json$/ || viewItem =~ /^json / || viewItem == pidJson)",
           "group": "1_view"
         },
         {
           "command": "aiSocialScientist.viewYamlFile",
-          "when": "view == projectStructureView && viewItem =~ /yaml/",
+          "when": "view == projectStructureView && viewItem =~ / yaml$/",
           "group": "1_view"
         },
         {
           "command": "aiSocialScientist.openInExplorer",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /json/ || viewItem =~ /markdown/ || viewItem =~ /yaml/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "3_system"
         },
         {
           "command": "aiSocialScientist.copyFileName",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /json/ || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@3"
         },
         {
           "command": "aiSocialScientist.copyFilePath",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /json/ || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@1"
         },
         {
           "command": "aiSocialScientist.copyAtReference",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /json/ || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@2"
         }
       ]
@@ -347,15 +352,8 @@
         },
         "agentSkills.skillSources": {
           "type": "array",
-          "markdownDescription": "**仅用于 Agent 运行时技能市场**（安装到 `custom/skills`）。与 `agentSkills.claudeSkillSources` 独立，可配置不同 GitHub 仓库。每项为 `{ owner, repo, branch?, skillsPath? }`；留空则 Agent 市场不拉取远程列表。若遇 API 限流可配置 `agentSkills.githubToken`。",
-          "default": [
-            {
-              "owner": "anthropics",
-              "repo": "skills",
-              "branch": "main",
-              "skillsPath": "skills"
-            }
-          ],
+          "markdownDescription": "**仅用于 Agent 运行时技能市场**（安装到 `custom/skills`）。与 `agentSkills.claudeSkillSources` 独立。默认无内置源；创建好仓库后在此添加 `{ owner, repo, branch?, skillsPath? }`。留空则 Agent 市场仅显示加载说明、不拉取远程列表。若遇 API 限流可配置 `agentSkills.githubToken`。",
+          "default": [],
           "description": "Agent 技能市场 GitHub 源（安装到 custom/skills）。",
           "items": {
             "type": "object",
@@ -383,13 +381,25 @@
         },
         "agentSkills.claudeSkillSources": {
           "type": "array",
-          "markdownDescription": "**仅用于 Claude 目录技能市场**（安装到 `.claude/skills`）。与 `agentSkills.skillSources` 独立。默认 [anthropics/skills](https://github.com/anthropics/skills)；可改为其它仓库或追加多项。留空则 Claude 市场不拉取。",
+          "markdownDescription": "**仅用于 Claude 目录技能市场**（安装到 `.claude/skills`）。与 `agentSkills.skillSources` 独立。默认包含 Anthropic 官方示例、[obra/superpowers](https://github.com/obra/superpowers) 开发向技能集、[everything-claude-code](https://github.com/affaan-m/everything-claude-code) 的 `.agents/skills`。可按需增删；留空则不拉取远程列表。若遇 API 限流可配置 `agentSkills.githubToken`。",
           "default": [
             {
               "owner": "anthropics",
               "repo": "skills",
               "branch": "main",
               "skillsPath": "skills"
+            },
+            {
+              "owner": "obra",
+              "repo": "superpowers",
+              "branch": "main",
+              "skillsPath": "skills"
+            },
+            {
+              "owner": "affaan-m",
+              "repo": "everything-claude-code",
+              "branch": "main",
+              "skillsPath": ".agents/skills"
             }
           ],
           "description": "Claude 技能市场 GitHub 源（安装到 .claude/skills）。",

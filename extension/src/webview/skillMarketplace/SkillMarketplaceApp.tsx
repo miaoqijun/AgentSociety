@@ -22,7 +22,7 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 const { Panel } = Collapse;
 
-const MARKETPLACE_PAGE_SIZE = 20;
+const MARKETPLACE_PAGE_SIZE = 5;
 
 interface SkillManagementAppProps { vscode: VSCodeAPI; }
 type SkillTab = 'agent' | 'claudeCode';
@@ -999,7 +999,7 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
           <>
             {agentMarketPageSlice.map(renderAgentMarketplaceCard)}
             {filteredAgentMarketplaceSkills.length > MARKETPLACE_PAGE_SIZE ? (
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
                 <Pagination
                   size="small"
                   current={agentMarketPage}
@@ -1007,6 +1007,13 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
                   total={filteredAgentMarketplaceSkills.length}
                   onChange={setAgentMarketPage}
                   showSizeChanger={false}
+                  showTotal={(total, range) =>
+                    t('skillManagement.marketplacePaginationTotal', {
+                      start: range[0],
+                      end: range[1],
+                      total,
+                    })
+                  }
                 />
               </div>
             ) : null}
@@ -1057,7 +1064,7 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
           <>
             {claudeMarketPageSlice.map(renderClaudeMarketplaceCard)}
             {filteredClaudeMarketplaceSkills.length > MARKETPLACE_PAGE_SIZE ? (
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
                 <Pagination
                   size="small"
                   current={claudeMarketPage}
@@ -1065,6 +1072,13 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
                   total={filteredClaudeMarketplaceSkills.length}
                   onChange={setClaudeMarketPage}
                   showSizeChanger={false}
+                  showTotal={(total, range) =>
+                    t('skillManagement.marketplacePaginationTotal', {
+                      start: range[0],
+                      end: range[1],
+                      total,
+                    })
+                  }
                 />
               </div>
             ) : null}

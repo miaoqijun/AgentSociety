@@ -32,6 +32,7 @@ import { ProjectDragAndDropController } from './dragAndDropController';
 import { localize } from './i18n';
 import { BackendManager } from './services/backendManager';
 import { WorkspaceExportManager } from './services/workspaceExportManager';
+import { filePathToAtReference } from './atReference';
 import { AIChatInvoker } from './aiChatInvoker';
 import { LiteratureIndexViewer } from './literatureIndexViewer';
 import { StepsViewer } from './stepsViewer';
@@ -41,6 +42,10 @@ import { JsonViewer } from './jsonViewer';
 import { YamlViewer } from './yamlViewer';
 import { hasConfiguredLlmApiKey, migrateLegacySettingsToEnv } from './runtimeConfig';
 import { SkillMarketplacePanel } from './skillMarketplaceProvider';
+
+interface BackendStatusMenuPick extends vscode.QuickPickItem {
+  commandId: string;
+}
 
 // 全局后端服务管理器实例（管理 FastAPI 后端进程的启动、停止、重启）
 let backendManager: BackendManager | null = null;
@@ -191,7 +196,7 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         // Delete the file
         fs.unlinkSync(filePath);
-        vscode.window.showInformationMessage(`Deleted: ${fileName}`);
+        vscode.window.showInformationMessage(localize('extension.deleteLiterature.success', fileName));
 
         // Update literature_index.json if it exists
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -251,7 +256,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Rename the file
         fs.renameSync(item.filePath, newPath);
-        vscode.window.showInformationMessage(`Renamed to: ${newName}`);
+        vscode.window.showInformationMessage(localize('extension.renameLiterature.success', newName));
 
         // Update literature_index.json if it exists
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -305,7 +310,7 @@ export function activate(context: vscode.ExtensionContext) {
         const fileUri = vscode.Uri.file(filePath);
         await vscode.window.showTextDocument(fileUri);
       } catch (error: any) {
-        vscode.window.showErrorMessage(localize('extension.openMarkdown.failed', error.message || error));
+        vscode.window.showErrorMessage(localize('extension.openMarkdown.failed'));
       }
     }
   );
@@ -361,7 +366,7 @@ export function activate(context: vscode.ExtensionContext) {
     async (item?: any) => {
       const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
       if (!workspaceFolder) {
-        vscode.window.showErrorMessage('No workspace folder open');
+        vscode.window.showErrorMessage(localize('extension.replay.noWorkspace'));
         return;
       }
 
@@ -386,16 +391,16 @@ export function activate(context: vscode.ExtensionContext) {
       if (!hypothesisId || !experimentId) {
         // Prompt user to enter hypothesis_id and experiment_id manually
         hypothesisId = await vscode.window.showInputBox({
-          prompt: 'Enter hypothesis ID (e.g., 1)',
-          placeHolder: 'hypothesis_id'
+          prompt: localize('extension.replay.inputHypothesis'),
+          placeHolder: localize('extension.replay.inputHypothesisPlaceholder')
         });
         if (!hypothesisId) {
           return;
         }
 
         experimentId = await vscode.window.showInputBox({
-          prompt: 'Enter experiment ID (e.g., 1)',
-          placeHolder: 'experiment_id'
+          prompt: localize('extension.replay.inputExperiment'),
+          placeHolder: localize('extension.replay.inputExperimentPlaceholder')
         });
         if (!experimentId) {
           return;
@@ -420,9 +425,9 @@ export function activate(context: vscode.ExtensionContext) {
       if (backendManager) {
         const started = await backendManager.start();
         if (started) {
-          vscode.window.showInformationMessage('Backend service started successfully');
+          vscode.window.showInformationMessage(localize('extension.backend.started'));
         } else {
-          vscode.window.showErrorMessage('Failed to start backend service. Check the output panel for details.');
+          vscode.window.showErrorMessage(localize('extension.backend.startFailed'));
         }
         return started;
       }
@@ -435,7 +440,7 @@ export function activate(context: vscode.ExtensionContext) {
     async () => {
       if (backendManager) {
         await backendManager.stop();
-        vscode.window.showInformationMessage('Backend service stopped');
+        vscode.window.showInformationMessage(localize('extension.backend.stopped'));
       }
     }
   );
@@ -446,9 +451,9 @@ export function activate(context: vscode.ExtensionContext) {
       if (backendManager) {
         const restarted = await backendManager.restart();
         if (restarted) {
-          vscode.window.showInformationMessage('Backend service restarted successfully');
+          vscode.window.showInformationMessage(localize('extension.backend.restarted'));
         } else {
-          vscode.window.showErrorMessage('Failed to restart backend service. Check the output panel for details.');
+          vscode.window.showErrorMessage(localize('extension.backend.restartFailed'));
         }
         return restarted;
       }
@@ -468,21 +473,20 @@ export function activate(context: vscode.ExtensionContext) {
   const backendStatusMenuCommand = vscode.commands.registerCommand(
     'aiSocialScientist.backendStatusMenu',
     async () => {
-      const items: vscode.QuickPickItem[] = [
-        { label: `$(refresh) ${localize('backendManager.statusBar.restart')}`, detail: 'aiSocialScientist.restartBackend' },
-        { label: `$(stop) ${localize('backendManager.statusBar.stop')}`, detail: 'aiSocialScientist.stopBackend' },
-        { label: `$(play) ${localize('backendManager.statusBar.start')}`, detail: 'aiSocialScientist.startBackend' },
-        { label: `$(output) ${localize('backendManager.statusBar.logs')}`, detail: 'aiSocialScientist.showBackendLogs' },
-        { label: `$(info) ${localize('backendManager.statusBar.status')}`, detail: 'aiSocialScientist.showBackendStatus' },
-        { label: `$(settings) ${localize('backendManager.statusBar.config')}`, detail: 'aiSocialScientist.openConfigPage' }
+      const items: BackendStatusMenuPick[] = [
+        { label: `$(refresh) ${localize('backendManager.statusBar.restart')}`, commandId: 'aiSocialScientist.restartBackend' },
+        { label: `$(stop) ${localize('backendManager.statusBar.stop')}`, commandId: 'aiSocialScientist.stopBackend' },
+        { label: `$(play) ${localize('backendManager.statusBar.start')}`, commandId: 'aiSocialScientist.startBackend' },
+        { label: `$(output) ${localize('backendManager.statusBar.logs')}`, commandId: 'aiSocialScientist.showBackendLogs' },
+        { label: `$(info) ${localize('backendManager.statusBar.status')}`, commandId: 'aiSocialScientist.showBackendStatus' },
+        { label: `$(settings) ${localize('backendManager.statusBar.config')}`, commandId: 'aiSocialScientist.openConfigPage' }
       ];
       const selected = await vscode.window.showQuickPick(items, {
         placeHolder: localize('backendManager.statusBar.placeholder'),
-        matchOnDescription: true,
-        matchOnDetail: true
+        matchOnDescription: true
       });
-      if (selected?.detail) {
-        await vscode.commands.executeCommand(selected.detail);
+      if (selected?.commandId) {
+        await vscode.commands.executeCommand(selected.commandId);
       }
     }
   );
@@ -493,8 +497,8 @@ export function activate(context: vscode.ExtensionContext) {
       if (backendManager) {
         const status = await backendManager.getStatus();
         const message = status.isRunning
-          ? `Backend is running (PID: ${status.pid}, Port: ${status.port})`
-          : 'Backend is not running';
+          ? localize('extension.backend.statusOn', String(status.port ?? ''))
+          : localize('extension.backend.statusOff');
         vscode.window.showInformationMessage(message);
       }
     }
@@ -625,22 +629,22 @@ export function activate(context: vscode.ExtensionContext) {
 
       // 检查是否为 JSON 文件
       if (!filePath.toLowerCase().endsWith('.json')) {
-        vscode.window.showWarningMessage('此命令仅适用于 JSON 文件');
+        vscode.window.showWarningMessage(localize('extension.formatJson.wrongType'));
         return;
       }
 
       try {
         // 打开文件
         const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-        const editor = await vscode.window.showTextDocument(document);
+        await vscode.window.showTextDocument(document);
 
         // 格式化文档
         await vscode.commands.executeCommand('editor.action.formatDocument');
 
         // 可选：切换到更友好的视图（如果安装了 JSON tools 等扩展）
-        vscode.window.showInformationMessage(`JSON 文件已格式化显示`);
+        vscode.window.showInformationMessage(localize('extension.formatJson.done'));
       } catch (error: any) {
-        vscode.window.showErrorMessage(`打开 JSON 文件失败: ${error.message || error}`);
+        vscode.window.showErrorMessage(localize('extension.formatJson.failed'));
       }
     }
   );
@@ -658,14 +662,14 @@ export function activate(context: vscode.ExtensionContext) {
 
       // 检查文件是否存在
       if (!fs.existsSync(filePath)) {
-        vscode.window.showErrorMessage('文献索引文件不存在');
+        vscode.window.showErrorMessage(localize('extension.literatureIndex.missing'));
         return;
       }
 
       try {
         await LiteratureIndexViewer.show(context, filePath);
       } catch (error: any) {
-        vscode.window.showErrorMessage(`打开文献索引预览失败: ${error.message || error}`);
+        vscode.window.showErrorMessage(localize('extension.literatureIndex.openFailed'));
       }
     }
   );
@@ -682,13 +686,13 @@ export function activate(context: vscode.ExtensionContext) {
         // 如果没有传入文件路径，让用户选择
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) {
-          vscode.window.showErrorMessage('请先打开工作区');
+          vscode.window.showErrorMessage(localize('extension.steps.noWorkspace'));
           return;
         }
 
         const files = await vscode.workspace.findFiles('**/init/steps.yaml');
         if (files.length === 0) {
-          vscode.window.showErrorMessage('未找到 steps.yaml 文件');
+          vscode.window.showErrorMessage(localize('extension.steps.notFound'));
           return;
         }
 
@@ -700,7 +704,7 @@ export function activate(context: vscode.ExtensionContext) {
             path: f.fsPath
           }));
           const selected = await vscode.window.showQuickPick(picks, {
-            placeHolder: '选择要预览的 steps.yaml 文件'
+            placeHolder: localize('extension.steps.pickPlaceholder')
           });
           if (!selected) {
             return;
@@ -711,14 +715,14 @@ export function activate(context: vscode.ExtensionContext) {
 
       // 检查文件是否存在
       if (!filePath || !fs.existsSync(filePath)) {
-        vscode.window.showErrorMessage('steps.yaml 文件不存在');
+        vscode.window.showErrorMessage(localize('extension.steps.missing'));
         return;
       }
 
       try {
         await StepsViewer.show(context, filePath);
       } catch (error: any) {
-        vscode.window.showErrorMessage(`打开步骤预览失败: ${error.message || error}`);
+        vscode.window.showErrorMessage(localize('extension.steps.openFailed'));
       }
     }
   );
@@ -735,13 +739,13 @@ export function activate(context: vscode.ExtensionContext) {
         // 如果没有传入文件路径，让用户选择
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) {
-          vscode.window.showErrorMessage('请先打开工作区');
+          vscode.window.showErrorMessage(localize('extension.experimentResults.noWorkspace'));
           return;
         }
 
         const files = await vscode.workspace.findFiles('**/run/experiment_results.json');
         if (files.length === 0) {
-          vscode.window.showErrorMessage('未找到 experiment_results.json 文件');
+          vscode.window.showErrorMessage(localize('extension.experimentResults.notFound'));
           return;
         }
 
@@ -753,7 +757,7 @@ export function activate(context: vscode.ExtensionContext) {
             path: f.fsPath
           }));
           const selected = await vscode.window.showQuickPick(picks, {
-            placeHolder: '选择要查看的实验结果文件'
+            placeHolder: localize('extension.experimentResults.pickPlaceholder')
           });
           if (!selected) {
             return;
@@ -764,14 +768,14 @@ export function activate(context: vscode.ExtensionContext) {
 
       // 检查文件是否存在
       if (!filePath || !fs.existsSync(filePath)) {
-        vscode.window.showErrorMessage('experiment_results.json 文件不存在');
+        vscode.window.showErrorMessage(localize('extension.experimentResults.missing'));
         return;
       }
 
       try {
         await ExperimentResultsViewer.show(context, filePath);
       } catch (error: any) {
-        vscode.window.showErrorMessage(`打开实验结果可视化失败: ${error.message || error}`);
+        vscode.window.showErrorMessage(localize('extension.experimentResults.openFailed'));
       }
     }
   );
@@ -782,14 +786,14 @@ export function activate(context: vscode.ExtensionContext) {
     async (item: any) => {
       const filePath = item?.filePath;
       if (!filePath || !fs.existsSync(filePath)) {
-        vscode.window.showErrorMessage('pid.json 文件不存在');
+        vscode.window.showErrorMessage(localize('extension.pid.missing'));
         return;
       }
 
       try {
         await PidStatusViewer.createOrShow(filePath);
       } catch (error: any) {
-        vscode.window.showErrorMessage(`打开实验状态可视化失败: ${error.message || error}`);
+        vscode.window.showErrorMessage(localize('extension.pid.openFailed'));
       }
     }
   );
@@ -806,9 +810,9 @@ export function activate(context: vscode.ExtensionContext) {
 
       try {
         await vscode.env.clipboard.writeText(filePath);
-        vscode.window.showInformationMessage(`已复制路径: ${filePath}`);
+        vscode.window.showInformationMessage(localize('extension.clipboard.pathCopied'));
       } catch (error: any) {
-        vscode.window.showErrorMessage(`复制失败: ${error.message || error}`);
+        vscode.window.showErrorMessage(localize('extension.clipboard.pathFailed'));
       }
     }
   );
@@ -830,14 +834,11 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        const referencePath = (path.isAbsolute(filePath)
-          ? path.relative(workspaceFolder.uri.fsPath, filePath)
-          : filePath).replace(/\\/g, '/');
-        const atReference = `@${referencePath}`;
+        const atReference = filePathToAtReference(workspaceFolder.uri.fsPath, filePath);
         await vscode.env.clipboard.writeText(atReference);
-        vscode.window.showInformationMessage(`已复制引用: ${atReference}`);
+        vscode.window.showInformationMessage(localize('extension.clipboard.refCopied', atReference));
       } catch (error: any) {
-        vscode.window.showErrorMessage(`复制失败: ${error.message || error}`);
+        vscode.window.showErrorMessage(localize('extension.clipboard.refFailed'));
       }
     }
   );
@@ -851,6 +852,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage(localize('extension.noFilePath'));
         return;
       }
+      if (!filePath.toLowerCase().endsWith('.json')) {
+        return;
+      }
       await JsonViewer.show(filePath);
     }
   );
@@ -862,6 +866,10 @@ export function activate(context: vscode.ExtensionContext) {
       const filePath = typeof filePathOrItem === 'string' ? filePathOrItem : filePathOrItem?.filePath;
       if (!filePath || !fs.existsSync(filePath)) {
         vscode.window.showErrorMessage(localize('extension.noFilePath'));
+        return;
+      }
+      const lower = filePath.toLowerCase();
+      if (!lower.endsWith('.yaml') && !lower.endsWith('.yml')) {
         return;
       }
       await YamlViewer.show(filePath);
@@ -898,7 +906,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
       const fileName = path.basename(filePath);
       await vscode.env.clipboard.writeText(fileName);
-      vscode.window.showInformationMessage(`已复制文件名: ${fileName}`);
+      vscode.window.showInformationMessage(localize('extension.clipboard.fileNameCopied', fileName));
     }
   );
 

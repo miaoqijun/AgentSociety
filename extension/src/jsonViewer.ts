@@ -7,16 +7,38 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_PRETTY_RENDER_BYTES = 2 * 1024 * 1024;
+
 export class JsonViewer {
   private static currentPanel: vscode.WebviewPanel | undefined;
+
+  private static escapeHtmlText(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
   public static async show(filePath: string, title?: string): Promise<void> {
     let data: any = {};
     let error: string | null = null;
-    
+    const isZh = vscode.env.language.startsWith('zh');
+
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      data = JSON.parse(content);
+      const stat = fs.statSync(filePath);
+      if (stat.size > MAX_FILE_BYTES) {
+        error = isZh
+          ? `文件过大（>${Math.floor(MAX_FILE_BYTES / 1024 / 1024)}MB），请用编辑器打开`
+          : `File too large (>${Math.floor(MAX_FILE_BYTES / 1024 / 1024)}MB); open it in the editor instead`;
+      } else {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        data = JSON.parse(content);
+        const pretty = JSON.stringify(data, null, 2);
+        if (Buffer.byteLength(pretty, 'utf8') > MAX_PRETTY_RENDER_BYTES) {
+          error = isZh
+            ? `格式化后体积过大（>${Math.floor(MAX_PRETTY_RENDER_BYTES / 1024 / 1024)}MB），无法在预览中安全渲染，请用编辑器打开`
+            : `Pretty-printed JSON too large (>${Math.floor(MAX_PRETTY_RENDER_BYTES / 1024 / 1024)}MB); open it in the editor`;
+          data = {};
+        }
+      }
     } catch (e: any) {
       error = e.message;
     }
@@ -54,6 +76,8 @@ export class JsonViewer {
   }
 
   private static getHtml(data: any, error: string | null, filePath: string, isChinese: boolean): string {
+    const safePathDisplay = this.escapeHtmlText(filePath);
+    const pathLiteral = JSON.stringify(filePath);
     const labels = {
       title: isChinese ? 'JSON 查看器' : 'JSON Viewer',
       error: isChinese ? '解析错误' : 'Parse Error',
@@ -187,7 +211,7 @@ export class JsonViewer {
   </div>
   
   <div class="meta">
-    <span>${labels.path}: ${filePath}</span>
+    <span>${labels.path}: ${safePathDisplay}</span>
     <span>${labels.size}: ${fileSizeStr}</span>
   </div>
   
@@ -270,7 +294,7 @@ export class JsonViewer {
     });
     
     document.getElementById('copyPathBtn').addEventListener('click', function() {
-      navigator.clipboard.writeText('${filePath}').then(() => {
+      navigator.clipboard.writeText(${pathLiteral}).then(() => {
         this.textContent = isChinese ? '已复制' : 'Copied';
         setTimeout(() => { this.textContent = isChinese ? '复制路径' : 'Copy Path'; }, 2000);
       });
