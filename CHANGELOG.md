@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.2.0] - 2026-04-18
+
+### Added
+- **VS Code 扩展 `ai-social-scientist` 1.0.0**：技能市场（GitHub 源）、Agent / Claude 分栏技能管理、项目结构增强、实验状态概览、预填充参数与国际化/用户向文案等（详见扩展发版说明与 `extension/README.md`）。
+
+### Changed
+- **Python 包 `agentsociety2` 2.1.5 → 2.2.0**：与当前主分支能力对齐发版；若从 PyPI/私有源安装，请使用 `pip install agentsociety2==2.2.0`（或贵司实际发布渠道）。
+
+### Fixed
+- N/A
+
 ## [1.4.0a0] - 2025-05-12
 
 ### Added
