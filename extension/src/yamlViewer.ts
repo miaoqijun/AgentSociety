@@ -6,16 +6,40 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_DUMP_RENDER_BYTES = 2 * 1024 * 1024;
+
 export class YamlViewer {
   private static currentPanel: vscode.WebviewPanel | undefined;
+
+  private static escapeHtmlText(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
   public static async show(filePath: string, title?: string): Promise<void> {
     let data: any = {};
     let error: string | null = null;
-    
+    let yamlDumped = '';
+    const isZh = vscode.env.language.startsWith('zh');
+
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      data = yaml.load(content);
+      const stat = fs.statSync(filePath);
+      if (stat.size > MAX_FILE_BYTES) {
+        error = isZh
+          ? `文件过大（>${Math.floor(MAX_FILE_BYTES / 1024 / 1024)}MB），请用编辑器打开`
+          : `File too large (>${Math.floor(MAX_FILE_BYTES / 1024 / 1024)}MB); open it in the editor instead`;
+      } else {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        data = yaml.load(content) ?? {};
+        yamlDumped = yaml.dump(data, { indent: 2, lineWidth: -1 });
+        if (Buffer.byteLength(yamlDumped, 'utf8') > MAX_DUMP_RENDER_BYTES) {
+          error = isZh
+            ? `格式化后体积过大（>${Math.floor(MAX_DUMP_RENDER_BYTES / 1024 / 1024)}MB），无法在预览中安全渲染，请用编辑器打开`
+            : `Formatted YAML too large (>${Math.floor(MAX_DUMP_RENDER_BYTES / 1024 / 1024)}MB); open it in the editor`;
+          data = {};
+          yamlDumped = '';
+        }
+      }
     } catch (e: any) {
       error = e.message;
     }
@@ -26,7 +50,7 @@ export class YamlViewer {
     if (this.currentPanel) {
       this.currentPanel.title = panelTitle;
       this.currentPanel.reveal(vscode.ViewColumn.One);
-      this.updateWebview(this.currentPanel, data, error, filePath);
+      this.updateWebview(this.currentPanel, data, error, filePath, yamlDumped);
       return;
     }
 
@@ -39,20 +63,28 @@ export class YamlViewer {
 
     this.currentPanel = panel;
     panel.onDidDispose(() => { this.currentPanel = undefined; });
-    this.updateWebview(panel, data, error, filePath);
+    this.updateWebview(panel, data, error, filePath, yamlDumped);
   }
 
   private static updateWebview(
     panel: vscode.WebviewPanel,
     data: any,
     error: string | null,
-    filePath: string
+    filePath: string,
+    yamlDumped: string
   ): void {
     const isChinese = vscode.env.language.startsWith('zh');
-    panel.webview.html = this.getHtml(data, error, filePath, isChinese);
+    panel.webview.html = this.getHtml(data, error, filePath, isChinese, yamlDumped);
   }
 
-  private static getHtml(data: any, error: string | null, filePath: string, isChinese: boolean): string {
+  private static getHtml(
+    data: any,
+    error: string | null,
+    filePath: string,
+    isChinese: boolean,
+    yamlDumped: string
+  ): string {
+    const safePathDisplay = this.escapeHtmlText(filePath);
     const labels = {
       title: isChinese ? 'YAML 查看器' : 'YAML Viewer',
       error: isChinese ? '解析错误' : 'Parse Error',
@@ -61,7 +93,7 @@ export class YamlViewer {
       path: isChinese ? '文件路径' : 'File Path',
     };
 
-    const yamlStr = error ? '' : yaml.dump(data, { indent: 2, lineWidth: -1 });
+    const yamlStr = error ? '' : yamlDumped;
 
     return `<!DOCTYPE html>
 <html lang="${isChinese ? 'zh-CN' : 'en'}">
@@ -139,7 +171,7 @@ export class YamlViewer {
     </div>
   </div>
   
-  <div class="meta">${labels.path}: ${filePath}</div>
+  <div class="meta">${labels.path}: ${safePathDisplay}</div>
   
   ${error ? `
     <div class="error-box">

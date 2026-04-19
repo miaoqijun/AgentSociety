@@ -105,6 +105,21 @@
         "icon": "$(settings)"
       },
       {
+        "command": "aiSocialScientist.openSkillMarketplace",
+        "title": "AI Social Scientist: Skills",
+        "icon": "$(extensions)"
+      },
+      {
+        "command": "aiSocialScientist.openSkillSourcesSettings",
+        "title": "AI Social Scientist: Agent Skill Marketplace Sources (Settings)",
+        "icon": "$(repo)"
+      },
+      {
+        "command": "aiSocialScientist.openClaudeSkillSourcesSettings",
+        "title": "AI Social Scientist: Claude Skill Marketplace Sources (Settings)",
+        "icon": "$(repo)"
+      },
+      {
         "command": "aiSocialScientist.scanCustomModules",
         "title": "AI Social Scientist: Scan Custom Modules",
         "icon": "$(refresh)"
@@ -118,31 +133,6 @@
         "command": "aiSocialScientist.listCustomModules",
         "title": "AI Social Scientist: List Custom Modules",
         "icon": "$(list-tree)"
-      },
-      {
-        "command": "aiSocialScientist.scanAgentSkills",
-        "title": "AI Social Scientist: Scan Agent Skills",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "aiSocialScientist.importAgentSkill",
-        "title": "AI Social Scientist: Import Agent Skill",
-        "icon": "$(cloud-download)"
-      },
-      {
-        "command": "aiSocialScientist.toggleAgentSkill",
-        "title": "AI Social Scientist: Toggle Agent Skill",
-        "icon": "$(check)"
-      },
-      {
-        "command": "aiSocialScientist.reloadAgentSkill",
-        "title": "AI Social Scientist: Reload Agent Skill",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "aiSocialScientist.openSkillFolder",
-        "title": "AI Social Scientist: Open Skill Folder in File Manager",
-        "icon": "$(folder)"
       },
       {
         "command": "aiSocialScientist.formatJsonFile",
@@ -163,11 +153,6 @@
         "command": "aiSocialScientist.viewExperimentResults",
         "title": "AI Social Scientist: View Experiment Results",
         "icon": "$(graph)"
-      },
-      {
-        "command": "aiSocialScientist.removeAgentSkill",
-        "title": "AI Social Scientist: Remove Custom Skill",
-        "icon": "$(trash)"
       },
       {
         "command": "aiSocialScientist.copyFilePath",
@@ -206,7 +191,18 @@
       }
     ],
     "menus": {
-      "view/title": [],
+      "view/title": [
+        {
+          "command": "aiSocialScientist.openSkillMarketplace",
+          "when": "view == projectStructureView && workspaceFolderCount > 0",
+          "group": "navigation@1"
+        },
+        {
+          "command": "aiSocialScientist.openConfigPage",
+          "when": "view == projectStructureView && workspaceFolderCount > 0",
+          "group": "navigation@2"
+        }
+      ],
       "view/item/context": [
         {
           "command": "aiSocialScientist.openReplay",
@@ -215,12 +211,12 @@
         },
         {
           "command": "aiSocialScientist.deleteLiterature",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && viewItem !~ /literatureIndex/))",
           "group": "1_modification"
         },
         {
           "command": "aiSocialScientist.renameLiterature",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && viewItem !~ /literatureIndex/))",
           "group": "1_modification"
         },
         {
@@ -229,38 +225,8 @@
           "group": "2_actions"
         },
         {
-          "command": "aiSocialScientist.toggleAgentSkill",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem.*enabled/",
-          "group": "1_actions@1"
-        },
-        {
-          "command": "aiSocialScientist.toggleAgentSkill",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem.*disabled/",
-          "group": "1_actions@1"
-        },
-        {
-          "command": "aiSocialScientist.removeAgentSkill",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem.*custom/",
-          "group": "1_actions@2"
-        },
-        {
-          "command": "aiSocialScientist.reloadAgentSkill",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem/",
-          "group": "1_actions@2"
-        },
-        {
-          "command": "aiSocialScientist.openSkillFolder",
-          "when": "view == projectStructureView && viewItem =~ /agentSkillItem/",
-          "group": "2_actions"
-        },
-        {
-          "command": "aiSocialScientist.openSkillFolder",
-          "when": "view == projectStructureView && viewItem == extensionSkillItem",
-          "group": "2_actions"
-        },
-        {
           "command": "aiSocialScientist.formatJsonFile",
-          "when": "view == projectStructureView && viewItem =~ /json/",
+          "when": "view == projectStructureView && (viewItem =~ / json$/ || viewItem =~ /^json / || viewItem == pidJson)",
           "group": "2_actions"
         },
         {
@@ -280,32 +246,32 @@
         },
         {
           "command": "aiSocialScientist.viewJsonFile",
-          "when": "view == projectStructureView && viewItem =~ /json/",
+          "when": "view == projectStructureView && (viewItem =~ / json$/ || viewItem =~ /^json / || viewItem == pidJson)",
           "group": "1_view"
         },
         {
           "command": "aiSocialScientist.viewYamlFile",
-          "when": "view == projectStructureView && viewItem =~ /yaml/",
+          "when": "view == projectStructureView && viewItem =~ / yaml$/",
           "group": "1_view"
         },
         {
           "command": "aiSocialScientist.openInExplorer",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /json/ || viewItem =~ /markdown/ || viewItem =~ /yaml/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "3_system"
         },
         {
           "command": "aiSocialScientist.copyFileName",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /json/ || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@3"
         },
         {
           "command": "aiSocialScientist.copyFilePath",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /json/ || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@1"
         },
         {
           "command": "aiSocialScientist.copyAtReference",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /json/ || viewItem =~ /markdown/)",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@2"
         }
       ]
@@ -377,6 +343,89 @@
           ],
           "description": "Chat面板打开的视图列位置",
           "markdownDescription": "指定 Chat 面板打开时使用的视图列位置。选择固定的列（如 `two`、`three`）可以避免在打开其他页面（如 Replay）时 Chat 页面被替换或消失。默认为 `beside`（在当前编辑器旁边）。"
+        },
+        "agentSkills.githubToken": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub token（可选）。用于提高 api.github.com 速率限制，便于技能市场拉取目录与元数据。",
+          "markdownDescription": "可选。填写 [Personal Access Token](https://github.com/settings/tokens) 后，技能市场请求 GitHub API 时附带认证，避免匿名 60 次/小时限流导致加载失败。"
+        },
+        "agentSkills.skillSources": {
+          "type": "array",
+          "markdownDescription": "**仅供 Agent 运行时技能市场使用**：从 GitHub 拉取列表并安装到工作区的 `custom/skills`。与本分组下方的「Claude 技能源」互不混用。默认无任何仓库；按需添加条目，形如 `{ owner, repo, branch?, skillsPath? }`。若留空，市场里仅显示提示、不会请求远程列表。触发 GitHub API 限流时，可在「GitHub Token」项填写令牌。",
+          "default": [],
+          "description": "Agent 技能市场 GitHub 源（安装到 custom/skills）。",
+          "items": {
+            "type": "object",
+            "markdownDescription": "单仓库：`owner`/`repo` 为 GitHub 路径；`branch` 默认 main；`skillsPath` 为仓库内技能根目录（相对路径，对应 GitHub API contents 下列出的子目录）。也可用 `path` 代替 `skillsPath`。",
+            "properties": {
+              "owner": {
+                "type": "string",
+                "description": "组织或用户名，如 anthropics"
+              },
+              "repo": {
+                "type": "string",
+                "description": "仓库名，如 skills"
+              },
+              "branch": {
+                "type": "string",
+                "default": "main",
+                "description": "分支名"
+              },
+              "skillsPath": {
+                "type": "string",
+                "description": "仓库内技能根目录，如 skills"
+              }
+            }
+          }
+        },
+        "agentSkills.claudeSkillSources": {
+          "type": "array",
+          "markdownDescription": "**仅供 Claude 目录技能市场使用**：安装到 `.claude/skills`，与上方的「Agent 技能源」互不混用。默认包含 Anthropic 官方示例、[obra/superpowers](https://github.com/obra/superpowers) 开发向技能集、[everything-claude-code](https://github.com/affaan-m/everything-claude-code) 的 `.agents/skills`。可按需增删；留空则不请求远程列表。触发 API 限流时可使用本分组下的 GitHub Token。",
+          "default": [
+            {
+              "owner": "anthropics",
+              "repo": "skills",
+              "branch": "main",
+              "skillsPath": "skills"
+            },
+            {
+              "owner": "obra",
+              "repo": "superpowers",
+              "branch": "main",
+              "skillsPath": "skills"
+            },
+            {
+              "owner": "affaan-m",
+              "repo": "everything-claude-code",
+              "branch": "main",
+              "skillsPath": ".agents/skills"
+            }
+          ],
+          "description": "Claude 技能市场 GitHub 源（安装到 .claude/skills）。",
+          "items": {
+            "type": "object",
+            "markdownDescription": "单仓库：`owner`/`repo` 为 GitHub 路径；`branch` 默认 main；`skillsPath` 为仓库内技能根目录。也可用 `path` 代替 `skillsPath`。",
+            "properties": {
+              "owner": {
+                "type": "string",
+                "description": "组织或用户名"
+              },
+              "repo": {
+                "type": "string",
+                "description": "仓库名"
+              },
+              "branch": {
+                "type": "string",
+                "default": "main",
+                "description": "分支名"
+              },
+              "skillsPath": {
+                "type": "string",
+                "description": "仓库内技能根目录"
+              }
+            }
+          }
         }
       }
     }

@@ -357,13 +357,14 @@ export class WorkspaceManager {
    */
   public syncClaudeCodeResources(
     workspacePath?: string
-  ): { success: boolean; message: string; created: string[] } {
+  ): { success: boolean; message: string; created: string[]; synced: string[] } {
     workspacePath = workspacePath || this.getWorkspacePath() || '';
     if (!workspacePath) {
       return {
         success: false,
         message: 'No workspace folder open',
         created: [],
+        synced: [],
       };
     }
 
@@ -372,12 +373,14 @@ export class WorkspaceManager {
         success: false,
         message: `扩展技能目录不存在: ${this.skillsSourcePath}`,
         created: [],
+        synced: [],
       };
     }
 
     const claudeDir = path.join(workspacePath, '.claude');
     const targetDir = path.join(claudeDir, 'skills');
     const created: string[] = [];
+    const synced: string[] = [];
 
     if (!fs.existsSync(claudeDir)) {
       fs.mkdirSync(claudeDir, { recursive: true });
@@ -385,27 +388,12 @@ export class WorkspaceManager {
       this.log(`Created: ${claudeDir}`);
     }
 
-    if (fs.existsSync(targetDir)) {
-      for (const item of fs.readdirSync(targetDir)) {
-        const itemPath = path.join(targetDir, item);
-        try {
-          fs.rmSync(itemPath, { recursive: true, force: true });
-        } catch (error) {
-          this.log(`Failed to remove existing Claude resource ${itemPath}: ${error}`);
-          return {
-            success: false,
-            message: `无法清理旧的 Claude Code 资源: ${itemPath}`,
-            created,
-          };
-        }
-      }
-    } else {
+    if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
       created.push('.claude/skills/');
       this.log(`Created: ${targetDir}`);
     }
 
-    const copied: string[] = [];
     for (const item of fs.readdirSync(this.skillsSourcePath)) {
       const sourcePath = path.join(this.skillsSourcePath, item);
       const targetPath = path.join(targetDir, item);
@@ -413,36 +401,90 @@ export class WorkspaceManager {
       try {
         const stat = fs.statSync(sourcePath);
         if (stat.isDirectory()) {
+          if (fs.existsSync(targetPath)) {
+            fs.rmSync(targetPath, { recursive: true, force: true });
+          }
           this.copyDirectoryRecursive(sourcePath, targetPath);
+          synced.push(item);
         } else if (stat.isFile()) {
           fs.copyFileSync(sourcePath, targetPath);
-        } else {
-          continue;
+          synced.push(item);
         }
-        copied.push(item);
       } catch (error) {
         this.log(`Failed to copy Claude resource ${sourcePath}: ${error}`);
         return {
           success: false,
           message: `无法同步 Claude Code 资源: ${sourcePath}`,
           created,
+          synced,
         };
       }
     }
 
-    if (copied.length === 0) {
+    if (synced.length === 0) {
       return {
         success: false,
         message: '扩展技能目录为空，未同步任何 Claude Code 资源',
         created,
+        synced,
       };
     }
 
     return {
       success: true,
-      message: `已同步 ${copied.length} 个 Claude Code 资源`,
+      message: `已同步 ${synced.length} 个 Claude Code 资源`,
       created,
+      synced,
     };
+  }
+
+  public syncSingleBundledSkill(
+    skillName: string,
+    workspacePath?: string
+  ): { success: boolean; message: string } {
+    const trimmed = skillName.trim();
+    if (!trimmed) {
+      return { success: false, message: '技能名称为空' };
+    }
+
+    workspacePath = workspacePath || this.getWorkspacePath() || '';
+    if (!workspacePath) {
+      return { success: false, message: 'No workspace folder open' };
+    }
+
+    if (!fs.existsSync(this.skillsSourcePath) || !fs.statSync(this.skillsSourcePath).isDirectory()) {
+      return { success: false, message: `扩展技能目录不存在: ${this.skillsSourcePath}` };
+    }
+
+    const sourcePath = path.join(this.skillsSourcePath, trimmed);
+    if (!fs.existsSync(sourcePath)) {
+      return { success: false, message: `扩展中不存在技能: ${trimmed}` };
+    }
+
+    const stat = fs.statSync(sourcePath);
+    if (!stat.isDirectory()) {
+      return { success: false, message: `不是技能目录: ${trimmed}` };
+    }
+
+    const claudeDir = path.join(workspacePath, '.claude');
+    const targetDir = path.join(claudeDir, 'skills');
+    const targetPath = path.join(targetDir, trimmed);
+
+    try {
+      if (!fs.existsSync(claudeDir)) {
+        fs.mkdirSync(claudeDir, { recursive: true });
+      }
+      fs.mkdirSync(targetDir, { recursive: true });
+      if (fs.existsSync(targetPath)) {
+        fs.rmSync(targetPath, { recursive: true, force: true });
+      }
+      this.copyDirectoryRecursive(sourcePath, targetPath);
+    } catch (error) {
+      this.log(`syncSingleBundledSkill failed: ${error}`);
+      return { success: false, message: `同步失败: ${trimmed}` };
+    }
+
+    return { success: true, message: `已同步到工作区 .claude/skills/${trimmed}` };
   }
 
   /**

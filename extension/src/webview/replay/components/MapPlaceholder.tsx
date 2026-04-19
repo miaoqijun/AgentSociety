@@ -84,7 +84,7 @@ export const MapPlaceholder: React.FC = () => {
         fontSize: '12px',
         lineHeight: 1.5,
       }}>
-        <div style={{ fontWeight: 500, marginBottom: '8px' }}>💡 {t('replay.placeholder.mapIntegration')}</div>
+        <div style={{ fontWeight: 500, marginBottom: '8px' }}>{t('replay.placeholder.mapIntegration')}</div>
         <div style={{ opacity: 0.8 }}>
           {t('replay.placeholder.mapIntegrationHint')}
         </div>

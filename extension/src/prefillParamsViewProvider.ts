@@ -21,6 +21,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { ApiClient } from './apiClient';
 import { localize } from './i18n';
 
@@ -126,6 +127,9 @@ export class PrefillParamsViewProvider {
           case 'testCustomModule':
             await this._handleTestSingleModule(message);
             break;
+          case 'openPrefillParamsJson':
+            await this._openPrefillParamsJson();
+            break;
         }
       },
       null,
@@ -134,6 +138,33 @@ export class PrefillParamsViewProvider {
 
     // 初始加载数据
     this._handleRequestData();
+  }
+
+  private async _openPrefillParamsJson(): Promise<void> {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage(localize('prefillParamsViewProvider.noWorkspace'));
+      return;
+    }
+    const agentsocietyDir = path.join(workspaceFolder.uri.fsPath, '.agentsociety');
+    const prefillPath = path.join(agentsocietyDir, 'prefill_params.json');
+    try {
+      if (!fs.existsSync(agentsocietyDir)) {
+        fs.mkdirSync(agentsocietyDir, { recursive: true });
+      }
+      if (!fs.existsSync(prefillPath)) {
+        const template = {
+          version: '1.0',
+          env_modules: {},
+          agents: {},
+        };
+        fs.writeFileSync(prefillPath, `${JSON.stringify(template, null, 2)}\n`, 'utf-8');
+      }
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(prefillPath));
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch (e: any) {
+      vscode.window.showErrorMessage(e?.message || String(e));
+    }
   }
 
   private async _handleRequestData() {

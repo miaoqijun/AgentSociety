@@ -9,6 +9,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { filePathToAtReference } from './atReference';
 
 interface LiteratureEntry {
   title?: string;
@@ -20,6 +21,7 @@ interface LiteratureEntry {
   doi?: string;
   url?: string;
   journal?: string;
+  at_ref?: string;
   extra_fields?: {
     article_id?: string;
     [key: string]: any;
@@ -98,9 +100,14 @@ export class LiteratureIndexViewer {
             vscode.env.openExternal(vscode.Uri.parse(message.url));
           }
         } else if (message.command === 'copyAtReference') {
-          // 复制 @文件 引用格式到剪贴板
-          if (message.filePath) {
-            const atReference = `@${message.filePath}`;
+          const wf = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+          const atReference =
+            typeof message.atReference === 'string' && message.atReference
+              ? message.atReference
+              : message.filePath
+                ? filePathToAtReference(wf, message.filePath)
+                : '';
+          if (atReference) {
             vscode.env.clipboard.writeText(atReference);
             const isZh = vscode.env.language.startsWith('zh');
             vscode.window.showInformationMessage(isZh ? `已复制: ${atReference}` : `Copied: ${atReference}`);
@@ -120,9 +127,14 @@ export class LiteratureIndexViewer {
     data: LiteratureIndex,
     filePath: string
   ): void {
-    const entries = data.entries || [];
-    const total = entries.length;
+    const rawEntries = data.entries || [];
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspaceRoot = workspaceFolder?.uri.fsPath;
+    const entries: LiteratureEntry[] = rawEntries.map((e) => ({
+      ...e,
+      at_ref: e.file_path ? filePathToAtReference(workspaceRoot, e.file_path) : '',
+    }));
+    const total = entries.length;
 
     // 获取当前语言
     const isChinese = vscode.env.language.startsWith('zh');
@@ -470,6 +482,7 @@ export class LiteratureIndexViewer {
         div.className = 'entry';
         div.dataset.index = index;
         div.setAttribute('data-filepath', entry.file_path || '');
+        div.setAttribute('data-at-ref', entry.at_ref || '');
 
         const title = entry.title || (isChinese ? '未命名文献' : 'Untitled');
         const year = entry.year || '';
@@ -513,7 +526,7 @@ export class LiteratureIndexViewer {
 
         div.innerHTML = \`
           <div class="entry-header">
-            <input type="checkbox" class="entry-checkbox" data-filepath="\${filePath}" data-title="\${title.replace(/"/g, '&quot;')}" style="margin-right: 10px;" />
+            <input type="checkbox" class="entry-checkbox" data-filepath="\${filePath}" data-at-ref="\${entry.at_ref || ''}" data-title="\${title.replace(/"/g, '&quot;')}" style="margin-right: 10px;" />
             <div class="entry-title" onclick="openFile('\${filePath}')">\${title}</div>
             \${year ? \`<span class="entry-year">\${year}</span>\` : ''}
           </div>
@@ -529,7 +542,7 @@ export class LiteratureIndexViewer {
             <button class="action-btn primary" onclick="openFile('\${filePath}')">
               📖 \${isChinese ? '打开全文' : 'Open'}
             </button>
-            \${filePath ? \`<button class="action-btn" onclick="copyAtReference('\${filePath}')">📋 \${isChinese ? '复制引用' : 'Copy Ref'}</button>\` : ''}
+            \${filePath ? \`<button class="action-btn" onclick="copyAtReferenceForEntry(this)">📋 \${isChinese ? '复制引用' : 'Copy Ref'}</button>\` : ''}
             \${doi || articleId ? \`<button class="action-btn" onclick="openUrl('https://doi.org/\${doi || articleId}')">🔗 DOI</button>\` : ''}
             \${url ? \`<button class="action-btn" onclick="openUrl('\${url}')">🌐 \${isChinese ? '网页' : 'Web'}</button>\` : ''}
           </div>
@@ -575,14 +588,15 @@ export class LiteratureIndexViewer {
       }
     }
 
-    function copyAtReference(filePath) {
-      if (filePath) {
-        const vscode = acquireVsCodeApi();
-        vscode.postMessage({
-          command: 'copyAtReference',
-          filePath: filePath
-        });
-      }
+    function copyAtReferenceForEntry(btn) {
+      const row = btn.closest('.entry');
+      const atRef = row && row.getAttribute('data-at-ref');
+      if (!atRef) return;
+      const vscode = acquireVsCodeApi();
+      vscode.postMessage({
+        command: 'copyAtReference',
+        atReference: atRef
+      });
     }
 
     // 搜索功能
@@ -646,9 +660,9 @@ export class LiteratureIndexViewer {
       }
       var references = [];
       checkboxes.forEach(function(cb) {
-        var fp = cb.getAttribute('data-filepath');
-        if (fp) {
-          references.push('@' + fp);
+        var ar = cb.getAttribute('data-at-ref');
+        if (ar) {
+          references.push(ar);
         }
       });
       navigator.clipboard.writeText(references.join('\\n')).then(function() {
@@ -713,9 +727,9 @@ export class LiteratureIndexViewer {
     document.addEventListener('dblclick', function(e) {
       var entry = e.target.closest('.entry');
       if (entry) {
-        var filePath = entry.getAttribute('data-filepath');
-        if (filePath) {
-          navigator.clipboard.writeText('@' + filePath).then(function() {
+        var atRef = entry.getAttribute('data-at-ref');
+        if (atRef) {
+          navigator.clipboard.writeText(atRef).then(function() {
             var notification = document.createElement('div');
             notification.style.cssText = 'position:fixed;top:20px;right:20px;background:#52c41a;color:#fff;padding:8px 16px;border-radius:4px;z-index:9999;animation:fadeIn 0.3s;';
             notification.textContent = isChinese ? '已复制引用' : 'Reference copied';
