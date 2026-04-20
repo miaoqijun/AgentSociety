@@ -1,14 +1,11 @@
-"""
-标准化实验分析数据模型与统一配置。
-"""
+"""Data models and path conventions for the analysis tool layer."""
 
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 
 DIR_HYPOTHESIS_PREFIX = "hypothesis_"
@@ -17,9 +14,9 @@ DIR_RUN = "run"
 DIR_ARTIFACTS = "artifacts"  # run/artifacts: 实验执行产物
 DIR_PRESENTATION = "presentation"
 DIR_SYNTHESIS = "synthesis"
-DIR_DATA = "data"  # presentation 下 data: 分析子智能体写入的分析数据
-DIR_CHARTS = "charts"  # presentation 下 charts: AnalysisAgent 写图目录
-DIR_REPORT_ASSETS = "assets"  # presentation 下 assets: 报告嵌入资源（复制自 charts + run/artifacts），包括图表、报告、分析数据等
+DIR_DATA = "data"  # presentation/hypothesis_<id>/data: 分析子智能体写入的分析数据
+DIR_CHARTS = "charts"  # presentation/hypothesis_<id>/charts: generated visualization files
+DIR_REPORT_ASSETS = "assets"  # presentation 或 synthesis 下 assets: 报告嵌入资源（复制自 charts + run/artifacts），包括图表、报告、分析数据等
 FILE_SQLITE = "sqlite.db"
 FILE_PID = "pid.json"
 FILE_HYPOTHESIS_MD = "HYPOTHESIS.md"
@@ -61,29 +58,46 @@ class ExperimentPaths(BaseModel):
 
 class PresentationPaths(BaseModel):
     """
-    单实验分析产物的输出路径（presentation 下，由 utils.presentation_paths 构建）。
+    单实验分析产物的输出路径（按 hypothesis 聚合，位于 presentation 下，由 utils.presentation_paths 构建）。
 
     生成产物布局：
     - output_dir/
-      - report.md, report.html, README.md
+      - report_zh.md, report_zh.html, report_en.md, report_en.html  （双语报告）
+      - report.md, report.html  （向后兼容别名，指向中文版）
+      - README.md
       - data/analysis_summary.json
-    - charts/  （AnalysisAgent 写图目录，再被复制到 assets）
+    - charts/  （生成的可视化目录，再被复制到 assets）
       - assets/  （报告引用的图片，DIR_REPORT_ASSETS）
     """
 
     output_dir: Path = Field(
-        ..., description="presentation/hypothesis_<id>/experiment_<id>"
+        ..., description="presentation/hypothesis_<id>"
     )
     charts_dir: Path = Field(
-        ..., description="Charts output directory (AnalysisAgent writes here)"
+        ..., description="Charts output directory for generated visualizations"
     )
     report_assets_dir: Path = Field(
         ..., description="Report assets directory (assets/, referenced by report)"
     )
-    report_md: Path = Field(..., description="Markdown report path")
-    report_html: Path = Field(..., description="HTML report path")
+    report_md: Path = Field(..., description="Markdown report path (compat alias)")
+    report_html: Path = Field(..., description="HTML report path (compat alias)")
+    report_zh_md: Path = Field(..., description="Chinese markdown report path")
+    report_zh_html: Path = Field(..., description="Chinese HTML report path")
+    report_en_md: Path = Field(..., description="English markdown report path")
+    report_en_html: Path = Field(..., description="English HTML report path")
     result_json: Path = Field(..., description="analysis_summary.json path")
     readme: Path = Field(..., description="README.md path")
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class SynthesisPaths(BaseModel):
+    """综合报告输出路径（位于独立 synthesis 根目录下）。"""
+
+    output_dir: Path = Field(..., description="synthesis")
+    report_assets_dir: Path = Field(..., description="Synthesis assets directory")
+    report_zh_md: Path = Field(..., description="Chinese synthesis markdown report path")
+    report_en_md: Path = Field(..., description="English synthesis markdown report path")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -213,153 +227,6 @@ class ReportAsset(BaseModel):
     dimensions: Optional[Dict[str, int]] = Field(None, description="Dimensions")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-@dataclass
-class ContextSummary:
-    """工具迭代时压缩后的上下文（供策略调整 prompt）。"""
-
-    key_findings: List[str] = field(default_factory=list)
-    failed_attempts: List[str] = field(default_factory=list)
-    successful_tools: List[str] = field(default_factory=list)
-    recommendations: str = ""
-    iteration_count: int = 0
-
-
-class AnalysisJudgment(BaseModel):
-    """洞察阶段 LLM 裁判输出。"""
-
-    success: bool
-    reason: str
-    should_retry: bool = False
-    retry_instruction: str = ""
-
-
-class StrategyJudgment(BaseModel):
-    """分析策略阶段裁判输出。"""
-
-    success: bool
-    reason: str
-    should_retry: bool = False
-    retry_instruction: str = ""
-
-
-class VisualizationJudgment(BaseModel):
-    """可视化计划阶段裁判输出。"""
-
-    success: bool
-    reason: str
-    should_retry: bool = False
-    retry_instruction: str = ""
-
-
-class AnalysisConfig(BaseModel):
-    """分析子智能体统一配置，各组件均从此读取。"""
-
-    workspace_path: str = Field(..., description="Workspace path")
-    max_analysis_retries: int = Field(
-        5,
-        ge=1,
-        le=20,
-        description="Max retries for analysis/report generation",
-    )
-    max_strategy_retries: int = Field(
-        3,
-        ge=1,
-        le=10,
-        description="Max retries for analysis strategy judgment",
-    )
-    max_visualization_retries: int = Field(
-        3,
-        ge=1,
-        le=10,
-        description="Max retries for visualization judgment",
-    )
-    max_tool_iterations: int = Field(
-        3,
-        ge=1,
-        le=10,
-        description="Max iterations for tool execution loop",
-    )
-    max_synthesis_report_retries: int = Field(
-        3,
-        ge=1,
-        le=10,
-        description="Max retries for synthesis report generation",
-    )
-    max_code_gen_retries: int = Field(
-        5,
-        ge=1,
-        le=20,
-        description="Max retries for code generation in tool executor",
-    )
-    completion_success_threshold: float = Field(
-        70.0,
-        ge=0.0,
-        le=100.0,
-        description="Completion percentage threshold for successful experiment",
-    )
-    temperature: float = Field(
-        0.7,
-        ge=0.0,
-        le=2.0,
-        description="LLM temperature",
-    )
-    code_execution_timeout: int = Field(
-        600,
-        ge=60,
-        le=3600,
-        description="Code executor timeout in seconds",
-    )
-    synthesis_output_dir_name: str = Field(
-        default=DIR_SYNTHESIS,
-        description="Subdir under workspace for synthesis reports",
-    )
-    llm_profile_default: str = Field(
-        default="default",
-        description="LLM profile for simple tasks (fallback)",
-    )
-    llm_profile_analysis: str = Field(
-        default="analysis",
-        description="LLM profile for analysis, insight generation, and report writing. Use a capable model.",
-    )
-    llm_profile_coder: str = Field(
-        default="coder",
-        description="LLM profile for code generation",
-    )
-    analysis_skill_names: List[str] = Field(
-        default_factory=lambda: [
-            "tool_catalog",
-            "subagent_workflow",
-            "visualization_reliability",
-            "core_skills",
-            "advanced_analysis",
-        ],
-        description=(
-            "instruction_md 条目的 name（不含 frontmatter 注入正文）。"
-            "标记 required 的片段（如 xml_contract）始终注入，无需出现在此列表。"
-        ),
-    )
-    analysis_skill_strict_selection: bool = Field(
-        default=True,
-        description=(
-            "True：只注入 required + 本列表中的条目。False：未指定列表时注入全部 instruction_md。"
-        ),
-    )
-
-    @field_validator("workspace_path")
-    @classmethod
-    def validate_workspace_path(cls, v):
-        path = Path(v)
-        if not path.exists():
-            raise ValueError(f"Workspace path does not exist: {v}")
-        return str(path.absolute())
-
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True,
-        validate_assignment=True,
-    )
-
 
 class HypothesisSummary(BaseModel):
     """跨多个实验的分析结果"""

@@ -26,14 +26,23 @@ from .models import (
     DIR_HYPOTHESIS_PREFIX,
     DIR_REPORT_ASSETS,
     DIR_RUN,
+    DIR_SYNTHESIS,
     FILE_ANALYSIS_SUMMARY_JSON,
+    FILE_SYNTHESIS_REPORT_EN_SUFFIX,
+    FILE_SYNTHESIS_REPORT_PREFIX,
+    FILE_SYNTHESIS_REPORT_ZH_SUFFIX,
     FILE_PID,
     FILE_README_MD,
+    FILE_REPORT_EN_HTML,
+    FILE_REPORT_EN_MD,
     FILE_REPORT_HTML,
     FILE_REPORT_MD,
+    FILE_REPORT_ZH_HTML,
+    FILE_REPORT_ZH_MD,
     FILE_SQLITE,
     ExperimentPaths,
     PresentationPaths,
+    SynthesisPaths,
 )
 
 # 进度回调类型，供 service/agents 等使用
@@ -97,13 +106,11 @@ def presentation_paths(
     hypothesis_id: str,
     experiment_id: str,
 ) -> PresentationPaths:
-    """单实验分析产物路径：output_dir、charts_dir、report_assets、报告与数据文件。"""
+    """单实验分析产物路径：按 hypothesis 聚合，实验 id 仅保留接口兼容。"""
     root = Path(presentation_root).resolve()
     hid = _sanitize_id(hypothesis_id)
-    eid = _sanitize_id(experiment_id)
-    output_dir = (
-        root / f"{DIR_HYPOTHESIS_PREFIX}{hid}" / f"{DIR_EXPERIMENT_PREFIX}{eid}"
-    )
+    _sanitize_id(experiment_id)
+    output_dir = root / f"{DIR_HYPOTHESIS_PREFIX}{hid}"
     charts_dir = output_dir / DIR_CHARTS
     report_assets_dir = output_dir / DIR_REPORT_ASSETS
     data_dir = output_dir / DIR_DATA
@@ -113,8 +120,27 @@ def presentation_paths(
         report_assets_dir=report_assets_dir,
         report_md=output_dir / FILE_REPORT_MD,
         report_html=output_dir / FILE_REPORT_HTML,
+        report_zh_md=output_dir / FILE_REPORT_ZH_MD,
+        report_zh_html=output_dir / FILE_REPORT_ZH_HTML,
+        report_en_md=output_dir / FILE_REPORT_EN_MD,
+        report_en_html=output_dir / FILE_REPORT_EN_HTML,
         result_json=data_dir / FILE_ANALYSIS_SUMMARY_JSON,
         readme=output_dir / FILE_README_MD,
+    )
+
+
+def synthesis_paths(
+    workspace_path: Path,
+) -> SynthesisPaths:
+    """综合报告路径：写入独立的 synthesis/ 根目录。"""
+
+    wp = Path(workspace_path).resolve()
+    output_dir = wp / DIR_SYNTHESIS
+    return SynthesisPaths(
+        output_dir=output_dir,
+        report_assets_dir=output_dir / DIR_REPORT_ASSETS,
+        report_zh_md=output_dir / f"{FILE_SYNTHESIS_REPORT_PREFIX.rstrip('_')}{FILE_SYNTHESIS_REPORT_ZH_SUFFIX}.md",
+        report_en_md=output_dir / f"{FILE_SYNTHESIS_REPORT_PREFIX.rstrip('_')}{FILE_SYNTHESIS_REPORT_EN_SUFFIX}.md",
     )
 
 
