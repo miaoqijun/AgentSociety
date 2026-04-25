@@ -20,6 +20,7 @@ DEFAULT_SERVER_URL = "https://agentsociety2.fiblab.net"
 DEFAULT_CLIENT_ID = "7ffcbfe4ae0fcb2c0d63"
 CREDENTIALS_DIR = Path.home() / ".agentsociety"
 CREDENTIALS_FILE = CREDENTIALS_DIR / "credentials.json"
+PART_SIZE = 10 * 1024 * 1024  # 10 MB per part (must match backend)
 
 VALID_CATEGORIES = [
     "agent_profiles",
@@ -69,30 +70,6 @@ def _api_post_form(url, data=None, headers=None, timeout=30):
     hdrs = headers or {}
     hdrs["Content-Type"] = "application/x-www-form-urlencoded"
     body = urlencode(data).encode("utf-8") if data else None
-    return _api_request(url, "POST", data=body, headers=hdrs, timeout=timeout)
-
-
-def _api_post_multipart(url, file_path, file_field="file", fields=None, headers=None, timeout=300):
-    """Upload a file as multipart/form-data."""
-    import uuid
-
-    boundary = uuid.uuid4().hex
-    hdrs = headers or {}
-    hdrs["Content-Type"] = f"multipart/form-data; boundary={boundary}"
-
-    parts = []
-    if fields:
-        for k, v in fields.items():
-            parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode())
-    fname = Path(file_path).name
-    with open(file_path, "rb") as f:
-        file_data = f.read()
-    parts.append(
-        f"--{boundary}\r\nContent-Disposition: form-data; name=\"{file_field}\"; filename=\"{fname}\"\r\nContent-Type: application/zip\r\n\r\n".encode()
-        + file_data
-        + f"\r\n--{boundary}--\r\n".encode()
-    )
-    body = b"".join(parts)
     return _api_request(url, "POST", data=body, headers=hdrs, timeout=timeout)
 
 
@@ -179,6 +156,69 @@ def _get_valid_token():
         except (ValueError, OSError):
             pass
     return creds, creds.get("token")
+
+
+# --- Multipart upload helpers ---
+
+
+def _api_delete(url, headers=None, timeout=30):
+    return _api_request(url, "DELETE", headers=headers, timeout=timeout)
+
+
+def _multipart_upload(server, dataset_id, zip_path, auth_headers):
+    """Upload a file via multipart direct-to-OSS.
+
+    Flow: init-upload → PUT parts to presigned URLs → complete-upload.
+    Validation happens server-side during complete-upload (synchronous).
+    """
+    file_size = zip_path.stat().st_size
+    print(f"  File size: {file_size / (1024*1024):.1f} MB — using multipart upload")
+
+    # 1. Init
+    print("  Initiating multipart upload...")
+    init_resp = _api_post(
+        f"{server}/api/user/data/datasets/{dataset_id}/init-upload",
+        data={"file_size": file_size},
+        headers=auth_headers,
+        timeout=30,
+    )
+    upload_id = init_resp["upload_id"]
+    part_size = init_resp["part_size"]
+    part_urls = init_resp["part_urls"]
+    print(f"  Upload ID: {upload_id}, {len(part_urls)} parts")
+
+    # 2. Upload parts (Content-Type must be empty to match OSS presigned signature)
+    parts = []
+    with open(zip_path, "rb") as f:
+        for i, pu in enumerate(part_urls):
+            blob = f.read(part_size)
+            req = Request(
+                pu["upload_url"],
+                data=blob,
+                method="PUT",
+                headers={"Content-Type": ""},
+            )
+            with urlopen(req, timeout=300) as resp:
+                if resp.status >= 400:
+                    raise RuntimeError(f"Part {i+1} upload failed: HTTP {resp.status}")
+            parts.append({"part_number": pu["part_number"]})
+            pct = (i + 1) / len(part_urls) * 95
+            print(f"  Part {i+1}/{len(part_urls)} uploaded ({pct:.0f}%)")
+
+    # 3. Complete (server fetches ETags from OSS, validates + caches metadata)
+    print("  Completing upload (validating)...")
+    try:
+        _api_post(
+            f"{server}/api/user/data/datasets/{dataset_id}/complete-upload",
+            data={"upload_id": upload_id, "parts": parts},
+            headers=auth_headers,
+            timeout=600,  # long timeout for validation
+        )
+    except HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Upload completion failed: {e.code} — {body}")
+
+    print("  Upload complete!")
 
 
 # --- Auth subcommands ---
@@ -300,7 +340,11 @@ def _fetch_categories(server_url):
     try:
         resp = _api_get(f"{server_url}/api/v1/data/categories")
         if isinstance(resp, dict) and "categories" in resp:
-            return resp["categories"]
+            raw = resp["categories"]
+            # Backend may return [{"value": "...", "label": "..."}] or ["..."]
+            if raw and isinstance(raw[0], dict):
+                return [c["value"] for c in raw]
+            return raw
     except Exception:
         pass
     return None
@@ -428,8 +472,8 @@ def _validate_dataset_dir(path):
 
     # Check total size
     total_size = sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
-    if total_size > 2 * 1024**3:
-        errors.append(f"Total size {total_size / 1024**3:.1f}GB exceeds 2GB limit")
+    if total_size > 5 * 1024**4:
+        errors.append(f"Total size {total_size / 1024**3:.1f}GB exceeds 5TB limit")
 
     return errors, warnings
 
@@ -446,8 +490,8 @@ def _validate_dataset_zip(path):
     if not p.suffix.lower() == ".zip":
         return ["Not a ZIP file"], warnings
 
-    if p.stat().st_size > 2 * 1024**3:
-        errors.append(f"ZIP size {p.stat().st_size / 1024**3:.1f}GB exceeds 2GB limit")
+    if p.stat().st_size > 5 * 1024**4:
+        errors.append(f"ZIP size {p.stat().st_size / 1024**3:.1f}GB exceeds 5TB limit")
 
     try:
         with zipfile.ZipFile(p, "r") as zf:
@@ -617,15 +661,13 @@ def _cmd_upload(args):
 
     print(f"  Created: {create_resp.get('id', dataset_id)}")
 
-    # Step 2: Upload ZIP file
+    # Step 2: Upload ZIP file (always multipart direct-to-OSS)
     print(f"Uploading {zip_path.name}...")
     try:
-        upload_resp = _api_post_multipart(
-            f"{server}/api/user/data/datasets/{dataset_id}/upload",
-            file_path=zip_path,
-            headers=auth_headers,
-            timeout=600,
-        )
+        _multipart_upload(server, dataset_id, zip_path, auth_headers)
+    except RuntimeError as e:
+        print(f"Error uploading: {e}")
+        return 1
     except HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
         print(f"Error uploading: {e.code} — {body}")

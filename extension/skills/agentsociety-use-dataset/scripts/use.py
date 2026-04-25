@@ -29,8 +29,8 @@ def _api_post(url, timeout=120):
 
 
 def _download_file(url, dest, timeout=300):
-    """Download file from URL to local path using POST."""
-    req = Request(url, method="POST", headers={"Accept": "application/zip, application/json"})
+    """Download file from URL to local path using GET (direct URL)."""
+    req = Request(url, headers={"Accept": "application/zip, application/json"})
     with urlopen(req, timeout=timeout) as resp:
         with open(dest, "wb") as f:
             while True:
@@ -263,8 +263,16 @@ def _cmd_files(args):
     if not files:
         print("No files found.")
         return 0
-    for f in sorted(files):
-        print(f"  {f}")
+    # Backend may return [{"path": "...", "size_bytes": N}, ...] or ["..."]
+    if files and isinstance(files[0], dict):
+        for f in sorted(files, key=lambda x: x.get("path", "")):
+            path = f.get("path", "?")
+            size = f.get("size_bytes")
+            size_str = f" ({_format_size(size)})" if size is not None else ""
+            print(f"  {path}{size_str}")
+    else:
+        for f in sorted(files):
+            print(f"  {f}")
     return 0
 
 
@@ -278,16 +286,26 @@ def _cmd_download(args):
     print(f"Fetching metadata for '{dataset_id}'...")
     meta = _api_get(f"{server}/api/v1/data/datasets/{dataset_id}")
 
-    # Download ZIP
+    # Get presigned download URL
+    print(f"Requesting download URL...")
+    try:
+        url_resp = _api_post(f"{server}/api/v1/data/datasets/{dataset_id}/download")
+    except Exception as e:
+        print(f"Error getting download URL: {e}")
+        return 1
+
+    download_url = url_resp.get("url")
+    if not download_url:
+        print(f"Error: no download URL returned")
+        return 1
+
+    # Download ZIP via presigned URL
     dest_dir = output / dataset_id
     zip_path = output / f"{dataset_id}.zip"
 
     print(f"Downloading...")
     try:
-        _download_file(
-            f"{server}/api/v1/data/datasets/{dataset_id}/download",
-            zip_path,
-        )
+        _download_file(download_url, zip_path)
     except Exception as e:
         print(f"Error downloading: {e}")
         return 1

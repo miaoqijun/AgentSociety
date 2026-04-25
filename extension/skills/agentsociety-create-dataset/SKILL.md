@@ -94,7 +94,7 @@ A valid dataset is a directory containing:
 **Constraints:**
 - `id`: must match `^[a-z0-9_-]+$`, must be unique on the platform
 - `category`: one of `agent_profiles`, `surveys`, `experiments`, `literature`, `simulation_results`, `other`
-- Total package size: max 2GB
+- Total package size: max 5TB (files ≥200MB use multipart direct-to-OSS upload)
 
 **Note on metadata alignment:** The `dataset.json` fields are sent directly to the backend API during `upload`. After downloading via `agentsociety-use-dataset`, the data is stored in a normalized `metadata.json` with additional fields (`source`, `installed_at`, `package_size_bytes`). The core fields (`id`, `name`, `version`, etc.) are shared between both formats.
 
