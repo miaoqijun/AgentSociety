@@ -2,18 +2,20 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - 'packages/agentsociety2/**'
+      - "packages/agentsociety2/**"
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
-      - 'packages/agentsociety2/**'
+      - "packages/agentsociety2/**"
 
 jobs:
   test:
     name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
       fail-fast: false
       matrix:
@@ -22,13 +24,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          cache: "pip"
 
       - name: Install dependencies
         run: |
@@ -45,8 +47,7 @@ jobs:
       - name: Type check with mypy
         run: |
           cd packages/agentsociety2
-          mypy agentsociety2/
-        continue-on-error: true
+          mypy tests/ --follow-imports=skip
 
       - name: Run tests
         run: |
@@ -55,8 +56,7 @@ jobs:
         env:
           AGENTSOCIETY_LLM_API_KEY: ${{ secrets.AGENTSOCIETY_LLM_API_KEY }}
           AGENTSOCIETY_LLM_API_BASE: ${{ secrets.AGENTSOCIETY_LLM_API_BASE }}
-          AGENTSOCIETY_LLM_MODEL: gpt-4o-mini
-        continue-on-error: true
+          AGENTSOCIETY_LLM_MODEL: glm-5
 
   build:
     name: Build package
@@ -65,9 +65,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v8.1.0
 
       - name: Build package
         run: |

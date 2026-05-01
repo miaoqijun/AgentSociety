@@ -161,5 +161,11 @@ dev = [
     "pytest>=9.0.2",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+
 # 注意：Mirothinker Agent 是可选功能，不在默认依赖中
 # 如需使用，请参考 MiroThinker/README.md 进行配置
