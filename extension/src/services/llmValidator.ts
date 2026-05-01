@@ -1,7 +1,7 @@
 /**
  * LLM Validator - LLM API 验证服务
  *
- * 在 VSCode 扩展进程中执行 LLM API 验证，避免 webview 的 CSP 限制
+ * 在扩展宿主进程内用 requestJson：优先 fetch，无 fetch 时回退 node:http/https。
  *
  * 关联文件：
  * - @extension/src/configPageViewProvider.ts - 配置页面使用LLMValidator验证API配置
@@ -14,6 +14,8 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { requestJson } from './httpClient';
+import { CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS } from './validateTimeouts';
 
 const execFileAsync = promisify(execFile);
 
@@ -78,23 +80,22 @@ export class LLMValidator {
     try {
       const requestBody = type === LLMType.Embedding
         ? {
-            model: model,
-            input: 'Hello',
-          }
+          model: model,
+          input: 'Hello',
+        }
         : {
-            model: model,
-            messages: [{ role: 'user', content: 'Hello' }],
-            max_tokens: 1,
-          };
+          model: model,
+          messages: [{ role: 'user', content: 'Hello' }],
+          max_tokens: 1,
+        };
 
-      const response = await fetch(fullUrl, {
+      const response = await requestJson<{ error?: { message?: string }; message?: string }>(fullUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
         },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(15000), // 15秒超时
+        body: requestBody,
+        timeoutMs: CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS,
       });
 
       this.log(`Response status: ${response.status}`);
@@ -107,7 +108,7 @@ export class LLMValidator {
       // 尝试获取错误详情
       let errorDetail = '';
       try {
-        const errorData = await response.json();
+        const errorData = response.data;
         errorDetail = errorData.error?.message || errorData.message || JSON.stringify(errorData);
       } catch {
         errorDetail = response.statusText || `HTTP ${response.status}`;
@@ -125,19 +126,17 @@ export class LLMValidator {
         return { success: false, error: `请求失败 (${response.status}): ${errorDetail}` };
       }
     } catch (error) {
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        const errorMsg = `无法连接到 ${fullUrl}。请检查网络或 API 地址是否正确`;
-        this.log(`Connection error: ${errorMsg}`);
-        return { success: false, error: errorMsg };
-      }
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          const errorMsg = '请求超时（15秒），请检查网络连接或 API 地址是否正确';
+        if (error.message.includes('请求超时')) {
+          const sec = CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS / 1000;
+          const errorMsg = `请求超时（${sec}秒），请检查网络连接或 API 地址是否正确`;
           this.log(`Timeout error: ${errorMsg}`);
           return { success: false, error: errorMsg };
         }
-        this.log(`Error: ${error.message}`);
-        return { success: false, error: error.message };
+        const detail = error.message;
+        const errorMsg = `无法连接到 ${fullUrl}：${detail}`;
+        this.log(`Connection error: ${detail}`);
+        return { success: false, error: errorMsg };
       }
       return { success: false, error: '未知错误' };
     }
