@@ -28,14 +28,20 @@ VSCode extension is in `extension/`.
 # Install dependencies (in workspace root)
 uv sync
 
+# Install with dev dependencies
+cd packages/agentsociety2 && uv sync --extra dev
+
 # Run tests
-cd packages/agentsociety2 && pytest
+cd packages/agentsociety2 && uv run pytest
 
 # Linting
-ruff check packages/agentsociety2/
+uv run ruff check packages/agentsociety2/
 
 # Format code
-ruff format packages/agentsociety2/
+uv run ruff format packages/agentsociety2/
+
+# Type checking
+uv run mypy packages/agentsociety2/tests/ --follow-imports=skip
 ```
 
 ### Running Experiments (CLI)
@@ -188,7 +194,7 @@ PersonAgent follows a **metadata-first, selected-only** model:
 - Skills are self-contained directories under `agent/skills/`
 - Each skill has `SKILL.md` (YAML frontmatter + behavior docs) and `scripts/<name>.py`
 - Built-in skills: `observation`, `memory`, `needs`, `cognition`, `plan`
-- **Selection Stage**: LLM reads skill metadata (name/description/priority/requires/provides)
+- **Selection Stage**: LLM sees skill catalog (name/description only)
 - **Execution Stage**: Only LLM-selected skills are loaded and run
 - Unselected skills are NOT loaded or executed (lazy loading)
 - Custom skills can be placed in `workspace/custom/skills/` and hot-loaded at runtime
@@ -471,30 +477,15 @@ flowchart TD
 - Implement `observe()` method (returns state string for agents)
 - Tools registered automatically via metaclass
 
-### Agent Skills Pipeline
-PersonAgent executes skills in a pipeline on each `step()`:
-1. **Skill Selection**: LLM selects skills based on metadata only
-2. **On-demand Loading**: Only selected skills are loaded
-3. **Priority Execution**: Skills run in priority order
-4. **State Management**: Skills can store state via `agent.set_skill_state()`
+### Agent Skills (tool loop)
+Each `step()` runs a multi-round tool loop. The catalog exposes **name + description** per skill; the model uses `activate_skill` / `read_skill` / `execute_skill` as needed. Order is not a fixed priority pipeline. Skills can store state via `agent.set_skill_state()`.
 
 ```mermaid
 graph TD
-    subgraph "Skill Pipeline"
-        Step[agent.step] --> Select[LLM Skill Selection]
-        Select --> Load[Load Selected Skills]
-        Load --> Run[Run Skills by Priority]
-        Run --> Check{More Skills?}
-        Check -->|Yes| Run
-        Check -->|No| Return[Return Result]
-    end
-
-    subgraph "Built-in Skills"
-        Obs[observation<br/>priority: 10]
-        Mem[memory<br/>priority: 20]
-        Need[needs<br/>priority: 30]
-        Cog[cognition<br/>priority: 40]
-        Pln[plan<br/>priority: 50]
+    subgraph "Tool loop"
+        Step[agent.step] --> Loop[LLM emits ToolDecision JSON]
+        Loop --> Tool[activate / read / execute / workspace / ...]
+        Tool --> Loop
     end
 ```
 

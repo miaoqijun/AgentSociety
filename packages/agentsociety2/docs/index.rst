@@ -46,27 +46,7 @@ AgentSociety 2
 快速开始
 -----------
 
-.. code-block:: python
-
-   from agentsociety2 import PersonAgent
-   from agentsociety2.society import AgentSociety
-
-   # Create an agent
-   agent = PersonAgent(
-       id=1,
-       profile={
-           "name": "Alice",
-           "age": 28,
-           "personality": "friendly and curious",
-           "bio": "A software engineer who loves hiking."
-       }
-   )
-
-   # Ask the agent a question
-   response = await agent.ask("What's your favorite hobby?")
-   print(response)
-
-更多示例请参见 :doc:`quickstart`。
+与智能体交互通过 :class:`~agentsociety2.society.AgentSociety` 的异步 API（如 ``ask`` / ``intervene``）完成，需使用 ``asyncio``。最小示意见 :doc:`quickstart`。
 
 文档
 -------------
@@ -91,6 +71,7 @@ AgentSociety 2
    storage
    custom_modules
    skills
+   skill_guide
 
 .. toctree::
    :maxdepth: 2

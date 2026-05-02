@@ -33,18 +33,7 @@ SKILL.md 文件使用 YAML frontmatter 声明 skill 元信息：
    ---
    name: my_skill
    description: 这是一个示例 skill
-   script: scripts/main.py
-   executor: codegen
-   disable_model_invocation: false
-   requires:
-     - other_skill
    ---
 
-**支持的字段**：
-
-- ``name``: Skill 名称（默认为目录名）
-- ``description``: 描述信息
-- ``script``: 脚本路径（可选）
-- ``executor``: 执行器类型（如 "codegen"）
-- ``disable_model_invocation``: 是否禁用模型调用
-- ``requires``: 依赖的其他 skill 名称列表
+**解析进 catalog 的字段**：``name``、``description``。
+子进程脚本通过约定路径 ``scripts/<name>.py`` 自动识别。环境交互走工具 ``codegen``，不经 skill 的 execute 分支。

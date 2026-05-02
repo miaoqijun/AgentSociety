@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   SearchOutlined, DownloadOutlined, DeleteOutlined, FolderOpenOutlined,
-  ReloadOutlined, CheckCircleOutlined, AppstoreOutlined, BookOutlined,
+  ReloadOutlined, AppstoreOutlined, BookOutlined,
   ToolOutlined, RobotOutlined, ThunderboltOutlined, ShopOutlined,
   SyncOutlined, ImportOutlined, InboxOutlined, CloudSyncOutlined, SettingOutlined,
   UndoOutlined, QuestionCircleOutlined,
@@ -124,8 +124,6 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
           setAgentSkills(msg.payload || []);
           setAgentSkillsLoading(false);
           break;
-        case 'agentSkillEnabled':
-        case 'agentSkillDisabled':
         case 'agentSkillReloaded':
           message.success(msg.payload?.message || t('skillManagement.operationSuccess'));
           break;
@@ -323,9 +321,6 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
   }, []);
 
   // Agent Skills 操作
-  const handleToggleAgentSkill = (skill: AgentSkill) => {
-    vscode.postMessage({ type: skill.enabled ? 'disableAgentSkill' : 'enableAgentSkill', payload: { name: skill.name } });
-  };
   const handleReloadAgentSkill = (name: string) => vscode.postMessage({ type: 'reloadAgentSkill', payload: { name } });
   const handleRemoveAgentSkill = (name: string) => {
     Modal.confirm({
@@ -777,8 +772,11 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
     return [...bundled, ...extras];
   }, [filteredExtensionBundledSkills, filteredClaudeCodeSkills]);
 
-  const agentEnabledCount = React.useMemo(() => agentSkills.filter(s => s.enabled).length, [agentSkills]);
   const agentCustomCount = React.useMemo(() => agentSkills.filter(s => s.source !== 'builtin').length, [agentSkills]);
+  const agentEnabledCount = React.useMemo(
+    () => agentSkills.filter((s) => s.source === 'builtin' || s.enabled).length,
+    [agentSkills]
+  );
 
   const getDescription = (skill: MarketplaceSkill) => {
     const zh = i18n.language === 'zh-CN' && skill.descriptionZh?.trim();
@@ -893,7 +891,6 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
     const detail = agentSkillDetails[skill.name];
     const dLoading = !!agentDetailLoading[skill.name];
     const scriptText = (detail?.script ?? skill.script ?? '').trim();
-    const requiresList = (detail?.requires ?? skill.requires ?? []).filter(Boolean);
     const mdBody = (detail?.skill_md ?? '').trim();
     return cardShell(
       skill.name,
@@ -905,14 +902,30 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
                 {isBuiltin ? t('skillManagement.tagAgentBackend') : t('skillManagement.tagAgentRegistered')}
               </Tag>
               <Text strong style={{ wordBreak: 'break-word' }}>{skill.name}</Text>
-              {skill.enabled && <Tag color="success" icon={<CheckCircleOutlined />} style={{ marginLeft: 4 }}>{t('skillManagement.enabled')}</Tag>}
             </Space>
             <div style={descStyle}>{skill.description || t('skillManagement.noDescription')}</div>
           </div>
           <Space wrap size={4} style={skillCardActionsStyle}>
-            <Tooltip title={skill.enabled ? t('skillManagement.disable') : t('skillManagement.enable')}>
-              <Switch checked={skill.enabled} onChange={() => handleToggleAgentSkill(skill)} size="small" />
-            </Tooltip>
+            {isBuiltin ? (
+              <Tooltip title={t('skillManagement.builtinAgentSkillAlwaysOn')}>
+                <Tag color="blue" style={{ margin: 0 }}>{t('skillManagement.builtinAgentSkillTag')}</Tag>
+              </Tooltip>
+            ) : (
+              <Tooltip title={t('skillManagement.agentCatalogToggleHint')}>
+                <Switch
+                  size="small"
+                  checked={skill.enabled}
+                  checkedChildren={t('skillManagement.enable')}
+                  unCheckedChildren={t('skillManagement.disable')}
+                  onChange={(checked) =>
+                    vscode.postMessage({
+                      type: 'setAgentSkillEnabled',
+                      payload: { name: skill.name, enabled: checked },
+                    })
+                  }
+                />
+              </Tooltip>
+            )}
             {!isBuiltin && (
               <Tooltip title={t('skillManagement.reload')}>
                 <Button type="text" size="small" icon={<SyncOutlined />} onClick={() => handleReloadAgentSkill(skill.name)} />
@@ -948,18 +961,6 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
                 <div style={{ ...detailValueStyle, fontFamily: 'var(--vscode-editor-font-family, monospace)' }}>
                   {scriptText}
                 </div>
-              </div>
-            ) : null}
-            {requiresList.length > 0 ? (
-              <div>
-                <Text type="secondary" style={{ ...detailLabelStyle, display: 'block', marginBottom: 4 }}>
-                  {t('skillManagement.detailRequires')}
-                </Text>
-                <Space wrap size={[4, 4]}>
-                  {requiresList.map((r) => (
-                    <Tag key={r} style={{ margin: 0 }}>{r}</Tag>
-                  ))}
-                </Space>
               </div>
             ) : null}
             <div>
@@ -1720,7 +1721,11 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
 
               {/* 统计卡片 */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-                {statPill(t('skillManagement.statEnabledAgent'), agentEnabledCount, palette.successForeground)}
+                {statPill(
+                  t('skillManagement.statEnabledAgent'),
+                  `${agentEnabledCount}/${agentSkills.length}`,
+                  palette.successForeground
+                )}
                 {statPill(t('skillManagement.statCustomAgent'), agentCustomCount)}
                 {statPill(t('skillManagement.statMarketplace'), marketplaceTotalCount, palette.linkForeground)}
                 {statPill(t('skillManagement.statClaude'), claudeCodeSkills.length)}

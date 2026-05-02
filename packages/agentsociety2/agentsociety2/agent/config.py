@@ -1,33 +1,20 @@
-"""Agent统一配置管理。
+"""Agent 配置：模型、循环、上下文、持久化与并发等子配置的聚合入口。
 
-本模块提供Agent的统一配置系统。设计原则：
+常用项带默认值；少数入口可通过构造参数或环境变量覆盖。
 
-1. **开箱即用**: 大多数参数已写死，无需用户配置
-2. **最小暴露**: 仅暴露真正需要调整的参数
-3. **环境变量覆盖**: 核心参数支持环境变量动态调整
-
-示例
-====
-
-基本使用::
-
-    from agentsociety2.agent.config import AgentConfig
-
-    config = AgentConfig()  # 使用默认值
-    config = AgentConfig.from_env()  # 从环境变量加载
-
-访问配置::
-
-    config.model.context_window  # 200000
-    config.loop.max_rounds  # 24
+Example:
+    >>> from agentsociety2.agent.config import AgentConfig
+    >>> AgentConfig().loop.max_rounds
+    24
 """
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from typing import Optional
 
-# 环境变量白名单：允许传递给子进程的环境变量
+# 子进程环境继承白名单
 ALLOWED_ENV_VARS = frozenset(
     {
         "PATH",
@@ -44,11 +31,14 @@ ALLOWED_ENV_VARS = frozenset(
 
 
 def _int(name: str, default: int) -> int:
-    """从环境变量读取整数配置。
+    """将环境变量解析为有符号十进制整数。
 
-    :param name: 环境变量名。
-    :param default: 默认值。
-    :return: 配置值。
+    Args:
+        name: 环境变量名。
+        default: 未设置或解析失败时的返回值。
+
+    Returns:
+        解析得到的整数，或 ``default``。
     """
     try:
         return int(os.getenv(name, str(default)))
@@ -56,80 +46,143 @@ def _int(name: str, default: int) -> int:
         return default
 
 
-# ============================================================================
-# 内部常量（写死，不暴露给用户）
-# ============================================================================
+def _optional_positive_float(name: str, default: float | None) -> float | None:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    s = raw.strip().lower()
+    if s in ("", "none", "off", "false", "0"):
+        return None
+    try:
+        v = float(s)
+        return v if v > 0 else None
+    except ValueError:
+        return default
 
-# 上下文压缩阈值
-_COMPACT_WARNING_RATIO = 0.60
-_COMPACT_TRIGGER_RATIO = 0.75
-_COMPACT_AUTO_RATIO = 0.85
+
+_COMPACT_WARNING_RATIO = 0.58
+_COMPACT_TRIGGER_RATIO = 0.72
+_COMPACT_AUTO_RATIO = 0.84
 _COMPACT_FORCE_RATIO = 0.90
 
-# Thread 限制
 _THREAD_MAX_MESSAGES = 50
 _THREAD_MAX_TOKENS = 150_000
 _THREAD_KEEP_RECENT = 12
 
-# 输出限制
 _STDOUT_MAX_CHARS = 10_000
 _STDERR_MAX_CHARS = 5_000
 _TOOL_RESULT_BUDGET = 32_000
 
-# 工作区限制
 _WORKSPACE_READ_CHUNK_CAP = 32_000
 _WORKSPACE_CACHE_MAX_ENTRIES = 50
 
-# 循环检测阈值
 _MAX_TOOL_REPEATS = 5
 _MAX_CONTENT_REPEATS = 10
 _MAX_ERROR_REPEATS = 3
 _LOOP_HISTORY_SIZE = 20
 
-# 并发限制
 _MAX_PARALLEL_TOOLS = 5
 _MAX_LLM_CONCURRENT = 5
 _MAX_SUBPROCESS = 8
 _RATE_LIMIT_RPS = 10.0
 
-# Tiktoken 编码
 _TIKTOKEN_ENCODING = "cl100k_base"
 
+#: 声明上下文窗口的下限（tokens），低于此值的输入会被抬升。
+MIN_USABLE_CONTEXT_TOKENS = 8_192
+#: 无显式配置且 LiteLLM 无法解析时的默认声明窗口（tokens）。
+DEFAULT_MODEL_CONTEXT_WINDOW = 200_000
 
-# ============================================================================
-# 用户可配置项
-# ============================================================================
+
+def _litellm_max_input_tokens(model: str) -> Optional[int]:
+    """调用 LiteLLM ``get_model_info`` 读取 ``max_input_tokens``。
+
+    Args:
+        model: LiteLLM 模型名（可含 ``provider/model`` 形式）。
+
+    Returns:
+        正整数表示输入侧上下文上限；未知模型或异常时为 ``None``。
+    """
+    name = (model or "").strip()
+    if not name:
+        return None
+    try:
+        from litellm import get_model_info
+
+        info = get_model_info(name)
+    except Exception:
+        return None
+    mi = info.get("max_input_tokens")
+    if isinstance(mi, int) and mi > 0:
+        return mi
+    return None
+
+
+def input_token_budget(total_context_tokens: int) -> int:
+    """由声明窗口推算 thread 侧可用输入 token 预算。
+
+    预留为 ``total`` 的 12%，并夹在 ``4096`` 与 ``72000`` 之间，再从 ``total`` 中扣除。
+
+    Args:
+        total_context_tokens: 模型声明的总上下文长度（tokens）。
+
+    Returns:
+        输入预算（tokens），不低于 :data:`MIN_USABLE_CONTEXT_TOKENS`。
+    """
+    total = max(MIN_USABLE_CONTEXT_TOKENS, int(total_context_tokens))
+    reserve = max(4_096, min(72_000, int(total * 0.12)))
+    return max(MIN_USABLE_CONTEXT_TOKENS, total - reserve)
 
 
 @dataclass
 class ModelConfig:
-    """模型配置。
+    """模型名与可选显式上下文窗口。
 
-    :ivar model: 模型名称。
-    :ivar context_window: 上下文窗口大小（tokens）。
+    ``context_window`` 为 ``None`` 时：若 ``model`` 非空则尝试 LiteLLM，否则使用
+    :data:`DEFAULT_MODEL_CONTEXT_WINDOW`。
+
+    Attributes:
+        model: 模型名。
+        context_window: 显式声明窗口（tokens）；``None`` 表示按上式自动解析。
     """
 
     model: str = ""
-    context_window: int = 200_000
+    context_window: Optional[int] = None
+
+    @property
+    def declared_context_window(self) -> int:
+        """声明的总上下文 token 上限（含下限裁剪）。
+
+        Returns:
+            总上下文 tokens，至少为 :data:`MIN_USABLE_CONTEXT_TOKENS`。
+        """
+        if self.context_window is not None:
+            return max(MIN_USABLE_CONTEXT_TOKENS, int(self.context_window))
+        m = (self.model or "").strip()
+        if m:
+            lit = _litellm_max_input_tokens(m)
+            if lit is not None:
+                return max(MIN_USABLE_CONTEXT_TOKENS, lit)
+        return DEFAULT_MODEL_CONTEXT_WINDOW
 
     @property
     def effective_window(self) -> int:
-        """有效上下文窗口大小（减去输出预留和开销）。"""
-        return max(8192, self.context_window - 24_000)
+        """输入侧 token 预算（thread 压缩与利用率分母）。
+
+        Returns:
+            :func:`input_token_budget` 作用于 :meth:`declared_context_window` 的结果。
+        """
+        return input_token_budget(self.declared_context_window)
 
 
 @dataclass
 class LoopConfig:
-    """工具循环配置。
-
-    :ivar max_rounds: 单步最大工具轮数。
-    :ivar step_timeout: 整步超时时间（秒）。
-    """
+    """工具循环与 LLM 调用相关限制。"""
 
     max_rounds: int = 24
-    step_timeout: int = 300
+    step_timeout: int = 600
+    llm_request_timeout: float | None = 120.0
 
-    # 以下参数写死，不暴露
     tool_timeout: float = 30.0
     bash_retries: int = 1
     llm_retries: int = 3
@@ -139,18 +192,12 @@ class LoopConfig:
 
 @dataclass
 class PersistenceConfig:
-    """持久化配置。
-
-    :ivar checkpoint_interval: 检查点间隔（ticks）。
-    :ivar checkpoint_max: 最大保留检查点数。
-    :ivar thread_history_max_files: 最大保留的对话历史文件数。
-    """
+    """检查点、WAL、日志与归档相关参数。"""
 
     checkpoint_interval: int = 10
     checkpoint_max: int = 20
     thread_history_max_files: int = 20
 
-    # 以下参数写死
     checkpoint_include_workspace: bool = True
     max_log_files: int = 50
     max_memory_entries: int = 5000
@@ -162,40 +209,31 @@ class PersistenceConfig:
 
 @dataclass
 class ContextConfig:
-    """上下文管理配置（内部使用，大多数参数写死）。
-
-    :ivar workspace_cache_max_entries: 工作区缓存最大条目数。
-    :ivar preload_workspace_paths: 预加载的工作区路径列表。
-    """
+    """对话线程、工具输出与工作区读写的预算与压缩档位。"""
 
     workspace_cache_max_entries: int = 50
     preload_workspace_paths: list[str] = field(default_factory=list)
 
-    # 压缩阈值（写死）
     compact_warning_ratio: float = field(default=_COMPACT_WARNING_RATIO, repr=False)
     compact_trigger_ratio: float = field(default=_COMPACT_TRIGGER_RATIO, repr=False)
     compact_auto_ratio: float = field(default=_COMPACT_AUTO_RATIO, repr=False)
     compact_force_ratio: float = field(default=_COMPACT_FORCE_RATIO, repr=False)
 
-    # Thread 限制（写死）
     thread_max_messages: int = field(default=_THREAD_MAX_MESSAGES, repr=False)
     thread_max_tokens: int = field(default=_THREAD_MAX_TOKENS, repr=False)
     thread_keep_recent: int = field(default=_THREAD_KEEP_RECENT, repr=False)
     thread_compact_max_chars: int = field(default=100_000, repr=False)
     thread_compact_keep_recent: int = field(default=8, repr=False)
 
-    # 输出限制（写死）
     stdout_max_chars: int = field(default=_STDOUT_MAX_CHARS, repr=False)
     stderr_max_chars: int = field(default=_STDERR_MAX_CHARS, repr=False)
     tool_result_budget: int = field(default=_TOOL_RESULT_BUDGET, repr=False)
     tool_result_thread_budget: int = field(default=64_000, repr=False)
 
-    # 工作区限制（写死）
     workspace_read_chunk_cap: int = field(default=_WORKSPACE_READ_CHUNK_CAP, repr=False)
     workspace_chunk_size: int = field(default=32_768, repr=False)
     key_state_file_limit: int = field(default=5000, repr=False)
 
-    # 其他（写死）
     tool_table_mode: str = field(default="full", repr=False)
     grep_max_files: int = field(default=2000, repr=False)
     grep_max_matches: int = field(default=1000, repr=False)
@@ -203,19 +241,18 @@ class ContextConfig:
     summary_msg_limit: int = field(default=10, repr=False)
     summary_msg_short_limit: int = field(default=5, repr=False)
     summary_char_budget: int = field(default=4000, repr=False)
-    model_context_window: int = field(default=200_000, repr=False)
+    model_context_window: int = field(default=DEFAULT_MODEL_CONTEXT_WINDOW, repr=False)
     world_desc_max_chars: int = field(default=10_000, repr=False)
     workspace_snapshot_str_cap: int = field(default=5_000, repr=False)
     thread_key_state_paths: list[str] = field(default_factory=list, repr=False)
     system_prompt_max_identity_chars: int = field(default=10_000, repr=False)
-    catalog_working_set_json: bool = field(default=False, repr=False)
     tiktoken_encoding: str = field(default=_TIKTOKEN_ENCODING, repr=False)
     profile_max_chars: int = field(default=4000, repr=False)
 
 
 @dataclass
 class LoopDetectionConfig:
-    """循环检测配置（内部使用，参数写死）。"""
+    """工具与内容重复、错误风暴等循环行为检测阈值。"""
 
     max_tool_repeats: int = field(default=_MAX_TOOL_REPEATS, repr=False)
     max_content_repeats: int = field(default=_MAX_CONTENT_REPEATS, repr=False)
@@ -226,7 +263,7 @@ class LoopDetectionConfig:
 
 @dataclass
 class ConcurrencyConfig:
-    """并发控制配置（内部使用）。"""
+    """并行工具、LLM 请求、子进程与全局限流。"""
 
     max_parallel_tools: int = field(default=_MAX_PARALLEL_TOOLS, repr=False)
     max_llm_concurrent: int = field(default=_MAX_LLM_CONCURRENT, repr=False)
@@ -236,7 +273,7 @@ class ConcurrencyConfig:
 
 @dataclass
 class StateConfig:
-    """状态文件配置（内部使用）。"""
+    """Agent 状态 JSON 文件名与摘要字段名的映射。"""
 
     builtin_states: dict[str, tuple[str, str]] = field(
         default_factory=lambda: {
@@ -251,7 +288,11 @@ class StateConfig:
     summary_max_length: int = 100
 
     def get_all_states(self) -> dict[str, tuple[str, str]]:
-        """获取所有状态文件定义（内置 + 扩展）。"""
+        """合并内置与扩展状态映射。
+
+        Returns:
+            状态名到 ``(json 文件名, 摘要字段名)`` 的浅拷贝。
+        """
         result = dict(self.builtin_states)
         result.update(self.extra_states)
         return result
@@ -259,24 +300,7 @@ class StateConfig:
 
 @dataclass
 class AgentConfig:
-    """Agent统一配置。
-
-    整合所有子配置，提供统一的访问入口。
-
-    :ivar model: 模型配置。
-    :ivar loop: 工具循环配置。
-    :ivar context: 上下文管理配置。
-    :ivar persistence: 持久化配置。
-    :ivar concurrency: 并发控制配置。
-    :ivar loop_detection: 循环检测配置。
-    :ivar state: 状态文件配置。
-    :ivar workspace_path: 工作区路径（可选）。
-
-    Example:
-
-        >>> config = AgentConfig()
-        >>> config = AgentConfig.from_env()
-    """
+    """根配置：聚合 ``ModelConfig``、``LoopConfig``、``ContextConfig`` 等子对象。"""
 
     model: ModelConfig = field(default_factory=ModelConfig)
     loop: LoopConfig = field(default_factory=LoopConfig)
@@ -287,27 +311,41 @@ class AgentConfig:
     state: StateConfig = field(default_factory=StateConfig)
     workspace_path: str = ""
 
+    def __post_init__(self) -> None:
+        self._sync_context_window_budget()
+
+    def _sync_context_window_budget(self) -> None:
+        """令 ``context.model_context_window`` 与 ``model.effective_window`` 一致。"""
+        self.context.model_context_window = self.model.effective_window
+
     @classmethod
     def from_env(cls) -> "AgentConfig":
-        """从环境变量加载配置。
+        """从环境变量构造实例。
 
-        支持的环境变量：
-            - AGENT_MODEL: 模型名称
-            - AGENT_CONTEXT_WINDOW: 上下文窗口大小
-            - AGENT_MAX_TOOL_ROUNDS: 最大工具轮数
-            - AGENT_STEP_TIMEOUT: 单步超时(秒)
-            - AGENT_CHECKPOINT_INTERVAL: 检查点间隔
+        使用 ``AGENT_MODEL``、``AGENT_CONTEXT_WINDOW``（可选）、``AGENT_MAX_TOOL_ROUNDS``、
+        ``AGENT_STEP_TIMEOUT``、``AGENT_LLM_REQUEST_TIMEOUT``（单次补全超时秒数，0/none 关闭）、
+        ``AGENT_CHECKPOINT_INTERVAL``。
 
-        :return: 配置实例。
+        Returns:
+            新构建的 ``AgentConfig``。
         """
+        cw: Optional[int] = None
+        if "AGENT_CONTEXT_WINDOW" in os.environ:
+            cw = max(
+                MIN_USABLE_CONTEXT_TOKENS,
+                _int("AGENT_CONTEXT_WINDOW", DEFAULT_MODEL_CONTEXT_WINDOW),
+            )
         return cls(
             model=ModelConfig(
                 model=os.getenv("AGENT_MODEL", ""),
-                context_window=_int("AGENT_CONTEXT_WINDOW", 200_000),
+                context_window=cw,
             ),
             loop=LoopConfig(
                 max_rounds=_int("AGENT_MAX_TOOL_ROUNDS", 24),
-                step_timeout=_int("AGENT_STEP_TIMEOUT", 300),
+                step_timeout=_int("AGENT_STEP_TIMEOUT", 600),
+                llm_request_timeout=_optional_positive_float(
+                    "AGENT_LLM_REQUEST_TIMEOUT", 120.0
+                ),
             ),
             persistence=PersistenceConfig(
                 checkpoint_interval=_int("AGENT_CHECKPOINT_INTERVAL", 10),
@@ -316,24 +354,13 @@ class AgentConfig:
 
     @classmethod
     def from_kwargs(cls, kwargs: dict | None = None) -> "AgentConfig":
-        """从 kwargs 字典创建配置实例（支持最小可用覆盖）。
+        """将约定字段名写入各子配置。
 
-        该方法用于把 `PersonAgent(..., **capability_kwargs)` 传入的少数关键参数
-        映射到 `AgentConfig`。本仓库明确 **不需要向后兼容**：未识别的字段会被忽略，
-        但已支持字段会严格生效（并做 clamp）。
+        Args:
+            kwargs: 例如 ``model``、``context_window``、``max_tool_rounds``；``None`` 视为空映射。
 
-        支持字段（约定名）：
-        - max_tool_rounds -> loop.max_rounds
-        - step_timeout -> loop.step_timeout
-        - preload_workspace_paths -> context.preload_workspace_paths
-        - thread_key_state_paths -> context.thread_key_state_paths
-        - workspace_read_chunk_chars -> context.workspace_read_chunk_cap
-        - tool_result_thread_budget_chars -> context.tool_result_thread_budget
-        - catalog_working_set_json -> context.catalog_working_set_json
-        - system_prompt_max_identity_chars -> context.system_prompt_max_identity_chars
-        - profile_max_chars / profile_truncate_chars -> context.profile_max_chars
-        - enable_llm_history -> persistence.enable_llm_history
-        - llm_history_max_entries -> persistence.llm_history_max_entries
+        Returns:
+            新构建的 ``AgentConfig``。未识别的键忽略；数值字段会裁剪到允许范围。
         """
         raw = kwargs or {}
         if not isinstance(raw, dict) or not raw:
@@ -369,7 +396,6 @@ class AgentConfig:
             s = str(v).strip()
             return [s] if s else []
 
-        # loop
         if "max_tool_rounds" in raw:
             cfg.loop.max_rounds = max(
                 1, _as_int(raw.get("max_tool_rounds"), cfg.loop.max_rounds)
@@ -378,8 +404,17 @@ class AgentConfig:
             cfg.loop.step_timeout = max(
                 5, _as_int(raw.get("step_timeout"), cfg.loop.step_timeout)
             )
+        if "llm_request_timeout" in raw:
+            v = raw.get("llm_request_timeout")
+            if v is None or str(v).strip().lower() in ("none", "", "0", "false"):
+                cfg.loop.llm_request_timeout = None
+            else:
+                try:
+                    f = float(v)  # type: ignore[arg-type]
+                    cfg.loop.llm_request_timeout = f if f > 0 else None
+                except (TypeError, ValueError):
+                    pass
 
-        # context: paths / budgets
         if "preload_workspace_paths" in raw:
             cfg.context.preload_workspace_paths = _as_list_str(
                 raw.get("preload_workspace_paths")
@@ -403,11 +438,6 @@ class AgentConfig:
             )
             cfg.context.tool_result_thread_budget = max(4096, min(256_000, bud))
 
-        if "catalog_working_set_json" in raw:
-            cfg.context.catalog_working_set_json = _as_bool(
-                raw.get("catalog_working_set_json"), False
-            )
-
         if "system_prompt_max_identity_chars" in raw:
             mx = _as_int(
                 raw.get("system_prompt_max_identity_chars"),
@@ -420,7 +450,6 @@ class AgentConfig:
             mx = _as_int(v, cfg.context.profile_max_chars)
             cfg.context.profile_max_chars = max(512, min(200_000, mx))
 
-        # persistence
         if "enable_llm_history" in raw:
             cfg.persistence.enable_llm_history = _as_bool(
                 raw.get("enable_llm_history"), cfg.persistence.enable_llm_history
@@ -434,10 +463,26 @@ class AgentConfig:
                 ),
             )
 
+        if "model" in raw or "llm_model" in raw:
+            m = raw.get("model", raw.get("llm_model"))
+            if m is not None:
+                cfg.model.model = str(m).strip()
+
+        if "context_window" in raw or "agent_context_window" in raw:
+            v = raw.get("context_window", raw.get("agent_context_window"))
+            cw = _as_int(v, cfg.model.declared_context_window)
+            cfg.model.context_window = max(MIN_USABLE_CONTEXT_TOKENS, cw)
+
+        cfg._sync_context_window_budget()
         return cfg
 
     def to_dict(self) -> dict:
-        """转换为字典。"""
+        """将子配置序列化为可 JSON 化的嵌套字典。
+
+        Returns:
+            含 ``model``、``loop``、``context``、``persistence``、``concurrency``、
+            ``loop_detection`` 键；不含 ``workspace_path`` 与 ``state``。
+        """
         import dataclasses
 
         result = {}
@@ -453,5 +498,4 @@ class AgentConfig:
         return result
 
 
-# 默认配置实例
 DEFAULT_CONFIG = AgentConfig()

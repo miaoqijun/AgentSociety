@@ -194,23 +194,16 @@ export class WorkspaceExportManager implements vscode.Disposable {
       throw new Error(localize('workspaceExport.empty'));
     }
 
-    const items: ExportPickItem[] = candidates.map((candidate) => {
-      const sizeStr = candidate.size !== undefined ? this.formatSize(candidate.size) : '';
-      return {
-        label: candidate.label,
-        description: candidate.isDefault
-          ? localize('workspaceExport.pick.defaultDescription')
-          : localize('workspaceExport.pick.optionalDescription'),
-        detail: candidate.detail || (
-          candidate.kind === 'directory'
-            ? `${localize('workspaceExport.pick.directoryDetail')}${sizeStr ? ` · ${sizeStr}` : ''}`
-            : `${localize('workspaceExport.pick.fileDetail')}${sizeStr ? ` · ${sizeStr}` : ''}`
-        ),
-        picked: candidate.isDefault,
-        relativePath: candidate.archivePath,
-        candidate,
-      };
-    });
+    const items: ExportPickItem[] = candidates.map((candidate) => ({
+      label: candidate.label,
+      description: candidate.isDefault
+        ? undefined
+        : localize('workspaceExport.pick.optionalDescription'),
+      detail: this.buildExportPickDetail(candidate),
+      picked: candidate.isDefault,
+      relativePath: candidate.archivePath,
+      candidate,
+    }));
 
     const selectedItems = await vscode.window.showQuickPick<ExportPickItem>(items, {
       canPickMany: true,
@@ -411,6 +404,23 @@ export class WorkspaceExportManager implements vscode.Disposable {
   /**
    * 格式化文件大小为人类可读格式
    */
+  private buildExportPickDetail(candidate: ExportCandidate): string {
+    if (candidate.detail) {
+      return candidate.detail;
+    }
+    const kindLabel =
+      candidate.kind === 'directory'
+        ? localize('workspaceExport.pick.directoryDetail')
+        : localize('workspaceExport.pick.fileDetail');
+    if (candidate.size === undefined) {
+      return kindLabel;
+    }
+    if (candidate.kind === 'directory' && candidate.size === 0) {
+      return `${kindLabel} · ${localize('workspaceExport.pick.emptyDirectoryHint')}`;
+    }
+    return `${kindLabel} · ${this.formatSize(candidate.size)}`;
+  }
+
   private formatSize(bytes: number): string {
     if (bytes === 0) {
       return '0 B';

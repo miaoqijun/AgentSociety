@@ -79,10 +79,6 @@ class AgentSociety:
     - 处理外部问答和干预请求
     - 持久化仿真状态
 
-    Attributes:
-        current_time: 当前仿真时间
-        step_count: 已执行的仿真步数
-
     Example::
 
         from datetime import datetime

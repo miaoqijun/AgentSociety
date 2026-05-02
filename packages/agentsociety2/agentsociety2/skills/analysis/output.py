@@ -12,8 +12,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+import matplotlib.pyplot as plt
+import missingno as msno
 import pandas as pd
+import seaborn as sns
+import sweetviz as sv
 from pydantic import BaseModel
+from ydata_profiling import ProfileReport
 
 from agentsociety2.logger import get_logger
 from litellm import AllMessageValues
@@ -244,61 +249,57 @@ class EDAGenerator:
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        out_file = output_dir / "eda_missingno.html"
+
+        # 创建多子图
+        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+        # 1. 缺失值矩阵
         try:
-            import missingno as msno
-            import matplotlib.pyplot as plt
+            msno.matrix(combined_df, ax=axes[0, 0], fontsize=8)
+            axes[0, 0].set_title("Missing Value Matrix", fontsize=12)
+        except Exception:
+            axes[0, 0].text(0.5, 0.5, "Matrix plot failed", ha='center', va='center')
+            axes[0, 0].set_title("Missing Value Matrix (Error)")
 
-            out_file = output_dir / "eda_missingno.html"
+        # 2. 缺失值条形图
+        try:
+            msno.bar(combined_df, ax=axes[0, 1], fontsize=8)
+            axes[0, 1].set_title("Missing Value Bar Chart", fontsize=12)
+        except Exception:
+            axes[0, 1].text(0.5, 0.5, "Bar plot failed", ha='center', va='center')
+            axes[0, 1].set_title("Missing Value Bar (Error)")
 
-            # 创建多子图
-            fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+        # 3. 缺失值热力图
+        try:
+            if len(combined_df.columns) > 1:
+                msno.heatmap(combined_df, ax=axes[1, 0], fontsize=8)
+                axes[1, 0].set_title("Missing Value Correlation Heatmap", fontsize=12)
+            else:
+                axes[1, 0].text(0.5, 0.5, "Need >1 columns", ha='center', va='center')
+                axes[1, 0].set_title("Correlation Heatmap (Skipped)")
+        except Exception:
+            axes[1, 0].text(0.5, 0.5, "Heatmap failed", ha='center', va='center')
+            axes[1, 0].set_title("Correlation Heatmap (Error)")
 
-            # 1. 缺失值矩阵
-            try:
-                msno.matrix(combined_df, ax=axes[0, 0], fontsize=8)
-                axes[0, 0].set_title("Missing Value Matrix", fontsize=12)
-            except Exception:
-                axes[0, 0].text(0.5, 0.5, "Matrix plot failed", ha='center', va='center')
-                axes[0, 0].set_title("Missing Value Matrix (Error)")
+        # 4. 缺失值树状图
+        try:
+            if len(combined_df.columns) > 1:
+                msno.dendrogram(combined_df, ax=axes[1, 1], fontsize=8)
+                axes[1, 1].set_title("Missing Value Dendrogram", fontsize=12)
+            else:
+                axes[1, 1].text(0.5, 0.5, "Need >1 columns", ha='center', va='center')
+                axes[1, 1].set_title("Dendrogram (Skipped)")
+        except Exception:
+            axes[1, 1].text(0.5, 0.5, "Dendrogram failed", ha='center', va='center')
+            axes[1, 1].set_title("Dendrogram (Error)")
 
-            # 2. 缺失值条形图
-            try:
-                msno.bar(combined_df, ax=axes[0, 1], fontsize=8)
-                axes[0, 1].set_title("Missing Value Bar Chart", fontsize=12)
-            except Exception:
-                axes[0, 1].text(0.5, 0.5, "Bar plot failed", ha='center', va='center')
-                axes[0, 1].set_title("Missing Value Bar (Error)")
+        plt.tight_layout()
+        plt.savefig(str(out_file).replace('.html', '.png'), dpi=150, bbox_inches='tight')
+        plt.close()
 
-            # 3. 缺失值热力图
-            try:
-                if len(combined_df.columns) > 1:
-                    msno.heatmap(combined_df, ax=axes[1, 0], fontsize=8)
-                    axes[1, 0].set_title("Missing Value Correlation Heatmap", fontsize=12)
-                else:
-                    axes[1, 0].text(0.5, 0.5, "Need >1 columns", ha='center', va='center')
-                    axes[1, 0].set_title("Correlation Heatmap (Skipped)")
-            except Exception:
-                axes[1, 0].text(0.5, 0.5, "Heatmap failed", ha='center', va='center')
-                axes[1, 0].set_title("Correlation Heatmap (Error)")
-
-            # 4. 缺失值树状图
-            try:
-                if len(combined_df.columns) > 1:
-                    msno.dendrogram(combined_df, ax=axes[1, 1], fontsize=8)
-                    axes[1, 1].set_title("Missing Value Dendrogram", fontsize=12)
-                else:
-                    axes[1, 1].text(0.5, 0.5, "Need >1 columns", ha='center', va='center')
-                    axes[1, 1].set_title("Dendrogram (Skipped)")
-            except Exception:
-                axes[1, 1].text(0.5, 0.5, "Dendrogram failed", ha='center', va='center')
-                axes[1, 1].set_title("Dendrogram (Error)")
-
-            plt.tight_layout()
-            plt.savefig(str(out_file).replace('.html', '.png'), dpi=150, bbox_inches='tight')
-            plt.close()
-
-            # 生成 HTML 包装
-            html_content = f"""<!DOCTYPE html>
+        # 生成 HTML 包装
+        html_content = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -325,17 +326,10 @@ class EDAGenerator:
     <img src="eda_missingno.png" alt="Missing Value Visualization">
 </body>
 </html>"""
-            out_file.write_text(html_content, encoding="utf-8")
+        out_file.write_text(html_content, encoding="utf-8")
 
-            self.logger.info("生成 missingno 缺失值报告: %s", out_file)
-            return out_file
-
-        except ImportError:
-            self.logger.warning("missingno 未安装，跳过缺失值可视化")
-            return None
-        except Exception as e:
-            self.logger.warning("missingno 生成失败: %s", e)
-            return None
+        self.logger.info("生成 missingno 缺失值报告: %s", out_file)
+        return out_file
 
     def generate_correlation_report(
         self,
@@ -371,9 +365,6 @@ class EDAGenerator:
                 continue
 
             try:
-                import matplotlib.pyplot as plt
-                import seaborn as sns
-
                 # 计算相关系数矩阵
                 corr_matrix = numeric_df.corr()
 
@@ -469,49 +460,42 @@ class EDAGenerator:
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        try:
-            from ydata_profiling import ProfileReport
+        if len(non_empty_tables) == 1:
+            # 单表：直接生成报告
+            table_name = next(iter(non_empty_tables.keys()))
+            df = pd.DataFrame(non_empty_tables[table_name])
+            out_file = output_dir / "eda_profile.html"
+            profile = ProfileReport(df, title=f"EDA: {table_name}", minimal=True)
+            profile.to_file(str(out_file))
+            self.logger.info("生成 ydata-profiling 报告: %s (表: %s, %d 行)", out_file, table_name, len(df))
+            return out_file
 
-            if len(non_empty_tables) == 1:
-                # 单表：直接生成报告
-                table_name = next(iter(non_empty_tables.keys()))
-                df = pd.DataFrame(non_empty_tables[table_name])
-                out_file = output_dir / "eda_profile.html"
+        # 多表：为每张表生成独立报告，并创建索引页
+        generated_files = []
+        for table_name, data in non_empty_tables.items():
+            df = pd.DataFrame(data)
+            if df.empty:
+                continue
+            # 每张表的报告文件名
+            safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in table_name)
+            table_file = output_dir / f"eda_profile_{safe_name}.html"
+            try:
                 profile = ProfileReport(df, title=f"EDA: {table_name}", minimal=True)
-                profile.to_file(str(out_file))
-                self.logger.info("生成 ydata-profiling 报告: %s (表: %s, %d 行)", out_file, table_name, len(df))
-                return out_file
+                profile.to_file(str(table_file))
+                generated_files.append((table_name, table_file.name, len(df)))
+                self.logger.info("生成 ydata-profiling 表报告: %s (表: %s, %d 行)", table_file, table_name, len(df))
+            except Exception as e:
+                self.logger.warning("生成表 %s 的 EDA 报告失败: %s", table_name, e)
 
-            # 多表：为每张表生成独立报告，并创建索引页
-            generated_files = []
-            for table_name, data in non_empty_tables.items():
-                df = pd.DataFrame(data)
-                if df.empty:
-                    continue
-                # 每张表的报告文件名
-                safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in table_name)
-                table_file = output_dir / f"eda_profile_{safe_name}.html"
-                try:
-                    profile = ProfileReport(df, title=f"EDA: {table_name}", minimal=True)
-                    profile.to_file(str(table_file))
-                    generated_files.append((table_name, table_file.name, len(df)))
-                    self.logger.info("生成 ydata-profiling 表报告: %s (表: %s, %d 行)", table_file, table_name, len(df))
-                except Exception as e:
-                    self.logger.warning("生成表 %s 的 EDA 报告失败: %s", table_name, e)
-
-            if not generated_files:
-                return None
-
-            # 创建索引页面
-            index_file = output_dir / "eda_profile.html"
-            index_content = self._build_eda_index_html(generated_files, "ydata-profiling")
-            index_file.write_text(index_content, encoding="utf-8")
-            self.logger.info("生成 EDA 索引页: %s (%d 张表)", index_file, len(generated_files))
-            return index_file
-
-        except Exception as e:
-            self.logger.debug("ydata-profiling 生成失败: %s", e)
+        if not generated_files:
             return None
+
+        # 创建索引页面
+        index_file = output_dir / "eda_profile.html"
+        index_content = self._build_eda_index_html(generated_files, "ydata-profiling")
+        index_file.write_text(index_content, encoding="utf-8")
+        self.logger.info("生成 EDA 索引页: %s (%d 张表)", index_file, len(generated_files))
+        return index_file
 
     def _build_eda_index_html(self, table_files: List[Tuple[str, str, int]], tool_name: str) -> str:
         """构建 EDA 索引页面 HTML"""
@@ -578,53 +562,45 @@ class EDAGenerator:
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        try:
-            import sweetviz as sv
+        if len(non_empty_tables) == 1:
+            # 单表：直接生成报告
+            table_name = next(iter(non_empty_tables.keys()))
+            df = pd.DataFrame(non_empty_tables[table_name])
+            out_file = output_dir / "eda_sweetviz.html"
+            report = sv.analyze(df)
+            report.show_html(str(out_file), open_browser=False)
+            if out_file.exists():
+                self.logger.info("生成 Sweetviz 报告: %s (表: %s, %d 行)", out_file, table_name, len(df))
+                return out_file
+            return None
 
-            if len(non_empty_tables) == 1:
-                # 单表：直接生成报告
-                table_name = next(iter(non_empty_tables.keys()))
-                df = pd.DataFrame(non_empty_tables[table_name])
-                out_file = output_dir / "eda_sweetviz.html"
+        # 多表：为每张表生成独立报告，并创建索引页
+        generated_files = []
+        for table_name, data in non_empty_tables.items():
+            df = pd.DataFrame(data)
+            if df.empty:
+                continue
+            # 每张表的报告文件名
+            safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in table_name)
+            table_file = output_dir / f"eda_sweetviz_{safe_name}.html"
+            try:
                 report = sv.analyze(df)
-                report.show_html(str(out_file), open_browser=False)
-                if out_file.exists():
-                    self.logger.info("生成 Sweetviz 报告: %s (表: %s, %d 行)", out_file, table_name, len(df))
-                    return out_file
-                return None
+                report.show_html(str(table_file), open_browser=False)
+                if table_file.exists():
+                    generated_files.append((table_name, table_file.name, len(df)))
+                    self.logger.info("生成 Sweetviz 表报告: %s (表: %s, %d 行)", table_file, table_name, len(df))
+            except Exception as e:
+                self.logger.warning("生成表 %s 的 Sweetviz 报告失败: %s", table_name, e)
 
-            # 多表：为每张表生成独立报告，并创建索引页
-            generated_files = []
-            for table_name, data in non_empty_tables.items():
-                df = pd.DataFrame(data)
-                if df.empty:
-                    continue
-                # 每张表的报告文件名
-                safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in table_name)
-                table_file = output_dir / f"eda_sweetviz_{safe_name}.html"
-                try:
-                    report = sv.analyze(df)
-                    report.show_html(str(table_file), open_browser=False)
-                    if table_file.exists():
-                        generated_files.append((table_name, table_file.name, len(df)))
-                        self.logger.info("生成 Sweetviz 表报告: %s (表: %s, %d 行)", table_file, table_name, len(df))
-                except Exception as e:
-                    self.logger.warning("生成表 %s 的 Sweetviz 报告失败: %s", table_name, e)
+        if not generated_files:
+            return None
 
-            if not generated_files:
-                return None
-
-            # 创建索引页面
-            index_file = output_dir / "eda_sweetviz.html"
-            index_content = self._build_eda_index_html(generated_files, "Sweetviz")
-            index_file.write_text(index_content, encoding="utf-8")
-            self.logger.info("生成 Sweetviz EDA 索引页: %s (%d 张表)", index_file, len(generated_files))
-            return index_file
-
-        except Exception as e:
-            self.logger.debug("Sweetviz 生成失败: %s", e)
-
-        return None
+        # 创建索引页面
+        index_file = output_dir / "eda_sweetviz.html"
+        index_content = self._build_eda_index_html(generated_files, "Sweetviz")
+        index_file.write_text(index_content, encoding="utf-8")
+        self.logger.info("生成 Sweetviz EDA 索引页: %s (%d 张表)", index_file, len(generated_files))
+        return index_file
 
 
 # ─────────────────────────────────────────────────────────────────────────

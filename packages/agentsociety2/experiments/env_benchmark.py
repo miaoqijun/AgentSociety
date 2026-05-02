@@ -87,6 +87,10 @@ from datetime import datetime
 from typing import List, Dict, Any, Tuple, Set
 
 from dotenv import load_dotenv
+
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 load_dotenv(".env.openrouter")
 
 from agentsociety2.contrib.env.event_space import EventSpace

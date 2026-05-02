@@ -443,7 +443,10 @@
       "sourceFailed": "Couldn’t load source “{{source}}”. Try again in a moment."
     },
     "marketplaceLoadIssues": "Loading notes",
-    "statEnabledAgent": "Agent enabled",
+    "statEnabledAgent": "Agent catalog available",
+    "agentCatalogToggleHint": "Whether this skill appears in the agent’s selectable catalog; the model still decides usage. Running simulations pick this up on the next simulation step.",
+    "builtinAgentSkillTag": "Always on",
+    "builtinAgentSkillAlwaysOn": "Built-in skills are always on and cannot be disabled",
     "statCustomAgent": "Workspace-registered (agent)",
     "statMarketplace": "Marketplace items",
     "statClaude": "Claude folder skills",

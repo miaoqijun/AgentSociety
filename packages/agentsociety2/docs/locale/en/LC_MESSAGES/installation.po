@@ -1,13 +1,14 @@
 # English translations for AgentSociety 2 package.
 # Copyright (C) 2026, FIBLAB
-# This file is distributed under the same license as the AgentSociety 2 package.
+# This file is distributed under the same license as the AgentSociety 2
+# package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.0.0\n"
+"Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-05 23:36+0800\n"
+"POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-05 23:50+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -16,7 +17,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: ../../installation.rst:2
 msgid "安装"
@@ -40,7 +41,9 @@ msgstr "The easiest way to install AgentSociety 2 is using pip:"
 
 #: ../../installation.rst:18
 msgid "这将安装核心包。如果要安装开发依赖："
-msgstr "This will install the core package. If you want to install with development dependencies:"
+msgstr ""
+"This will install the core package. If you want to install with "
+"development dependencies:"
 
 #: ../../installation.rst:24
 msgid "对于文档依赖："
@@ -76,7 +79,9 @@ msgstr "Configuration"
 
 #: ../../installation.rst:62
 msgid "AgentSociety 2 需要 LLM API 凭证。设置以下环境变量："
-msgstr "AgentSociety 2 requires LLM API credentials. Set the following environment variables:"
+msgstr ""
+"AgentSociety 2 requires LLM API credentials. Set the following "
+"environment variables:"
 
 #: ../../installation.rst:64
 msgid "**必需配置**"
@@ -88,7 +93,9 @@ msgstr "**Optional Configuration**"
 
 #: ../../installation.rst:75
 msgid "对于专门的任务，您可以配置单独的 LLM 实例。如果未设置这些选项， 它们将回退到默认 LLM 配置："
-msgstr "For specialized tasks, you can configure separate LLM instances. If these are not set, they will fall back to the default LLM configuration:"
+msgstr ""
+"For specialized tasks, you can configure separate LLM instances. If these"
+" are not set, they will fall back to the default LLM configuration:"
 
 #: ../../installation.rst:99
 msgid "**数据目录**"
@@ -102,52 +109,70 @@ msgstr "**Using a .env File**"
 msgid "您也可以在项目目录中创建 ``.env`` 文件："
 msgstr "You can also create a ``.env`` file in your project directory:"
 
-#: ../../installation.rst:126
-msgid "支持的 LLM 提供商"
-msgstr "Supported LLM Providers"
+#: ../../installation.rst:138
+msgid "**环境变量区分**："
+msgstr ""
 
-#: ../../installation.rst:128
-msgid "AgentSociety 2 使用 `litellm`_，支持许多 LLM 提供商："
-msgstr "AgentSociety 2 uses `litellm`_ which supports many LLM providers:"
+#: ../../installation.rst:140
+msgid "``AGENTSOCIETY_LLM_*``: 全局 LLM API 配置，用于模型调用"
+msgstr ""
 
-#: ../../installation.rst:130
-msgid "OpenAI (GPT-4, GPT-3.5)"
-msgstr "OpenAI (GPT-4, GPT-3.5)"
+#: ../../installation.rst:141
+msgid "``AGENT_*``: Agent 行为配置，如上下文窗口大小、工具循环轮数等"
+msgstr ""
 
-#: ../../installation.rst:131
-msgid "Anthropic (Claude)"
-msgstr "Anthropic (Claude)"
-
-#: ../../installation.rst:132
-msgid "Azure OpenAI"
-msgstr "Azure OpenAI"
-
-#: ../../installation.rst:133
-msgid "Google (Gemini)"
-msgstr "Google (Gemini)"
-
-#: ../../installation.rst:134
-msgid "Cohere"
-msgstr "Cohere"
-
-#: ../../installation.rst:135
-msgid "以及更多..."
-msgstr "And many more..."
-
-#: ../../installation.rst:137
-msgid "查看 `litellm 文档`_ 获取完整列表。"
-msgstr "See the `litellm documentation`_ for a complete list."
-
-#: ../../installation.rst:125
+#: ../../installation.rst:143
 msgid "**遥测设置**"
 msgstr "**Telemetry Settings**"
 
-#: ../../installation.rst:127
+#: ../../installation.rst:145
 msgid "AgentSociety 2 会自动禁用所有遥测服务以防止外部连接："
-msgstr "AgentSociety 2 automatically disables all telemetry services to prevent external connections:"
+msgstr ""
+"AgentSociety 2 automatically disables all telemetry services to prevent "
+"external connections:"
 
-#: ../../installation.rst:140
+#: ../../installation.rst:153
 msgid "这些设置禁用了 mem0 和 ChromaDB 的遥测功能，防止连接到 Posthog/Facebook 等外部服务。"
 msgstr ""
-"These settings disable telemetry for mem0 and ChromaDB, preventing connections to "
-"external services like Posthog/Facebook."
+"These settings disable telemetry for mem0 and ChromaDB, preventing "
+"connections to external services like Posthog/Facebook."
+
+#: ../../installation.rst:156
+msgid "支持的 LLM 提供商"
+msgstr "Supported LLM Providers"
+
+#: ../../installation.rst:158
+msgid "AgentSociety 2 使用 `litellm`_，支持许多 LLM 提供商："
+msgstr "AgentSociety 2 uses `litellm`_ which supports many LLM providers:"
+
+#: ../../installation.rst:160
+msgid "OpenAI 及兼容网关（模型 id 以供应商文档为准）"
+msgstr ""
+
+#: ../../installation.rst:161
+msgid "Anthropic (Claude)"
+msgstr "Anthropic (Claude)"
+
+#: ../../installation.rst:162
+msgid "Azure OpenAI"
+msgstr "Azure OpenAI"
+
+#: ../../installation.rst:163
+msgid "Google (Gemini)"
+msgstr "Google (Gemini)"
+
+#: ../../installation.rst:164
+msgid "Cohere"
+msgstr "Cohere"
+
+#: ../../installation.rst:165
+msgid "以及更多..."
+msgstr "And many more..."
+
+#: ../../installation.rst:167
+msgid "查看 `litellm 文档`_ 获取完整列表。"
+msgstr "See `litellm 文档`_ for a complete list."
+
+#~ msgid "OpenAI (GPT-4, GPT-3.5)"
+#~ msgstr "OpenAI (GPT-4, GPT-3.5)"
+

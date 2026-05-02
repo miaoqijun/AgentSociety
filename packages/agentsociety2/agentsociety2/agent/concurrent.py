@@ -115,6 +115,8 @@ class PriorityScheduler:
                 async with self._lock:
                     self._running.pop(ptask.task_id, None)
 
+        asyncio.create_task(self._run_next())
+
     async def get_result(self, task_id: str, timeout: float = 30.0) -> dict[str, Any]:
         """获取任务结果。
 

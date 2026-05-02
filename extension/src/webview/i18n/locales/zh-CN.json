@@ -443,7 +443,10 @@
       "sourceFailed": "来源「{{source}}」暂时无法加载，请稍后重试。"
     },
     "marketplaceLoadIssues": "加载提示",
-    "statEnabledAgent": "Agent 已启用",
+    "statEnabledAgent": "Agent 目录可用",
+    "agentCatalogToggleHint": "是否出现在 Agent 可选技能目录中；模型仍自行决定是否选用。运行中的模拟会在下一仿真步自动同步。",
+    "builtinAgentSkillTag": "内置常开",
+    "builtinAgentSkillAlwaysOn": "内置技能始终启用，不可关闭",
     "statCustomAgent": "Agent 工作区注册数",
     "statMarketplace": "市场条目",
     "statClaude": "Claude 目录技能数",

@@ -28,9 +28,11 @@ SkillItem
 
 .. autoclass:: agentsociety2.backend.routers.agent_skills.SkillItem
    :members:
+   :no-index:
 
 ListResponse
 ~~~~~~~~~~~~
 
 .. autoclass:: agentsociety2.backend.routers.agent_skills.ListResponse
    :members:
+   :no-index:

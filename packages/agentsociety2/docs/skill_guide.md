@@ -79,22 +79,11 @@ Frontmatter是YAML格式的元数据块，位于文件开头：
 ```yaml
 ---
 name: skill-name           # 必需：唯一标识符
-description: 描述           # 必需：用于catalog显示
-inputs:                    # 可选：依赖的输入文件列表
-  - state/emotion.json
-  - state/needs.json
-outputs:                   # 可选：输出文件列表
-  - output1.json
-  - output2.txt
-requires:                  # 可选：依赖的其他skill
-  - needs
-  - cognition
-priority: 10               # 可选：优先级（数字越大越优先）
-script: scripts/main.py    # 可选：Python脚本路径
-executor: codegen          # 可选：执行模式
-user_invocable: true       # 可选：是否用户可调用
+description: 描述           # 必需：catalog / 选择器用
 ---
 ```
+
+可选：在同目录下放置 ``scripts/<name>.py``，运行时会作为子进程脚本执行；依赖关系写在正文里，由模型按需 ``activate_skill``。
 
 ### Body（必需）
 
@@ -209,17 +198,9 @@ if __name__ == "__main__":
     raise SystemExit(main())
 ```
 
-### 类型3：环境路由（codegen）
+### 与环境交互
 
-当Skill需要与环境交互时，使用codegen模式：
-
-```yaml
----
-name: interact
-description: Interact with the simulated environment.
-executor: codegen
----
-```
+在 SKILL 正文里说明何时调用内置 **`codegen`** 工具即可；不要在 frontmatter 里写 ``executor``（框架不解析）。
 
 ## 最佳实践
 
@@ -231,13 +212,9 @@ executor: codegen
 - ✅ `cognition`: 生成情绪和意图
 - ❌ `needs_and_emotion`: 做太多事情
 
-### 2. 明确声明输出
+### 2. 在正文写清产出文件
 
-```yaml
-outputs:
-  - needs.json        # 好：文件名明确
-  - current_need.txt  # 好：文件名明确
-```
+在 Markdown 里列出会写入的路径（如 ``needs.json``）；frontmatter 不解析 ``outputs`` 等扩展字段。
 
 ### 3. 处理缺失文件
 
@@ -303,10 +280,6 @@ custom/skills/my-skill/
 ---
 name: social-reflection
 description: Reflect on recent social interactions and update relationship state.
-outputs:
-  - social_reflection.json
-requires:
-  - relationship
 ---
 
 # Social Reflection
@@ -383,7 +356,7 @@ A: 通过workspace文件。一个Skill写入文件，另一个Skill读取。
 
 **Q: 如何控制Skill执行顺序？**
 
-A: 使用`requires`字段声明依赖。Agent会在激活时考虑这些依赖。
+A: 由主模型在工具循环里决定先 ``activate_skill`` 哪一个；若有硬依赖，在 SKILL.md 正文写清并引导先激活依赖 skill。
 
 **Q: Skill可以调用其他Skill吗？**
 

@@ -1,22 +1,23 @@
 # English translations for AgentSociety 2 package.
 # Copyright (C) 2026, FIBLAB
-# This file is distributed under the same license as the AgentSociety 2 package.
+# This file is distributed under the same license as the AgentSociety 2
+# package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.0.0\n"
+"Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-05 23:36+0800\n"
+"POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
 "Language-Team: en <LL@li.org>\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: ../../examples.rst:2
 msgid "示例"
@@ -24,7 +25,9 @@ msgstr "Examples"
 
 #: ../../examples.rst:4
 msgid "本部分包含演示 AgentSociety 2 功能的示例代码。"
-msgstr "This section contains example code demonstrating AgentSociety 2's capabilities."
+msgstr ""
+"This section contains example code demonstrating AgentSociety 2's "
+"capabilities."
 
 #: ../../examples.rst:7
 msgid "运行示例"
@@ -32,7 +35,9 @@ msgstr "Running Examples"
 
 #: ../../examples.rst:9
 msgid "所有示例都位于 ``packages/agentsociety2/examples/`` 目录中。"
-msgstr "All examples are located in the ``packages/agentsociety2/examples/`` directory."
+msgstr ""
+"All examples are located in the ``packages/agentsociety2/examples/`` "
+"directory."
 
 #: ../../examples.rst:11
 msgid "**前提条件：**"
@@ -92,7 +97,9 @@ msgstr "Using @tool decorator to define custom environment"
 
 #: ../../examples.rst:61
 msgid "实现 step() 和工具方法，并按需提供 ``kind=\"observe\"`` 的只读工具"
-msgstr "Implement step() and tool methods, and provide readonly ``kind=\"observe\"`` tools when needed"
+msgstr ""
+"Implement step() and tool methods, and provide readonly "
+"``kind=\"observe\"`` tools when needed"
 
 #: ../../examples.rst:62
 msgid "向 CodeGenRouter 注册模块"
@@ -107,16 +114,16 @@ msgid "展示全面的数据跟踪："
 msgstr "Shows comprehensive data tracking:"
 
 #: ../../examples.rst:68
-msgid "设置 ReplayWriter 用于自动数据捕获"
-msgstr "Setting up ReplayWriter for automatic data capture"
+msgid "为环境模块启用 ReplayWriter"
+msgstr ""
 
 #: ../../examples.rst:69
-msgid "记录智能体配置文件、对话和状态"
-msgstr "Recording agent profiles, dialogues, and states"
+msgid "生成 replay catalog 和环境 replay dataset"
+msgstr ""
 
 #: ../../examples.rst:70
-msgid "读回记录的数据进行分析"
-msgstr "Reading back recorded data for analysis"
+msgid "结合 agent workspace 文件检查本地 thread / 工具日志"
+msgstr ""
 
 #: ../../examples.rst:73
 msgid "博弈论示例"
@@ -201,3 +208,13 @@ msgstr "PlanExecuteRouter: Plan-first execution"
 #: ../../examples.rst:107
 msgid "CodeGenRouter: 生成代码执行（推荐）"
 msgstr "CodeGenRouter: Generate code to execute (recommended)"
+
+#~ msgid "设置 ReplayWriter 用于自动数据捕获"
+#~ msgstr "Setting up ReplayWriter for automatic data capture"
+
+#~ msgid "记录智能体配置文件、对话和状态"
+#~ msgstr "Recording agent profiles, dialogues, and states"
+
+#~ msgid "读回记录的数据进行分析"
+#~ msgstr "Reading back recorded data for analysis"
+

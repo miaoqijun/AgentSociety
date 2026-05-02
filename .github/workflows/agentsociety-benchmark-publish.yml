@@ -6,6 +6,9 @@ on:
       # Publish on any tag starting with a `v`, e.g. v1.2.3
       - benchmark-v*.*.*
 
+permissions:
+  contents: read
+
 jobs:
   pypi:
     name: Publish to PyPI
@@ -15,6 +18,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v8.1.0
       - run: cd packages/agentsociety-benchmark && uv build
       - run: uv publish --trusted-publishing always

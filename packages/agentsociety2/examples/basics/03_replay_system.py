@@ -5,6 +5,12 @@ This example shows how to use the ReplayWriter to track
 and replay agent interactions running through AgentSociety.
 """
 
+import os
+
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 import asyncio
 from datetime import datetime
 from pathlib import Path

@@ -10,8 +10,8 @@ Agent Skills API 路由
 
 API 端点：
 - GET  /api/v1/agent-skills/list       — 列出所有 agent skill
-- POST /api/v1/agent-skills/enable     — 启用指定 skill
-- POST /api/v1/agent-skills/disable    — 禁用指定 skill
+- POST /api/v1/agent-skills/enable     — 启用 skill（进入可选目录）
+- POST /api/v1/agent-skills/disable    — 禁用 skill
 - POST /api/v1/agent-skills/scan       — 扫描 workspace/custom/skills/ 下的自定义 skill
 - POST /api/v1/agent-skills/import     — 从路径导入 skill 目录
 - POST /api/v1/agent-skills/create     — 在线创建新 skill（SKILL.md + 可选脚本）
@@ -52,7 +52,6 @@ class SkillItem(BaseModel):
     path: str
     has_skill_md: bool
     script: str = ""
-    requires: list[str] = []
 
 
 class ListResponse(BaseModel):
@@ -90,8 +89,9 @@ class ImportResponse(BaseModel):
 class CreateRequest(BaseModel):
     name: str = Field(..., description="skill 名称（也作为目录名）")
     description: str = Field("", description="skill 描述")
-    requires: list[str] = Field(default_factory=list, description="依赖的其他 skill")
-    script: str = Field("", description="subprocess 脚本相对路径（留空则为 prompt-only）")
+    script: str = Field(
+        "", description="subprocess 脚本相对路径（留空则为 prompt-only）"
+    )
     body: str = Field("", description="SKILL.md 正文（frontmatter 之后的内容）")
     script_content: str = Field("", description="脚本文件内容（当 script 非空时使用）")
     workspace_path: str | None = Field(None, description="工作区路径")
@@ -123,7 +123,6 @@ async def list_skills():
             path=s.path,
             has_skill_md=(PathLib(s.path) / "SKILL.md").exists(),
             script=s.script,
-            requires=list(s.requires),
         )
         for s in reg.list_all()
     ]
@@ -132,7 +131,7 @@ async def list_skills():
 
 @router.post("/enable", response_model=SimpleResponse)
 async def enable_skill(req: NameRequest):
-    """启用指定的 Agent Skill。"""
+    """启用指定 skill（全局注册表；PersonAgent 在下一仿真步会与全局对齐）。"""
     reg = get_skill_registry()
     if reg.enable(req.name):
         logger.info(f"[Skills] Enabled: {req.name}")
@@ -142,8 +141,13 @@ async def enable_skill(req: NameRequest):
 
 @router.post("/disable", response_model=SimpleResponse)
 async def disable_skill(req: NameRequest):
-    """禁用指定的 Agent Skill。"""
+    """禁用指定 skill（内置技能不可关闭）。"""
     reg = get_skill_registry()
+    info = reg.get_skill_info(req.name, load_content=False)
+    if not info:
+        raise HTTPException(404, f"Skill '{req.name}' not found")
+    if info.source == "builtin":
+        raise HTTPException(400, "Built-in skills cannot be disabled")
     if reg.disable(req.name):
         logger.info(f"[Skills] Disabled: {req.name}")
         return SimpleResponse(success=True, message=f"Skill '{req.name}' disabled")
@@ -213,7 +217,9 @@ async def create_skill(req: CreateRequest):
     """
     workspace = req.workspace_path or os.getenv("WORKSPACE_PATH")
     if not workspace:
-        raise HTTPException(400, "workspace_path not provided and WORKSPACE_PATH not set")
+        raise HTTPException(
+            400, "workspace_path not provided and WORKSPACE_PATH not set"
+        )
 
     safe_name = req.name.strip().replace("/", "_").replace("\\", "_").replace("..", "_")
     if not safe_name:
@@ -221,17 +227,16 @@ async def create_skill(req: CreateRequest):
 
     dest = Path(workspace) / "custom" / "skills" / safe_name
     if dest.exists():
-        raise HTTPException(400, f"Skill '{safe_name}' already exists. Remove it first or use a different name.")
+        raise HTTPException(
+            400,
+            f"Skill '{safe_name}' already exists. Remove it first or use a different name.",
+        )
     dest.mkdir(parents=True, exist_ok=True)
 
     # 生成 SKILL.md
     frontmatter_lines = ["---", f"name: {safe_name}", f"description: {req.description}"]
     if req.script:
         frontmatter_lines.append(f"script: {req.script}")
-    if req.requires:
-        frontmatter_lines.append("requires:")
-        for dep in req.requires:
-            frontmatter_lines.append(f"  - {dep}")
     frontmatter_lines.append("---")
 
     body = req.body.strip() or f"# {safe_name}\n\nCustom skill."
@@ -248,7 +253,9 @@ async def create_skill(req: CreateRequest):
     reg.scan_custom(workspace)
 
     logger.info(f"[Skills] Created skill '{safe_name}' at {dest}")
-    return ImportResponse(success=True, name=safe_name, message=f"Skill '{safe_name}' created")
+    return ImportResponse(
+        success=True, name=safe_name, message=f"Skill '{safe_name}' created"
+    )
 
 
 @router.post("/upload", response_model=ImportResponse)
@@ -262,7 +269,9 @@ async def upload_skill(
     """
     workspace = workspace_path or os.getenv("WORKSPACE_PATH")
     if not workspace:
-        raise HTTPException(400, "workspace_path not provided and WORKSPACE_PATH not set")
+        raise HTTPException(
+            400, "workspace_path not provided and WORKSPACE_PATH not set"
+        )
 
     data = await file.read()
     try:
@@ -328,7 +337,6 @@ async def get_skill_info(name: str) -> dict[str, Any]:
         "enabled": info.enabled,
         "path": info.path,
         "script": info.script,
-        "requires": list(info.requires),
         "skill_md": info.skill_md,
     }
 
@@ -367,6 +375,7 @@ def _ensure_custom_scanned(reg) -> None:
 def _ensure_env_skills_scanned(reg) -> None:
     """扫描已注册环境模块附带的 agent skill 到全局 registry。"""
     from agentsociety2.registry import get_registered_env_modules
+
     for _module_type, env_class in get_registered_env_modules():
         for skills_dir in env_class.get_agent_skills_dirs():
             if skills_dir.is_dir():

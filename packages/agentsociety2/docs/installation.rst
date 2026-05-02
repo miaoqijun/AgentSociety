@@ -157,7 +157,7 @@ AgentSociety 2 会自动禁用所有遥测服务以防止外部连接：
 
 AgentSociety 2 使用 `litellm`_，支持许多 LLM 提供商：
 
-- OpenAI (GPT-4, GPT-3.5)
+- OpenAI 及兼容网关（模型 id 以供应商文档为准）
 - Anthropic (Claude)
 - Azure OpenAI
 - Google (Gemini)

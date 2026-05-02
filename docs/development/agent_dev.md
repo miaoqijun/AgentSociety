@@ -84,8 +84,8 @@ agent/skills/
 ```
 
 Each skill has:
-- `SKILL.md` — YAML frontmatter (name, description, priority, requires/provides) + behavior docs
-- `scripts/<name>.py` — exports `async def run(agent, ctx)`
+- `SKILL.md` — YAML frontmatter (name, description) + behavior docs
+- `scripts/<name>.py` — optional subprocess entry (see `SkillRegistry.execute`)
 
 ### Custom Skills
 
@@ -99,9 +99,6 @@ Custom skills can be placed in `workspace/custom/skills/` and hot-loaded at runt
 ---
 name: my_custom_skill
 description: A custom skill for X
-priority: 100
-requires: []
-provides: [custom_capability]
 ---
 
 # My Custom Skill

@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import json_repair
+import matplotlib
+import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 
 from agentsociety2.logger import get_logger
 from agentsociety2.config import get_llm_router_and_model
@@ -674,10 +678,6 @@ Return only XML in this format:
         assets_dir = output_dir / "assets"
         assets_dir.mkdir(parents=True, exist_ok=True)
         generated: List[Path] = []
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
 
         summaries = synthesis.hypothesis_summaries
         if not summaries:

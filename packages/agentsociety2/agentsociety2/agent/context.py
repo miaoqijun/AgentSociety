@@ -181,14 +181,12 @@ class ThreadTokenCounter:
                 if isinstance(n, int) and n > 0:
                     return max(n, self._messages_char_floor(messages))
             except Exception as e:
-                logger.debug(
-                    "litellm.token_counter failed (%s), fallback to local count", e
-                )
+                logger.debug("litellm.token_counter failed (%s), using local count", e)
         return sum(self.count_message(m) for m in messages)
 
 
 def estimate_messages_tokens_approx(messages: list[dict[str, str]]) -> int:
-    """无 tiktoken/LiteLLM 之外的粗算 token 数（用于最后兜底）。"""
+    """在没有精确 token counter 时粗算 token 数。"""
     total = 0
     for m in messages:
         c = m.get("content", "") or ""
@@ -301,7 +299,7 @@ def _message_priority(msg: dict[str, str], index_in_old: int, old_len: int) -> f
         if d.get("ok") is False:
             score += 5000.0
         action = str(d.get("action", "") or "")
-        if action in ("activate_skill", "execute_skill", "auto_activate_requires"):
+        if action in ("activate_skill", "execute_skill"):
             score += 2200.0
         if action == "workspace_write" and d.get("ok"):
             score += 1800.0
@@ -1047,7 +1045,7 @@ async def run_thread_compaction(
                 summary_text = (response.choices[0].message.content or "").strip()
         except Exception as e:
             logger.warning(
-                f"Agent {agent_id}: LLM compression failed: {e}, rolling fallback"
+                f"Agent {agent_id}: LLM compression failed: {e}, using rolling summary"
             )
 
         if summary_text:
@@ -1055,8 +1053,10 @@ async def run_thread_compaction(
             parsed: Any = None
             try:
                 parsed = jr_parse(summary_text)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(
+                    "Agent %s: structured summary parse failed: %s", agent_id, e
+                )
             if isinstance(parsed, dict):
                 structured_out = structured_summary_from_parsed(
                     parsed, workspace_state_version
@@ -1073,10 +1073,8 @@ async def run_thread_compaction(
             tel.extra["summary_mode"] = "raw_json"
         else:
             rolling = merge_rolling_summary_local(rolling, digest_text, max_chars=4000)
-            assistant_body = (
-                "ROLLING_SUMMARY_FALLBACK:\n" + rolling[: cfg.summary_char_budget]
-            )
-            tel.extra["summary_mode"] = "rolling_fallback"
+            assistant_body = "ROLLING_SUMMARY:\n" + rolling[: cfg.summary_char_budget]
+            tel.extra["summary_mode"] = "rolling"
 
     key_state = collect_key_state()
     compacted: list[dict[str, str]] = []

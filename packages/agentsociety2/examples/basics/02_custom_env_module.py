@@ -5,6 +5,12 @@ This example shows how to create a custom environment module
 and run it using AgentSociety.
 """
 
+import os
+
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 import asyncio
 from datetime import datetime
 from typing import Dict

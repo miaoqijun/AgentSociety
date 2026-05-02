@@ -8,9 +8,10 @@ from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 
-# 先加载环境变量，再强制关闭 mem0 telemetry，避免导入 PersonAgent 时触发埋点线程。
+# 先加载环境变量，再强制关闭 mem0 和 ChromaDB telemetry，避免导入 PersonAgent 时触发埋点线程。
 load_dotenv()
-os.environ["MEM0_TELEMETRY"] = "False"
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
 from agentsociety2.contrib.env.mobility_space import MobilitySpace
 from agentsociety2.contrib.env.event_space import EventSpace

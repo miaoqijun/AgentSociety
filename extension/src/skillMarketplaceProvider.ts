@@ -90,15 +90,17 @@ export class SkillMarketplacePanel {
           case 'listAgentSkills':
             await this._loadAgentSkills();
             break;
-          case 'enableAgentSkill':
-            await this._enableAgentSkill(data.payload.name);
-            break;
-          case 'disableAgentSkill':
-            await this._disableAgentSkill(data.payload.name);
-            break;
           case 'reloadAgentSkill':
             await this._reloadAgentSkill(data.payload.name);
             break;
+          case 'setAgentSkillEnabled': {
+            const pl = data.payload as { name?: string; enabled?: boolean };
+            const n = typeof pl?.name === 'string' ? pl.name : '';
+            if (n && typeof pl?.enabled === 'boolean') {
+              await this._setAgentSkillEnabled(n, pl.enabled);
+            }
+            break;
+          }
           case 'removeAgentSkill':
             await this._archiveAgentSkill(data.payload.name);
             break;
@@ -301,33 +303,12 @@ export class SkillMarketplacePanel {
           path: s.path,
           has_skill_md: s.has_skill_md,
           script: s.script,
-          requires: s.requires
         }));
         await this._postMessage({ type: 'agentSkillsLoaded', payload: skills });
       }
     } catch (error: any) {
       this._outputChannel.appendLine(`[SkillManagement] Failed to load agent skills: ${error.message}`);
       await this._postMessage({ type: 'agentSkillsLoaded', payload: [] });
-    }
-  }
-
-  private async _enableAgentSkill(name: string): Promise<void> {
-    try {
-      const response = await this._apiClient.enableAgentSkill(name);
-      await this._postMessage({ type: 'agentSkillEnabled', payload: { message: response.message } });
-      await this._loadAgentSkills();
-    } catch (error: any) {
-      await this._postMessage({ type: 'error', payload: `Failed to enable skill: ${error.message}` });
-    }
-  }
-
-  private async _disableAgentSkill(name: string): Promise<void> {
-    try {
-      const response = await this._apiClient.disableAgentSkill(name);
-      await this._postMessage({ type: 'agentSkillDisabled', payload: { message: response.message } });
-      await this._loadAgentSkills();
-    } catch (error: any) {
-      await this._postMessage({ type: 'error', payload: `Failed to disable skill: ${error.message}` });
     }
   }
 
@@ -338,6 +319,29 @@ export class SkillMarketplacePanel {
       await this._loadAgentSkills();
     } catch (error: any) {
       await this._postMessage({ type: 'error', payload: `Failed to reload skill: ${error.message}` });
+    }
+  }
+
+  private async _setAgentSkillEnabled(name: string, enabled: boolean): Promise<void> {
+    try {
+      if (!enabled) {
+        const list = await this._apiClient.listAgentSkills();
+        const row = list.skills.find((s) => s.name === name);
+        if (row?.source === 'builtin') {
+          vscode.window.showWarningMessage(
+            'Built-in agent skills cannot be disabled.'
+          );
+          await this._loadAgentSkills();
+          return;
+        }
+      }
+      const response = enabled
+        ? await this._apiClient.enableAgentSkill(name)
+        : await this._apiClient.disableAgentSkill(name);
+      vscode.window.showInformationMessage(response.message);
+      await this._loadAgentSkills();
+    } catch (error: any) {
+      await this._postMessage({ type: 'error', payload: error.message || String(error) });
     }
   }
 

@@ -7,13 +7,13 @@ Main entry point for running Trust Game using V2 framework
 """
 import os
 import json
-import sys
 import asyncio
 from datetime import datetime
 import logging
 
-# Add project root directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
 # V2 framework imports
 from agentsociety2.env import CodeGenRouter
@@ -27,16 +27,20 @@ os.makedirs("result_trust_game", exist_ok=True)
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("llm_api_log.txt"),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("llm_api_log.txt"), logging.StreamHandler()],
 )
 
 
-def calculate_and_print_statistics(per_game_payoffs, all_game_investments, all_game_returns,
-                                   all_game_return_rates, agent_names, num_rounds, save_dir):
+def calculate_and_print_statistics(
+    per_game_payoffs,
+    all_game_investments,
+    all_game_returns,
+    all_game_return_rates,
+    agent_names,
+    num_rounds,
+    save_dir,
+):
     """Calculate and print statistics"""
     try:
         # Calculate total payoffs per agent
@@ -57,9 +61,11 @@ def calculate_and_print_statistics(per_game_payoffs, all_game_investments, all_g
             count = 0
             for investments in all_game_investments:
                 # Find matching agent in this game (same base name)
-                base_name = name.rsplit('_G', 1)[0] if '_G' in name else name
+                base_name = name.rsplit("_G", 1)[0] if "_G" in name else name
                 for inv_name, inv_value in investments.items():
-                    inv_base = inv_name.rsplit('_G', 1)[0] if '_G' in inv_name else inv_name
+                    inv_base = (
+                        inv_name.rsplit("_G", 1)[0] if "_G" in inv_name else inv_name
+                    )
                     if inv_base == base_name:
                         total_investment += inv_value
                         count += 1
@@ -108,13 +114,13 @@ def calculate_and_print_statistics(per_game_payoffs, all_game_investments, all_g
             "avg_investments": avg_investments,
             "avg_return_rates": avg_return_rates,
             "total_payoffs": total_payoffs,
-            "overall_total_payoff": overall_total
+            "overall_total_payoff": overall_total,
         }
 
         # Save statistics to file
         stats_file_path = os.path.join(save_dir, "statistics.json")
         try:
-            with open(stats_file_path, 'w', encoding='utf-8') as f:
+            with open(stats_file_path, "w", encoding="utf-8") as f:
                 json.dump(statistics, f, indent=2, ensure_ascii=False, default=str)
             logging.info(f"Statistics saved to {stats_file_path}")
         except Exception as e:
@@ -130,7 +136,9 @@ def calculate_and_print_statistics(per_game_payoffs, all_game_investments, all_g
 async def main():
     """Main entry point for Trust Game using V2 framework"""
     # ------- Create main results directory and current experiment directory -------
-    experiment_time = input("Please enter experiment folder name (e.g., 'TG_v2_test1'): ").strip()
+    experiment_time = input(
+        "Please enter experiment folder name (e.g., 'TG_v2_test1'): "
+    ).strip()
     if not experiment_time:
         experiment_time = datetime.now().strftime("%m%d_%H%M%S_TG_v2")
     base_result_dir = "result_trust_game"
@@ -169,8 +177,12 @@ async def main():
     # ------- Statistical variables -------
     all_game_investments = []  # List of dicts per game: [{"Trustor_1": X, ...}, ...]
     all_game_returns = []  # List of dicts per game: [{"Trustee_1": Y, ...}, ...]
-    all_game_return_rates = []  # List of dicts per game: [{"Trustee_1": rate, ...}, ...]
-    per_game_payoffs = []  # List of dicts, e.g., [{"Trustor_1": X, "Trustee_1": Y, ...}, ...]
+    all_game_return_rates = (
+        []
+    )  # List of dicts per game: [{"Trustee_1": rate, ...}, ...]
+    per_game_payoffs = (
+        []
+    )  # List of dicts, e.g., [{"Trustor_1": X, "Trustee_1": Y, ...}, ...]
 
     # ------- Game loop -------
     for game_num in range(1, NUM_GAMES + 1):
@@ -181,7 +193,7 @@ async def main():
         env_module = TrustGameEnv(
             num_pairs=NUM_PAIRS,
             initial_funds=INITIAL_FUNDS,
-            multiplication_factor=MULTIPLICATION_FACTOR
+            multiplication_factor=MULTIPLICATION_FACTOR,
         )
 
         # Create environment router
@@ -196,7 +208,7 @@ async def main():
         for i in range(NUM_PAIRS):
             trustor_name = f"Trustor_{i + 1}_G{game_num}"
             trustee_name = f"Trustee_{i + 1}_G{game_num}"
-            
+
             trustor = TrustGameAgent(
                 id=i * 2 + 1,
                 name=trustor_name,
@@ -204,7 +216,7 @@ async def main():
                 num_rounds=NUM_ROUNDS,
                 initial_funds=INITIAL_FUNDS,
                 multiplication_factor=MULTIPLICATION_FACTOR,
-                partner_name=trustee_name
+                partner_name=trustee_name,
             )
             trustor.set_partner_name(trustee_name)
             agents.append(trustor)
@@ -218,7 +230,7 @@ async def main():
                 num_rounds=NUM_ROUNDS,
                 initial_funds=INITIAL_FUNDS,
                 multiplication_factor=MULTIPLICATION_FACTOR,
-                partner_name=trustor_name
+                partner_name=trustor_name,
             )
             trustee.set_partner_name(trustor_name)
             agents.append(trustee)
@@ -236,22 +248,22 @@ async def main():
         society = None
         try:
             society = AgentSociety(
-                agents=agents,
-                env_router=env_router,
-                start_t=start_time
+                agents=agents, env_router=env_router, start_t=start_time
             )
             await society.init()
 
             log_records = []
             game_payoffs = {name: 0 for name in agent_names}
-            
+
             # Initialize investment/return/return_rate dicts for all agents
             trustor_names = [name for name in agent_names if "Trustor" in name]
             trustee_names = [name for name in agent_names if "Trustee" in name]
-            
+
             game_investments = {name: 0 for name in trustor_names}
             game_returns = {name: 0 for name in trustee_names}
-            game_return_rates = {name: (0, 0) for name in trustee_names}  # (total_rate, count)
+            game_return_rates = {
+                name: (0, 0) for name in trustee_names
+            }  # (total_rate, count)
 
             # ------- Round loop -------
             for round_num in range(1, NUM_ROUNDS + 1):
@@ -264,7 +276,7 @@ async def main():
                     # Society.step() will call all agents' step() first, then environment's step()
                     await asyncio.wait_for(
                         society.step(tick=1),  # tick=1 for one round
-                        timeout=300.0  # 5 minute timeout per round
+                        timeout=300.0,  # 5 minute timeout per round
                     )
 
                     # After step, directly access environment module's round history
@@ -272,7 +284,10 @@ async def main():
                     latest_round = None
                     try:
                         # Directly access the environment module's round history
-                        if env_module.round_history and len(env_module.round_history) > 0:
+                        if (
+                            env_module.round_history
+                            and len(env_module.round_history) > 0
+                        ):
                             # Find the round matching current round_num
                             for r in reversed(env_module.round_history):
                                 if r.get("round") == round_num:
@@ -282,15 +297,20 @@ async def main():
                             if latest_round is None:
                                 latest_round = env_module.round_history[-1]
                         else:
-                            logging.warning(f"Game {game_num} Round {round_num}: No round history available")
+                            logging.warning(
+                                f"Game {game_num} Round {round_num}: No round history available"
+                            )
                     except Exception as e:
                         logging.warning(f"Failed to get round history: {e}")
                         import traceback
+
                         traceback.print_exc()
 
                     if latest_round:
                         round_num_from_env = latest_round.get("round", round_num)
-                        trustor_investments = latest_round.get("trustor_investments", {})
+                        trustor_investments = latest_round.get(
+                            "trustor_investments", {}
+                        )
                         trustee_returns = latest_round.get("trustee_returns", {})
                         payoffs = latest_round.get("payoffs", {})
 
@@ -302,13 +322,15 @@ async def main():
                         # Record investments and returns for this round
                         for trustor_name in trustor_names:
                             if trustor_name in trustor_investments:
-                                game_investments[trustor_name] += trustor_investments[trustor_name]
+                                game_investments[trustor_name] += trustor_investments[
+                                    trustor_name
+                                ]
 
                         for trustee_name in trustee_names:
                             if trustee_name in trustee_returns:
                                 trustee_return = trustee_returns[trustee_name]
                                 game_returns[trustee_name] += trustee_return
-                                
+
                                 # Calculate return rate
                                 trustor_name = partner_mapping.get(trustee_name)
                                 if trustor_name and trustor_name in trustor_investments:
@@ -318,12 +340,15 @@ async def main():
                                         return_rate = trustee_return / received
                                     else:
                                         return_rate = 0
-                                    
+
                                     # Store as a tuple of (total_rate, count) for averaging
                                     if trustee_name not in game_return_rates:
                                         game_return_rates[trustee_name] = (0, 0)
                                     total_rate, count = game_return_rates[trustee_name]
-                                    game_return_rates[trustee_name] = (total_rate + return_rate, count + 1)
+                                    game_return_rates[trustee_name] = (
+                                        total_rate + return_rate,
+                                        count + 1,
+                                    )
 
                         # Build log records
                         round_log = {
@@ -331,7 +356,7 @@ async def main():
                             "trustor_investments": trustor_investments,
                             "trustee_returns": trustee_returns,
                             "payoffs": payoffs,
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
                         }
                         log_records.append(round_log)
 
@@ -340,7 +365,9 @@ async def main():
                         for trustor_name in trustor_names:
                             investment = trustor_investments.get(trustor_name, 0)
                             payoff = payoffs.get(trustor_name, 0)
-                            print(f"  {trustor_name}: Invested {investment}, Payoff {payoff:.2f}")
+                            print(
+                                f"  {trustor_name}: Invested {investment}, Payoff {payoff:.2f}"
+                            )
 
                         for trustee_name in trustee_names:
                             return_amount = trustee_returns.get(trustee_name, 0)
@@ -351,25 +378,38 @@ async def main():
                                 return_rate = rate_tuple[0] / rate_tuple[1]
                             else:
                                 return_rate = 0
-                            print(f"  {trustee_name}: Returned {return_amount}, Payoff {payoff:.2f}, Return Rate {return_rate:.1%}")
+                            print(
+                                f"  {trustee_name}: Returned {return_amount}, Payoff {payoff:.2f}, Return Rate {return_rate:.1%}"
+                            )
 
                         logging.info(f"Game {game_num} Round {round_num} ended")
                     else:
-                        logging.warning(f"Game {game_num} Round {round_num}: Could not parse round result from history")
+                        logging.warning(
+                            f"Game {game_num} Round {round_num}: Could not parse round result from history"
+                        )
 
                 except asyncio.TimeoutError:
-                    logging.error(f"Game {game_num} Round {round_num} execution timeout")
-                    print(f"[Error] Round {round_num} execution timeout, skipping this round")
+                    logging.error(
+                        f"Game {game_num} Round {round_num} execution timeout"
+                    )
+                    print(
+                        f"[Error] Round {round_num} execution timeout, skipping this round"
+                    )
                     continue
                 except Exception as e:
-                    logging.error(f"Game {game_num} Round {round_num} execution error: {e}")
+                    logging.error(
+                        f"Game {game_num} Round {round_num} execution error: {e}"
+                    )
                     print(f"[Error] Round {round_num} execution error: {str(e)}")
                     import traceback
+
                     traceback.print_exc()
                     continue
 
             # ------- Save each game's logs -------
-            game_log_path = os.path.join(experiment_result_dir, f"game_{game_num}_logs.json")
+            game_log_path = os.path.join(
+                experiment_result_dir, f"game_{game_num}_logs.json"
+            )
             try:
                 with open(game_log_path, "w", encoding="utf-8") as f:
                     json.dump(log_records, f, indent=2, ensure_ascii=False)
@@ -391,7 +431,7 @@ async def main():
                     final_return_rates[trustee_name] = total_rate / count
                 else:
                     final_return_rates[trustee_name] = 0
-            
+
             # Save this game's data
             per_game_payoffs.append(game_payoffs.copy())
             all_game_investments.append(game_investments.copy())
@@ -411,7 +451,7 @@ async def main():
         "all_game_investments": all_game_investments,
         "all_game_returns": all_game_returns,
         "all_game_return_rates": all_game_return_rates,
-        "experiment_time": experiment_time
+        "experiment_time": experiment_time,
     }
 
     overall_results_path = os.path.join(experiment_result_dir, "overall_results.json")
@@ -436,7 +476,7 @@ async def main():
         all_game_return_rates,
         agent_names,
         NUM_ROUNDS,
-        experiment_result_dir
+        experiment_result_dir,
     )
 
     if statistics:
@@ -446,10 +486,9 @@ async def main():
     summary_path = os.path.join(experiment_result_dir, "experiment_summary.json")
     try:
         summary_data = experiment_config.copy()
-        summary_data.update({
-            "per_game_payoffs": per_game_payoffs,
-            "statistics": statistics
-        })
+        summary_data.update(
+            {"per_game_payoffs": per_game_payoffs, "statistics": statistics}
+        )
         with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(summary_data, f, ensure_ascii=False, indent=2, default=str)
         logging.info(f"Experiment summary saved to: {summary_path}")
@@ -468,4 +507,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Program error occurred: {e}")
         import traceback
+
         traceback.print_exc()

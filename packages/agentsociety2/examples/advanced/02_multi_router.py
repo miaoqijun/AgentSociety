@@ -5,6 +5,12 @@ This example shows how to use different router strategies
 for agent-environment interaction with AgentSociety.
 """
 
+import os
+
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 import asyncio
 from datetime import datetime
 from agentsociety2 import PersonAgent

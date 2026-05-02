@@ -160,7 +160,7 @@
 
 请参阅 ``agentsociety2.contrib.env`` 中的内置环境类（类名以当前代码为准）：
 
-* ``SimpleSocialSpace``（社交互动）
-* ``PublicGoodsEnv``（公共物品博弈）
-* ``PrisonersDilemmaEnv``（囚徒困境）
-* ``TrustGameEnv``（信任博弈）
+* ``SimpleSocialSpace`` — 社交互动
+* ``PublicGoodsEnv`` — 公共物品博弈
+* ``PrisonersDilemmaEnv`` — 囚徒困境
+* ``TrustGameEnv`` — 信任博弈

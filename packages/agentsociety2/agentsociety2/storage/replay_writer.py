@@ -66,7 +66,6 @@ class ReplayWriter:
 
         await self._ensure_catalog_tables()
 
-
     async def close(self) -> None:
         """关闭数据库连接并释放资源。"""
         if self._engine:
@@ -206,10 +205,10 @@ class ReplayWriter:
             # Create table using SQLAlchemy Core
             # We construct a Table object and create it
             async with self._engine.begin() as conn:
-                 # Use raw SQL for dynamic creation as it's easier to map TableSchema to SQL than constructing SA Table dynamically
+                # Use raw SQL for dynamic creation as it's easier to map TableSchema to SQL than constructing SA Table dynamically
                 create_sql = schema.to_create_sql()
                 await conn.execute(text(create_sql))
-                
+
                 # Create indexes
                 for index_sql in schema.to_index_sql():
                     await conn.execute(text(index_sql))
@@ -224,17 +223,17 @@ class ReplayWriter:
         """
         # For statically defined tables, allow using generic write but process specially?
         # Actually, for dynamic tables, we need to construct INSERT statement
-        
+
         # Prepare data (handle datetime and JSON)
         processed_data = self._process_data_for_write(data)
 
         async with self._lock:
-           async with self._session_maker() as session:
+            async with self._session_maker() as session:
                 # Use raw SQL for generic write to arbitrary tables (simplest for dynamic schemas)
                 # Or reflect table... but reflection is slow.
                 # Since we know the schema from register_table, we could cache SA Table objects.
                 # But here we just use what we have.
-                
+
                 columns = list(processed_data.keys())
                 placeholders = ", ".join([f":{col}" for col in columns])
                 columns_str = ", ".join(_quote_identifier(col) for col in columns)
@@ -242,7 +241,7 @@ class ReplayWriter:
                     f"INSERT OR REPLACE INTO {_quote_identifier(table_name)} "
                     f"({columns_str}) VALUES ({placeholders})"
                 )
-                
+
                 await session.execute(sql, processed_data)
                 await session.commit()
 
@@ -266,15 +265,19 @@ class ReplayWriter:
             async with self._session_maker() as session:
                 await session.execute(sql, processed_list)
                 await session.commit()
-    
+
     def _process_data_for_write(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """将数据转换为适合 SQLite/SQLAlchemy 的形式（datetime/JSON 等）。"""
+        """将数据转换为适合 SQLite 绑参的形式（datetime/JSON 等）。
+
+        ``datetime`` 转为 ISO 8601 字符串写入，避免 ``aiosqlite`` 经 ``sqlite3`` 默认
+        datetime 适配器绑定（Python 3.12+ 已弃用该适配器并产生 DeprecationWarning）。
+        """
         new_data = {}
         for k, v in data.items():
             if isinstance(v, datetime):
-                new_data[k] = v # SQLAlchemy handles datetime
+                new_data[k] = v.isoformat()
             elif isinstance(v, (dict, list)):
-                # If we use JSON type in SA, we can pass dict directly. 
+                # If we use JSON type in SA, we can pass dict directly.
                 # But for dynamic tables created via SQL, they might be TEXT columns.
                 # We need to trust how they were defined.
                 # However, our dynamic schema defines JSON as "JSON" type (which is TEXT affinity in SQLite)

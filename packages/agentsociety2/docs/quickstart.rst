@@ -11,7 +11,7 @@
 您的第一个智能体
 ----------------
 
-让我们使用 **AgentSociety** 创建一个简单的智能体并与它交互：
+使用 :class:`~agentsociety2.society.AgentSociety` 创建一个简单的智能体并与它交互：
 
 .. code-block:: python
 
@@ -76,7 +76,12 @@
 
 .. code-block:: python
 
+   import asyncio
+   from datetime import datetime
+
+   from agentsociety2 import PersonAgent
    from agentsociety2.env import EnvBase, tool, CodeGenRouter
+   from agentsociety2.society import AgentSociety
 
    class MyEnvironment(EnvBase):
        """A custom environment module."""
@@ -91,23 +96,21 @@
            """Change agent's mood."""
            return f"Agent {agent_id}'s mood is now {mood}."
 
-   # Use custom module in AgentSociety
-   agent = PersonAgent(id=1, profile={"name": "Bob"})
+   async def main():
+       agent = PersonAgent(id=1, profile={"name": "Bob"})
+       env_router = CodeGenRouter(env_modules=[MyEnvironment()])
+       society = AgentSociety(
+           agents=[agent],
+           env_router=env_router,
+           start_t=datetime.now(),
+       )
+       await society.init()
+       response = await society.ask("What's the weather like?")
+       print(response)
+       await society.close()
 
-   env_router = CodeGenRouter(env_modules=[MyEnvironment()])
-
-   society = AgentSociety(
-       agents=[agent],
-       env_router=env_router,
-       start_t=datetime.now(),
-   )
-   await society.init()
-
-   # Agent can now use the environment's tools
-   response = await society.ask("What's the weather like?")
-   print(response)
-
-   await society.close()
+   if __name__ == "__main__":
+       asyncio.run(main())
 
 使用 CLI 运行实验
 ------------------
@@ -142,7 +145,7 @@ AgentSociety 2 提供了一个强大的 CLI 用于运行实验。
 运行实验（代码方式）
 --------------------
 
-下面是一个使用 AgentSociety 的多智能体完整实验示例：
+下面是一个使用 AgentSociety 2 的多智能体完整实验示例：
 
 .. code-block:: python
 

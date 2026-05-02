@@ -2,6 +2,10 @@ import os
 
 
 def _ensure_llm_env_for_tests() -> None:
+    # Disable telemetry before any imports
+    os.environ.setdefault("MEM0_TELEMETRY", "False")
+    os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
     if not (os.environ.get("AGENTSOCIETY_LLM_API_KEY") or "").strip():
         os.environ["AGENTSOCIETY_LLM_API_KEY"] = "test-key"
     if not (os.environ.get("AGENTSOCIETY_LLM_API_BASE") or "").strip():

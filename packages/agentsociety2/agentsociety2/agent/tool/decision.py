@@ -12,7 +12,8 @@
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+import json_repair
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 VALID_TOOL_NAMES = (
@@ -22,14 +23,13 @@ VALID_TOOL_NAMES = (
     "workspace_read",
     "workspace_write",
     "workspace_list",
-    "enable_skill",
-    "disable_skill",
     "bash",
     "glob",
     "grep",
     "codegen",
     "batch",
     "done",
+    "finish",
 )
 
 
@@ -46,10 +46,82 @@ class ToolDecision(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_llm_field_shapes(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        raw = {str(k): v for k, v in data.items()}
+        for wrap in ("tool_decision", "data", "result", "output", "response"):
+            inner = raw.get(wrap)
+            if isinstance(inner, dict) and any(
+                str(k).lower()
+                in (
+                    "tool_name",
+                    "toolname",
+                    "tool",
+                    "name",
+                    "action",
+                )
+                for k in inner
+            ):
+                raw = {str(k): v for k, v in inner.items()}
+                break
+        lower = {str(k).lower(): k for k in raw}
+
+        def pick(*keys: str):
+            for k in keys:
+                if k in raw:
+                    return raw[k]
+                lk = k.lower()
+                if lk in lower:
+                    return raw[lower[lk]]
+            return None
+
+        out: dict[str, Any] = {}
+        tn = pick("tool_name", "toolName", "tool", "name", "action")
+        if tn is not None:
+            out["tool_name"] = tn if isinstance(tn, str) else str(tn)
+
+        args = pick("arguments", "args", "parameters", "params", "input", "tool_input")
+        if args is None:
+            out["arguments"] = {}
+        elif isinstance(args, str):
+            s = args.strip()
+            if not s:
+                out["arguments"] = {}
+            else:
+                try:
+                    parsed = json_repair.loads(s)
+                    out["arguments"] = parsed if isinstance(parsed, dict) else {}
+                except Exception:
+                    out["arguments"] = {}
+        elif isinstance(args, dict):
+            out["arguments"] = args
+        else:
+            out["arguments"] = {}
+
+        d = pick("done", "is_done", "finished", "complete")
+        if d is None:
+            out["done"] = False
+        elif isinstance(d, bool):
+            out["done"] = d
+        elif isinstance(d, (int, float)):
+            out["done"] = bool(d)
+        else:
+            ds = str(d).strip().lower()
+            out["done"] = ds in ("true", "yes", "1", "y", "on")
+
+        summ = pick("summary", "message", "content", "text", "reason", "rationale")
+        out["summary"] = "" if summ is None else str(summ)
+
+        return out
+
     tool_name: str = Field(
         description=(
             "Exactly one of: activate_skill, read_skill, execute_skill, workspace_read, workspace_write, "
-            "workspace_list, enable_skill, disable_skill, bash, glob, grep, codegen, batch, done. "
+            "workspace_list, bash, glob, grep, codegen, batch, done, finish. "
+            "Use finish or done with summary when no further tools are needed (text-only completion). "
             "activate_skill with arguments.skill_name set to the skill name."
         )
     )
