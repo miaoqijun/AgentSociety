@@ -1,5 +1,5 @@
-# Stage 1: Build VSCode extension as vsix
-FROM node:20 AS extension-builder
+# Stage 1: Build VSCode extension as vsix (engines.node: ^22.13.0 || >=24)
+FROM node:22 AS extension-builder
 
 WORKDIR /app
 

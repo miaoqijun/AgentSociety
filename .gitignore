@@ -1,75 +1,186 @@
-scientist_demo/
-docs/_build/
-*.mo
-.env
-.python-version
-.venv/
-wheelhouse/
+# =========================================
+# Python
+# =========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
-.python-version
-log/
-/test
-/test/
-**/test/
-**/tests/
-test_*.py
-*_test.py
-!packages/agentsociety2/agentsociety2/contrib/env/*_test.py
-!packages/agentsociety2/tests/
-!packages/agentsociety2/tests/**
-cache/
-ignore/
-*.ipynb*
-*.ipynb*/
-*pycache*
-*pycache*/
-*.DS_Store*
-*.DS_Store*/
+develop-eggs/
 dist/
-*egg-info/
-__*
-!__init__.py
-TODO
-agentsociety-sim
-agentsociety-ui
-agentsociety_data/
-.agentsociety-benchmark/
-logs/
-*.txt
-!requirements.txt
-!**/requirements*.txt
-!CHANGELOG.md
-*.pb
-*.pb.*
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# CI / pytest JUnit (GitLab unit test reports)
+packages/agentsociety2/junit.xml
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+packages/agentsociety2/venv/
 venv_arm/
-mobibench/
-*.pkl
-benchmark_results/
-.agentsociety/
-groundtruth/
-.env.*
-result_commons_tragedy_person_agent/
-result_prisoners_dilemma_person_agent/
-result_public_goods_person_agent/
-result_trust_game_person_agent/
-result_volunteer_dilemma_person_agent/
-game_log/
-*.json
-*.jsonl
-*.log
+
+# =========================================
+# IDE and Editors
+# =========================================
 .vscode/
 !.vscode/settings.json
 !.vscode/launch.json
 !.vscode/tasks.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code local settings
+**/.claude/settings.local.json
+!.claude/settings.json
+
+# Claude Code user skills (custom)
+**/.claude/skills/
+
+# =========================================
+# Environment and Secrets
+# =========================================
+.env
+.env.*
+!.env.example
+.python-version
+
+# =========================================
+# Build and Package
+# =========================================
+wheelhouse/
+*.pb
+*.pb.*
+
+# =========================================
+# Logs and Databases
+# =========================================
+logs/
+log/
+*.log
+
+# =========================================
+# Documentation
+# =========================================
+docs/_build/
+packages/agentsociety2/docs/_build/
+docs_v1/_build/
+*.mo
+
+# =========================================
+# Jupyter Notebooks
+# =========================================
+*.ipynb
+*.ipynb_checkpoints/
+.ipynb_checkpoints/
+
+# =========================================
+# OS Generated
+# =========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =========================================
+# Cache
+# =========================================
+cache/
+*.pkl
+*.pickle
+
+# =========================================
+# Test Output
+# =========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# =========================================
+# Project Specific
+# =========================================
+
+# Data directories
+agentsociety_data/
+.agentsociety/
+.agentsociety-benchmark/
+mobibench/
+benchmark_results/
+
+# Demos and experiments
+scientist_demo/
+groundtruth/
+workspace/
+
+# User projects and experiments
+Project/
+hypothesis_*/
+papers/
+presentation/
+synthesis/
+user_data/
+datasets/
+custom/
+
+# Game results
+result_*/
+game_log/
+
+# Legacy packages (downloaded, not source)
+agentsociety-sim
+agentsociety-ui
+
+# Temporary files
 *.template
+ignore/
+TODO
 NEXT_STEPS.md
 PUBLISH_CHECKLIST.md
 
-# Sphinx build outputs
-packages/agentsociety2/docs/_build/
-docs_v1/_build/
+# Test data files (local / generated)
+profiles.json
 
-# User workspace (may contain API keys)
-workspace/
-packages/agentsociety2/venv/
-packages/agentsociety2/.chainlit/
+# Package lock files (using uv, not npm)
+package-lock.json
+
+# =========================================
+# Pattern Exceptions
+# =========================================
+
+# Allow specific test files
+!packages/agentsociety2/tests/
+!packages/agentsociety2/tests/**
+!packages/agentsociety2/agentsociety2/contrib/env/*_test.py
+
+# Allow specific text files
+!requirements.txt
+!**/requirements*.txt
+!CHANGELOG.md
+
+# Allow __init__.py
+!__init__.py
+
+# Allow JSON configs (but not generated JSON data)
+# Note: *.json and *.jsonl are ignored by default for generated data
+# Add explicit exceptions if needed for config files
