@@ -5,6 +5,12 @@ This example demonstrates a classic game theory scenario
 using AgentSociety to coordinate agents and environment.
 """
 
+import os
+
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 import asyncio
 from datetime import datetime
 from pathlib import Path

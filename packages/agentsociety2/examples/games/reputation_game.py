@@ -8,13 +8,20 @@
 - 完整的统计功能（全局统计、声誉分布、智能体历史等）
 """
 
+import os
+
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 import asyncio
 import logging
-import os
 import random
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import cast
+
+from dotenv import load_dotenv
 
 from agentsociety2.agent.base import AgentBase
 from agentsociety2.contrib.env.reputation_game import (
@@ -25,7 +32,6 @@ from agentsociety2.contrib.agent.llm_donor_agent import LLMDonorAgent
 from agentsociety2.env import EnvBase, CodeGenRouter
 from agentsociety2.society.society import AgentSociety
 from agentsociety2.logger import get_logger
-from dotenv import load_dotenv
 from mem0.configs.base import VectorStoreConfig
 from mem0.embeddings.configs import EmbedderConfig
 from mem0.llms.configs import LlmConfig
@@ -121,13 +127,12 @@ async def main():
     start_t = datetime.now()
     end_t = start_t + timedelta(seconds=SIMULATION_DURATION)
 
-
     # ========================================================================
     # 4. 创建环境
     # ========================================================================
     env_module = ReputationGameEnv(config=env_config)
     env_modules = cast(list[EnvBase], [env_module])
-    
+
     # Create env_router
     env_router = CodeGenRouter(env_modules=env_modules)
 
@@ -175,19 +180,19 @@ async def main():
         "You are an optimistic agent, believing that cooperation will bring better results.",
         "You are a pessimistic agent, tending to protect yourself and not trusting others much.",
     ]
-    
+
     agents_list: list[AgentBase] = []
     for i in range(env_config.Z):
         # 在测试代码中控制个性的分配方式
         # 方式1：随机选择（当前方式）
         personality = random.choice(personality_list)
-        
+
         # 方式2：也可以直接指定个性字符串
         # personality = "You are a rational and cautious agent..."
-        
+
         # 方式3：也可以根据 agent ID 分配特定个性
         # personality = personality_list[i % len(personality_list)]
-        
+
         profile = {
             "id": f"agent-{i}",
             "name": f"Agent {i}",
@@ -227,9 +232,7 @@ async def main():
         print(
             f"预计运行时长: {SIMULATION_DURATION} 秒 ({SIMULATION_DURATION/60:.1f} 分钟)"
         )
-        print(
-            f"预计执行轮数: {expected_ticks} 轮 (每轮 {TICK_DURATION} 秒)\n"
-        )
+        print(f"预计执行轮数: {expected_ticks} 轮 (每轮 {TICK_DURATION} 秒)\n")
 
         # Run simulation until end_t
         # 添加进度监控（在后台任务中）
@@ -273,7 +276,9 @@ async def main():
         actual_ticks = int(actual_duration / TICK_DURATION)
         expected_ticks = int(SIMULATION_DURATION / TICK_DURATION)
         print(f"实际运行时长: {actual_duration:.1f} 秒")
-        print(f"执行轮数: {actual_ticks} 轮 (预计: {expected_ticks} 轮, 每轮 {TICK_DURATION} 秒)")
+        print(
+            f"执行轮数: {actual_ticks} 轮 (预计: {expected_ticks} 轮, 每轮 {TICK_DURATION} 秒)"
+        )
 
         # 记录到日志
         logger.info("=" * 80)
@@ -294,12 +299,14 @@ async def main():
         print("\n【综合统计数据】")
         stats_ctx, stats_ans = await env_module.get_global_statistics()
         print(stats_ans)
-        
+
         # 计算每轮平均交互次数（如果有交互记录）
-        total_interactions = stats_ctx.get('total_interactions', 0)
-        avg_interactions_per_tick = total_interactions / actual_ticks if actual_ticks > 0 else 0
+        total_interactions = stats_ctx.get("total_interactions", 0)
+        avg_interactions_per_tick = (
+            total_interactions / actual_ticks if actual_ticks > 0 else 0
+        )
         print(f"\n每轮平均交互次数: {avg_interactions_per_tick:.2f} 次/轮")
-        
+
         logger.info("实验统计数据:")
         logger.info(f"总互动次数: {total_interactions}")
         logger.info(f"合作次数: {stats_ctx.get('cooperation_count', 0)}")
@@ -333,19 +340,27 @@ async def main():
         for agent_id in range(env_config.Z):
             payoff_ctx, payoff_ans = await env_module.get_agent_payoff(agent_id)
             rep_ctx, rep_ans = await env_module.get_agent_reputation(agent_id)
-            payoffs_info.append({
-                "agent_id": agent_id,
-                "payoff": payoff_ctx.get("payoff", 0.0),
-                "reputation": rep_ctx.get("reputation", "unknown"),
-            })
-        
+            payoffs_info.append(
+                {
+                    "agent_id": agent_id,
+                    "payoff": payoff_ctx.get("payoff", 0.0),
+                    "reputation": rep_ctx.get("reputation", "unknown"),
+                }
+            )
+
         # 计算平均收益
-        avg_payoff = sum(p["payoff"] for p in payoffs_info) / len(payoffs_info) if payoffs_info else 0.0
-        
+        avg_payoff = (
+            sum(p["payoff"] for p in payoffs_info) / len(payoffs_info)
+            if payoffs_info
+            else 0.0
+        )
+
         print(f"平均收益: {avg_payoff:.2f}")
         for info in sorted(payoffs_info, key=lambda x: x["payoff"], reverse=True):
-            print(f"  Agent {info['agent_id']}: 收益={info['payoff']:.2f}, 声誉={info['reputation']}")
-        
+            print(
+                f"  Agent {info['agent_id']}: 收益={info['payoff']:.2f}, 声誉={info['reputation']}"
+            )
+
         logger.info(f"平均收益: {avg_payoff:.2f}")
 
         # 5. 查询顶尖智能体
@@ -361,9 +376,13 @@ async def main():
         # 可选：查询某个智能体的详细历史（示例：查询 Agent 0）
         if env_config.Z > 0:
             print("\n【智能体历史示例（Agent 0）】")
-            history_ctx, history_ans = await env_module.get_agent_history(agent_id=0, limit=10)
+            history_ctx, history_ans = await env_module.get_agent_history(
+                agent_id=0, limit=10
+            )
             print(history_ans)
-            logger.info(f"Agent 0 最近 {len(history_ctx.get('history', []))} 次互动记录")
+            logger.info(
+                f"Agent 0 最近 {len(history_ctx.get('history', []))} 次互动记录"
+            )
 
         # 7. 保存统计数据到文件（可选）
         import json
@@ -379,7 +398,11 @@ async def main():
                 "Z": env_config.Z,
                 "BENEFIT": env_config.BENEFIT,
                 "COST": env_config.COST,
-                "norm_type": env_config.norm_type.value if hasattr(env_config.norm_type, 'value') else str(env_config.norm_type),
+                "norm_type": (
+                    env_config.norm_type.value
+                    if hasattr(env_config.norm_type, "value")
+                    else str(env_config.norm_type)
+                ),
                 "seed": env_config.seed,
             },
             "simulation_info": {

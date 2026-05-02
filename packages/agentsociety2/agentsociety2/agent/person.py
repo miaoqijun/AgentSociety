@@ -4,7 +4,7 @@
 - 独立工作区：每个 agent 的文件与日志隔离
 - 独立会话线程：维护短上下文，必要时 LLM 压缩
 - 渐进式 skill 发现：先看 catalog，再按需激活
-- 工具循环：产出 ToolDecision → 执行 → 回写结果，直到 done
+- 工具循环：产出 ToolDecision → 执行 → 回写结果，直到 done/finish 或 done_after_tool
 """
 
 from __future__ import annotations
@@ -18,7 +18,6 @@ import time
 from collections import OrderedDict
 from collections.abc import Mapping
 from datetime import datetime
-from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Optional
 
@@ -83,8 +82,8 @@ class PersonAgent(AgentBase):
     def mcp_description(cls) -> str:
         """返回 MCP 候选列表中的简短描述。"""
         return (
-            "PersonAgent: Minimal skills-first agent. "
-            "Uses progressive skill loading and isolated agent workspace."
+            "PersonAgent: skills-first tool agent with per-agent workspace "
+            "and catalog + activate_skill workflow."
         )
 
     def __init__(
@@ -106,7 +105,6 @@ class PersonAgent(AgentBase):
             - ``max_tool_rounds``：单步最大工具轮数（默认 24）
             - ``preload_workspace_paths``：预读文件列表（注入 system prompt 的 workspace 快照）
             - ``thread_key_state_paths``：thread 压缩时附带的 KEY_STATE_JSON 文件路径列表
-            - ``catalog_working_set_json``：用于 skill 的 ``paths`` 匹配信号文件（如 ``working_set.json``）
             - ``system_prompt_max_identity_chars``：Agent Identity JSON 总长度上限（默认 10000）
             - ``workspace_read_chunk_chars``：``workspace_read`` / ``read_skill`` 单段最大字符数（默认 32768，上限 96000）
             - ``tool_result_thread_budget_chars``：单条 TOOL_RESULT_JSON 序列化预算（默认 65536）
@@ -132,7 +130,6 @@ class PersonAgent(AgentBase):
             agent_id=id, registry=self._skill_registry, state_config=self._config.state
         )
         self._selectable_skill_names: set[str] = set()
-        self._skill_visibility_overrides: dict[str, bool] = {}
         self._activated_skills: set[str] = set()
         self._active_skill_scope: str = ""
 
@@ -524,16 +521,9 @@ class PersonAgent(AgentBase):
         else:
             builder.add_tools(ToolTableBuilder.render())
 
-        visible_names = sorted(self._all_visible_skill_names())
         catalog_names: list[str] = []
-        for n in visible_names:
-            info = self._skill_registry.get_skill_info(n, load_content=False)
-            if info is None:
-                continue
-            if getattr(info, "disable_model_invocation", False):
-                continue
-            patterns = list(getattr(info, "paths", []) or [])
-            if patterns and not self._catalog_paths_match(patterns):
+        for n in sorted(self._all_visible_skill_names()):
+            if self._skill_registry.get_skill_info(n, load_content=False) is None:
                 continue
             catalog_names.append(n)
         catalog = self._skill_runtime.skill_list(catalog_names)
@@ -574,10 +564,13 @@ class PersonAgent(AgentBase):
 
         pc = self._merged_person_step_constraints()
         if pc:
-            constraints = "This step has environment-imposed limits: only skills listed in the catalog above exist for you."
-            if pc.pin_allowed_tools_to_skill:
-                constraints += f" Allowed-tools scope is pinned to `{pc.pin_allowed_tools_to_skill}` at step start."
-            builder.add_constraints(constraints)
+            parts: list[str] = []
+            if pc.hide_skills:
+                parts.append("Environment hides some skills from the catalog.")
+            if pc.pin_active_skill:
+                parts.append(f"Pinned active scope: `{pc.pin_active_skill}`.")
+            if parts:
+                builder.add_constraints(" ".join(parts))
 
     def get_system_prompt(self, tick: int, t: datetime) -> str:
         """构建本步 system prompt。
@@ -749,70 +742,6 @@ class PersonAgent(AgentBase):
                 trunc_str(dumped, plim) if len(dumped) > plim else None
             )
 
-    def _catalog_paths_match(self, patterns: list[str]) -> bool:
-        """检查当前工作集是否匹配任一模式。
-
-        用于 skill 的 paths 过滤。若无工作集信号，返回 True 以避免意外隐藏 skill。
-
-        :param patterns: 路径模式列表。
-        :return: 是否匹配。
-        """
-        if not patterns:
-            return True
-
-        signal = self._config.context.catalog_working_set_json
-        if not signal:
-            return True
-        signal = str(signal).strip()
-
-        candidates: list[str] = []
-        obs_raw = self._step_context.get(signal)
-        if obs_raw is None and self._skill_runtime.workspace_exists(signal):
-            raw_text = self._skill_runtime.workspace_read(signal)
-            if raw_text.strip():
-                parsed = jr_parse(raw_text)
-                obs_raw = parsed if isinstance(parsed, dict) else {}
-        obs = obs_raw if isinstance(obs_raw, dict) else {}
-        for key in ("path", "paths", "file", "files", "working_dir", "cwd"):
-            v = obs.get(key)
-            if isinstance(v, str) and v.strip():
-                candidates.append(v.strip())
-            elif isinstance(v, list):
-                candidates.extend(str(x).strip() for x in v if str(x).strip())
-
-        if not candidates:
-            return True
-
-        for c in candidates:
-            for p in patterns:
-                if fnmatch(c, p):
-                    return True
-        return False
-
-    def _is_model_invocable_skill(self, skill_name: str) -> bool:
-        """检查 skill 是否可被模型自动调用。
-
-        :param skill_name: skill 名称。
-        :return: 是否可自动调用。
-        """
-        info = self._skill_registry.get_skill_info(skill_name, load_content=False)
-        if info is None:
-            return False
-        return not bool(getattr(info, "disable_model_invocation", False))
-
-    def _allowed_tools_for_active_scope(self) -> set[str] | None:
-        """获取当前 scope 的 allowed-tools。
-
-        :return: allowed-tools 集合，None 表示不限制。
-        """
-        name = self._active_skill_scope.strip()
-        if not name:
-            return None
-        info = self._skill_registry.get_skill_info(name, load_content=False)
-        if info is None:
-            return None
-        return ToolPolicy.allowed_tools_for_scope(info)
-
     @staticmethod
     def _split_skill_arguments(raw: Any) -> tuple[str, list[str]]:
         """解析 activate_skill 的 arguments 为原始串与分词数组。
@@ -888,72 +817,6 @@ class PersonAgent(AgentBase):
             rendered = rendered[:start] + replacement + rendered[end:]
             offset += len(replacement) - (m.end() - m.start())
         return rendered
-
-    # ── Skill Dependency ──────────────────────────────────────────────────────
-
-    def _ensure_requires_activated(
-        self,
-        tick: int,
-        t: datetime,
-        thread_messages: list[dict[str, str]],
-        skill_name: str,
-    ) -> dict[str, Any]:
-        """确保 skill 的 requires 依赖已激活。
-
-        :param tick: 当前仿真步的时间尺度（秒）。
-        :param t: 当前仿真时间。
-        :param thread_messages: thread 消息列表。
-        :param skill_name: 需要检查依赖的 skill 名称。
-        :return: 包含 ok, requires, activated, missing 字段的字典。
-        """
-        info = self._skill_registry.get_skill_info(skill_name, load_content=False)
-        requires = list(getattr(info, "requires", []) or []) if info else []
-        if not requires:
-            return {"ok": True, "requires": [], "activated": []}
-
-        missing: list[str] = []
-        activated: list[str] = []
-        for dep in requires:
-            dep = str(dep).strip()
-            if not dep:
-                continue
-            dep_info = self._skill_registry.get_skill_info(dep, load_content=False)
-            if dep_info is None or not getattr(dep_info, "enabled", True):
-                missing.append(dep)
-                continue
-            if dep not in self._all_visible_skill_names():
-                missing.append(dep)
-                continue
-            if dep in self._activated_skills:
-                continue
-            content = self._skill_runtime.skill_activate(dep)
-            if content:
-                self._activated_skills.add(dep)
-                activated.append(dep)
-
-        if activated:
-            self._persist_agent_config()
-            self._append_tool_result_to_thread(
-                thread_messages=thread_messages,
-                tick=tick,
-                t=t,
-                result_obj={
-                    "action": "auto_activate_requires",
-                    "skill_name": skill_name,
-                    "ok": True,
-                    "requires": requires,
-                    "activated": activated,
-                },
-            )
-
-        if missing:
-            return {
-                "ok": False,
-                "requires": requires,
-                "activated": activated,
-                "missing": missing,
-            }
-        return {"ok": True, "requires": requires, "activated": activated}
 
     # ── Command Execution ─────────────────────────────────────────────────────
 
@@ -1145,21 +1008,13 @@ class PersonAgent(AgentBase):
         )
 
     def _refresh_selectable_skills(self) -> None:
-        """根据 enabled/override 条件刷新可见技能集合。
-
-        所有启用的 skill 默认可见，除非被 override 显式禁用。
-        """
+        """根据注册表与环境 hide_skills 刷新可选技能集合。"""
+        self._skill_registry.sync_enabled_from(get_skill_registry())
         c = self._merged_person_step_constraints()
         hidden = c.hide_skills if c else set()
-        enabled = self._skill_registry.list_enabled()
-        visible = []
-        for s in enabled:
-            override = self._skill_visibility_overrides.get(s.name)
-            if override is False:
-                continue
-            if s.name in hidden:
-                continue
-            visible.append(s)
+        visible = [
+            s for s in self._skill_registry.list_enabled() if s.name not in hidden
+        ]
         self._selectable_skill_names = {s.name for s in visible}
 
     def _persist_agent_config(self) -> None:
@@ -1170,7 +1025,6 @@ class PersonAgent(AgentBase):
                 {
                     "capabilities": self._capability_kwargs,
                     "state": self._agent_state,
-                    "skill_overrides": self._skill_visibility_overrides,
                     "activated_skills": sorted(self._activated_skills),
                 },
                 indent=2,
@@ -1204,11 +1058,6 @@ class PersonAgent(AgentBase):
 
         existing_cfg = self._skill_runtime.read_json("agent_config.json", {})
         if isinstance(existing_cfg, dict):
-            raw = existing_cfg.get("skill_overrides", {})
-            if isinstance(raw, dict):
-                self._skill_visibility_overrides = {
-                    str(k): bool(v) for k, v in raw.items()
-                }
             active_raw = existing_cfg.get("activated_skills", [])
             if isinstance(active_raw, list):
                 self._activated_skills = {
@@ -1221,6 +1070,7 @@ class PersonAgent(AgentBase):
         run_dir = getattr(self._env, "run_dir", None)
         if run_dir:
             custom_scan_roots.append(Path(run_dir))
+        custom_scan_roots.append(self._skill_runtime.workspace_root())
         env_workspace = self._config.workspace_path
         if env_workspace:
             custom_scan_roots.append(Path(str(env_workspace)))
@@ -1490,7 +1340,7 @@ class PersonAgent(AgentBase):
         return r.messages
 
     def clear_session(self, keep_memory: bool = True) -> None:
-        """重置会话，类似 Claude Code 的 /clear。
+        """重置会话（清空 thread、工具状态与可选 checkpoint）。
 
         :param keep_memory: 是否保留持久化记忆。
         """
@@ -1529,7 +1379,7 @@ class PersonAgent(AgentBase):
         logger.info(f"Agent {self.id}: session cleared (keep_memory={keep_memory})")
 
     def handoff_to_memory(self) -> None:
-        """将当前状态写入持久化记忆，类似 Claude Code 的 session handoff。"""
+        """将当前状态写入持久化记忆。"""
         if not self._memory:
             return
 
@@ -1572,7 +1422,6 @@ class PersonAgent(AgentBase):
         async def exec_one(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
             policy_ctx = ToolPolicyContext(
                 active_skill_scope=self._active_skill_scope,
-                allowed_tools=self._allowed_tools_for_active_scope(),
                 workspace_root=work_dir,
             )
             blocked = self._tool_policy.check(
@@ -1703,7 +1552,6 @@ class PersonAgent(AgentBase):
             args = self._coerce_llm_dict(op.get("arguments", {}))
             policy_ctx = ToolPolicyContext(
                 active_skill_scope=self._active_skill_scope,
-                allowed_tools=self._allowed_tools_for_active_scope(),
                 workspace_root=work_dir,
             )
             blocked = self._tool_policy.check(
@@ -1752,21 +1600,50 @@ class PersonAgent(AgentBase):
             "workspace_state_version": self._workspace_state_version,
         }
 
+    def _take_done_after_tool(
+        self, decision: ToolDecision, logs: list[str]
+    ) -> str | None:
+        if not decision.done:
+            return None
+        logs.append(f"done:{decision.summary or 'step_complete'}")
+        return "done_after_tool"
+
+    @staticmethod
+    def _outward_step_reply(
+        logs: list[str], step_end_reason: str, step_timeout: int
+    ) -> str:
+        if not logs:
+            return "no-action"
+        for line in reversed(logs):
+            if line.startswith("finish:"):
+                return line[len("finish:") :].strip()
+            if line.startswith("done:") and not line.startswith(
+                "done:environment_in_progress"
+            ):
+                return line[len("done:") :].strip()
+        if step_end_reason == "step_timeout":
+            return logs[0] if logs else f"step timeout after {step_timeout}s"
+        for line in reversed(logs):
+            if line.startswith("tool_loop_error:"):
+                return line
+        return "[no verbal reply]"
+
     # ── Tool Loop ─────────────────────────────────────────────────────────────
 
     async def _tool_loop(
         self,
         tick: int,
         t: datetime,
-    ) -> tuple[list[str], list[dict[str, Any]]]:
+    ) -> tuple[list[str], list[dict[str, Any]], str]:
         """执行单个 step 的工具循环。
 
         :param tick: 当前仿真步的时间尺度（秒）。
         :param t: 当前仿真时间。
-        :return: 元组 (logs, tool_history)。
+        :return: 元组 (logs, tool_history, step_end_reason)。
         """
         logs: list[str] = []
         history: list[dict[str, Any]] = []
+        end_reason = "max_tool_rounds"
         thread_messages = self._skill_runtime.read_recent_thread_messages(limit=40)
         trace_id = f"agent_{self.id}_tick_{tick}"
         step_start = time.monotonic()
@@ -1800,11 +1677,9 @@ class PersonAgent(AgentBase):
             )
 
             prompt = (
-                "Begin your step. Review the skill catalog, activate relevant skills, "
-                "and complete your objectives."
+                "Step: choose next tool from catalog/Tools; host-visible text → summary; stop with finish or done."
                 if i == 0
-                else "Continue. Call the next best tool based on the latest "
-                "TOOL_RESULT_JSON, or set done=true if finished."
+                else "Continue: next tool from latest TOOL_RESULT_JSON, or finish/done (summary), or done=true after this tool."
             )
             try:
                 messages = list(thread_messages)
@@ -1815,6 +1690,7 @@ class PersonAgent(AgentBase):
                     tick=tick,
                     t=t,
                     max_retries=self._tool_decision_max_retries,
+                    litellm_timeout=self._config.loop.llm_request_timeout,
                 )
                 decision_json = jr_dumps(decision.model_dump())
                 self._skill_runtime.append_thread_message(
@@ -1831,6 +1707,7 @@ class PersonAgent(AgentBase):
                     ]
             except Exception as e:
                 logs.append(f"tool_loop_error:{e}")
+                end_reason = "llm_error"
                 break
 
             action = decision.tool_name.strip()
@@ -1862,16 +1739,64 @@ class PersonAgent(AgentBase):
                     # 2) done=true 但 tool_name 写错：直接结束本步，避免无谓循环
                     if bool(getattr(decision, "done", False)):
                         logs.append(f"done:{decision.summary or 'step_complete'}")
+                        end_reason = "invalid_tool_done"
                         break
 
                     close = difflib.get_close_matches(
                         normalized, candidates, n=3, cutoff=0.6
                     )
                     hint = f" Did you mean: {', '.join(close)}?" if close else ""
+                    sk_hint = ""
+                    visible_skills = self._all_visible_skill_names()
+                    probe_list = [normalized, action.strip()]
+                    matched_skill: str | None = None
+                    for probe in probe_list:
+                        if not probe:
+                            continue
+                        if probe in visible_skills:
+                            matched_skill = probe
+                            break
+                        pl = probe.lower()
+                        for vn in visible_skills:
+                            if vn.lower() == pl:
+                                matched_skill = vn
+                                break
+                        if matched_skill:
+                            break
+                    if matched_skill:
+                        sk_hint = (
+                            f" '{matched_skill}' is a skill name, not a tool. "
+                            f"Use tool_name activate_skill with "
+                            f'arguments.skill_name="{matched_skill}" '
+                            f"(and optional arguments.arguments)."
+                        )
+                    else:
+                        for probe in probe_list:
+                            if not probe:
+                                continue
+                            canon: str | None = None
+                            if self._skill_registry.get_skill_info(
+                                probe, load_content=False
+                            ):
+                                canon = probe
+                            else:
+                                pl = probe.lower()
+                                for info in self._skill_registry.list_all():
+                                    if info.name.lower() == pl:
+                                        canon = info.name
+                                        break
+                            if canon is not None and canon not in visible_skills:
+                                sk_hint = (
+                                    f" '{canon}' is registered but not in this agent's skill "
+                                    f"catalog (hidden by environment or disabled in registry); "
+                                    f"tool_name must be a platform tool, or use activate_skill "
+                                    f"only for visible skills."
+                                )
+                                break
                     result_obj = {
                         "action": action,
                         "ok": False,
-                        "error": f"invalid tool_name: {action}. Supported: {', '.join(candidates)}.{hint}",
+                        "error": f"invalid tool_name: {action}. Supported: {', '.join(candidates)}.{hint}{sk_hint}",
                         "normalized": normalized,
                     }
                     history.append(result_obj)
@@ -1882,6 +1807,10 @@ class PersonAgent(AgentBase):
                         thread_messages, tick, t, result_obj
                     )
                     logs.append(f"invalid_tool:{action}")
+                    dr = self._take_done_after_tool(decision, logs)
+                    if dr:
+                        end_reason = dr
+                        break
                     continue
 
             # 发送行为追踪事件
@@ -1948,112 +1877,27 @@ class PersonAgent(AgentBase):
                         f"Agent {self.id}: too many consecutive loops, forcing step end"
                     )
                     logs.append("forced_end:too_many_loops")
+                    end_reason = "loop_guard"
+                    break
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
                     break
                 continue
             else:
                 # 重置连续循环计数
                 self._loop_consecutive_count = 0
 
-            # 仅当显式选择 done 工具时立即结束。done=true 与具体工具并列时表示
+            # 仅当显式选择 done/finish 时立即结束（无工具执行）。done=true 与具体工具并列时表示
             # 「执行本工具后本仿真步结束」，不得在派发工具之前 break（否则工具不会执行）。
             if action == "done":
                 logs.append(f"done:{decision.summary or 'step_complete'}")
+                end_reason = "tool_done"
                 break
-
-            # ── disable_skill ──
-            if action == "disable_skill":
-                if not skill_name:
-                    result_obj = {
-                        "action": action,
-                        "ok": False,
-                        "error": "empty skill_name",
-                    }
-                    history.append(result_obj)
-                    self._append_tool_result_to_thread(
-                        thread_messages, tick, t, result_obj
-                    )
-                    logs.append("disable_skill:empty")
-                    continue
-                c = self._merged_person_step_constraints()
-                if c and skill_name in c.forbid_disabling_skills:
-                    result_obj = {
-                        "action": action,
-                        "skill_name": skill_name,
-                        "ok": False,
-                        "error": "cannot disable skill: blocked by environment step constraints",
-                    }
-                    history.append(result_obj)
-                    self._append_tool_result_to_thread(
-                        thread_messages, tick, t, result_obj
-                    )
-                    logs.append(
-                        f"disable_skill:{skill_name}:blocked_by_env_constraints"
-                    )
-                    continue
-                self._skill_visibility_overrides[skill_name] = False
-                self._activated_skills.discard(skill_name)
-                if self._active_skill_scope == skill_name:
-                    self._active_skill_scope = ""
-                self._persist_agent_config()
-                self._refresh_selectable_skills()
-                result_obj = {"action": action, "skill_name": skill_name, "ok": True}
-                history.append(result_obj)
-                self._skill_runtime.append_tool_log(
-                    {"tick": tick, "time": t.isoformat(), **result_obj}
-                )
-                self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
-                logs.append(f"disable_skill:{skill_name}:ok")
-                continue
-
-            # ── enable_skill ──
-            if action == "enable_skill":
-                if not skill_name:
-                    result_obj = {
-                        "action": action,
-                        "ok": False,
-                        "error": "empty skill_name",
-                    }
-                    history.append(result_obj)
-                    self._append_tool_result_to_thread(
-                        thread_messages, tick, t, result_obj
-                    )
-                    logs.append("enable_skill:empty")
-                    continue
-                if self._skill_visibility_overrides.get(skill_name) is False:
-                    del self._skill_visibility_overrides[skill_name]
-                self._persist_agent_config()
-                self._refresh_selectable_skills()
-                if skill_name in self._all_visible_skill_names():
-                    result_obj = {
-                        "action": action,
-                        "skill_name": skill_name,
-                        "ok": True,
-                        "note": "enabled (override cleared)",
-                    }
-                    history.append(result_obj)
-                    self._skill_runtime.append_tool_log(
-                        {"tick": tick, "time": t.isoformat(), **result_obj}
-                    )
-                    self._append_tool_result_to_thread(
-                        thread_messages, tick, t, result_obj
-                    )
-                    logs.append(f"enable_skill:{skill_name}:ok")
-                else:
-                    result_obj = {
-                        "action": action,
-                        "skill_name": skill_name,
-                        "ok": False,
-                        "error": "skill not found in registry",
-                    }
-                    history.append(result_obj)
-                    self._skill_runtime.append_tool_log(
-                        {"tick": tick, "time": t.isoformat(), **result_obj}
-                    )
-                    self._append_tool_result_to_thread(
-                        thread_messages, tick, t, result_obj
-                    )
-                    logs.append(f"enable_skill:{skill_name}:miss")
-                continue
+            if action == "finish":
+                logs.append(f"finish:{decision.summary or 'step_complete'}")
+                end_reason = "tool_finish"
+                break
 
             # ── skill visibility gate ──
             if action in {"activate_skill", "read_skill", "execute_skill"} and (
@@ -2068,12 +1912,15 @@ class PersonAgent(AgentBase):
                 history.append(result_obj)
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
                 logs.append(f"{action}:{skill_name}:rejected")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
-            # ── ToolPolicy gate（allowed-tools/bash security/等） ──
+            # ── ToolPolicy gate（bash security 等） ──
             policy_ctx = ToolPolicyContext(
                 active_skill_scope=self._active_skill_scope,
-                allowed_tools=self._allowed_tools_for_active_scope(),
                 workspace_root=str(self._skill_runtime.workspace_root()),
             )
             blocked_obj = self._tool_policy.check(
@@ -2085,31 +1932,14 @@ class PersonAgent(AgentBase):
                     thread_messages, tick, t, blocked_obj
                 )
                 logs.append(f"{action}:blocked_policy")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── activate_skill ──
             if action == "activate_skill":
-                dep_status = self._ensure_requires_activated(
-                    tick=tick,
-                    t=t,
-                    thread_messages=thread_messages,
-                    skill_name=skill_name,
-                )
-                if not dep_status.get("ok"):
-                    result_obj = {
-                        "action": action,
-                        "skill_name": skill_name,
-                        "ok": False,
-                        "error": "missing required skills",
-                        "missing": dep_status.get("missing", []),
-                    }
-                    history.append(result_obj)
-                    self._append_tool_result_to_thread(
-                        thread_messages, tick, t, result_obj
-                    )
-                    logs.append(f"activate:{skill_name}:blocked_requires")
-                    continue
-
                 activation_raw, activation_parts = self._split_skill_arguments(
                     args.get("arguments", "")
                 )
@@ -2134,6 +1964,10 @@ class PersonAgent(AgentBase):
                             thread_messages, tick, t, result_obj
                         )
                         logs.append(f"activate:{skill_name}:render_failed")
+                        dr = self._take_done_after_tool(decision, logs)
+                        if dr:
+                            end_reason = dr
+                            break
                         continue
                     self._activated_skills.add(skill_name)
                     self._active_skill_scope = skill_name
@@ -2173,8 +2007,9 @@ class PersonAgent(AgentBase):
                 )
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
                 logs.append(f"activate:{skill_name}:{'ok' if ok else 'miss'}")
-                if decision.done:
-                    logs.append(f"done:{decision.summary or 'step_complete'}")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
                     break
                 continue
 
@@ -2221,34 +2056,18 @@ class PersonAgent(AgentBase):
                 )
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
                 logs.append(f"read:{skill_name}:{read_path}:{'ok' if ok else 'miss'}")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── execute_skill ──
             if action == "execute_skill":
-                dep_status = self._ensure_requires_activated(
-                    tick=tick,
-                    t=t,
-                    thread_messages=thread_messages,
-                    skill_name=skill_name,
-                )
-                if not dep_status.get("ok"):
-                    result_obj = {
-                        "action": action,
-                        "skill_name": skill_name,
-                        "ok": False,
-                        "error": "missing required skills",
-                        "missing": dep_status.get("missing", []),
-                    }
-                    history.append(result_obj)
-                    self._append_tool_result_to_thread(
-                        thread_messages, tick, t, result_obj
-                    )
-                    logs.append(f"execute:{skill_name}:blocked_requires")
-                    continue
-
                 payload = self._coerce_llm_dict(args.get("args", {}))
                 payload.setdefault("tick", tick)
                 payload.setdefault("time", t.isoformat())
+                payload.setdefault("agent_id", self.id)
 
                 # WAL: 记录执行意图
                 intent_id = self._wal.log_intent(
@@ -2265,6 +2084,13 @@ class PersonAgent(AgentBase):
                 self._invalidate_all_workspace_cache()
                 self._bump_workspace_state_version()
                 if ok:
+                    added = self._skill_runtime.scan_workspace_custom_skills()
+                    if added:
+                        self._refresh_selectable_skills()
+                        self._invalidate_prompt_cache()
+                        logger.info(
+                            f"Agent {self.id}: discovered custom skills after execute_skill: {added}"
+                        )
                     self._active_skill_scope = skill_name
                 stdout_s = str(out.get("stdout", ""))
                 stderr_s = str(out.get("stderr", ""))
@@ -2294,8 +2120,9 @@ class PersonAgent(AgentBase):
                 )
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
                 logs.append(f"execute:{skill_name}:{'ok' if ok else 'fail'}")
-                if decision.done:
-                    logs.append(f"done:{decision.summary or 'step_complete'}")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
                     break
                 continue
 
@@ -2355,6 +2182,10 @@ class PersonAgent(AgentBase):
                 logs.append(
                     f"workspace_read:{ws_read_path}:{'ok' if result_obj.get('ok') else 'fail'}"
                 )
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── workspace_write ──
@@ -2395,6 +2226,10 @@ class PersonAgent(AgentBase):
                 logs.append(
                     f"workspace_write:{path}:{'ok' if result_obj.get('ok') else 'fail'}"
                 )
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── workspace_list ──
@@ -2425,6 +2260,10 @@ class PersonAgent(AgentBase):
                     logs.append(f"workspace_list:{path}:{result_obj.get('count', 0)}")
                 else:
                     logs.append(f"workspace_list:{path}:fail")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── batch ──
@@ -2441,6 +2280,10 @@ class PersonAgent(AgentBase):
                         thread_messages, tick, t, result_obj
                     )
                     logs.append("batch:empty")
+                    dr = self._take_done_after_tool(decision, logs)
+                    if dr:
+                        end_reason = dr
+                        break
                     continue
 
                 result_obj = await self._handle_batch_tool(
@@ -2457,6 +2300,10 @@ class PersonAgent(AgentBase):
                 logs.append(
                     f"batch:{result_obj.get('total_operations', 0)}:{'ok' if result_obj.get('ok') else 'partial'}"
                 )
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── bash ──
@@ -2493,6 +2340,10 @@ class PersonAgent(AgentBase):
                 )
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
                 logs.append(f"bash:{'ok' if ok else 'fail'}")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── glob ──
@@ -2516,6 +2367,10 @@ class PersonAgent(AgentBase):
                 )
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
                 logs.append(f"glob:{'ok' if result_obj.get('ok') else 'fail'}")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── grep ──
@@ -2540,6 +2395,10 @@ class PersonAgent(AgentBase):
                 )
                 self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
                 logs.append(f"grep:{'ok' if result_obj.get('ok') else 'fail'}")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
+                    break
                 continue
 
             # ── codegen ──
@@ -2577,6 +2436,7 @@ class PersonAgent(AgentBase):
                 logs.append(f"codegen:{'ok' if ok else 'fail'}")
                 if str(out.get("status", "")).lower() == "in_progress":
                     logs.append("done:environment_in_progress")
+                    end_reason = "env_in_progress"
                     break
                 if not ok:
                     loop_result = self._loop_detector.check_error_loop(
@@ -2584,9 +2444,11 @@ class PersonAgent(AgentBase):
                     )
                     if loop_result.is_loop:
                         logs.append(f"loop_detected:{loop_result.loop_type}")
+                        end_reason = "codegen_loop"
                         break
-                if decision.done:
-                    logs.append(f"done:{decision.summary or 'step_complete'}")
+                dr = self._take_done_after_tool(decision, logs)
+                if dr:
+                    end_reason = dr
                     break
                 continue
 
@@ -2610,8 +2472,9 @@ class PersonAgent(AgentBase):
             )
             self._append_tool_result_to_thread(thread_messages, tick, t, result_obj)
             logs.append(f"unsupported:{action}")
-            if decision.done:
-                logs.append(f"done:{decision.summary or 'step_complete'}")
+            dr = self._take_done_after_tool(decision, logs)
+            if dr:
+                end_reason = dr
                 break
 
         duration_ms = int((time.monotonic() - step_start) * 1000)
@@ -2621,6 +2484,7 @@ class PersonAgent(AgentBase):
                 "log_count": len(logs),
                 "tool_count": len(history),
                 "workspace_state_version": self._workspace_state_version,
+                "step_end_reason": end_reason,
             },
             tick=tick,
             trace_id=trace_id,
@@ -2633,7 +2497,7 @@ class PersonAgent(AgentBase):
             },
             duration_ms=duration_ms,
         )
-        return logs, history
+        return logs, history, end_reason
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -2644,26 +2508,7 @@ class PersonAgent(AgentBase):
         :param args: 技能参数。
         :returns: 执行结果字典。
         """
-        # 为 executor: codegen 类型的技能提供回调
-        return await self._skill_runtime.execute(
-            skill_name=skill_name,
-            args=args,
-            codegen_executor=self._codegen_executor,
-        )
-
-    async def _codegen_executor(self, args: dict[str, Any]) -> dict[str, Any]:
-        """执行 codegen 类型技能的回调。
-
-        :param args: 包含 instruction 和 ctx 的参数字典。
-        :returns: codegen 执行结果。
-        """
-        instruction = args.get("instruction", "")
-        ctx = self._coerce_llm_dict(args.get("ctx", {}))
-        return await self._run_codegen(
-            instruction=instruction,
-            ctx=ctx,
-            template_mode=bool(args.get("template_mode", False)),
-        )
+        return await self._skill_runtime.execute(skill_name=skill_name, args=args)
 
     async def step(self, tick: int, t: datetime) -> str:
         """执行一个仿真步并持久化会话状态与回放记录。
@@ -2677,15 +2522,16 @@ class PersonAgent(AgentBase):
 
         :param tick: 当前仿真步时间跨度（秒）。
         :param t: 当前仿真时间。
-        :returns: 工具执行日志拼接字符串；如无操作返回 ``"no-action"``。
+        :returns: 对外可展示的一步结论（``finish``/``done`` 的 summary）；内部工具轨迹写入回放，
+            不再整串拼接进返回值。无有效发言时为 ``[no verbal reply]`` 等占位。
         """
         self._step_count += 1
-        # 每步重新进入自由工具选择，避免上一步 skill 的 allowed-tools 作用域跨步泄漏。
+        # 每步重新进入自由工具选择，避免上一步 active skill scope 跨步泄漏。
         self._active_skill_scope = ""
         self._refresh_selectable_skills()
         pc = self._merged_person_step_constraints()
-        if pc and pc.pin_allowed_tools_to_skill:
-            pin = pc.pin_allowed_tools_to_skill.strip()
+        if pc and pc.pin_active_skill:
+            pin = pc.pin_active_skill.strip()
             if pin and pin in self._all_visible_skill_names():
                 self._active_skill_scope = pin
         self._last_selected_skills = set(self._selectable_skill_names)
@@ -2698,13 +2544,16 @@ class PersonAgent(AgentBase):
         step_timeout = self._config.loop.step_timeout
         try:
             async with asyncio.timeout(step_timeout):
-                logs, tool_history = await self._tool_loop(tick=tick, t=t)
+                logs, tool_history, step_end_reason = await self._tool_loop(
+                    tick=tick, t=t
+                )
         except asyncio.TimeoutError:
             logger.warning(
                 f"PersonAgent {self.id} step timed out after {step_timeout}s"
             )
             logs = [f"step timeout after {step_timeout}s"]
             tool_history = []
+            step_end_reason = "step_timeout"
 
         # 使用 tool loop 结束后的最终技能状态
         self._skill_runtime.persist_session_state(
@@ -2718,6 +2567,7 @@ class PersonAgent(AgentBase):
             t=t,
             selected_skills=self._selectable_skill_names,
             tool_history=tool_history,
+            step_end_reason=step_end_reason,
         )
 
         # 将当前状态写入持久化记忆
@@ -2753,9 +2603,7 @@ class PersonAgent(AgentBase):
             except Exception as e:
                 logger.warning(f"Agent {self.id}: cleanup failed: {e}")
 
-        if not logs:
-            return "no-action"
-        return " | ".join(logs)
+        return self._outward_step_reply(logs, step_end_reason, step_timeout)
 
     async def ask(self, message: str, readonly: bool = True) -> str:
         """通过环境路由器问答（须已 :meth:`init`）。

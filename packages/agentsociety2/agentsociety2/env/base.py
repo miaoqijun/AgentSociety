@@ -72,14 +72,13 @@ _constraints_logger = get_logger()
 
 @dataclass(frozen=True)
 class PersonStepConstraints:
-    """单仿真步内对 PersonAgent 可见技能与工具白名单的约束。
+    """单仿真步内对 PersonAgent 可见技能等约束。
 
-    环境可实现 :meth:`EnvBase.person_step_constraints` 返回本结构；PersonAgent 合并后执行，不绑定单一实验。
+    环境可实现 :meth:`EnvBase.person_step_constraints` 返回本结构；PersonAgent 合并后执行。
     """
 
     hide_skills: frozenset[str] = frozenset()
-    pin_allowed_tools_to_skill: str | None = None
-    forbid_disabling_skills: frozenset[str] = frozenset()
+    pin_active_skill: str | None = None
 
 
 def merge_person_step_constraints(
@@ -87,7 +86,6 @@ def merge_person_step_constraints(
 ) -> PersonStepConstraints | None:
     """合并路由器上所有环境模块返回的约束（并集/冲突检测）。"""
     hide: set[str] = set()
-    forbid: set[str] = set()
     pin: str | None = None
     for m in env_modules or []:
         fn = getattr(m, "person_step_constraints", None)
@@ -97,25 +95,23 @@ def merge_person_step_constraints(
         if c is None:
             continue
         hide.update(c.hide_skills)
-        forbid.update(c.forbid_disabling_skills)
-        if c.pin_allowed_tools_to_skill:
-            p = c.pin_allowed_tools_to_skill.strip()
+        if c.pin_active_skill:
+            p = c.pin_active_skill.strip()
             if not p:
                 continue
             if pin is None:
                 pin = p
             elif pin != p:
                 _constraints_logger.warning(
-                    "person_step_constraints: conflicting pin_allowed_tools_to_skill %r vs %r (using first)",
+                    "person_step_constraints: conflicting pin_active_skill %r vs %r (using first)",
                     pin,
                     p,
                 )
-    if not hide and not forbid and not pin:
+    if not hide and not pin:
         return None
     return PersonStepConstraints(
         hide_skills=frozenset(hide),
-        pin_allowed_tools_to_skill=pin,
-        forbid_disabling_skills=frozenset(forbid),
+        pin_active_skill=pin,
     )
 
 
@@ -534,29 +530,19 @@ It contains no functions or methods.
 
         **Override for Custom Paths:**
 
-        Subclasses can override this method to specify custom skill directories:
+        Subclasses can override this method to specify custom skill directories::
 
-        ```python
-        @classmethod
-        def get_agent_skills_dirs(cls) -> list[Path]:
-            from pathlib import Path
-            # Point to a shared skills directory
-            skills_dir = Path(__file__).parent.parent / "skills"
-            return [skills_dir] if skills_dir.is_dir() else []
-        ```
+            @classmethod
+            def get_agent_skills_dirs(cls) -> list[Path]:
+                from pathlib import Path
+                skills_dir = Path(__file__).parent.parent / "skills"
+                return [skills_dir] if skills_dir.is_dir() else []
 
         **Skill Directory Structure:**
 
-        Each skill directory should contain subdirectories with SKILL.md files:
-
-        ```
-        agent_skills/
-        ├── navigation/
-        │   ├── SKILL.md          # Required: skill definition with YAML frontmatter
-        │   └── scripts/          # Optional: executable scripts
-        └── spatial_reasoning/
-            └── SKILL.md
-        ```
+        Each skill directory should contain subdirectories with SKILL.md files,
+        for example ``agent_skills/navigation/SKILL.md`` and optional
+        ``agent_skills/navigation/scripts/``.
 
         Returns:
             List of Path objects pointing to directories containing skill subdirectories.
@@ -595,10 +581,8 @@ It contains no functions or methods.
 
         **Example:**
 
-        ```python
-        def get_default_skill(self) -> str | None:
-            return "public-goods-experiment"  # Auto-activate experiment skill
-        ```
+        Override to return a skill name, e.g.
+        ``return "public-goods-experiment"`` to auto-activate that skill.
 
         **Note:** The skill must be available (either built-in or discovered via
         :meth:`get_agent_skills_dirs`). If the skill is not found, a warning is logged

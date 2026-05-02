@@ -8,14 +8,14 @@ Main entry point for running Public Goods Game using V2 framework
 import os
 import json
 from collections import defaultdict
-import sys
 import asyncio
 from datetime import datetime
 import logging
 import numpy as np
 
-# Add project root directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 
 # V2 framework imports
 from agentsociety2.env import CodeGenRouter
@@ -29,17 +29,20 @@ os.makedirs("result_public_goods", exist_ok=True)
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("llm_api_log.txt"),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("llm_api_log.txt"), logging.StreamHandler()],
 )
 
 
-def calculate_and_print_statistics(per_game_payoffs, all_game_round_contributions, 
-                                   public_pool_total_contributions_history_per_game,
-                                   agent_names, num_rounds, initial_endowment, save_dir):
+def calculate_and_print_statistics(
+    per_game_payoffs,
+    all_game_round_contributions,
+    public_pool_total_contributions_history_per_game,
+    agent_names,
+    num_rounds,
+    initial_endowment,
+    save_dir,
+):
     """Calculate and print statistics"""
     try:
         # Calculate total payoffs
@@ -57,13 +60,17 @@ def calculate_and_print_statistics(per_game_payoffs, all_game_round_contribution
                 avg_contributions_per_round.append(avg_contrib)
 
         # Calculate overall average contribution
-        overall_avg_contribution = np.mean(avg_contributions_per_round) if avg_contributions_per_round else 0
+        overall_avg_contribution = (
+            np.mean(avg_contributions_per_round) if avg_contributions_per_round else 0
+        )
 
         # Print statistics
         print("\n===== Contribution Statistics =====")
         print(f"Total games: {len(per_game_payoffs)}")
         print(f"Total rounds per game: {num_rounds}")
-        print(f"Overall average contribution per agent per round: {overall_avg_contribution:.2f} coins")
+        print(
+            f"Overall average contribution per agent per round: {overall_avg_contribution:.2f} coins"
+        )
 
         print("\nRound average contributions:")
         for round_num, avg_contrib in enumerate(avg_contributions_per_round, 1):
@@ -77,9 +84,13 @@ def calculate_and_print_statistics(per_game_payoffs, all_game_round_contribution
 
         # Determine cooperation level
         if overall_avg_contribution <= initial_endowment * 0.2:
-            cooperation_level = "Significant free-riding observed (low average contribution)"
+            cooperation_level = (
+                "Significant free-riding observed (low average contribution)"
+            )
         elif overall_avg_contribution >= initial_endowment * 0.8:
-            cooperation_level = "Significant cooperation observed (high average contribution)"
+            cooperation_level = (
+                "Significant cooperation observed (high average contribution)"
+            )
         else:
             cooperation_level = "Moderate contribution or contribution decay observed"
         print(f"\nCooperation Level: {cooperation_level}")
@@ -89,17 +100,19 @@ def calculate_and_print_statistics(per_game_payoffs, all_game_round_contribution
             "total_games": len(per_game_payoffs),
             "total_rounds_per_game": num_rounds,
             "overall_average_contribution_per_agent_per_round": overall_avg_contribution,
-            "round_average_contributions": {i+1: avg for i, avg in enumerate(avg_contributions_per_round)},
+            "round_average_contributions": {
+                i + 1: avg for i, avg in enumerate(avg_contributions_per_round)
+            },
             "total_payoffs": total_payoffs,
             "overall_total_payoff": overall_total,
             "cooperation_level": cooperation_level,
-            "public_pool_total_contributions_history_per_game": public_pool_total_contributions_history_per_game
+            "public_pool_total_contributions_history_per_game": public_pool_total_contributions_history_per_game,
         }
 
         # Save statistics to file
         stats_file_path = os.path.join(save_dir, "statistics.json")
         try:
-            with open(stats_file_path, 'w', encoding='utf-8') as f:
+            with open(stats_file_path, "w", encoding="utf-8") as f:
                 json.dump(statistics, f, indent=2, ensure_ascii=False, default=str)
             logging.info(f"Statistics saved to {stats_file_path}")
         except Exception as e:
@@ -115,7 +128,9 @@ def calculate_and_print_statistics(per_game_payoffs, all_game_round_contribution
 async def main():
     """Main entry point for Public Goods Game using V2 framework"""
     # ------- Create main results directory and current experiment directory -------
-    experiment_time = input("Please enter experiment folder name (e.g., 'PG_v2_test1'): ").strip()
+    experiment_time = input(
+        "Please enter experiment folder name (e.g., 'PG_v2_test1'): "
+    ).strip()
     if not experiment_time:
         experiment_time = datetime.now().strftime("%m%d_%H%M%S_PG_v2")
     base_result_dir = "result_public_goods"
@@ -152,9 +167,15 @@ async def main():
         logging.error(f"Failed to save experiment configuration: {e}")
 
     # ------- Statistical variables -------
-    all_game_round_contributions = defaultdict(list)  # Stores individual contributions from all agents across all rounds and all games
-    per_game_cumulative_payoffs = []  # List of dicts, e.g., [{"Agent A": X, "Agent B": Y, ...}, ...]
-    public_pool_total_contributions_history_per_game = []  # List of lists, each sublist is total contributions per round for one game
+    all_game_round_contributions = defaultdict(
+        list
+    )  # Stores individual contributions from all agents across all rounds and all games
+    per_game_cumulative_payoffs = (
+        []
+    )  # List of dicts, e.g., [{"Agent A": X, "Agent B": Y, ...}, ...]
+    public_pool_total_contributions_history_per_game = (
+        []
+    )  # List of lists, each sublist is total contributions per round for one game
 
     # ------- Game loop -------
     for game_num in range(1, NUM_GAMES + 1):
@@ -165,7 +186,7 @@ async def main():
         env_module = PublicGoodsEnv(
             num_agents=NUM_AGENTS,
             initial_endowment=INITIAL_ENDOWMENT,
-            public_pool_multiplier=PUBLIC_POOL_MULTIPLIER
+            public_pool_multiplier=PUBLIC_POOL_MULTIPLIER,
         )
 
         # Create environment router
@@ -181,7 +202,7 @@ async def main():
                 num_rounds=NUM_ROUNDS,
                 num_agents=NUM_AGENTS,
                 initial_endowment=INITIAL_ENDOWMENT,
-                public_pool_multiplier=PUBLIC_POOL_MULTIPLIER
+                public_pool_multiplier=PUBLIC_POOL_MULTIPLIER,
             )
             agents.append(agent)
 
@@ -190,9 +211,7 @@ async def main():
         society = None
         try:
             society = AgentSociety(
-                agents=agents,
-                env_router=env_router,
-                start_t=start_time
+                agents=agents, env_router=env_router, start_t=start_time
             )
             await society.init()
 
@@ -211,15 +230,18 @@ async def main():
                     # Society.step() will call all agents' step() first, then environment's step()
                     await asyncio.wait_for(
                         society.step(tick=1),  # tick=1 for one round
-                        timeout=300.0  # 5 minute timeout per round
+                        timeout=300.0,  # 5 minute timeout per round
                     )
-                    
+
                     # After step, directly access environment module's round history
                     # This is more reliable than parsing string responses
                     latest_round = None
                     try:
                         # Directly access the environment module's round history
-                        if env_module.round_history and len(env_module.round_history) > 0:
+                        if (
+                            env_module.round_history
+                            and len(env_module.round_history) > 0
+                        ):
                             # Find the round matching current round_num
                             for r in reversed(env_module.round_history):
                                 if r.get("round") == round_num:
@@ -229,10 +251,13 @@ async def main():
                             if latest_round is None:
                                 latest_round = env_module.round_history[-1]
                         else:
-                            logging.warning(f"Game {game_num} Round {round_num}: No round history available")
+                            logging.warning(
+                                f"Game {game_num} Round {round_num}: No round history available"
+                            )
                     except Exception as e:
                         logging.warning(f"Failed to get round history: {e}")
                         import traceback
+
                         traceback.print_exc()
 
                     if latest_round:
@@ -243,7 +268,9 @@ async def main():
                         payoffs = latest_round.get("payoffs", {})
 
                         # Calculate gain per agent
-                        gain_per_agent = public_pool_gain / NUM_AGENTS if NUM_AGENTS > 0 else 0
+                        gain_per_agent = (
+                            public_pool_gain / NUM_AGENTS if NUM_AGENTS > 0 else 0
+                        )
 
                         # Update statistics
                         for agent_name in agent_names:
@@ -266,38 +293,59 @@ async def main():
                             agent_round_data[agent_name] = {
                                 "contribution": contribution,
                                 "payoff": payoff,
-                                "cumulative_payoff": game_cumulative_payoffs[agent_name]
+                                "cumulative_payoff": game_cumulative_payoffs[
+                                    agent_name
+                                ],
                             }
-                            print(f"{agent_name}: Contributed {contribution} coins, gained {payoff:.2f} coins (cumulative: {game_cumulative_payoffs[agent_name]:.2f})")
+                            print(
+                                f"{agent_name}: Contributed {contribution} coins, gained {payoff:.2f} coins (cumulative: {game_cumulative_payoffs[agent_name]:.2f})"
+                            )
 
-                        log_records.append({
-                            "round": round_num,
-                            "total_contribution": total_contribution,
-                            "public_pool_gain": public_pool_gain,
-                            "gain_per_agent": gain_per_agent,
-                            "agents_data": agent_round_data,
-                            "timestamp": datetime.now().isoformat()
-                        })
+                        log_records.append(
+                            {
+                                "round": round_num,
+                                "total_contribution": total_contribution,
+                                "public_pool_gain": public_pool_gain,
+                                "gain_per_agent": gain_per_agent,
+                                "agents_data": agent_round_data,
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                        )
                         print(f"Total contribution: {total_contribution} coins")
                         print(f"Public pool gain: {public_pool_gain:.2f} coins")
-                        print(f"Gain per agent from public pool: {gain_per_agent:.2f} coins")
-                        logging.info(f"Game {game_num} Round {round_num} ended, total contribution: {total_contribution}, public pool gain: {public_pool_gain:.2f}")
+                        print(
+                            f"Gain per agent from public pool: {gain_per_agent:.2f} coins"
+                        )
+                        logging.info(
+                            f"Game {game_num} Round {round_num} ended, total contribution: {total_contribution}, public pool gain: {public_pool_gain:.2f}"
+                        )
                     else:
-                        logging.warning(f"Game {game_num} Round {round_num}: Could not parse round result from history")
+                        logging.warning(
+                            f"Game {game_num} Round {round_num}: Could not parse round result from history"
+                        )
 
                 except asyncio.TimeoutError:
-                    logging.error(f"Game {game_num} Round {round_num} execution timeout")
-                    print(f"[Error] Round {round_num} execution timeout, skipping this round")
+                    logging.error(
+                        f"Game {game_num} Round {round_num} execution timeout"
+                    )
+                    print(
+                        f"[Error] Round {round_num} execution timeout, skipping this round"
+                    )
                     continue
                 except Exception as e:
-                    logging.error(f"Game {game_num} Round {round_num} execution error: {e}")
+                    logging.error(
+                        f"Game {game_num} Round {round_num} execution error: {e}"
+                    )
                     print(f"[Error] Round {round_num} execution error: {str(e)}")
                     import traceback
+
                     traceback.print_exc()
                     continue
 
             # ------- Save each game's logs -------
-            game_log_path = os.path.join(experiment_result_dir, f"game_{game_num}_logs.json")
+            game_log_path = os.path.join(
+                experiment_result_dir, f"game_{game_num}_logs.json"
+            )
             try:
                 with open(game_log_path, "w", encoding="utf-8") as f:
                     json.dump(log_records, f, indent=2, ensure_ascii=False)
@@ -308,13 +356,17 @@ async def main():
             print(f"\nGame {game_num} Summary:")
             print("Final Cumulative Payoffs:")
             for agent_name in agent_names:
-                print(f"  {agent_name}: {game_cumulative_payoffs[agent_name]:.2f} coins")
+                print(
+                    f"  {agent_name}: {game_cumulative_payoffs[agent_name]:.2f} coins"
+                )
             total_game_payoff = sum(game_cumulative_payoffs.values())
             print(f"Total payoff for all agents: {total_game_payoff:.2f} coins")
 
             # Save this game's payoffs
             per_game_cumulative_payoffs.append(dict(game_cumulative_payoffs))
-            public_pool_total_contributions_history_per_game.append(current_game_total_contributions)
+            public_pool_total_contributions_history_per_game.append(
+                current_game_total_contributions
+            )
 
         finally:
             # Clean up
@@ -328,7 +380,7 @@ async def main():
         "per_game_cumulative_payoffs": per_game_cumulative_payoffs,
         "public_pool_total_contributions_history_per_game": public_pool_total_contributions_history_per_game,
         "all_game_round_contributions": dict(all_game_round_contributions),
-        "experiment_time": experiment_time
+        "experiment_time": experiment_time,
     }
 
     overall_results_path = os.path.join(experiment_result_dir, "overall_results.json")
@@ -353,7 +405,7 @@ async def main():
         agent_names,
         NUM_ROUNDS,
         INITIAL_ENDOWMENT,
-        experiment_result_dir
+        experiment_result_dir,
     )
 
     if statistics:
@@ -363,10 +415,12 @@ async def main():
     summary_path = os.path.join(experiment_result_dir, "experiment_summary.json")
     try:
         summary_data = experiment_config.copy()
-        summary_data.update({
-            "per_game_cumulative_payoffs": per_game_cumulative_payoffs,
-            "statistics": statistics
-        })
+        summary_data.update(
+            {
+                "per_game_cumulative_payoffs": per_game_cumulative_payoffs,
+                "statistics": statistics,
+            }
+        )
         with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(summary_data, f, ensure_ascii=False, indent=2)
         logging.info(f"Experiment summary saved to: {summary_path}")
@@ -385,4 +439,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Program error occurred: {e}")
         import traceback
+
         traceback.print_exc()

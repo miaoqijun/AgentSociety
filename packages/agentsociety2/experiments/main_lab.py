@@ -16,6 +16,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 import numpy as np
 
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 load_dotenv()
 
 from agentsociety2.contrib.env.commons_tragedy import CommonsTragedyEnv

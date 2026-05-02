@@ -186,12 +186,12 @@ agent/skills/
 ```
 
 Each skill has:
-- `SKILL.md` — YAML frontmatter (name, description, priority, requires/provides) + behavior docs
-- `scripts/<name>.py` — exports `async def run(agent, ctx)`
+- `SKILL.md` — YAML frontmatter (name, description) + behavior docs
+- `scripts/<name>.py` — optional subprocess script
 
 Skills follow metadata-first selection:
-- selection stage reads compact metadata (name/description/priority/requires/provides)
-- execution stage loads and runs only LLM-selected skills (unselected skills do not run)
+- catalog exposes only name/description until activation
+- execution is tool-loop driven (activate/read/execute)
 
 Custom skills can be placed in `workspace/custom/skills/` and hot-loaded at runtime via the API or VSCode extension.
 

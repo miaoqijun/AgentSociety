@@ -2,8 +2,6 @@
 
 本包提供构建和仿真 LLM 驱动智能体的工具，用于社会科学研究。
 
-注意：CI工作流已更新，ruff检查现为非阻塞以便于发版流程。
-
 主要组件
 --------
 
@@ -47,7 +45,7 @@
         # ... 其他抽象方法
 """
 
-__version__ = "2.1.5"
+__version__ = "2.2.0"
 
 # Import main components for easy access
 from .agent import AgentBase, PersonAgent

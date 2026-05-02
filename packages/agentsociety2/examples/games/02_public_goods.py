@@ -7,6 +7,12 @@ to a public good that benefits everyone.
 This example uses AgentSociety to coordinate multiple agents.
 """
 
+import os
+
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 import asyncio
 import re
 from datetime import datetime

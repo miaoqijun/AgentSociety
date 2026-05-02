@@ -48,8 +48,11 @@ from __future__ import annotations
 import logging
 from collections import deque
 from datetime import datetime, timezone
+from io import StringIO
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Optional
+
+from ruamel.yaml import YAML
 
 from agentsociety2.agent.skills import SkillRegistry
 from agentsociety2.agent.tool import jr_dumps, jr_parse
@@ -206,7 +209,13 @@ class AgentSkillRuntime:
         )
 
     def skill_list(self, names: list[str]) -> list[dict[str, Any]]:
-        return self._registry.list_selection_metadata(names=names, only_enabled=True)
+        return self._registry.list_selection_metadata(names=names)
+
+    def scan_workspace_custom_skills(self) -> list[str]:
+        """扫描当前 agent workspace 下的 custom skills。"""
+        if self._agent_work_dir is None:
+            raise RuntimeError("Agent workspace is not initialized")
+        return self._registry.scan_custom(self._agent_work_dir)
 
     def skill_activate(self, name: str) -> str:
         return self._registry.activate(name)
@@ -218,15 +227,11 @@ class AgentSkillRuntime:
         self,
         skill_name: str,
         args: dict[str, Any],
-        codegen_executor: (
-            Callable[[dict[str, Any]], Awaitable[dict[str, Any]]] | None
-        ) = None,
     ) -> dict[str, Any]:
         """执行某个 skill（转发到 registry）。
 
         :param skill_name: skill 名称。
         :param args: 执行参数（由 skill 脚本/协议自行定义）。
-        :param codegen_executor: 可选。用于把 skill 内部的 codegen 调度回 env 的执行器。
         :returns: 执行结果字典（由 :class:`~agentsociety2.agent.skills.SkillRegistry` 约定）。
         :raises RuntimeError: workspace 未初始化时抛出。
         """
@@ -237,7 +242,6 @@ class AgentSkillRuntime:
             skill_name=skill_name,
             args=args,
             agent_work_dir=work_dir,
-            codegen_executor=codegen_executor,
         )
 
     def persist_session_state(
@@ -288,6 +292,7 @@ class AgentSkillRuntime:
         t: datetime,
         selected_skills: set[str],
         tool_history: list[dict[str, Any]],
+        step_end_reason: str,
     ) -> None:
         """追加 step 回放记录（jsonl）。"""
         if self._agent_work_dir is None:
@@ -299,6 +304,7 @@ class AgentSkillRuntime:
             "time": t.isoformat(),
             "selected_skills": sorted(selected_skills),
             "tool_history": tool_history,
+            "step_end_reason": step_end_reason,
         }
         with replay_path.open("a", encoding="utf-8") as f:
             f.write(jr_dumps(record, indent=None) + "\n")
@@ -387,7 +393,7 @@ class AgentSkillRuntime:
         return messages
 
     def build_workspace_structure_prompt(self) -> str:
-        """构建 workspace 结构说明（Claude/Cursor 风格：极简 + 动态发现）。
+        """构建 workspace 结构说明（极简 + 动态发现）。
 
         不维护复杂的 manifest/registry，只提供目录约定，让 Agent 自己探索。
         状态文件示例从配置或实际文件动态生成。
@@ -488,18 +494,9 @@ class AgentSkillRuntime:
         if content.startswith("---"):
             parts = content.split("---", 2)
             if len(parts) >= 3:
-                try:
-                    from ruamel.yaml import YAML
-
-                    yaml = YAML(typ="safe")
-                    metadata = yaml.load(parts[1]) or {}
-                except Exception as e:
-                    # 不静默回落：记录解析错误，保留 body 以便人工修复
-                    logger.warning("AGENT.md YAML frontmatter parse failed: %s", e)
-                    metadata = {
-                        "_agent_md_parse_error": str(e),
-                        "_agent_md_parse_error_type": type(e).__name__,
-                    }
+                safe_yaml = YAML(typ="safe")
+                loaded = safe_yaml.load(parts[1])
+                metadata = loaded if isinstance(loaded, dict) else {}
                 body = parts[2].strip()
 
         return {"metadata": metadata, "content": body}
@@ -523,9 +520,6 @@ class AgentSkillRuntime:
 
     def _write_agent_context(self, metadata: dict[str, Any], content: str) -> None:
         """写入 AGENT.md 文件。"""
-        from ruamel.yaml import YAML
-        from io import StringIO
-
         yaml = YAML()
         yaml.default_flow_style = False
 

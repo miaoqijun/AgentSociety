@@ -250,21 +250,10 @@ class PromptBuilder:
 
         :return: self。
         """
-        content = """Respond ONLY with valid JSON: {tool_name, arguments, done, summary}.
-- `arguments` must be a JSON object (use {} if no parameters).
-- For execute_skill use arguments.args; for codegen use arguments.ctx.
-- For activate_skill set arguments.skill_name.
-
-# Skills
-The catalog lists name + short description only (progressive disclosure).
-Use `activate_skill` to load full SKILL.md, then follow it.
-
-# Execution Rules
-- Do not invent tools. `tool_name` must match the Tools table.
-- Never set tool_name to a skill name. Use activate_skill.
-- Prefer skill-driven execution: activate -> read/execute -> workspace -> done.
-- Long files: use `workspace_read` with offset/limit for pagination.
-- Keep `summary` concise and factual."""
+        content = """Output only JSON: {tool_name, arguments, done, summary}. arguments is always an object (use {} if empty).
+activate_skill/read_skill/execute_skill: set arguments.skill_name. execute_skill: arguments.args. codegen: arguments.ctx.
+tool_name must be a Tools table row. Skill names never go in tool_name—only in arguments.skill_name with the three skill tools above.
+End the step with finish or done; put any host-visible reply in summary. Large files: workspace_read with offset/limit."""
         return self.add_section("Tool Protocol", content, priority=55, is_static=True)
 
     def add_tools(self, tool_table: str) -> "PromptBuilder":
@@ -450,49 +439,35 @@ class ToolTableBuilder:
     """PersonAgent 工具表的单一数据源（完整版 + 精简版 Markdown）。"""
 
     TOOLS: ClassVar[tuple[tuple[str, str, str], ...]] = (
-        (
-            "activate_skill",
-            "skill_name, arguments",
-            "Load skill instructions (optional args)",
-        ),
-        (
-            "read_skill",
-            "skill_name, path, offset?, limit?",
-            "Read skill file (paginate with offset/limit)",
-        ),
-        ("execute_skill", "skill_name, args", "Run a skill's subprocess script"),
-        ("bash", "command, timeout_sec", "Shell command in workspace"),
-        ("codegen", "instruction, ctx", "Send instruction to the environment"),
-        (
-            "workspace_read",
-            "path, offset?, limit?",
-            "Read workspace file (paginate with offset/limit)",
-        ),
+        ("activate_skill", "skill_name, arguments", "Load SKILL.md"),
+        ("read_skill", "skill_name, path, offset?, limit?", "Read skill file"),
+        ("execute_skill", "skill_name, args", "Run skill script"),
+        ("bash", "command, timeout_sec", "Shell"),
+        ("codegen", "instruction, ctx", "Env instruction"),
+        ("workspace_read", "path, offset?, limit?", "Read workspace file"),
         ("workspace_write", "path, content", "Write file"),
-        ("workspace_list", "path", "List files"),
-        ("glob", "glob, path", "Find files by pattern"),
-        ("grep", "pattern, glob, path", "Search file contents"),
-        ("enable_skill", "skill_name", "Reveal a hidden skill"),
-        ("disable_skill", "skill_name", "Hide a skill"),
-        ("batch", "operations", "Execute multiple operations in one call"),
-        ("done", "(done=true, summary)", "Finish this step"),
+        ("workspace_list", "path", "List dir"),
+        ("glob", "glob, path", "Glob files"),
+        ("grep", "pattern, glob, path", "Grep"),
+        ("batch", "operations", "Batch ops"),
+        ("done", "summary", "End step"),
+        ("finish", "summary", "End step (no op)"),
     )
 
     TOOLS_MINIMAL: ClassVar[tuple[tuple[str, str], ...]] = (
-        ("activate_skill", "Load and activate a skill by name"),
-        ("read_skill", "Read skill documentation files"),
-        ("execute_skill", "Execute skill's subprocess"),
-        ("bash", "Run shell commands"),
-        ("codegen", "Send instructions to simulation environment"),
-        ("workspace_read", "Read files from your workspace"),
-        ("workspace_write", "Write files to your workspace"),
-        ("workspace_list", "List workspace directory contents"),
-        ("glob", "Find files by pattern"),
-        ("grep", "Search file contents"),
-        ("enable_skill", "Make a hidden skill visible"),
-        ("disable_skill", "Hide a skill from catalog"),
-        ("batch", "Execute multiple operations together"),
-        ("done", "Finish this simulation step"),
+        ("activate_skill", "Activate skill"),
+        ("read_skill", "Read skill file"),
+        ("execute_skill", "Run skill"),
+        ("bash", "Shell"),
+        ("codegen", "Env codegen"),
+        ("workspace_read", "Read file"),
+        ("workspace_write", "Write file"),
+        ("workspace_list", "List dir"),
+        ("glob", "Glob"),
+        ("grep", "Grep"),
+        ("batch", "Batch"),
+        ("done", "End step"),
+        ("finish", "End step"),
     )
 
     @classmethod

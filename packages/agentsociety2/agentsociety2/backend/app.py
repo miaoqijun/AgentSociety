@@ -28,7 +28,14 @@ from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from pathlib import Path
 
-from agentsociety2.backend.routers import prefill_params, experiments, replay, custom, modules, agent_skills
+from agentsociety2.backend.routers import (
+    prefill_params,
+    experiments,
+    replay,
+    custom,
+    modules,
+    agent_skills,
+)
 
 # 加载环境变量
 _project_root = Path(__file__).resolve().parents[2]
@@ -89,7 +96,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Social Scientist Backend API",
     description="Backend API service for AI Social Scientist VSCode extension",
-    version="2.0.0",
+    version="2.2.0",
     lifespan=lifespan,
 )
 
@@ -116,7 +123,7 @@ async def root():
     """:returns: 后端服务基本信息与 endpoints 列表。"""
     return {
         "service": "AI Social Scientist Backend API",
-        "version": "2.0.0",
+        "version": "2.2.0",
         "status": "running",
         "endpoints": {
             "prefill_params": "/api/v1/prefill-params",

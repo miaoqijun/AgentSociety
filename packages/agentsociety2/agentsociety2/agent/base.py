@@ -691,6 +691,7 @@ Remember: You are simulating a real person living in a simulated world. Your beh
         base_delay: float = 1.0,
         max_delay: float = 60.0,
         error_feedback_prompt: str | None = None,
+        litellm_timeout: float | None = None,
     ) -> T:
         """发送补全请求并验证响应是否符合 Pydantic 模型。
 
@@ -712,6 +713,7 @@ Remember: You are simulating a real person living in a simulated world. Your beh
         :param max_delay: 指数退避的最大延迟秒数（默认 60.0）。
         :param error_feedback_prompt: 可选的自定义错误反馈提示模板。
             如为 None，将使用默认提示模板。模板应包含 ``{error_message}`` 占位符。
+        :param litellm_timeout: 传给 litellm 的单次 HTTP 超时（秒）；``None`` 表示不设置。
 
         :returns: 验证通过的 Pydantic 模型实例。
         :raises ValueError: 响应无法解析，或在所有重试后仍验证失败。
@@ -758,11 +760,14 @@ Your corrected response:
                 ] + conversation_messages.copy()
 
                 # Send request to LLM
-                response = await self._router.acompletion(
-                    model=self._model_name,
-                    messages=request_messages,  # type: ignore
-                    stream=False,
-                )
+                _kwargs: dict[str, Any] = {
+                    "model": self._model_name,
+                    "messages": request_messages,  # type: ignore
+                    "stream": False,
+                }
+                if litellm_timeout is not None:
+                    _kwargs["timeout"] = litellm_timeout
+                response = await self._router.acompletion(**_kwargs)
 
                 self._record_token_usage(response)
                 # Record interaction history

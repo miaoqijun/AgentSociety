@@ -5,6 +5,12 @@ This example shows how to create a custom agent by inheriting from AgentBase.
 Custom agents can then be used with AgentSociety for coordinated experiments.
 """
 
+import os
+
+# Disable telemetry before any imports
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
 import asyncio
 from datetime import datetime
 from agentsociety2.agent import AgentBase
