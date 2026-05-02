@@ -5,9 +5,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.0.0\n"
+"Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-05 23:36+0800\n"
+"POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-05 23:55+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -16,155 +16,363 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: ../../storage.rst:2
 msgid "存储和回放系统"
 msgstr "Storage and Replay System"
 
 #: ../../storage.rst:4
-msgid "ReplayWriter 系统提供智能体-环境交互的跟踪，用于实验分析。"
-msgstr "The ReplayWriter system provides tracking of agent-environment interactions for experiment analysis."
+msgid "AgentSociety 2 目前有两条持久化路径："
+msgstr ""
+
+#: ../../storage.rst:6
+msgid "**ReplayWriter / SQLite**: 用于环境模块回放数据和 replay catalog 元数据。"
+msgstr ""
 
 #: ../../storage.rst:7
+msgid "**PersonAgent workspace**: 用于每个 agent 的本地工作目录和会话文件。"
+msgstr ""
+
+#: ../../storage.rst:9
+msgid ""
+"其中，``ReplayWriter`` 不再为新实验写入 ``agent_profile``、``agent_status``、 "
+"``agent_dialog`` 这三张 agent 框架表；这些旧表仅用于兼容读取历史实验数据库。"
+msgstr ""
+
+#: ../../storage.rst:13
 msgid "概述"
 msgstr "Overview"
 
-#: ../../storage.rst:9
-msgid "AgentSociety 2 包含一个基于 SQLite 的存储系统，用于捕获："
-msgstr "AgentSociety 2 includes a SQLite-based storage system for capturing:"
-
-#: ../../storage.rst:11
-msgid "**智能体配置文件**: 静态特征和个性特征"
-msgstr "**Agent Profiles**: Static characteristics and personality traits"
-
-#: ../../storage.rst:12
-msgid "**智能体状态**: 模拟期间更新的动态状态"
-msgstr "**Agent Status**: Dynamic state updated during simulation"
-
-#: ../../storage.rst:14
-msgid "**自定义表**: 特定于模块的数据"
-msgstr "**Custom Tables**: Module-specific data"
+#: ../../storage.rst:15
+msgid "``ReplayWriter`` 负责以下内容："
+msgstr ""
 
 #: ../../storage.rst:17
-msgid "基本使用"
-msgstr "Basic Usage"
+msgid "replay catalog 表："
+msgstr ""
 
 #: ../../storage.rst:19
-msgid "**启用回放跟踪：**"
-msgstr "**Enable Replay Tracking:**"
+msgid "``replay_dataset_catalog``"
+msgstr ""
 
-#: ../../storage.rst:57
-msgid "**读取数据：**"
-msgstr "**Read Data:**"
+#: ../../storage.rst:20
+msgid "``replay_column_catalog``"
+msgstr ""
 
-#: ../../storage.rst:77
-msgid "框架表"
-msgstr "Framework Tables"
+#: ../../storage.rst:22
+msgid "环境模块注册的动态 replay 表"
+msgstr ""
 
-#: ../../storage.rst:80
-msgid "AgentProfile"
-msgstr "AgentProfile"
+#: ../../storage.rst:23
+msgid "这些表的行级写入与批量写入"
+msgstr ""
 
-#: ../../storage.rst:82
-msgid "存储静态智能体特征："
-msgstr "Stores static agent characteristics:"
+#: ../../storage.rst:25
+msgid "``PersonAgent`` 本地工作目录通常位于 ``<run_dir>/agents/agent_0001/``，常见文件包括："
+msgstr ""
 
-#: ../../storage.rst:84
-#: ../../storage.rst:94
-#: ../../storage.rst:106
-msgid "**字段：**"
-msgstr "**Fields:**"
+#: ../../storage.rst:27
+msgid "``agent_config.json``"
+msgstr ""
 
-#: ../../storage.rst:86
-#: ../../storage.rst:96
-msgid "``agent_id`` (int): 唯一的智能体标识符"
-msgstr "``agent_id`` (int): Unique agent identifier"
+#: ../../storage.rst:28
+msgid "``init_state.json``"
+msgstr ""
 
-#: ../../storage.rst:87
-msgid "``profile`` (dict): JSON 编码的配置文件数据（姓名、个性等）"
-msgstr "``profile`` (dict): JSON-encoded profile data (name, personality, etc.)"
+#: ../../storage.rst:29
+msgid "``session_state.json``"
+msgstr ""
 
-#: ../../storage.rst:90
-msgid "AgentStatus"
-msgstr "AgentStatus"
+#: ../../storage.rst:30
+msgid "``session_state_history.jsonl``"
+msgstr ""
 
-#: ../../storage.rst:92
-msgid "存储动态智能体状态："
-msgstr "Stores dynamic agent state:"
+#: ../../storage.rst:31
+msgid "``step_replay.jsonl``"
+msgstr ""
 
-#: ../../storage.rst:97
-msgid "``status`` (str): 当前状态（``\"active\"``、``\"inactive\"`` 等）"
-msgstr "``status`` (str): Current status (``\"active\"``, ``\"inactive\"``, etc.)"
+#: ../../storage.rst:32
+msgid "``tool_calls.jsonl``"
+msgstr ""
 
-#: ../../storage.rst:98
-msgid "``current_activity`` (str): 当前活动的文本描述"
-msgstr "``current_activity`` (str): Text description of current activity"
+#: ../../storage.rst:33
+msgid "``thread_messages.jsonl``"
+msgstr ""
 
-#: ../../storage.rst:99
-msgid "``step_count`` (int): 已完成的模拟步数"
-msgstr "``step_count`` (int): Number of simulation steps completed"
-
-#: ../../storage.rst:108
-msgid "``agent_id`` (int): 生成此对话的智能体"
-msgstr "``agent_id`` (int): Agent that generated this dialog"
-
-#: ../../storage.rst:109
-msgid "``question`` (str): 对智能体或 LLM 的输入/问题"
-msgstr "``question`` (str): Input/question to the agent or LLM"
-
-#: ../../storage.rst:110
-msgid "``answer`` (str): 响应"
-msgstr "``answer`` (str): Response"
-
-#: ../../storage.rst:111
-msgid "``dialog_type`` (int): 对话类型 * ``0``: 反思（智能体的内部推理） * ``1``: 干预（环境修改）"
-msgstr "``dialog_type`` (int): Dialog type * ``0``: Reflection (agent's internal reasoning) * ``1``: Intervention (environment modification)"
-
-#: ../../storage.rst:114
-msgid "``step`` (int): 发生此事件的模拟步骤"
-msgstr "``step`` (int): Simulation step when this event occurred"
-
-#: ../../storage.rst:115
-msgid "``timestamp`` (str): ISO 格式的时间戳"
-msgstr "``timestamp`` (str): Timestamp in ISO format"
-
-#: ../../storage.rst:118
-msgid "自定义表"
-msgstr "Custom Tables"
-
-#: ../../storage.rst:120
-msgid "环境模块可以注册自定义表："
-msgstr "Environment modules can register custom tables:"
-
-#: ../../storage.rst:122
-msgid "**注册自定义表：**"
-msgstr "**Register Custom Tables:**"
-
-#: ../../storage.rst:140
-msgid "**写入自定义表：**"
-msgstr "**Write to Custom Tables:**"
-
-#: ../../storage.rst:153
-msgid "**从自定义表读取：**"
-msgstr "**Read from Custom Tables:**"
-
-#: ../../storage.rst:165
-msgid "数据导出"
-msgstr "Data Export"
-
-#: ../../storage.rst:167
-msgid "**导出到 Pandas：**"
-msgstr "**Export to Pandas:**"
-
-#: ../../storage.rst:181
-msgid "**导出到 CSV：**"
-msgstr "**Export to CSV:**"
-
-#: ../../storage.rst:201
+#: ../../storage.rst:36
 msgid "存储架构"
 msgstr "Storage Architecture"
 
-#: ../../storage.rst:254
+#: ../../storage.rst:78
 msgid "数据写入流程"
 msgstr "Data Write Flow"
+
+#: ../../storage.rst:103
+msgid "基本使用"
+msgstr "Basic Usage"
+
+#: ../../storage.rst:105
+#, fuzzy
+msgid "**启用环境回放：**"
+msgstr "**Enable Replay Tracking:**"
+
+#: ../../storage.rst:142
+msgid "**查看 replay catalog：**"
+msgstr ""
+
+#: ../../storage.rst:148
+msgid "**查看某个环境表：**"
+msgstr ""
+
+#: ../../storage.rst:155
+msgid "Replay catalog"
+msgstr ""
+
+#: ../../storage.rst:157
+msgid "``ReplayWriter`` 会自动维护两张 catalog 表："
+msgstr ""
+
+#: ../../storage.rst:159
+msgid "``replay_dataset_catalog``: 记录每个 dataset 的表名、模块名、kind、capabilities、排序键等"
+msgstr ""
+
+#: ../../storage.rst:160
+msgid "``replay_column_catalog``: 记录每一列的 sqlite 类型、逻辑类型、分析角色、描述等"
+msgstr ""
+
+#: ../../storage.rst:162
+msgid "这两张表是 replay API 和后续分析的入口，推荐优先读取它们来发现当前实验实际生成了哪些数据表。"
+msgstr ""
+
+#: ../../storage.rst:165
+msgid "自定义表"
+msgstr "Custom Tables"
+
+#: ../../storage.rst:167
+#, fuzzy
+msgid "环境模块可以注册自定义 replay 表："
+msgstr "Environment modules can register custom tables:"
+
+#: ../../storage.rst:169
+msgid "**注册自定义表：**"
+msgstr "**Register Custom Tables:**"
+
+#: ../../storage.rst:189
+msgid "**注册 dataset 元数据：**"
+msgstr ""
+
+#: ../../storage.rst:212
+msgid "**写入自定义表：**"
+msgstr "**Write to Custom Tables:**"
+
+#: ../../storage.rst:235
+msgid "读取与导出"
+msgstr ""
+
+#: ../../storage.rst:237
+msgid "``ReplayWriter`` 当前是写入器，不提供通用 ``read()`` 接口。读取 replay 数据有两种推荐方式："
+msgstr ""
+
+#: ../../storage.rst:239
+msgid "**方式 1：通过后端 replay API**"
+msgstr ""
+
+#: ../../storage.rst:246
+msgid "**方式 2：直接查询 SQLite**"
+msgstr ""
+
+#: ../../storage.rst:260
+msgid "PersonAgent workspace"
+msgstr ""
+
+#: ../../storage.rst:262
+msgid "``PersonAgent`` 不会把自身 step 状态写入 SQLite replay 表。它会把本地状态写到 workspace："
+msgstr ""
+
+#: ../../storage.rst:264
+msgid "``agent_config.json``: 能力参数、init state、技能可见性覆盖、已激活技能"
+msgstr ""
+
+#: ../../storage.rst:265
+msgid "``session_state.json``: 最近一次 step 的可见技能与激活技能"
+msgstr ""
+
+#: ../../storage.rst:266
+msgid "``session_state_history.jsonl``: 会话状态时间线"
+msgstr ""
+
+#: ../../storage.rst:267
+msgid "``step_replay.jsonl``: 每个 step 的工具历史"
+msgstr ""
+
+#: ../../storage.rst:268
+msgid "``tool_calls.jsonl``: 工具调用日志"
+msgstr ""
+
+#: ../../storage.rst:269
+msgid "``thread_messages.jsonl``: 最近 thread 消息"
+msgstr ""
+
+#: ../../storage.rst:270
+msgid "``AGENT_CONTEXT.md``: 动态维护的上下文文件（身份、状态摘要、最近事件）"
+msgstr ""
+
+#: ../../storage.rst:271
+msgid "``AGENT_FILES.md``: 工作区文件清单（每 10 步自动更新）"
+msgstr ""
+
+#: ../../storage.rst:273
+msgid "**状态文件 (state/)**："
+msgstr ""
+
+#: ../../storage.rst:275
+msgid "内置状态文件通过配置定义，支持用户扩展："
+msgstr ""
+
+#: ../../storage.rst:277
+msgid "``emotion.json``: 情绪状态"
+msgstr ""
+
+#: ../../storage.rst:278
+msgid "``intention.json``: 意图状态"
+msgstr ""
+
+#: ../../storage.rst:279
+msgid "``needs.json``: 需求状态"
+msgstr ""
+
+#: ../../storage.rst:280
+msgid "``plan_state.json``: 规划状态"
+msgstr ""
+
+#: ../../storage.rst:281
+msgid "用户自定义: 任何 ``state/*.json`` 文件都会被自动发现"
+msgstr ""
+
+#: ../../storage.rst:283
+msgid "**WAL (Write-Ahead Log)**："
+msgstr ""
+
+#: ../../storage.rst:285
+msgid "``wal/wal.jsonl``: 操作日志（追加写入，内存索引）"
+msgstr ""
+
+#: ../../storage.rst:286
+msgid "``wal/index.json``: 操作索引"
+msgstr ""
+
+#: ../../storage.rst:288
+msgid "这些文件适合调试 agent 行为、恢复 thread 上下文、检查技能执行过程。"
+msgstr ""
+
+#: ../../storage.rst:291
+msgid "历史兼容说明"
+msgstr ""
+
+#: ../../storage.rst:293
+msgid "旧版本实验可能仍然包含 ``agent_profile``、``agent_status``、``agent_dialog`` 三张表。"
+msgstr ""
+
+#: ../../storage.rst:295
+msgid "新实验不会再写入这些表"
+msgstr ""
+
+#: ../../storage.rst:296
+msgid "后端 replay API 仍会在读取旧数据库时兼容它们"
+msgstr ""
+
+#: ../../storage.rst:297
+msgid "若旧表不存在，replay API 会优先从具备 ``agent_snapshot`` capability 的动态 dataset 回退读取"
+msgstr ""
+
+#~ msgid "ReplayWriter 系统提供智能体-环境交互的跟踪，用于实验分析。"
+#~ msgstr ""
+#~ "The ReplayWriter system provides tracking "
+#~ "of agent-environment interactions for "
+#~ "experiment analysis."
+
+#~ msgid "AgentSociety 2 包含一个基于 SQLite 的存储系统，用于捕获："
+#~ msgstr "AgentSociety 2 includes a SQLite-based storage system for capturing:"
+
+#~ msgid "**智能体配置文件**: 静态特征和个性特征"
+#~ msgstr "**Agent Profiles**: Static characteristics and personality traits"
+
+#~ msgid "**智能体状态**: 模拟期间更新的动态状态"
+#~ msgstr "**Agent Status**: Dynamic state updated during simulation"
+
+#~ msgid "**自定义表**: 特定于模块的数据"
+#~ msgstr "**Custom Tables**: Module-specific data"
+
+#~ msgid "**读取数据：**"
+#~ msgstr "**Read Data:**"
+
+#~ msgid "框架表"
+#~ msgstr "Framework Tables"
+
+#~ msgid "AgentProfile"
+#~ msgstr "AgentProfile"
+
+#~ msgid "存储静态智能体特征："
+#~ msgstr "Stores static agent characteristics:"
+
+#~ msgid "**字段：**"
+#~ msgstr "**Fields:**"
+
+#~ msgid "``agent_id`` (int): 唯一的智能体标识符"
+#~ msgstr "``agent_id`` (int): Unique agent identifier"
+
+#~ msgid "``profile`` (dict): JSON 编码的配置文件数据（姓名、个性等）"
+#~ msgstr "``profile`` (dict): JSON-encoded profile data (name, personality, etc.)"
+
+#~ msgid "AgentStatus"
+#~ msgstr "AgentStatus"
+
+#~ msgid "存储动态智能体状态："
+#~ msgstr "Stores dynamic agent state:"
+
+#~ msgid "``status`` (str): 当前状态（``\"active\"``、``\"inactive\"`` 等）"
+#~ msgstr ""
+#~ "``status`` (str): Current status "
+#~ "(``\"active\"``, ``\"inactive\"``, etc.)"
+
+#~ msgid "``current_activity`` (str): 当前活动的文本描述"
+#~ msgstr "``current_activity`` (str): Text description of current activity"
+
+#~ msgid "``step_count`` (int): 已完成的模拟步数"
+#~ msgstr "``step_count`` (int): Number of simulation steps completed"
+
+#~ msgid "``agent_id`` (int): 生成此对话的智能体"
+#~ msgstr "``agent_id`` (int): Agent that generated this dialog"
+
+#~ msgid "``question`` (str): 对智能体或 LLM 的输入/问题"
+#~ msgstr "``question`` (str): Input/question to the agent or LLM"
+
+#~ msgid "``answer`` (str): 响应"
+#~ msgstr "``answer`` (str): Response"
+
+#~ msgid "``dialog_type`` (int): 对话类型 * ``0``: 反思（智能体的内部推理） * ``1``: 干预（环境修改）"
+#~ msgstr ""
+#~ "``dialog_type`` (int): Dialog type * "
+#~ "``0``: Reflection (agent's internal reasoning)"
+#~ " * ``1``: Intervention (environment "
+#~ "modification)"
+
+#~ msgid "``step`` (int): 发生此事件的模拟步骤"
+#~ msgstr "``step`` (int): Simulation step when this event occurred"
+
+#~ msgid "``timestamp`` (str): ISO 格式的时间戳"
+#~ msgstr "``timestamp`` (str): Timestamp in ISO format"
+
+#~ msgid "**从自定义表读取：**"
+#~ msgstr "**Read from Custom Tables:**"
+
+#~ msgid "数据导出"
+#~ msgstr "Data Export"
+
+#~ msgid "**导出到 Pandas：**"
+#~ msgstr "**Export to Pandas:**"
+
+#~ msgid "**导出到 CSV：**"
+#~ msgstr "**Export to CSV:**"
+

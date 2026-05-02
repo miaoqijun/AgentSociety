@@ -9,19 +9,19 @@ Agent Skills 是 PersonAgent 的能力插件系统。PersonAgent 本身是轻量
 
 当前实现采用两条核心原则：
 
-1. **Metadata-first**：选择阶段只读取技能元数据，不加载完整内容。
-2. **Selected-only**：每步只执行 LLM 选中的技能，不存在固定 always/dynamic/finalize 层。
+1. **Metadata-first**：选择阶段只暴露 ``name`` + ``description``，不加载完整正文。
+2. **Tool-loop**：每步由模型在工具循环里 ``activate_skill`` / ``read_skill`` / ``execute_skill``，无固定 pipeline 层级。
 
-这意味着：技能是否执行由当前上下文决定，而不是由“预设层级”决定。
+这意味着：技能是否执行由当前上下文与模型选择决定。
 
 
 设计目标
 ---------
 
 * **按需加载**：降低每步不必要的加载与执行开销。
-* **可解释选择**：选择依据来自 SKILL.md 元数据，便于调试与治理。
+* **可解释选择**：选择依据来自 catalog 中的简短描述，便于调试与治理。
 * **热更新友好**：支持运行时扫描、导入、启用/禁用与重载。
-* **依赖可控**：用 requires 声明依赖，避免硬编码耦合。
+* **依赖在文档中说明**：需要其它 skill 时在 SKILL.md 正文写明，由模型按需激活。
 
 
 Skill 目录结构
@@ -64,8 +64,6 @@ SKILL.md 格式
    ---
    name: cognition
    description: Update emotions and form intentions from current context
-   requires:
-     - observation
    ---
 
    # Cognition Skill
@@ -83,18 +81,8 @@ SKILL.md 格式
      - Skill 名称（唯一标识）。
    * - ``description``
      - 给选择器看的功能描述，尽量具体、可判别。
-   * - ``inputs``
-     - 可选，依赖的输入文件列表（如 ``["state/emotion.json"]``）。
-   * - ``outputs``
-     - 可选，输出的文件列表（如 ``["memory/episodic.json"]``）。
-   * - ``script``
-     - 可选，脚本路径（如 ``scripts/main.py``）。
-   * - ``executor``
-     - 可选，执行器类型（如 ``codegen``）。
-   * - ``disable_model_invocation``
-     - 可选，是否禁用模型调用。
-   * - ``requires``
-     - 依赖的其他 skill 名称列表。
+
+可选：包内技能可通过约定 ``scripts/<name>.py`` 提供子进程脚本；框架不在 frontmatter 中解析 ``priority`` / ``requires`` / ``inputs`` / ``outputs`` 等扩展字段。
 
 
 每步执行流程
@@ -102,37 +90,15 @@ SKILL.md 格式
 
 PersonAgent.step() 的流程如下：
 
-1. 注入 L0 技能目录（metadata）+ 工作区状态 + 最近工具历史。
+1. 注入技能 catalog（仅 ``name`` + ``description``）+ 工作区状态 + 最近工具历史。
 2. 进入 tool-loop：模型每轮选择一个工具调用（activate/read/execute/workspace_* 等）。
-3. 当调用某个 skill 时：
-   - 运行时会按需加载 SKILL.md（L1）与 skill 目录文件（L2）。
-   - 若 skill 声明 ``requires``，运行时会自动激活其依赖；缺依赖则拒绝调用并返回 missing 列表。
+3. 当调用某个 skill 时，运行时会按需加载完整 SKILL.md 与 skill 目录下的文件。
 4. 达到 done 或轮次上限后结束本 step，并持久化最小会话状态与工具历史。
 
 关键点：
 
-* **技能是能力目录 + 行为规范 +（可选）子进程脚本**，而不是框架内 pipeline。
-* **L0/L1/L2 渐进披露** 用于减少上下文负担。
-* **requires 是运行时行为** （自动补齐依赖/缺依赖阻止），而不是仅展示字段。
-
-
-依赖管理
-----------
-
-使用 ``requires`` 声明依赖的其他 skill 名称：
-
-.. code-block:: yaml
-
-   ---
-   name: cognition
-   requires:
-     - observation
-   ---
-
-推荐实践：
-
-* 用 ``requires`` 明确最小前置条件。
-* 保持 ``description`` 可操作，避免”泛描述”。
+* **技能** 由能力目录、行为规范与可选子进程脚本组成，而不是框架内固定顺序的 pipeline。
+* **渐进披露**：先暴露 catalog，激活后再注入全文，用于减少上下文负担。
 
 
 Memory 语义
@@ -153,8 +119,6 @@ Memory 语义
 后端提供 Agent Skills 管理接口（前缀 ``/api/v1/agent-skills``）：
 
 * ``GET /list``：列出技能（builtin + custom）
-* ``POST /enable``：启用技能
-* ``POST /disable``：禁用技能
 * ``POST /scan``：扫描 ``{workspace}/custom/skills``
 * ``POST /import``：从外部目录导入技能
 * ``POST /reload``：热重载单个技能
@@ -183,9 +147,6 @@ Memory 语义
    ---
    name: hello_skill
    description: Add a short greeting into step log
-   inputs: []
-   outputs: []
-   requires: []
    ---
 
 ``scripts/hello_skill.py``：
@@ -216,7 +177,7 @@ Memory 语义
 ---------
 
 1. ``description`` 写成”触发条件 + 输出结果”，便于选择器判断。
-2. ``requires`` 只声明必要依赖，避免过度耦合。
+2. 若依赖其它 skill，在正文写清并引导先 ``activate_skill``。
 3. Skill 代码尽量幂等，避免重复执行造成状态污染。
 4. 对关键技能保留清晰日志，便于复盘每步选择与执行。
 

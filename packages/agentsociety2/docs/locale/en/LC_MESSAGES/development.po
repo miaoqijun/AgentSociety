@@ -1,22 +1,23 @@
 # English translations for AgentSociety 2 package.
 # Copyright (C) 2026, FIBLAB
-# This file is distributed under the same license as the AgentSociety 2 package.
+# This file is distributed under the same license as the AgentSociety 2
+# package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.0.0\n"
+"Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-05 23:36+0800\n"
+"POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
 "Language-Team: en <LL@li.org>\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: ../../development.rst:2
 msgid "开发指南"
@@ -67,65 +68,131 @@ msgid "项目结构"
 msgstr "Project Structure"
 
 #: ../../development.rst:89
-msgid "贡献"
-msgstr "Contributing"
-
-#: ../../development.rst:91
-msgid "请参阅 :doc:`contributing` 了解贡献指南。"
-msgstr "Please see :doc:`contributing` for contribution guidelines."
-
-#: ../../development.rst:94
-msgid "构建文档"
-msgstr "Build Documentation"
-
-#: ../../development.rst:101
-msgid "构建的文档将位于 ``_build/html/``。"
-msgstr "Built documentation will be in ``_build/html/``."
-
-#: ../../development.rst:103
-msgid "要在编辑时进行实时预览："
-msgstr "For live preview while editing:"
-
-#: ../../development.rst:110
-msgid "发布流程"
-msgstr "Release Process"
-
-#: ../../development.rst:112
-msgid "更新 ``pyproject.toml`` 中的版本"
-msgstr "Update version in ``pyproject.toml``"
-
-#: ../../development.rst:113
-msgid "更新 ``CHANGELOG.md``"
-msgstr "Update ``CHANGELOG.md``"
-
-#: ../../development.rst:114
-msgid "提交更改"
-msgstr "Commit changes"
-
-#: ../../development.rst:115
-msgid "创建标签：``git tag agentsociety2-vX.Y.Z``"
-msgstr "Create tag: ``git tag agentsociety2-vX.Y.Z``"
-
-#: ../../development.rst:116
-msgid "推送：``git push --tags``"
-msgstr "Push: ``git push --tags``"
-
-#: ../../development.rst:117
-msgid "GitHub Actions 将构建并发布到 PyPI"
-msgstr "GitHub Actions will build and publish to PyPI"
-
-#: ../../development.rst:70
 msgid "研究技能模块"
 msgstr "Research Skills Module"
 
-#: ../../development.rst:80
-msgid "设计器模块"
-msgstr "Designer Module"
+#: ../../development.rst:91
+msgid "``skills/`` 模块提供 LLM 原生的研究工作流："
+msgstr ""
 
-#: ../../development.rst:88
+#: ../../development.rst:93
+msgid "**literature**: 学术文献搜索和管理"
+msgstr ""
+
+#: ../../development.rst:94
+msgid "**experiment**: 实验配置和执行"
+msgstr ""
+
+#: ../../development.rst:95
+msgid "**hypothesis**: 假设生成和管理"
+msgstr ""
+
+#: ../../development.rst:96
+msgid "**web_research**: 使用 Miro 进行网络研究"
+msgstr ""
+
+#: ../../development.rst:97
+msgid "**paper**: 使用 EasyPaper 生成学术论文"
+msgstr ""
+
+#: ../../development.rst:98
+msgid "**analysis**: 数据分析和报告"
+msgstr ""
+
+#: ../../development.rst:99
+msgid "**agent**: 智能体处理、选择、生成和过滤"
+msgstr ""
+
+#: ../../development.rst:102
 msgid "后端 API"
 msgstr "Backend API"
 
-#: ../../development.rst:96
+#: ../../development.rst:104
+msgid "``backend/`` 模块提供 FastAPI REST API："
+msgstr ""
+
+#: ../../development.rst:106
+msgid ""
+"**Routers**: * ``/api/v1/experiments`` - 实验管理 * ``/api/v1/modules`` - "
+"模块管理 * ``/api/v1/replay`` - 回放数据访问 * ``/api/v1/custom`` - 自定义模块注册"
+msgstr ""
+
+#: ../../development.rst:112
+msgid "**Service Layer**: 业务逻辑层"
+msgstr ""
+
+#: ../../development.rst:114
+msgid "启动后端："
+msgstr ""
+
+#: ../../development.rst:123
 msgid "日志系统"
 msgstr "Logging System"
+
+#: ../../development.rst:125
+msgid "增强的日志系统支持："
+msgstr ""
+
+#: ../../development.rst:127
+msgid "**彩色控制台输出**: 按日志级别着色"
+msgstr ""
+
+#: ../../development.rst:128
+msgid "**文件日志**: 使用 ``add_file_handler()`` 写入日志文件"
+msgstr ""
+
+#: ../../development.rst:129
+msgid "**LiteLLM 集成**: 自定义回调日志记录 LLM 调用"
+msgstr ""
+
+#: ../../development.rst:145
+msgid "贡献"
+msgstr "Contributing"
+
+#: ../../development.rst:147
+msgid "请参阅 :doc:`contributing` 了解贡献指南。"
+msgstr "Please see :doc:`contributing` for contribution guidelines."
+
+#: ../../development.rst:150
+msgid "构建文档"
+msgstr "Build Documentation"
+
+#: ../../development.rst:157
+msgid "构建的文档将位于 ``_build/html/``。"
+msgstr "Built documentation will be in ``_build/html/``."
+
+#: ../../development.rst:159
+msgid "要在编辑时进行实时预览："
+msgstr "For live preview while editing:"
+
+#: ../../development.rst:166
+msgid "发布流程"
+msgstr "Release Process"
+
+#: ../../development.rst:168
+msgid "更新 ``pyproject.toml`` 中的版本"
+msgstr "Update version in ``pyproject.toml``"
+
+#: ../../development.rst:169
+msgid "更新 ``CHANGELOG.md``"
+msgstr "Update ``CHANGELOG.md``"
+
+#: ../../development.rst:170
+msgid "提交更改"
+msgstr "Commit changes"
+
+#: ../../development.rst:171
+msgid "创建标签：``git tag agentsociety2-vX.Y.Z``"
+msgstr "Create tag: ``git tag agentsociety2-vX.Y.Z``"
+
+#: ../../development.rst:172
+msgid "推送：``git push --tags``"
+msgstr "Push: ``git push --tags``"
+
+#: ../../development.rst:173
+msgid "GitHub Actions 将构建并发布到 PyPI"
+msgstr "GitHub Actions will build and publish to PyPI"
+
+#~ msgid "设计器模块"
+#~ msgstr "Designer Module"
+

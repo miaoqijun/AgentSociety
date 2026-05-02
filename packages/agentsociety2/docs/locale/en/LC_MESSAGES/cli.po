@@ -1,21 +1,22 @@
 # English translations for AgentSociety 2 package.
 # Copyright (C) 2026, FIBLAB
-# This file is distributed under the same license as the AgentSociety 2 package.
+# This file is distributed under the same license as the AgentSociety 2
+# package.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.0.0\n"
+"Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-20 00:00+0800\n"
+"POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-20 00:00+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
 "Language-Team: en <LL@li.org>\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: ../../cli.rst:2
 msgid "命令行界面"
@@ -23,7 +24,9 @@ msgstr "Command Line Interface"
 
 #: ../../cli.rst:4
 msgid "AgentSociety 2 提供了一个强大的命令行界面（CLI）用于运行实验。"
-msgstr "AgentSociety 2 provides a powerful command line interface (CLI) for running experiments."
+msgstr ""
+"AgentSociety 2 provides a powerful command line interface (CLI) for "
+"running experiments."
 
 #: ../../cli.rst:7
 msgid "概述"
@@ -57,90 +60,273 @@ msgstr "Background execution support"
 msgid "基本用法"
 msgstr "Basic Usage"
 
-#: ../../cli.rst:21
-msgid "python -m agentsociety2.society.cli [OPTIONS]"
-msgstr "python -m agentsociety2.society.cli [OPTIONS]"
-
-#: ../../cli.rst:26
+#: ../../cli.rst:25
 msgid "必需参数"
 msgstr "Required Arguments"
 
-#: ../../cli.rst:44
+#: ../../cli.rst:30 ../../cli.rst:43
+#, fuzzy
+msgid "参数"
+msgstr "Required Arguments"
+
+#: ../../cli.rst:31 ../../cli.rst:45 ../../cli.rst:170
+msgid "说明"
+msgstr ""
+
+#: ../../cli.rst:32
+msgid "``--config`` <PATH>"
+msgstr ""
+
+#: ../../cli.rst:33
+#, fuzzy
+msgid "初始化配置文件路径（init_config.json）"
+msgstr "init_config.json"
+
+#: ../../cli.rst:34
+msgid "``--steps`` <PATH>"
+msgstr ""
+
+#: ../../cli.rst:35
+#, fuzzy
+msgid "步骤配置文件路径（steps.yaml）"
+msgstr "steps.yaml"
+
+#: ../../cli.rst:38
 msgid "可选参数"
 msgstr "Optional Arguments"
 
-#: ../../cli.rst:73
+#: ../../cli.rst:44
+msgid "默认值"
+msgstr ""
+
+#: ../../cli.rst:46
+msgid "``--run-dir`` <PATH>"
+msgstr ""
+
+#: ../../cli.rst:47
+msgid "当前目录"
+msgstr ""
+
+#: ../../cli.rst:48
+msgid "运行输出目录路径"
+msgstr ""
+
+#: ../../cli.rst:49
+msgid "``--experiment-id`` <TEXT>"
+msgstr ""
+
+#: ../../cli.rst:50 ../../cli.rst:56
+msgid "无"
+msgstr ""
+
+#: ../../cli.rst:51
+msgid "实验标识符"
+msgstr ""
+
+#: ../../cli.rst:52
+msgid "``--log-level``"
+msgstr ""
+
+#: ../../cli.rst:53
+msgid "INFO"
+msgstr ""
+
+#: ../../cli.rst:54
+msgid "日志级别：DEBUG, INFO, WARNING, ERROR, CRITICAL"
+msgstr ""
+
+#: ../../cli.rst:55
+msgid "``--log-file`` <PATH>"
+msgstr ""
+
+#: ../../cli.rst:57
+msgid "日志文件路径（**后台运行必需**）"
+msgstr ""
+
+#: ../../cli.rst:60
 msgid "运行实验"
 msgstr "Running Experiments"
 
-#: ../../cli.rst:76
+#: ../../cli.rst:63
 msgid "前台运行（调试模式）"
 msgstr "Foreground Execution (Debug Mode)"
 
-#: ../../cli.rst:95
+#: ../../cli.rst:73
+msgid "日志输出到控制台。"
+msgstr ""
+
+#: ../../cli.rst:76
 msgid "后台运行（生产模式）"
 msgstr "Background Execution (Production Mode)"
 
-#: ../../cli.rst:98
+#: ../../cli.rst:78
 msgid "**重要**: 后台运行时必须指定 ``--log-file`` 以捕获日志。"
-msgstr "**Important**: When running in background, you must specify ``--log-file`` to capture logs."
+msgstr ""
+"**Important**: When running in background, you must specify ``--log-"
+"file`` to capture logs."
 
-#: ../../cli.rst:117
+#: ../../cli.rst:91
 msgid "检查实验状态"
 msgstr "Checking Experiment Status"
 
-#: ../../cli.rst:131
+#: ../../cli.rst:102
 msgid "停止实验"
 msgstr "Stopping Experiments"
 
-#: ../../cli.rst:143
+#: ../../cli.rst:113
 msgid "配置文件"
 msgstr "Configuration Files"
 
-#: ../../cli.rst:146
+#: ../../cli.rst:116
 msgid "init_config.json"
 msgstr "init_config.json"
 
-#: ../../cli.rst:168
+#: ../../cli.rst:118
+msgid "初始化配置文件定义实验的基本设置："
+msgstr ""
+
+#: ../../cli.rst:145
 msgid "steps.yaml"
 msgstr "steps.yaml"
 
-#: ../../cli.rst:193
+#: ../../cli.rst:147
+msgid "步骤配置文件定义实验的执行步骤："
+msgstr ""
+
+#: ../../cli.rst:164
 msgid "步骤类型"
 msgstr "Step Types"
 
-#: ../../cli.rst:216
+#: ../../cli.rst:169
+#, fuzzy
+msgid "类型"
+msgstr "Step Types"
+
+#: ../../cli.rst:171
+msgid "``ask``"
+msgstr ""
+
+#: ../../cli.rst:172
+msgid "只读查询，不修改环境"
+msgstr ""
+
+#: ../../cli.rst:173
+msgid "``intervene``"
+msgstr ""
+
+#: ../../cli.rst:174
+msgid "读写操作，可以修改环境"
+msgstr ""
+
+#: ../../cli.rst:175
+msgid "``step``"
+msgstr ""
+
+#: ../../cli.rst:176
+msgid "执行一个模拟步骤（指定 tick 时长）"
+msgstr ""
+
+#: ../../cli.rst:179
 msgid "输出文件"
 msgstr "Output Files"
 
-#: ../../cli.rst:219
+#: ../../cli.rst:181
 msgid "运行实验后，``run-dir`` 目录将包含："
 msgstr "After running an experiment, the ``run-dir`` directory will contain:"
 
-#: ../../cli.rst:238
+#: ../../cli.rst:195
 msgid "pid.json 格式"
 msgstr "pid.json Format"
 
-#: ../../cli.rst:258
+#: ../../cli.rst:210
 msgid "遥测配置"
 msgstr "Telemetry Configuration"
 
-#: ../../cli.rst:260
+#: ../../cli.rst:212
 msgid "AgentSociety 2 自动禁用所有遥测服务以防止外部连接："
-msgstr "AgentSociety 2 automatically disables all telemetry services to prevent external connections:"
+msgstr ""
+"AgentSociety 2 automatically disables all telemetry services to prevent "
+"external connections:"
 
-#: ../../cli.rst:268
+#: ../../cli.rst:214
+msgid "``MEM0_TELEMETRY=False`` - 禁用 mem0 遥测"
+msgstr ""
+
+#: ../../cli.rst:215
+msgid "``ANONYMIZED_TELEMETRY=False`` - 禁用 ChromaDB/Posthog 遥测"
+msgstr ""
+
+#: ../../cli.rst:217
 msgid "这些设置在 CLI 启动时强制执行，无需手动配置。"
-msgstr "These settings are enforced when CLI starts, no manual configuration needed."
+msgstr ""
+"These settings are enforced when CLI starts, no manual configuration "
+"needed."
 
-#: ../../cli.rst:271
+#: ../../cli.rst:220
 msgid "日志级别"
 msgstr "Log Levels"
 
-#: ../../cli.rst:285
+#: ../../cli.rst:222
+#, fuzzy
+msgid "可选的日志级别："
+msgstr "Log Levels"
+
+#: ../../cli.rst:228
+#, fuzzy
+msgid "级别"
+msgstr "Log Levels"
+
+#: ../../cli.rst:229
+msgid "用途"
+msgstr ""
+
+#: ../../cli.rst:230
+msgid "``DEBUG``"
+msgstr ""
+
+#: ../../cli.rst:231
+msgid "详细的调试信息，包括 LLM 调用"
+msgstr ""
+
+#: ../../cli.rst:232
+msgid "``INFO``"
+msgstr ""
+
+#: ../../cli.rst:233
+msgid "常规运行信息（默认）"
+msgstr ""
+
+#: ../../cli.rst:234
+msgid "``WARNING``"
+msgstr ""
+
+#: ../../cli.rst:235
+msgid "警告信息"
+msgstr ""
+
+#: ../../cli.rst:236
+msgid "``ERROR``"
+msgstr ""
+
+#: ../../cli.rst:237
+msgid "错误信息"
+msgstr ""
+
+#: ../../cli.rst:238
+msgid "``CRITICAL``"
+msgstr ""
+
+#: ../../cli.rst:239
+msgid "严重错误"
+msgstr ""
+
+#: ../../cli.rst:242
 msgid "示例：完整工作流"
 msgstr "Example: Complete Workflow"
 
-#: ../../cli.rst:332
-msgid "参考文献"
-msgstr "References"
+#~ msgid "python -m agentsociety2.society.cli [OPTIONS]"
+#~ msgstr "python -m agentsociety2.society.cli [OPTIONS]"
+
+#~ msgid "参考文献"
+#~ msgstr "References"
+

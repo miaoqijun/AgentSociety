@@ -119,7 +119,7 @@ extension/
 
 约定：
 
-1. `SKILL.md` 放 frontmatter 元数据（name/description/requires/script/executor/...）和行为说明。
+1. `SKILL.md` 放 frontmatter（仅 ``name`` / ``description``）和行为说明。
 2. `execute_skill` 默认以 **子进程**方式执行 `script`（见 `SkillRegistry.execute`），不是 import `run(agent, ctx)`。
 
 ---
@@ -128,11 +128,11 @@ extension/
 
 ### 4.1 初始化：创建技能目录快照
 
-`PersonAgent.__init__` 默认只暴露 `core_skills`（渐进式披露）。对应关键字段：
+可见技能集合由注册表与实验配置决定：
 
-- `_core_skill_names`: 核心可见技能集合（默认 observation/needs/cognition/plan/memory）
-- `_skill_visibility_overrides`: 显式隐藏/显示覆写（`disable_skill/enable_skill` 写入）
-- `_selectable_skill_names`: 结合 enabled + overrides + core_skills 后的最终“可见技能集合”
+- ``SkillRegistry``：builtin/custom/env 扫描；已发现的技能均参与运行时（除非从磁盘移除或用环境 ``hide_skills`` 约束）
+- 环境模块可通过 ``person_step_constraints`` 隐藏部分技能（``hide_skills``）
+- ``_selectable_skill_names``：当前步对模型可见的 skill 名集合（enabled 且未被环境隐藏）
 
 ### 4.2 init：扫描 custom 与 env skills
 
@@ -153,7 +153,7 @@ extension/
 
 当前版本仍然有一个非常轻量的 “L0 catalog”：
 
-- `SkillRegistry.list_selection_metadata(...)`：仅返回 `name/description/requires`
+- `SkillRegistry.list_selection_metadata(...)`：仅返回 `name` / `description`
 - `AgentSkillRuntime.skill_list(names)`：返回该 L0 catalog（供 `get_system_prompt()` 注入）
 
 工具循环中的用法是：
@@ -164,12 +164,9 @@ extension/
 
 ---
 
-## 6. 依赖策略
+## 6. 依赖与顺序
 
-依赖由 `SKILL.md frontmatter.requires` 声明，运行时由 `PersonAgent._ensure_requires_activated()` 辅助处理：
-
-- 在 `activate_skill/execute_skill` 前自动尝试激活 requires（若依赖可见但未激活）
-- 若 requires 里有“不在可见集合”的依赖，会返回 `missing` 并写回 `TOOL_RESULT_JSON`
+技能之间的先后关系不在 frontmatter 中声明：在 SKILL.md 正文说明前置条件，由主模型在工具循环里按需 ``activate_skill``。
 
 ---
 
@@ -208,10 +205,9 @@ flowchart TD
 
 1. `POST /scan`
 2. `POST /import`（目录导入）
-3. `POST /enable` / `POST /disable`
-4. `POST /reload`
-5. `GET /list` / `GET /{name}/info`
-6. `POST /remove`（仅 custom）
+3. `POST /reload`
+4. `GET /list` / `GET /{name}/info`
+5. `POST /remove`（仅 custom）
 
 ### 8.3 前后端边界
 
@@ -226,7 +222,7 @@ flowchart TD
 
 1. 做环境观测。
 2. 若环境返回 `in_progress`，可短路当前 step。
-3. 是否“优先运行”由主模型在工具循环里决定；当前 L0 catalog 只提供 `name/description/requires`，不会强制按 priority 排序执行。
+3. 是否先运行哪个 skill 由主模型在工具循环里决定；catalog 仅提供 ``name`` / ``description``。
 
 ### 9.2 needs
 
@@ -252,10 +248,10 @@ flowchart TD
 
 ## 10. 开发建议
 
-1. 新 Skill 至少提供：`name/description`（以及必要时的 `requires/script/executor`）。
+1. 新 Skill 至少提供：`name` / `description`；需要确定性计算时再添加 ``scripts/<name>.py``。
 2. `description` 写“什么时候该选我”，不要只写“我能做什么”。
-3. `requires` 只写硬依赖，避免过度约束。
-4. `script` 指向的入口文件会以子进程方式执行；helper 文件需要被入口脚本显式 import 才会生效。
+3. 硬依赖写在正文，引导先激活其它 skill。
+4. 子进程入口为约定路径 ``scripts/<name>.py``；helper 需由入口脚本 import。
 5. 上传新 skill 后，记得触发 scan/import 刷新，不要等每步自动发现。
 
 ---
@@ -296,9 +292,9 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> Discovered: scan_builtin/custom/env
-    Discovered --> Visible: core_skills / enable_skill
-    Visible --> Hidden: disable_skill
-    Hidden --> Visible: enable_skill
+    Discovered --> Visible: registry enabled / env 未 hide
+    Visible --> Hidden: disable（后端或配置）
+    Hidden --> Visible: enable（后端或配置）
     Visible --> Activated: activate_skill (loads SKILL.md)
     Activated --> Executed: execute_skill (subprocess script)
     Executed --> Visible: 下一轮/下一步继续
@@ -325,9 +321,6 @@ SKILL.md：
 ---
 name: hello-memory
 description: 写入一条 hello_memory.txt 到 agent workspace，用于验证 execute_skill 子进程链路。
-script: scripts/hello_memory.py
-requires:
-    - observation
 ---
 
 # Hello Memory

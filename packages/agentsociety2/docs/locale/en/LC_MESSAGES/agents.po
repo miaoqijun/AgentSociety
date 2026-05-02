@@ -1,13 +1,14 @@
 # English translations for AgentSociety 2 package.
 # Copyright (C) 2026, FIBLAB
-# This file is distributed under the same license as the AgentSociety 2 package.
+# This file is distributed under the same license as the AgentSociety 2
+# package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.0.0\n"
+"Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-05 23:36+0800\n"
+"POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-05 23:55+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -16,7 +17,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: ../../agents.rst:2
 msgid "使用智能体"
@@ -35,179 +36,341 @@ msgid "PersonAgent"
 msgstr "PersonAgent"
 
 #: ../../agents.rst:12
-msgid "``PersonAgent`` 类是一个现成的智能体实现："
-msgstr "The ``PersonAgent`` class is a ready-to-use agent implementation:"
+msgid ""
+"``PersonAgent`` 是一个 **skills-first / tool-using** "
+"智能体实现。它本身是一个轻量编排器，核心行为是“对标 Claude Code 的工具循环”：在每个 step "
+"内注入身份与技能目录，然后由主模型逐轮选择并执行工具（包括技能激活与技能执行）。"
+msgstr ""
 
-#: ../../agents.rst:28
-msgid "配置文件可以包含您想要的任何字段。智能体将使用此信息来塑造其响应和决策。"
-msgstr "The profile can contain any fields you want. Agents will use this information to shape their responses and decisions."
+#: ../../agents.rst:29
+msgid "内置 Skills"
+msgstr ""
 
 #: ../../agents.rst:31
+msgid "每个 simulation tick，PersonAgent 都会执行同一套“工具循环”的流程："
+msgstr ""
+
+#: ../../agents.rst:37
+msgid "阶段"
+msgstr ""
+
+#: ../../agents.rst:38
+msgid "说明"
+msgstr ""
+
+#: ../../agents.rst:39
+msgid "注入上下文"
+msgstr ""
+
+#: ../../agents.rst:40
+msgid "system prompt 注入身份信息、技能目录、工具表。"
+msgstr ""
+
+#: ../../agents.rst:41
+msgid "激活技能"
+msgstr ""
+
+#: ../../agents.rst:42
+msgid "需要某个技能时，先用 ``activate_skill`` 加载该技能完整说明（通常来自 ``SKILL.md``）。"
+msgstr ""
+
+#: ../../agents.rst:43
+msgid "执行技能/工具"
+msgstr ""
+
+#: ../../agents.rst:44
+msgid ""
+"用 ``execute_skill`` 执行技能，或直接调用 ``bash`` / ``grep`` / ``glob`` / "
+"``codegen`` 等工具。"
+msgstr ""
+
+#: ../../agents.rst:45
+msgid "结束条件"
+msgstr ""
+
+#: ../../agents.rst:46
+msgid "当主模型输出 ``done=true`` 时结束本 step。"
+msgstr ""
+
+#: ../../agents.rst:48
+msgid ""
+"常见内置技能包括 ``observation``、``needs``、``cognition``、``plan``、``memory``。 "
+"它们都不再属于固定“必须执行层”，而是由 LLM 按上下文按需选择。"
+msgstr ""
+
+#: ../../agents.rst:51
+msgid "详细说明请参见 :doc:`agent_skills`。"
+msgstr ""
+
+#: ../../agents.rst:53
+msgid "配置文件可以包含你希望的任何字段；PersonAgent 会把这些信息用于塑造其行为与决策。"
+msgstr ""
+
+#: ../../agents.rst:56
 msgid "自定义智能体"
 msgstr "Custom Agents"
 
-#: ../../agents.rst:33
-msgid "要创建自定义智能体，请继承 ``AgentBase`` 并实现必需的抽象方法："
-msgstr "To create a custom agent, inherit from ``AgentBase`` and implement the required abstract methods:"
+#: ../../agents.rst:60
+msgid ""
+"对于扩展 PersonAgent 的认知能力，推荐使用 **Agent Skills** 系统。 参见 :doc:`agent_skills` "
+"了解如何创建自定义 skill。"
+msgstr ""
 
-#: ../../agents.rst:36
+#: ../../agents.rst:63
+msgid "只有在需要完全不同的智能体架构时，才需要创建自定义智能体类。"
+msgstr ""
+
+#: ../../agents.rst:65
+msgid "要创建自定义智能体，请继承 ``AgentBase`` 并实现必需的抽象方法："
+msgstr ""
+"To create a custom agent, inherit from ``AgentBase`` and implement the "
+"required abstract methods:"
+
+#: ../../agents.rst:68
 msgid "需要实现的方法"
 msgstr "Required Methods"
 
-#: ../../agents.rst:38
+#: ../../agents.rst:70
 msgid "创建自定义智能体时，必须实现 ``AgentBase`` 的这些抽象方法："
-msgstr "When creating a custom agent, you must implement these abstract methods from ``AgentBase``:"
+msgstr ""
+"When creating a custom agent, you must implement these abstract methods "
+"from ``AgentBase``:"
 
-#: ../../agents.rst:40
+#: ../../agents.rst:72
 msgid "**async def ask(self, message: str, readonly: bool = True) -> str**"
 msgstr "**async def ask(self, message: str, readonly: bool = True) -> str**"
 
-#: ../../agents.rst:42
+#: ../../agents.rst:74
 msgid "处理来自环境或用户的问题并返回响应。"
 msgstr "Handle questions from the environment or users and return responses."
 
-#: ../../agents.rst:44
-#: ../../agents.rst:55
+#: ../../agents.rst:76 ../../agents.rst:87
 msgid "参数:"
 msgstr "Parameters:"
 
-#: ../../agents.rst:45
+#: ../../agents.rst:77
 msgid "message: 要处理的问题或指令 readonly: 智能体是否可以修改环境（False = 可以修改）"
-msgstr "message: The question or instruction to process readonly: Whether the agent can modify the environment (False = can modify)"
+msgstr ""
+"message: The question or instruction to process readonly: Whether the "
+"agent can modify the environment (False = can modify)"
 
-#: ../../agents.rst:48
-#: ../../agents.rst:59
+#: ../../agents.rst:80 ../../agents.rst:91
 msgid "返回:"
 msgstr "Returns:"
 
-#: ../../agents.rst:49
+#: ../../agents.rst:81
 msgid "智能体的响应字符串"
 msgstr "The agent's response string"
 
-#: ../../agents.rst:51
+#: ../../agents.rst:83
 msgid "**async def step(self, tick: int, t: datetime) -> str**"
 msgstr "**async def step(self, tick: int, t: datetime) -> str**"
 
-#: ../../agents.rst:53
+#: ../../agents.rst:85
 msgid "执行一个模拟步骤。在 AgentSociety 模拟运行期间调用。"
 msgstr "Execute one simulation step. Called during AgentSociety simulation runs."
 
-#: ../../agents.rst:56
+#: ../../agents.rst:88
 msgid "tick: 此步骤的持续时间（秒） t: 此步骤后的当前模拟日期时间"
-msgstr "tick: Duration of this step in seconds t: Current simulation datetime after this step"
+msgstr ""
+"tick: Duration of this step in seconds t: Current simulation datetime "
+"after this step"
 
-#: ../../agents.rst:60
+#: ../../agents.rst:92
 msgid "智能体在此步骤中的操作描述"
 msgstr "Description of the agent's action during this step"
 
-#: ../../agents.rst:62
+#: ../../agents.rst:94
 msgid "**async def dump(self) -> dict**"
 msgstr "**async def dump(self) -> dict**"
 
-#: ../../agents.rst:64
+#: ../../agents.rst:96
 msgid "将智能体状态序列化为字典以便保存/加载。"
 msgstr "Serialize agent state to a dictionary for saving/loading."
 
-#: ../../agents.rst:66
+#: ../../agents.rst:98
 msgid "**async def load(self, dump_data: dict)**"
 msgstr "**async def load(self, dump_data: dict)**"
 
-#: ../../agents.rst:68
+#: ../../agents.rst:100
 msgid "从先前转储的字典中恢复智能体状态。"
 msgstr "Restore agent state from a previously dumped dictionary."
 
-#: ../../agents.rst:71
+#: ../../agents.rst:103
 msgid "参考实现"
 msgstr "Reference Implementation"
 
-#: ../../agents.rst:73
+#: ../../agents.rst:105
 msgid "有关完整参考，请参阅源代码中的 ``PersonAgent``。"
 msgstr "For a complete reference, see ``PersonAgent`` in the source code."
 
-#: ../../agents.rst:76
+#: ../../agents.rst:108
 msgid "示例:"
 msgstr "Example:"
 
-#: ../../agents.rst:110
+#: ../../agents.rst:142
 msgid "智能体配置文件"
 msgstr "Agent Profiles"
 
-#: ../../agents.rst:113
+#: ../../agents.rst:145
 msgid "配置文件设计"
 msgstr "Profile Design"
 
-#: ../../agents.rst:115
+#: ../../agents.rst:147
 msgid "一个好的智能体配置文件应包括："
 msgstr "A good agent profile should include:"
 
-#: ../../agents.rst:117
+#: ../../agents.rst:149
 msgid "**身份**: 姓名、年龄、角色"
 msgstr "**Identity**: Name, age, role"
 
-#: ../../agents.rst:118
+#: ../../agents.rst:150
 msgid "**个性**: 特征、偏好、怪癖"
 msgstr "**Personality**: Traits, preferences, quirks"
 
-#: ../../agents.rst:119
+#: ../../agents.rst:151
 msgid "**背景**: 历史、专业知识、关系"
 msgstr "**Background**: History, expertise, relationships"
 
-#: ../../agents.rst:120
+#: ../../agents.rst:152
 msgid "**目标**: 动机、欲望、恐惧"
 msgstr "**Goals**: Motivations, desires, fears"
 
-#: ../../agents.rst:145
+#: ../../agents.rst:177
 msgid "与智能体交互"
 msgstr "Interacting with Agents"
 
-#: ../../agents.rst:148
+#: ../../agents.rst:180
 msgid "ask() 方法"
 msgstr "ask() Method"
 
-#: ../../agents.rst:157
+#: ../../agents.rst:189
 msgid "``readonly`` 参数控制智能体是否可以修改环境："
-msgstr "The ``readonly`` parameter controls whether the agent can modify the environment:"
+msgstr ""
+"The ``readonly`` parameter controls whether the agent can modify the "
+"environment:"
 
-#: ../../agents.rst:159
+#: ../../agents.rst:191
 msgid "``readonly=True``: 仅查询，无副作用"
 msgstr "``readonly=True``: Query only, no side effects"
 
-#: ../../agents.rst:160
+#: ../../agents.rst:192
 msgid "``readonly=False``: 可能调用修改状态的环境工具"
 msgstr "``readonly=False``: May call environment tools that modify state"
 
-#: ../../agents.rst:163
+#: ../../agents.rst:195
 msgid "step() 方法"
 msgstr "step() Method"
 
-#: ../../agents.rst:165
+#: ../../agents.rst:197
 msgid "``step()`` 方法在 AgentSociety 模拟期间自动调用："
-msgstr "The ``step()`` method is called automatically during AgentSociety simulations:"
+msgstr ""
+"The ``step()`` method is called automatically during AgentSociety "
+"simulations:"
 
-#: ../../agents.rst:174
-msgid "回放跟踪"
-msgstr "Replay Tracking"
+#: ../../agents.rst:206
+msgid "持久化"
+msgstr ""
 
-#: ../../agents.rst:186
+#: ../../agents.rst:208
+#, fuzzy
+msgid "``PersonAgent`` 当前的持久化分成两层："
+msgstr "The ``PersonAgent`` class is a ready-to-use agent implementation:"
+
+#: ../../agents.rst:210
+msgid ""
+"**Agent workspace 文件**：由 ``PersonAgent`` 自身维护，位于 "
+"``run/agents/agent_xxxx/``。"
+msgstr ""
+
+#: ../../agents.rst:211
+msgid "**环境 replay dataset**：由环境模块通过 ``ReplayWriter`` 写入 SQLite。"
+msgstr ""
+
+#: ../../agents.rst:213
+msgid ""
+"也就是说，``PersonAgent`` 不会把自己的 step 状态直接写入 ``agent_status`` 之类的 SQLite "
+"表；如果你需要检查 agent 过程数据，应优先查看："
+msgstr ""
+
+#: ../../agents.rst:216
+msgid "``agent_config.json``: Agent 配置"
+msgstr ""
+
+#: ../../agents.rst:217
+msgid "``session_state.json``: 会话状态"
+msgstr ""
+
+#: ../../agents.rst:218
+msgid "``tool_calls.jsonl``: 工具调用日志"
+msgstr ""
+
+#: ../../agents.rst:219
+msgid "``thread_messages.jsonl``: Thread 消息"
+msgstr ""
+
+#: ../../agents.rst:220
+msgid "``AGENT_CONTEXT.md``: 动态上下文文件"
+msgstr ""
+
+#: ../../agents.rst:221
+msgid "``AGENT_FILES.md``: 工作区文件清单"
+msgstr ""
+
+#: ../../agents.rst:222
+msgid "``state/*.json``: 状态文件（情绪、需求、意图、规划等）"
+msgstr ""
+
+#: ../../agents.rst:223
+msgid "``wal/``: Write-Ahead Log 目录"
+msgstr ""
+
+#: ../../agents.rst:226
 msgid "智能体记忆"
 msgstr "Agent Memory"
 
-#: ../../agents.rst:188
-msgid "AgentSociety 2 集成了 `mem0ai`_ 用于记忆管理："
-msgstr "AgentSociety 2 integrates `mem0ai`_ for memory management:"
+#: ../../agents.rst:228
+msgid "在当前版本中，记忆能力推荐通过 **Agent Skills** 来实现（例如 `memory` 技能）。"
+msgstr ""
 
-#: ../../agents.rst:201
-msgid "启用记忆后，智能体可以："
-msgstr "With memory enabled, agents can:"
+#: ../../agents.rst:230
+msgid "也就是说："
+msgstr ""
 
-#: ../../agents.rst:203
-msgid "记住过去的互动"
-msgstr "Remember past interactions"
+#: ../../agents.rst:232
+msgid "`PersonAgent` 提供独立工作目录与工具能力（读写文件、执行技能等）。"
+msgstr ""
 
-#: ../../agents.rst:204
-msgid "回忆相关信息"
-msgstr "Recall relevant information"
+#: ../../agents.rst:233
+msgid "是否写入记忆、写入什么、以及持久化方式，由 `memory` 技能的 `SKILL.md` 与其脚本实现决定。"
+msgstr ""
 
-#: ../../agents.rst:205
-msgid "随着时间建立上下文"
-msgstr "Build context over time"
+#: ../../agents.rst:235
+msgid "如果你想替换/扩展记忆策略，优先做法是新增/替换 skill，而不是修改 `PersonAgent` 本体。"
+msgstr ""
+
+#~ msgid "配置文件可以包含您想要的任何字段。智能体将使用此信息来塑造其响应和决策。"
+#~ msgstr ""
+#~ "The profile can contain any fields "
+#~ "you want. Agents will use this "
+#~ "information to shape their responses and"
+#~ " decisions."
+
+#~ msgid "回放跟踪"
+#~ msgstr "Replay Tracking"
+
+#~ msgid "AgentSociety 2 集成了 `mem0ai`_ 用于记忆管理："
+#~ msgstr "AgentSociety 2 integrates `mem0ai`_ for memory management:"
+
+#~ msgid "启用记忆后，智能体可以："
+#~ msgstr "With memory enabled, agents can:"
+
+#~ msgid "记住过去的互动"
+#~ msgstr "Remember past interactions"
+
+#~ msgid "回忆相关信息"
+#~ msgstr "Recall relevant information"
+
+#~ msgid "随着时间建立上下文"
+#~ msgstr "Build context over time"
+

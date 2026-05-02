@@ -4,18 +4,18 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.0.0\n"
+"Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-20 00:00+0800\n"
+"POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-20 00:00+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
 "Language-Team: en <LL@li.org>\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: ../../skills.rst:2
 msgid "研究技能"
@@ -62,53 +62,198 @@ msgid "**智能体处理**: 智能体选择、生成和过滤"
 msgstr "**Agent Processing**: Agent selection, generation, and filtering"
 
 #: ../../skills.rst:20
-msgid "可用技能"
-msgstr "Available Skills"
+msgid "Claude Code Skills"
+msgstr ""
 
-#: ../../skills.rst:23
+#: ../../skills.rst:22
+msgid ""
+"研究工作流主要通过 Claude Code 的“skills-first”方式提供： - AgentSociety 内置研究 skills：随 "
+"VSCode 插件打包，可在插件树视图中浏览（只读）。 - Agent(Person) 扩展 skills：由后端 `/api/v1/agent-"
+"skills/*` 管理，支持扫描/导入/热重载。"
+msgstr ""
+
+#: ../../skills.rst:26
+msgid "**agentsociety-literature-search** - 文献检索"
+msgstr ""
+
+#: ../../skills.rst:27
+msgid "**agentsociety-hypothesis** - 假设管理（add, get, list, delete）"
+msgstr ""
+
+#: ../../skills.rst:28
+msgid "**agentsociety-experiment-config** - 实验配置生成与验证"
+msgstr ""
+
+#: ../../skills.rst:29
+msgid "**agentsociety-run-experiment** - 实验执行与监控"
+msgstr ""
+
+#: ../../skills.rst:30
+msgid "**agentsociety-analysis** - 数据分析"
+msgstr ""
+
+#: ../../skills.rst:31
+msgid "**agentsociety-synthesize** - 结果综合"
+msgstr ""
+
+#: ../../skills.rst:32
+msgid "**agentsociety-generate-paper** - 论文生成"
+msgstr ""
+
+#: ../../skills.rst:33
+msgid "**agentsociety-quick-web-search** - 快速网络搜索"
+msgstr ""
+
+#: ../../skills.rst:34
+msgid "**agentsociety-web-research** - 深度网络研究"
+msgstr ""
+
+#: ../../skills.rst:37
+msgid "Python API"
+msgstr ""
+
+#: ../../skills.rst:39
+msgid "研究技能也可以通过 Python API 直接调用。"
+msgstr ""
+
+#: ../../skills.rst:42
 msgid "文献技能 (literature)"
 msgstr "Literature Skill"
 
-#: ../../skills.rst:35
-msgid "实验技能 (experiment)"
-msgstr "Experiment Skill"
+#: ../../skills.rst:69
+msgid ""
+"**数据源**: - ``local``: RAGFlow 本地知识库 - ``arxiv``: arXiv 预印本平台 - "
+"``crossref``: CrossRef DOI 元数据库 - ``openalex``: OpenAlex 学术图谱 (2.5亿+ 论文)"
+msgstr ""
 
-#: ../../skills.rst:47
+#: ../../skills.rst:75
+msgid "**配置**: 需要在 ``.env`` 文件中配置 API:"
+msgstr ""
+
+#: ../../skills.rst:84
 msgid "假设技能 (hypothesis)"
 msgstr "Hypothesis Skill"
 
-#: ../../skills.rst:58
-msgid "网络研究技能 (web_research)"
-msgstr "Web Research Skill"
+#: ../../skills.rst:100
+msgid "实验技能 (experiment)"
+msgstr "Experiment Skill"
 
-#: ../../skills.rst:69
-msgid "论文技能 (paper)"
-msgstr "Paper Skill"
-
-#: ../../skills.rst:80
+#: ../../skills.rst:121
 msgid "分析技能 (analysis)"
 msgstr "Analysis Skill"
 
-#: ../../skills.rst:91
-msgid "智能体技能 (agent)"
-msgstr "Agent Skill"
+#: ../../skills.rst:160
+msgid "论文技能 (paper)"
+msgstr "Paper Skill"
 
-#: ../../skills.rst:102
+#: ../../skills.rst:173
 msgid "完整工作流示例"
 msgstr "Complete Workflow Example"
 
-#: ../../skills.rst:147
+#: ../../skills.rst:175
+msgid "下面是一个使用 Claude Code Skills 的典型研究工作流："
+msgstr ""
+
+#: ../../skills.rst:177
+msgid "**定义研究话题** - 编辑 ``TOPIC.md``"
+msgstr ""
+
+#: ../../skills.rst:178
+msgid "**文献检索** - 使用 ``/agentsociety-literature-search``"
+msgstr ""
+
+#: ../../skills.rst:179
+msgid "**创建假设** - 使用 ``/agentsociety-hypothesis add``"
+msgstr ""
+
+#: ../../skills.rst:180
+msgid "**配置实验** - 使用 ``/agentsociety-experiment-config validate/prepare/run``"
+msgstr ""
+
+#: ../../skills.rst:181
+msgid "**执行实验** - 使用 ``/agentsociety-run-experiment start``"
+msgstr ""
+
+#: ../../skills.rst:182
+msgid "**分析结果** - 使用 ``/agentsociety-analysis``"
+msgstr ""
+
+#: ../../skills.rst:183
+msgid "**生成论文** - 使用 ``/agentsociety-generate-paper``"
+msgstr ""
+
+#: ../../skills.rst:186
 msgid "配置"
 msgstr "Configuration"
 
-#: ../../skills.rst:164
-msgid "最佳实践"
-msgstr "Best Practices"
+#: ../../skills.rst:188
+msgid "研究技能使用相同的 LLM 配置。可以通过环境变量为特定技能配置不同的模型："
+msgstr ""
 
-#: ../../skills.rst:180
-msgid "扩展研究技能"
-msgstr "Extending Research Skills"
+#: ../../skills.rst:202
+msgid "Agent Skills"
+msgstr ""
 
-#: ../../skills.rst:213
+#: ../../skills.rst:204
+msgid "AgentSociety 2 还支持 Agent Skills，这些是 PersonAgent 的认知能力模块："
+msgstr ""
+
+#: ../../skills.rst:206
+msgid "**observation** - 环境感知"
+msgstr ""
+
+#: ../../skills.rst:207
+msgid "**needs** - 需求系统"
+msgstr ""
+
+#: ../../skills.rst:208
+msgid "**cognition** - 认知与意图"
+msgstr ""
+
+#: ../../skills.rst:209
+msgid "**plan** - 规划与执行"
+msgstr ""
+
+#: ../../skills.rst:210
+msgid "**memory** - 记忆管理"
+msgstr ""
+
+#: ../../skills.rst:212
+msgid "详见 :doc:`agent_skills`。"
+msgstr ""
+
+#: ../../skills.rst:215
 msgid "参考"
 msgstr "References"
+
+#: ../../skills.rst:217
+msgid ":doc:`cli` - 使用 CLI 运行实验"
+msgstr ""
+
+#: ../../skills.rst:218
+msgid ":doc:`agent_skills` - Agent Skills 详解"
+msgstr ""
+
+#: ../../skills.rst:219
+msgid ":doc:`custom_modules` - 创建自定义模块"
+msgstr ""
+
+#: ../../skills.rst:220
+msgid ":doc:`development` - 开发指南"
+msgstr ""
+
+#~ msgid "可用技能"
+#~ msgstr "Available Skills"
+
+#~ msgid "网络研究技能 (web_research)"
+#~ msgstr "Web Research Skill"
+
+#~ msgid "智能体技能 (agent)"
+#~ msgstr "Agent Skill"
+
+#~ msgid "最佳实践"
+#~ msgstr "Best Practices"
+
+#~ msgid "扩展研究技能"
+#~ msgstr "Extending Research Skills"
+

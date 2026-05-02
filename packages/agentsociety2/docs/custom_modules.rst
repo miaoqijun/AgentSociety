@@ -141,8 +141,8 @@ AgentSociety 2 支持创建和注册自定义智能体和环境模块，
 * 至少存在一个合法 ``@tool``
 * ``step()`` 必须存在
 * 默认应支持无参实例化 ``cls()``
-* 若模块需要观察能力，应提供 readonly ``kind="observe"`` 工具
-* 建议提供信息完整的 ``mcp_description()``（未覆盖时会显示基类默认描述）
+* 若模块需要观察能力，应提供 ``@tool(readonly=True, kind='observe')`` 观察工具
+* 建议提供信息完整的 ``mcp_description()`` ；未覆盖时会显示基类默认描述
 
 .. note::
 
