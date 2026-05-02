@@ -11,9 +11,41 @@ on:
       - "packages/agentsociety2/**"
 
 jobs:
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Install dependencies
+        run: |
+          cd packages/agentsociety2
+          uv sync --extra dev
+
+      - name: Lint with ruff
+        run: |
+          cd packages/agentsociety2
+          uv run ruff check .
+
+      - name: Type check with mypy
+        run: |
+          cd packages/agentsociety2
+          uv run mypy tests/ --follow-imports=skip
+
   test:
     name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    needs: lint
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
@@ -30,33 +62,25 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           cd packages/agentsociety2
-          pip install -e ".[dev]"
-
-      - name: Lint with ruff
-        run: |
-          cd packages/agentsociety2
-          ruff check .
-        continue-on-error: true
-
-      - name: Type check with mypy
-        run: |
-          cd packages/agentsociety2
-          mypy tests/ --follow-imports=skip
+          uv sync --extra dev
 
       - name: Run tests
         run: |
           cd packages/agentsociety2
-          pytest -v
+          uv run pytest -v
         env:
           AGENTSOCIETY_LLM_API_KEY: ${{ secrets.AGENTSOCIETY_LLM_API_KEY }}
           AGENTSOCIETY_LLM_API_BASE: ${{ secrets.AGENTSOCIETY_LLM_API_BASE }}
           AGENTSOCIETY_LLM_MODEL: glm-5
+          MEM0_TELEMETRY: "False"
+          ANONYMIZED_TELEMETRY: "False"
 
   build:
     name: Build package
@@ -67,7 +91,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v8.1.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
 
       - name: Build package
         run: |

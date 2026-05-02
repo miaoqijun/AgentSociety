@@ -1,35 +1,86 @@
 stages:
-- build
+  - lint
+  - test
+  - build
 
 variables:
-  # 定义华为云 SWR 相关变量
+  PYTHON_VERSION: "3.12"
+  # 华为云 SWR 相关变量
   HW_REGISTRY: swr.cn-north-4.myhuaweicloud.com
   HW_NAMESPACE: tsinghua-fib-lab
   HW_IMAGE_NAME: agentsociety
   HW_REGISTRY_IMAGE: ${HW_REGISTRY}/${HW_NAMESPACE}/${HW_IMAGE_NAME}
+  # 遥测禁用
+  MEM0_TELEMETRY: "False"
+  ANONYMIZED_TELEMETRY: "False"
+
+lint:
+  stage: lint
+  image: python:3.12
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - pip install uv
+    - cd packages/agentsociety2 && uv sync --extra dev
+  script:
+    - uv run ruff check .
+    - uv run mypy tests/ --follow-imports=skip
+
+test:
+  stage: test
+  image: python:$PYTHON_VERSION
+  needs: [lint]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.11", "3.12", "3.13"]
+  before_script:
+    - pip install uv
+    - cd packages/agentsociety2 && uv sync --extra dev
+  script:
+    - |
+      uv run pytest -v \
+        --junitxml=junit.xml \
+        -o junit_family=xunit2 \
+        -o junit_suite_name="agentsociety2-py${PYTHON_VERSION}"
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - packages/agentsociety2/junit.xml
+    reports:
+      junit: packages/agentsociety2/junit.xml
+  variables:
+    AGENTSOCIETY_LLM_API_KEY: $AGENTSOCIETY_LLM_API_KEY
+    AGENTSOCIETY_LLM_API_BASE: $AGENTSOCIETY_LLM_API_BASE
+    AGENTSOCIETY_LLM_MODEL: glm-5
 
 build-docker-image:
   tags:
-  - dind
+    - dind
   stage: build
+  needs: [test]
   rules:
-  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
   script:
-  - export TIME=$(date +%s)
-  - |
-    if [[ "$CI_PIPELINE_SOURCE" == "merge_request_event" ]]; then
-      echo "MR pipeline - build only for validation"
-      docker build -t ${CI_REGISTRY_IMAGE}:mr-${CI_MERGE_REQUEST_IID} .
-    else
-      echo "Main branch - build and push"
-      docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
-      docker login -u cn-north-4@${HW_AK} -p ${HW_PASSWORD} ${HW_REGISTRY}
-      docker build -t ${CI_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${CI_REGISTRY_IMAGE}:v2 -t ${HW_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${HW_REGISTRY_IMAGE}:v2 .
-      # 推送到GitLab容器注册表
-      docker push ${CI_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME}
-      docker push ${CI_REGISTRY_IMAGE}:v2
-      # 推送到华为云SWR
-      docker push ${HW_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME}
-      docker push ${HW_REGISTRY_IMAGE}:v2
-    fi
+    - export TIME=$(date +%s)
+    - |
+      if [[ "$CI_PIPELINE_SOURCE" == "merge_request_event" ]]; then
+        echo "MR pipeline - build only for validation"
+        docker build -t ${CI_REGISTRY_IMAGE}:mr-${CI_MERGE_REQUEST_IID} .
+      else
+        echo "Main branch - build and push"
+        docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+        docker login -u cn-north-4@${HW_AK} -p ${HW_PASSWORD} ${HW_REGISTRY}
+        docker build -t ${CI_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${CI_REGISTRY_IMAGE}:v2 -t ${HW_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${HW_REGISTRY_IMAGE}:v2 .
+        # 推送到GitLab容器注册表
+        docker push ${CI_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME}
+        docker push ${CI_REGISTRY_IMAGE}:v2
+        # 推送到华为云SWR
+        docker push ${HW_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME}
+        docker push ${HW_REGISTRY_IMAGE}:v2
+      fi
