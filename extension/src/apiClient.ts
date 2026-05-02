@@ -271,7 +271,6 @@ export interface AgentSkillItem {
   path: string;
   has_skill_md: boolean;
   script: string;
-  requires: string[];
 }
 
 export interface AgentSkillsListResponse {
@@ -300,7 +299,6 @@ export interface AgentSkillInfoResponse {
   enabled: boolean;
   path: string;
   script: string;
-  requires: string[];
   skill_md: string;
 }
 
@@ -798,42 +796,6 @@ export class ApiClient {
     }
   }
 
-  async enableAgentSkill(name: string): Promise<AgentSkillsSimpleResponse> {
-    try {
-      const url = `${this.getBackendUrl()}/api/v1/agent-skills/enable`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-      }
-      return await response.json() as AgentSkillsSimpleResponse;
-    } catch (error) {
-      this.log(`Enable agent skill failed: ${error}`);
-      throw this.handleFetchError(error, '启用 Skill 失败');
-    }
-  }
-
-  async disableAgentSkill(name: string): Promise<AgentSkillsSimpleResponse> {
-    try {
-      const url = `${this.getBackendUrl()}/api/v1/agent-skills/disable`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-      }
-      return await response.json() as AgentSkillsSimpleResponse;
-    } catch (error) {
-      this.log(`Disable agent skill failed: ${error}`);
-      throw this.handleFetchError(error, '禁用 Skill 失败');
-    }
-  }
-
   async scanAgentSkills(workspace_path?: string): Promise<AgentSkillsScanResponse> {
     try {
       const url = `${this.getBackendUrl()}/api/v1/agent-skills/scan`;
@@ -935,6 +897,42 @@ export class ApiClient {
     } catch (error) {
       this.log(`Reload agent skill failed: ${error}`);
       throw this.handleFetchError(error, '重载 Skill 失败');
+    }
+  }
+
+  async enableAgentSkill(name: string): Promise<AgentSkillsSimpleResponse> {
+    try {
+      const url = `${this.getBackendUrl()}/api/v1/agent-skills/enable`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      return await response.json() as AgentSkillsSimpleResponse;
+    } catch (error) {
+      this.log(`Enable agent skill failed: ${error}`);
+      throw this.handleFetchError(error, '启用 Skill 失败');
+    }
+  }
+
+  async disableAgentSkill(name: string): Promise<AgentSkillsSimpleResponse> {
+    try {
+      const url = `${this.getBackendUrl()}/api/v1/agent-skills/disable`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      return await response.json() as AgentSkillsSimpleResponse;
+    } catch (error) {
+      this.log(`Disable agent skill failed: ${error}`);
+      throw this.handleFetchError(error, '禁用 Skill 失败');
     }
   }
 }

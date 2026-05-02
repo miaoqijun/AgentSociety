@@ -1,36 +1,49 @@
+# IDE / VCS / 本地 Claude 配置（勿发布）
 .vscode/**
 .vscode-test/**
+.git/**
+.claude/**
+
+# 源码与类型定义（发布 out/）
 src/**
+**/*.ts
+**/*.map
+**/tsconfig.json
+
+# 工具链与本地配置（不进入 VSIX）
 .gitignore
 .editorconfig
 .yarnrc
 .npmrc
 .prettierrc
 vsc-extension-quickstart.md
-**/tsconfig.json
 **/.eslintrc.json
-**/*.map
-**/*.ts
+.eslintrc.json
+eslint.config.mjs
+webpack.config.js
+package-lock.json
+DEVELOPMENT.md
+TODO.md
+DEBUG_STEPS.md
+
+# 开发/调试脚本
+test-extension.js
+test-http-client.js
+
+# 构建产物中的测试与 source map
 out/test/**
 out/**/*.map
+
+# 运行期杂项
 *.log
 .DS_Store
 *.vsix
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-DEVELOPMENT.md
-TODO.md
-webpack.config.js
-package-lock.json
-.eslintrc.json
-eslint.config.mjs
-.git/**
-test-extension.js
-DEBUG_STEPS.md
 **/__pycache__/**
 
-# 主扩展进程运行时仅依赖 js-yaml；其余依赖都已被 webview bundle 内联或仅用于开发
+# 主扩展进程仅依赖 js-yaml；其余依赖由 webview bundle 内联或仅开发期使用
 node_modules/**
 !node_modules/js-yaml/
 !node_modules/js-yaml/index.js

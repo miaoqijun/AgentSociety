@@ -123,6 +123,81 @@ function listDirEntriesSafe(dirPath: string): string[] {
   }
 }
 
+function isPresentationChartsDirectory(dirPath: string): boolean {
+  const normalized = path.normalize(dirPath);
+  if (path.basename(normalized) !== 'charts') {
+    return false;
+  }
+  const experimentDir = path.basename(path.dirname(normalized));
+  if (!/^experiment_\d+$/i.test(experimentDir)) {
+    return false;
+  }
+  const hypothesisDir = path.basename(path.dirname(path.dirname(normalized)));
+  if (!/^hypothesis_\d+$/i.test(hypothesisDir)) {
+    return false;
+  }
+  const presentationDir = path.basename(path.dirname(path.dirname(path.dirname(normalized))));
+  return presentationDir === 'presentation';
+}
+
+function presentationChartsEntryRank(entryName: string, isDir: boolean): number {
+  if (isDir) {
+    return 0;
+  }
+  const ext = path.extname(entryName).toLowerCase();
+  if (['.png', '.svg', '.jpg', '.jpeg', '.gif', '.webp'].includes(ext)) {
+    return 1;
+  }
+  if (ext === '.csv' || ext === '.tsv') {
+    return 2;
+  }
+  if (ext === '.json') {
+    return 3;
+  }
+  return 4;
+}
+
+function comparePresentationChartsEntries(a: string, b: string, parentDir: string): number {
+  const pathA = path.join(parentDir, a);
+  const pathB = path.join(parentDir, b);
+  const statA = safeStatSync(pathA);
+  const statB = safeStatSync(pathB);
+  if (!statA || !statB) {
+    return a.localeCompare(b);
+  }
+  const rankDiff =
+    presentationChartsEntryRank(a, statA.isDirectory()) -
+    presentationChartsEntryRank(b, statB.isDirectory());
+  if (rankDiff !== 0) {
+    return rankDiff;
+  }
+  return a.localeCompare(b);
+}
+
+function shouldShowFileInPresentationCharts(fileName: string): boolean {
+  if (fileName.toLowerCase() === 'pid.json') {
+    return false;
+  }
+  if (/^pid_\d+\.json$/i.test(fileName)) {
+    return false;
+  }
+  return shouldShowFileByExt(fileName);
+}
+
+function getPresentationChartsFileDescription(fileName: string): string | undefined {
+  const ext = path.extname(fileName).toLowerCase();
+  if (['.png', '.svg', '.jpg', '.jpeg', '.gif', '.webp'].includes(ext)) {
+    return localize('projectStructure.chartsCategory.image');
+  }
+  if (ext === '.csv' || ext === '.tsv') {
+    return localize('projectStructure.chartsCategory.table');
+  }
+  if (ext === '.json') {
+    return localize('projectStructure.chartsCategory.meta');
+  }
+  return undefined;
+}
+
 /**
  * ProjectItem - 项目树视图中的单个节点
  * 
@@ -133,6 +208,8 @@ export class ProjectItem extends vscode.TreeItem {
   // Additional properties for experiment context
   public hypothesisId?: string;
   public experimentId?: string;
+  /** 实验目录绝对路径；无 EXPERIMENT.md 时 filePath 为空，子节点必须依赖此字段 */
+  public experimentRoot?: string;
   // Custom module properties
   public isCustom?: boolean;
   public moduleType?: string;
@@ -202,16 +279,16 @@ export class ProjectItem extends vscode.TreeItem {
       'topic': 'book',           // 书籍图标，表示研究话题
       'hypothesis': 'lightbulb',  // 灯泡图标，表示假设
       'experiment': 'beaker',     // 烧杯图标，表示实验
-      'papers': 'file-directory', // 文献库
-      'userdata': 'database',     // 数据库图标，表示用户数据
-      'datasets': 'database',     // 数据集根目录图标
-      'datasetItem': 'folder',    // 单个数据集图标
+      'papers': 'library', // 文献库
+      'userdata': 'database', // 用户数据（持久化存储）
+      'datasets': 'table', // 数据集（与用户数据的 database 区分）
+      'datasetItem': 'folder', // 单个数据集目录
       'prefillParams': 'settings', // 设置图标，表示预填充参数
       'prefillParamsGroup': 'server-environment', // 环境与智能体：运行环境/工作负荷
       'prefillParamsEnv': 'symbol-namespace', // 命名空间图标，表示环境模块预置参数
       'prefillParamsAgent': 'symbol-interface', // 接口图标，表示智能体类预置参数
       'settings': 'gear', // 齿轮设置图标，表示配置设置
-      'custom': 'extensions', // 自定义模块根图标
+      'custom': 'extensions', // 自定义模块 / 插件扩展
       'customWorkspace': 'folder', // custom/ 目录节点图标
       'customScan': 'search', // 搜索图标，扫描
       'customTest': 'debug-start', // 播放图标，测试
@@ -219,16 +296,16 @@ export class ProjectItem extends vscode.TreeItem {
       'customEnvItem': 'symbol-namespace', // 自定义环境模块图标
       'customAgentsGroup': 'folder', // Agents组图标
       'customEnvsGroup': 'folder', // Envs组图标
-      'presentation': 'folder', // 分析报告根图标
+      'presentation': 'graph-line', // 分析报告（图表/结果展示）
       'presentationHypothesis': 'folder', // 假设文件夹
       'presentationExperiment': 'folder', // 实验文件夹
-      'synthesis': 'file-text', // 综合报告图标
+      'synthesis': 'notebook', // 综合报告（汇总文档）
       'reportHtml': 'file-code', // HTML 报告图标
       'reportMd': 'file-text', // Markdown 报告图标
       'skillManagement': 'extensions', // 技能管理（打开面板）
-      'paperPdfGroup': 'file-directory', // PDF 文献组
-      'paperMdGroup': 'file-directory', // Markdown 笔记组
-      'paperJsonGroup': 'file-directory', // JSON 文件组
+      'paperPdfGroup': 'references', // PDF 文献组
+      'paperMdGroup': 'markdown', // Markdown 笔记组
+      'paperJsonGroup': 'json', // JSON 索引组
       'pidJson': 'info', // 进程状态图标
       'experimentInitGroup': 'settings-gear', // 实验配置文件组
       'experimentRunGroup': 'graph-line', // 实验运行结果组
@@ -1609,7 +1686,11 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       // 检查是否为目录
       if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
         const items: ProjectItem[] = [];
-        const entries = listDirEntriesSafe(filePath).filter(entry => !shouldHideFsEntry(entry));
+        let entries = listDirEntriesSafe(filePath).filter(entry => !shouldHideFsEntry(entry));
+        const chartsDir = isPresentationChartsDirectory(filePath);
+        if (chartsDir) {
+          entries = [...entries].sort((a, b) => comparePresentationChartsEntries(a, b, filePath));
+        }
 
         for (const entry of entries) {
           const fullPath = path.join(filePath, entry);
@@ -1619,24 +1700,32 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           }
 
           if (stat.isFile()) {
-            if (!shouldShowFileByExt(entry)) {
+            const allowFile = chartsDir
+              ? shouldShowFileInPresentationCharts(entry)
+              : shouldShowFileByExt(entry);
+            if (!allowFile) {
               continue;
             }
-            // 如果是文件，创建文件节点
-            items.push(new ProjectItem(
-              entry,  // 文件名作为标签
-              vscode.TreeItemCollapsibleState.None,  // 文件没有子节点
+            const fileItem = new ProjectItem(
+              entry,
+              vscode.TreeItemCollapsibleState.None,
               'file',
-              fullPath  // 完整文件路径
-            ));
+              fullPath,
+            );
+            fileItem.tooltip = fullPath;
+            if (chartsDir) {
+              fileItem.description = getPresentationChartsFileDescription(entry);
+            }
+            items.push(fileItem);
           } else if (stat.isDirectory()) {
-            // 如果是目录，创建可展开的目录节点
-            items.push(new ProjectItem(
-              entry,  // 目录名作为标签
-              vscode.TreeItemCollapsibleState.Collapsed,  // 可展开
-              'file',  // 使用file类型
-              fullPath  // 存储目录路径，用于获取子节点
-            ));
+            const dirItem = new ProjectItem(
+              entry,
+              vscode.TreeItemCollapsibleState.Collapsed,
+              'file',
+              fullPath,
+            );
+            dirItem.tooltip = fullPath;
+            items.push(dirItem);
           }
         }
 
@@ -1770,6 +1859,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         // Set hypothesis and experiment IDs for replay command
         item.hypothesisId = hypothesisId;
         item.experimentId = experimentId;
+        item.experimentRoot = dir;
         items.push(item);
       }
 
@@ -1789,8 +1879,10 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
     // Experiment节点的子节点：显示初始化结果和运行结果
     if (element.type === 'experiment') {
-      // 获取实验目录的路径
-      const experimentDir = path.dirname(element.filePath || '');
+      const experimentDir =
+        element.experimentRoot && fs.existsSync(element.experimentRoot)
+          ? element.experimentRoot
+          : path.dirname(element.filePath || '');
       const items: ProjectItem[] = [];
 
       // 检查init目录（配置文件分组）
@@ -1820,9 +1912,15 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       const runDir = path.join(experimentDir, 'run');
       if (fs.existsSync(runDir)) {
         const runFiles = fs.readdirSync(runDir);
+        // 运行中常见仅有子目录（如 agents/）尚无顶层日志文件，仍需展示「运行结果」
         const hasRunContent = runFiles.some(file => {
           const filePath = path.join(runDir, file);
-          return fs.statSync(filePath).isFile();
+          try {
+            const st = fs.statSync(filePath);
+            return st.isFile() || st.isDirectory();
+          } catch {
+            return false;
+          }
         });
 
         if (hasRunContent) {
@@ -2218,15 +2316,16 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           ));
         }
 
-        // 添加 charts 目录（图表）
         const chartsDir = path.join(element.filePath, 'charts');
         if (fs.existsSync(chartsDir)) {
-          items.push(new ProjectItem(
+          const chartsItem = new ProjectItem(
             localize('projectStructure.reportCharts'),
             vscode.TreeItemCollapsibleState.Collapsed,
             'file',
-            chartsDir
-          ));
+            chartsDir,
+          );
+          chartsItem.tooltip = localize('projectStructure.reportChartsTooltip');
+          items.push(chartsItem);
         }
 
         // 添加 assets 目录（资源）

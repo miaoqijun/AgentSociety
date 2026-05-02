@@ -190,12 +190,12 @@ External Service Layer
 
 ### Agent Workflow
 
-PersonAgent is the core intelligent agent, using **Skill Pipeline** architecture:
+PersonAgent is the core intelligent agent, using a **tool loop**: the skill **catalog** shows name + description, and full instructions load after `activate_skill`:
 
-1. **Skill Selection**: LLM selects appropriate skills based on task
-2. **On-demand Loading**: Only selected skills are loaded
-3. **Priority Execution**: Skills execute in priority order
-4. **State Management**: Skills can store intermediate states
+1. **Catalog**: Lightweight metadata only for choosing skills
+2. **On-demand loading**: Full `SKILL.md` after activation
+3. **Tool order**: Determined by the model each round, not a fixed priority list
+4. **State**: Skills can persist via workspace files and agent state
 
 ---
 

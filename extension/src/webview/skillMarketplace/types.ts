@@ -22,7 +22,6 @@ export interface AgentSkill {
   path: string;
   has_skill_md: boolean;
   script: string;
-  requires: string[];
 }
 
 // ============ Claude Code Skills（IDE 使用） ============
@@ -139,7 +138,6 @@ export interface AgentSkillDetailPayload {
   enabled: boolean;
   path: string;
   script: string;
-  requires: string[];
   skill_md: string;
 }
 
@@ -177,9 +175,8 @@ export interface ExtensionMessage {
   | 'ready'
   // Agent Skills
   | 'listAgentSkills'
-  | 'enableAgentSkill'
-  | 'disableAgentSkill'
   | 'reloadAgentSkill'
+  | 'setAgentSkillEnabled'
   | 'removeAgentSkill'
   | 'fetchAgentSkillDetail'
   | 'fetchLocalSkillMarkdown'
@@ -221,8 +218,6 @@ export interface WebviewMessage {
   type:
   // Agent Skills
   | 'agentSkillsLoaded'
-  | 'agentSkillEnabled'
-  | 'agentSkillDisabled'
   | 'agentSkillReloaded'
   | 'agentSkillRemoved'
   | 'agentSkillImported'
@@ -292,9 +287,6 @@ export interface SkillFrontmatter {
   version?: string;
   author?: string;
   tags?: string[];
-  priority?: number;
-  requires?: string[];
-  provides?: string[];
 }
 
 // ============ 原始配置类型（用于类型安全解析） ============

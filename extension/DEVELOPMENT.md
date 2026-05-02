@@ -15,7 +15,7 @@
 
 ### 前置要求
 
-- Node.js >= 16.x
+- Node.js ^22.13.0 或 >=24（与 `package.json` 的 `engines`、`.nvmrc` 一致）
 - Python >= 3.11
 - uv (Python 包管理器)
 - VSCode >= 1.80.0
@@ -30,9 +30,10 @@ npm install
 ### 编译项目
 
 ```bash
-npm run build        # 生产构建（打包扩展和 webview）
-npm run compile      # 开发构建
-npm run watch        # 监听模式
+npm run build        # 生产构建：tsc 主进程 + webpack 全部 webview
+npm run compile      # 仅编译主进程 TypeScript（不含 webview）
+npm run watch        # tsc --watch（主进程）
+npm run dev          # 主进程 tsc watch + webview webpack watch（并发）
 ```
 
 ### 调试
@@ -278,8 +279,6 @@ uv run python -m agentsociety2.backend.run
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/list` | GET | 列出所有 Agent Skills |
-| `/enable` | POST | 启用 Skill |
-| `/disable` | POST | 禁用 Skill |
 | `/scan` | POST | 扫描自定义 Skill |
 | `/import` | POST | 从路径导入 Skill |
 | `/create` | POST | 创建新 Skill |
