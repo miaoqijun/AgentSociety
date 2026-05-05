@@ -1,0 +1,90 @@
+\documentclass[fleqn,10pt]{wlscirep}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{color}
+\usepackage{booktabs}
+\usepackage{babel}
+
+
+\title{<< title >>}
+
+
+<< authors_block >>
+
+<< affils_block >>
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%Customization
+\newcommand{\abs}[1]{\lvert #1 \rvert}
+\newcommand{\rvs}[1]{{\textcolor{blue}{#1}}}
+%%%%%%%%%%%%%%%%%%%%
+
+% Generating figures for initial submission
+\usepackage{graphicx}
+
+% Formatting references via biblatex (numeric-comp + \supercite)
+\usepackage[maxbibnames=150,style=numeric-comp,sorting=none]{biblatex}
+\bibliography{<< bib_path >>}
+
+% Set the url font to be the same with other texts
+\usepackage{url}
+\urlstyle{same}
+
+% Commenting out not-in-use contents quickly
+\usepackage{comment}
+
+% Spacing helper used by the template
+\usepackage{setspace}
+
+% Generating tables
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{threeparttable}
+
+\usepackage{csquotes}
+
+%%%%%%%%%%%%%%%%%%%%
+
+% Include the date command, but leave its argument blank.
+\date{}
+
+%%%%%%%%%%%%%%%%% END OF PREAMBLE %%%%%%%%%%%%%%%%
+
+
+\begin{abstract}
+<< abstract >>
+\end{abstract}
+
+
+\begin{document}
+
+\flushbottom
+\maketitle
+
+
+\section*{Main}
+<< body_main >>
+
+
+\section*{Results}
+<< body_results >>
+
+
+\section*{Discussion}
+<< body_discussion >>
+
+
+\section*{Data availability}
+<< data_availability >>
+
+\section*{Code availability}
+<< code_availability >>
+
+%%%%%%%%%%%%%%%%%%%%%%% Figures %%%%%%%%%%%%%%%%%%%%%%%
+<< figures_block >>
+
+\printbibliography[title={References}]
+
+\end{document}

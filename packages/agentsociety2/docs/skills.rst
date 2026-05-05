@@ -12,7 +12,7 @@ AgentSociety 2 包含一组 LLM 原生的研究技能，用于自动化科学研
 * **假设生成**: 从研究问题生成可测试的假设
 * **实验设计**: 设计完整的实验配置
 * **网络研究**: 使用 Miro 进行网络搜索和总结
-* **论文撰写**: 使用 EasyPaper 生成学术论文
+* **论文撰写**: 通过 paper-orchestrator skill 套件（重写中）生成 Nature 风格学术论文 PDF
 * **数据分析**: 分析实验数据并生成报告
 * **智能体处理**: 智能体选择、生成和过滤
 
@@ -27,9 +27,8 @@ Claude Code Skills
 * **agentsociety-hypothesis** - 假设管理（add, get, list, delete）
 * **agentsociety-experiment-config** - 实验配置生成与验证
 * **agentsociety-run-experiment** - 实验执行与监控
-* **agentsociety-analysis** - 数据分析
-* **agentsociety-synthesize** - 结果综合
-* **agentsociety-generate-paper** - 论文生成
+* **agentsociety-analysis** - 数据分析与跨实验综合
+* **agentsociety-paper-orchestrator** - Nature/Science 级论文生成（6-skill 状态机）
 * **agentsociety-quick-web-search** - 快速网络搜索
 * **agentsociety-web-research** - 深度网络研究
 
@@ -122,52 +121,67 @@ Python API
 
 .. code-block:: python
 
-   from agentsociety2.skills.analysis import (
-       run_analysis,
-       run_analysis_many,
-       run_analysis_workflow,
-       Analyzer,
-       run_synthesis,
+   from pathlib import Path
+
+   from agentsociety2.skills.analysis import ContextLoader, DataReader, EDAGenerator
+
+   workspace = Path("./workspace")
+   context = ContextLoader(workspace).load_context("1", "1")
+   summary = DataReader(
+       workspace / "hypothesis_1" / "experiment_1" / "run" / "sqlite.db"
+   ).read_full_summary()
+   quick_stats = EDAGenerator().generate_quick_stats(
+       workspace / "hypothesis_1" / "experiment_1" / "run" / "sqlite.db",
+       tables=["agent_profile"],
    )
 
-   # 使用便捷函数
-   result = await run_analysis(
-       workspace_path=Path("./workspace"),
-       hypothesis_id="1",
-       experiment_id="1"
-   )
-
-   # 同一 hypothesis 下批量分析（experiment_ids 不传则自动发现）
-   batch = await run_analysis_many(
-       workspace_path=str(Path("./workspace")),
-       hypothesis_id="1",
-       experiment_ids=["1", "2", "3"],  # 可选
-   )
-
-   # 统一入口：single | batch | synthesize
-   out = await run_analysis_workflow(
-       workspace_path=str(Path("./workspace")),
-       mode="synthesize",
-       hypothesis_ids=["1"],          # 可选，不传则自动发现
-       experiment_ids=["1", "2", "3"] # 可选，不传则分析全部
-   )
-
-   # 使用 Analyzer 类
-   analyzer = Analyzer(workspace_path=Path("./workspace"))
-   await analyzer.analyze(hypothesis_id="1", experiment_id="1")
+跨实验对比不再使用独立综合 skill，而是作为
+``agentsociety-analysis`` 的 Stage 5 在 Claude Code 中完成。
 
 论文技能 (paper)
 ~~~~~~~~~~~~~~~~~
 
-.. code-block:: python
+论文生成由 6 个 plugin skill 组成的状态机驱动，通过
+``paper-orchestrator`` 作为唯一入口点调度。Python 包
+``agentsociety2.skills.paper`` 提供非 LLM 逻辑（状态管理、适配器、
+LaTeX 编译）。
 
-   from agentsociety2.skills.paper.generator import generate_paper_from_metadata
+**Skill 套件：**
 
-   result = await generate_paper_from_metadata(
-       metadata=paper_metadata,
-       output_dir=Path("./output"),
-       figures_source_dir=Path("./figures")
-   )
+- ``agentsociety-paper-orchestrator`` — 状态机内核，读取
+  ``paper_state.yaml``，调度 Task subagent，持久化产出
+- ``agentsociety-paper-adapter`` — workspace → ResearchPack 标准化
+- ``agentsociety-paper-framing`` — storyline_map 生成（问题、角度、贡献类型）
+- ``agentsociety-paper-evidence-expansion`` — 证据缺口审计与补全
+- ``agentsociety-paper-architecture`` — claim tree + figure-argument map +
+  章节大纲 + manuscript 草稿
+- ``agentsociety-paper-skeptical-review`` — 3 审稿人评审轮次（significance-calibrator /
+  precision-editor / evidence-skeptic）
+
+**状态机阶段：**
+
+``intake → framing → evidence-audit → expansion-plan → manuscript-build →
+skeptical-review → revision-router → release-gate``
+
+**持久化布局：**
+
+所有论文状态持久化在 ``<workspace>/paper/`` 下：
+
+- ``paper_meta.yaml`` — 标题、作者、机构
+- ``state/`` — ``paper_state.yaml``、``research_pack.json``、``human_gates.yaml``
+- ``artifacts/`` — ``storyline_map.json``、``claim_ledger.json``、
+  ``evidence_backlog.json``、``figure_argument_map.json``、
+  ``manuscript/``（abstract.md, main.md, results/*, discussion.md）
+- ``reviews/`` — ``review_round_NNN.yaml``
+- ``runs/<TS>/compose/out/paper.pdf`` — 最终交付物
+
+**CLI 入口：**
+
+``$PYTHON_PATH .agentsociety/bin/ags.py paper-orchestrator <subcommand>``
+
+子命令：init-meta, intake, build-pack, framing, evidence, architecture,
+review, compile, run-loop, status。别名 ``paper``、``generate-paper``、
+``generate_paper`` 均路由至此。
 
 完整工作流示例
 ------------------------
@@ -180,7 +194,7 @@ Python API
 4. **配置实验** - 使用 ``/agentsociety-experiment-config validate/prepare/run``
 5. **执行实验** - 使用 ``/agentsociety-run-experiment start``
 6. **分析结果** - 使用 ``/agentsociety-analysis``
-7. **生成论文** - 使用 ``/agentsociety-generate-paper``
+7. **生成论文** - 使用 ``/agentsociety-paper-orchestrator``（别名 ``/paper``）
 
 配置
 ------------------------
