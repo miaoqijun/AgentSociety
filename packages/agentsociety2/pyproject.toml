@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentsociety2"
-version = "2.2.0"
+version = "2.2.1"
 description = "A modern, LLM-native agent simulation platform for social science research"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "Jun Zhang", email = "zhangjun990222@gmail.com" },
@@ -75,12 +75,10 @@ dependencies = [
     "pandas>=2.0.0",
     "networkx>=3.0",
     "scipy>=1.10.0",
-    "scikit-learn>=1.4.0",
-    "matplotlib>=3.7.0",
-    "seaborn>=0.12.0",
-    "ydata-profiling>=4.6.0",
-    "sweetviz>=2.3.0",
-    "missingno>=0.5.0",
+    "scikit-learn>=1.8.0",
+    "sqlalchemy[asyncio]>=2.0.46",
+    "requests>=2.32.5",
+    "protobuf>=4.0.0",
 ]
 
 [project.scripts]
@@ -95,6 +93,15 @@ Issues = "https://github.com/tsinghua-fib-lab/agentsociety/issues"
 Changelog = "https://github.com/tsinghua-fib-lab/agentsociety/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+analysis = [
+    "ydata-profiling>=4.6.0",
+    "sweetviz>=2.3.0",
+    "missingno>=0.5.0",
+    "openai>=2.16.0",
+    "matplotlib>=3.10.0",
+    "seaborn>=0.13.2",
+    "tqdm>=4.67.3",
+]
 dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=0.23.0",
@@ -122,7 +129,7 @@ ml = [
 ]
 # All optional dependencies
 all = [
-    "agentsociety2[dev,docs,eda,ml]",
+    "agentsociety2[analysis,dev,docs,eda,ml]",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -152,6 +159,14 @@ artifacts = [
 include = [
   "agentsociety2/contrib/env/*.py",
 ]
+
+[tool.deptry]
+known_first_party = ["agentsociety2"]
+optional_dependencies_dev_groups = ["dev", "docs"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["aiosqlite", "chromadb", "networkx", "statsmodels", "agentsociety2"]
+DEP003 = ["debugpy"]
 
 [dependency-groups]
 dev = [

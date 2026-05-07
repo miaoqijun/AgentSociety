@@ -22,6 +22,9 @@ import { localize } from '../i18n';
 import { EnvManager } from '../envManager';
 import { findAvailablePort, isPortAvailable } from '../portUtils';
 import { getBackendAccessUrl, getBackendBindHost, getBackendPort } from '../runtimeConfig';
+import { fetchCompat } from '../shared/fetchCompat';
+
+const fetch = fetchCompat as unknown as typeof globalThis.fetch;
 
 export interface BackendStatus {
   isRunning: boolean;
@@ -247,8 +250,6 @@ export class BackendManager {
     if (envConfig.miroflowDefaultLlm) { env.MIROFLOW_DEFAULT_LLM = envConfig.miroflowDefaultLlm; }
     if (envConfig.miroflowDefaultAgent) { env.MIROFLOW_DEFAULT_AGENT = envConfig.miroflowDefaultAgent; }
 
-    // EasyPaper (for generate_paper tool)
-    if (envConfig.easypaperApiUrl) { env.EASYPAPER_API_URL = envConfig.easypaperApiUrl; }
     if (envConfig.literatureSearchApiUrl) { env.LITERATURE_SEARCH_API_URL = envConfig.literatureSearchApiUrl; }
     if (envConfig.literatureSearchApiKey) { env.LITERATURE_SEARCH_API_KEY = envConfig.literatureSearchApiKey; }
 

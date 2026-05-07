@@ -3,7 +3,7 @@
  */
 
 /** 协议版本 */
-export const PROTOCOL_VERSION = '1.0.0';
+export const PROTOCOL_VERSION = '1.1.0';
 
 /** 消息命令常量 */
 export const Commands = {

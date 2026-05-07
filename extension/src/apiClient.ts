@@ -17,6 +17,9 @@
 
 import * as vscode from 'vscode';
 import { getBackendAccessUrl } from './runtimeConfig';
+import { fetchCompat } from './shared/fetchCompat';
+
+const fetch = fetchCompat as unknown as typeof globalThis.fetch;
 
 /**
  * API客户端 - 用于与FastAPI后端通信

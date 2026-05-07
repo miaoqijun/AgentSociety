@@ -61,13 +61,6 @@ export interface EnvConfig {
   miroflowDefaultLlm?: string;
   miroflowDefaultAgent?: string;
 
-  // EasyPaper
-  easypaperApiUrl?: string;
-  easypaperLlmApiKey?: string;
-  easypaperLlmModel?: string;
-  easypaperVlmModel?: string;
-  easypaperVlmApiKey?: string;
-
   // Literature Search
   literatureSearchApiUrl?: string;
   literatureSearchApiKey?: string;
@@ -102,14 +95,35 @@ const ENV_KEY_MAP: Record<keyof EnvConfig, string> = {
   webSearchApiToken: 'WEB_SEARCH_API_TOKEN',
   miroflowDefaultLlm: 'MIROFLOW_DEFAULT_LLM',
   miroflowDefaultAgent: 'MIROFLOW_DEFAULT_AGENT',
-  easypaperApiUrl: 'EASYPAPER_API_URL',
-  easypaperLlmApiKey: 'EASYPAPER_LLM_API_KEY',
-  easypaperLlmModel: 'EASYPAPER_LLM_MODEL',
-  easypaperVlmModel: 'EASYPAPER_VLM_MODEL',
-  easypaperVlmApiKey: 'EASYPAPER_VLM_API_KEY',
   literatureSearchApiUrl: 'LITERATURE_SEARCH_API_URL',
   literatureSearchApiKey: 'LITERATURE_SEARCH_API_KEY',
 };
+
+const LEGACY_ENV_KEYS = new Set([
+  'EASYPAPER_API_URL',
+  'EASYPAPER_LLM_API_KEY',
+  'EASYPAPER_LLM_MODEL',
+  'EASYPAPER_VLM_MODEL',
+  'EASYPAPER_VLM_API_KEY',
+  'AGENTSOCIETY_EASYPAPER_WRITER_API_KEY',
+  'AGENTSOCIETY_EASYPAPER_WRITER_API_BASE',
+  'AGENTSOCIETY_EASYPAPER_WRITER_MODEL',
+  'AGENTSOCIETY_EASYPAPER_TYPESETTER_API_KEY',
+  'AGENTSOCIETY_EASYPAPER_TYPESETTER_API_BASE',
+  'AGENTSOCIETY_EASYPAPER_TYPESETTER_MODEL',
+  'AGENTSOCIETY_EASYPAPER_METADATA_API_KEY',
+  'AGENTSOCIETY_EASYPAPER_METADATA_API_BASE',
+  'AGENTSOCIETY_EASYPAPER_METADATA_MODEL',
+  'AGENTSOCIETY_EASYPAPER_REVIEWER_API_KEY',
+  'AGENTSOCIETY_EASYPAPER_REVIEWER_API_BASE',
+  'AGENTSOCIETY_EASYPAPER_REVIEWER_MODEL',
+  'AGENTSOCIETY_EASYPAPER_PLANNER_API_KEY',
+  'AGENTSOCIETY_EASYPAPER_PLANNER_API_BASE',
+  'AGENTSOCIETY_EASYPAPER_PLANNER_MODEL',
+  'AGENTSOCIETY_EASYPAPER_VLM_API_KEY',
+  'AGENTSOCIETY_EASYPAPER_VLM_API_BASE',
+  'AGENTSOCIETY_EASYPAPER_VLM_MODEL',
+]);
 
 /**
  * Default values for configuration
@@ -243,6 +257,9 @@ export class EnvManager {
       const match = trimmed.match(/^([^=]+)=(.*)$/);
       if (match) {
         const key = match[1].trim();
+        if (LEGACY_ENV_KEYS.has(key)) {
+          continue;
+        }
         if (Object.values(ENV_KEY_MAP).includes(key)) {
           // Skip if this env key has already been written (handle duplicates)
           if (writtenEnvKeys.has(key)) {
@@ -372,20 +389,6 @@ WEB_SEARCH_API_TOKEN=
 MIROFLOW_DEFAULT_LLM=qwen-3
 # Default agent for Miroflow / Miroflow 默认代理
 MIROFLOW_DEFAULT_AGENT=mirothinker_v1.5_keep5_max200
-
-# ========== EasyPaper / EasyPaper 配置 ==========
-# EasyPaper API URL / EasyPaper API 地址
-EASYPAPER_API_URL=
-# EasyPaper LLM API Key / EasyPaper LLM API 密钥
-EASYPAPER_LLM_API_KEY=
-# EasyPaper LLM Model / EasyPaper LLM 模型
-# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
-EASYPAPER_LLM_MODEL=
-# EasyPaper VLM Model / EasyPaper 视觉语言模型
-# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
-EASYPAPER_VLM_MODEL=
-# EasyPaper VLM API Key / EasyPaper VLM API 密钥
-EASYPAPER_VLM_API_KEY=
 
 # ========== Literature Search / 文献搜索 ==========
 # Literature search API URL / 文献搜索 API 地址

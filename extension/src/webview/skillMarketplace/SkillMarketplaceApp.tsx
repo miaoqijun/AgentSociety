@@ -342,6 +342,12 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
     vscode.postMessage({ type: 'listClaudeCodeSkills' });
   };
   const handleUpdateExtensionSkills = () => vscode.postMessage({ type: 'updateExtensionSkills' });
+  const handleSwitchSkillVersion = () =>
+    vscode.postMessage({ type: 'invokeSwitchSkillVersionCommand' });
+  const handleEditSkillPresets = () =>
+    vscode.postMessage({ type: 'invokeEditSkillPresetsCommand' });
+  const handleSnapshotSkill = (_name?: string) =>
+    vscode.postMessage({ type: 'invokeSnapshotSkillCommand' });
 
   const handleSyncOneBundledClaudeSkill = (name: string) => {
     setVsixSyncLoading((prev) => new Set(prev).add(name));
@@ -1202,6 +1208,12 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
           <div style={skillCardContentStyle}>
             <Space wrap size={[4, 4]}>
               <Tag color="purple">{t('skillManagement.vsixTemplateTag')}</Tag>
+              {skill.isVersioned && skill.activeVersion ? (
+                <Tag color={skill.activeVersion.source === 'snapshot' ? 'orange' : 'blue'}>
+                  {skill.activeVersion.source === 'snapshot' ? 'snapshot' : 'v'}
+                  {skill.activeVersion.id.replace(/^v/, '')}
+                </Tag>
+              ) : null}
               {workspaceSynced ? (
                 wsActive ? (
                   <Tag color="success">{t('skillManagement.vsixWorkspaceSynced')}</Tag>
@@ -1216,6 +1228,24 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
             <div style={descStyle}>{skill.description || t('skillManagement.noDescription')}</div>
           </div>
           <Space wrap size={4} style={skillCardActionsStyle}>
+            {skill.isVersioned ? (
+              <>
+                <Tooltip title={t('skillManagement.switchSkillVersionTip')}>
+                  <Button size="small" icon={<SyncOutlined />} onClick={handleSwitchSkillVersion}>
+                    {t('skillManagement.switchSkillVersion')}
+                  </Button>
+                </Tooltip>
+                <Tooltip title={t('skillManagement.snapshotSkillTip')}>
+                  <Button
+                    size="small"
+                    icon={<InboxOutlined />}
+                    onClick={() => handleSnapshotSkill(skill.name)}
+                  >
+                    {t('skillManagement.snapshotSkill')}
+                  </Button>
+                </Tooltip>
+              </>
+            ) : null}
             <Button
               type="primary"
               size="small"
@@ -1492,6 +1522,9 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
             </Button>
             <Button icon={<CloudSyncOutlined />} onClick={handleUpdateExtensionSkills} size="small">
               {t('skillManagement.syncExtensionSkills')}
+            </Button>
+            <Button icon={<SettingOutlined />} onClick={handleEditSkillPresets} size="small">
+              {t('skillManagement.editSkillPresets')}
             </Button>
             <Button type="primary" icon={<ImportOutlined />} onClick={handleImportClaudeCodeSkill} size="small">
               {t('skillManagement.importClaudeSkill')}

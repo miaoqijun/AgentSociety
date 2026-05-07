@@ -186,9 +186,18 @@ async def get_experiment_status(
                 import json
                 pid_data = json.loads(pid_content)
                 pid = pid_data.get("pid")
+                pid_status = str(pid_data.get("status") or "").strip().lower()
                 start_time = pid_data.get("start_time") or pid_data.get("started_at")
                 end_time = pid_data.get("end_time")
-                if pid:
+
+                if pid_status == "completed":
+                    status = "completed"
+                elif pid_status == "failed":
+                    status = "failed"
+                elif pid_status:
+                    status = pid_status
+
+                if pid and pid_status not in {"completed", "failed"}:
                     # Check if process is still alive
                     import os
                     try:
@@ -196,10 +205,12 @@ async def get_experiment_status(
                         is_running = True
                         status = "running"
                     except OSError:
-                        # Process ended, check for completion marker
-                        if pid_data.get("status") == "completed":
-                            status = "completed"
-                        elif pid_data.get("status") == "failed":
+                        if pid_status == "running" and status not in {"completed", "failed"}:
+                            if (exp_paths["run"] / "sqlite.db").exists():
+                                status = "completed"
+                            else:
+                                status = "failed"
+                        elif pid_status == "failed":
                             status = "failed"
         except (ValueError, OSError, json.JSONDecodeError):
             pass
@@ -245,9 +256,11 @@ async def list_experiments(
     """
     experiments: List[ExperimentInfo] = []
 
-    def _check_experiment_status(exp_dir: Path) -> tuple[bool, bool, bool, Optional[int], bool]:
+    def _check_experiment_status(
+        exp_dir: Path,
+    ) -> tuple[bool, bool, bool, Optional[int], bool, Optional[str]]:
         """Helper to check experiment status
-        Returns: (has_init, has_run, is_completed, pid, is_running)
+        Returns: (has_init, has_run, is_completed, pid, is_running, terminal_status)
 
         Note:
             - has_init: checks init/init_config.json (simplified structure)
@@ -261,6 +274,7 @@ async def list_experiments(
 
         pid = None
         is_running = False
+        terminal_status: Optional[str] = None
         pid_file = exp_dir / "run" / "pid.json"
         if pid_file.exists():
             try:
@@ -270,16 +284,23 @@ async def list_experiments(
                 if pid_content:
                     pid_data = json.loads(pid_content)
                     pid = pid_data.get("pid")
-                    if pid:
+                    pid_status = str(pid_data.get("status") or "").strip().lower()
+                    if pid_status == "completed":
+                        is_completed = True
+                        terminal_status = "completed"
+                    elif pid_status == "failed":
+                        terminal_status = "failed"
+                    if pid_status not in {"completed", "failed"} and pid:
                         try:
                             os.kill(pid, 0)
                             is_running = True
                         except OSError:
-                            pass
+                            if pid_status == "running" and not is_completed:
+                                pid = None
             except (ValueError, OSError, json.JSONDecodeError):
                 pass
 
-        return has_init, has_run, is_completed, pid, is_running
+        return has_init, has_run, is_completed, pid, is_running, terminal_status
 
     if hypothesis_id:
         hyp_dir = workspace_path / f"hypothesis_{hypothesis_id}"
@@ -287,14 +308,32 @@ async def list_experiments(
             for item in hyp_dir.iterdir():
                 if item.is_dir() and item.name.startswith("experiment_"):
                     exp_id = item.name.replace("experiment_", "")
-                    has_init, has_run, is_completed, pid, is_running = _check_experiment_status(item)
+                    (
+                        has_init,
+                        has_run,
+                        is_completed,
+                        pid,
+                        is_running,
+                        terminal_status,
+                    ) = _check_experiment_status(item)
                     experiments.append(
                         ExperimentInfo(
                             hypothesis_id=hypothesis_id,
                             experiment_id=exp_id,
                             has_init=has_init,
                             has_run=has_run,
-                            status="running" if is_running else ("completed" if is_completed else "configured" if has_init else "not_initialized"),
+                            status=(
+                                "running"
+                                if is_running
+                                else (
+                                    terminal_status
+                                    or (
+                                        "completed"
+                                        if is_completed
+                                        else "configured" if has_init else "not_initialized"
+                                    )
+                                )
+                            ),
                             pid=pid,
                             is_running=is_running,
                         )
@@ -306,14 +345,32 @@ async def list_experiments(
                 for exp_item in hyp_item.iterdir():
                     if exp_item.is_dir() and exp_item.name.startswith("experiment_"):
                         exp_id = exp_item.name.replace("experiment_", "")
-                        has_init, has_run, is_completed, pid, is_running = _check_experiment_status(exp_item)
+                        (
+                            has_init,
+                            has_run,
+                            is_completed,
+                            pid,
+                            is_running,
+                            terminal_status,
+                        ) = _check_experiment_status(exp_item)
                         experiments.append(
                             ExperimentInfo(
                                 hypothesis_id=hyp_id,
                                 experiment_id=exp_id,
                                 has_init=has_init,
                                 has_run=has_run,
-                                status="running" if is_running else ("completed" if is_completed else "configured" if has_init else "not_initialized"),
+                                status=(
+                                    "running"
+                                    if is_running
+                                    else (
+                                        terminal_status
+                                        or (
+                                            "completed"
+                                            if is_completed
+                                            else "configured" if has_init else "not_initialized"
+                                        )
+                                    )
+                                ),
                                 pid=pid,
                                 is_running=is_running,
                             )

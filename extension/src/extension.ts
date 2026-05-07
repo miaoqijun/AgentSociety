@@ -37,7 +37,7 @@ import { filePathToAtReference } from './atReference';
 import { AIChatInvoker } from './aiChatInvoker';
 import { LiteratureIndexViewer } from './literatureIndexViewer';
 import { StepsViewer } from './stepsViewer';
-import { ExperimentResultsViewer } from './experimentResultsViewer';
+
 import { PidStatusViewer } from './pidStatusViewer';
 import { JsonViewer } from './jsonViewer';
 import { YamlViewer } from './yamlViewer';
@@ -725,6 +725,97 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const switchSkillVersionCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.switchSkillVersion',
+    async () => {
+      const wf = vscode.workspace.workspaceFolders?.[0];
+      if (!wf) {
+        vscode.window.showErrorMessage('请先打开工作区文件夹');
+        return;
+      }
+      const versionManager = projectStructureProvider.getSkillVersionManager();
+      const file = versionManager.ensureDefaultPresetExists(wf.uri.fsPath);
+      const items = Object.keys(file.presets)
+        .sort()
+        .map((name) => ({
+          label: file.active === name ? `$(check) ${name}` : name,
+          description: file.active === name ? '当前激活' : undefined,
+          name,
+        }));
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Switch Skill Version: 选择 preset',
+      });
+      if (!picked) {
+        return;
+      }
+      const result = versionManager.applyPreset(wf.uri.fsPath, picked.name);
+      const summary =
+        `已切换到 preset「${result.preset}」：` +
+        `应用 ${result.applied.length} 个，` +
+        `回退 ${result.fallbacks.length} 个，` +
+        `错误 ${result.errors.length} 个`;
+      if (result.errors.length === 0) {
+        vscode.window.showInformationMessage(summary);
+      } else {
+        vscode.window.showWarningMessage(summary);
+      }
+    }
+  );
+
+  const snapshotCurrentSkillCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.snapshotCurrentSkill',
+    async () => {
+      const wf = vscode.workspace.workspaceFolders?.[0];
+      if (!wf) {
+        vscode.window.showErrorMessage('请先打开工作区文件夹');
+        return;
+      }
+      const versionManager = projectStructureProvider.getSkillVersionManager();
+      const skillNames = versionManager.listManagedSkills();
+      if (skillNames.length === 0) {
+        vscode.window.showWarningMessage('未发现可快照的 agentsociety-* skill');
+        return;
+      }
+      const skill = await vscode.window.showQuickPick(skillNames, {
+        placeHolder: 'Snapshot Current Skill: 选择要快照的 skill',
+      });
+      if (!skill) {
+        return;
+      }
+      const tag = await vscode.window.showInputBox({
+        prompt: `输入快照 tag（仅字母/数字/. _ -）`,
+        placeHolder: `如 stable-${new Date().toISOString().slice(0, 10)}`,
+        validateInput: (v) => (/^[A-Za-z0-9._-]+$/.test(v.trim()) ? null : '非法字符'),
+      });
+      if (!tag) {
+        return;
+      }
+      const result = versionManager.createSnapshot(wf.uri.fsPath, skill, tag);
+      if (result.success) {
+        vscode.window.showInformationMessage(result.message);
+      } else {
+        vscode.window.showErrorMessage(result.message);
+      }
+    }
+  );
+
+  const editSkillPresetsCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.editSkillPresets',
+    async () => {
+      const wf = vscode.workspace.workspaceFolders?.[0];
+      if (!wf) {
+        vscode.window.showErrorMessage('请先打开工作区文件夹');
+        return;
+      }
+      const versionManager = projectStructureProvider.getSkillVersionManager();
+      versionManager.ensureDefaultPresetExists(wf.uri.fsPath);
+      const file = vscode.Uri.file(
+        path.join(wf.uri.fsPath, '.agentsociety', 'skill-presets.json')
+      );
+      await vscode.window.showTextDocument(file);
+    }
+  );
+
   // 格式化查看 JSON 文件命令
   const formatJsonCommand = vscode.commands.registerCommand(
     'aiSocialScientist.formatJsonFile',
@@ -832,59 +923,6 @@ export function activate(context: vscode.ExtensionContext) {
         await StepsViewer.show(context, filePath);
       } catch (error: any) {
         vscode.window.showErrorMessage(localize('extension.steps.openFailed'));
-      }
-    }
-  );
-
-  // 实验结果可视化命令
-  const viewExperimentResultsCommand = vscode.commands.registerCommand(
-    'aiSocialScientist.viewExperimentResults',
-    async (item: any) => {
-      let filePath: string | undefined;
-
-      if (item && item.filePath) {
-        filePath = item.filePath;
-      } else {
-        // 如果没有传入文件路径，让用户选择
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-          vscode.window.showErrorMessage(localize('extension.experimentResults.noWorkspace'));
-          return;
-        }
-
-        const files = await vscode.workspace.findFiles('**/run/experiment_results.json');
-        if (files.length === 0) {
-          vscode.window.showErrorMessage(localize('extension.experimentResults.notFound'));
-          return;
-        }
-
-        if (files.length === 1) {
-          filePath = files[0].fsPath;
-        } else {
-          const picks = files.map(f => ({
-            label: vscode.workspace.asRelativePath(f),
-            path: f.fsPath
-          }));
-          const selected = await vscode.window.showQuickPick(picks, {
-            placeHolder: localize('extension.experimentResults.pickPlaceholder')
-          });
-          if (!selected) {
-            return;
-          }
-          filePath = selected.path;
-        }
-      }
-
-      // 检查文件是否存在
-      if (!filePath || !fs.existsSync(filePath)) {
-        vscode.window.showErrorMessage(localize('extension.experimentResults.missing'));
-        return;
-      }
-
-      try {
-        await ExperimentResultsViewer.show(context, filePath);
-      } catch (error: any) {
-        vscode.window.showErrorMessage(localize('extension.experimentResults.openFailed'));
       }
     }
   );
@@ -1051,10 +1089,12 @@ export function activate(context: vscode.ExtensionContext) {
     listCustomModulesCommand,
     openAgentSkillDocCommand,
     updateExtensionSkillsCommand,
+    switchSkillVersionCommand,
+    snapshotCurrentSkillCommand,
+    editSkillPresetsCommand,
     formatJsonCommand,
     viewLiteratureIndexCommand,
     viewStepsYamlCommand,
-    viewExperimentResultsCommand,
     viewPidStatusCommand,
     viewJsonFileCommand,
     viewYamlFileCommand,

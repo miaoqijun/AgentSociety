@@ -13,11 +13,15 @@ import type {
   AgentSkill,
   ClaudeCodeSkill,
   BuiltinSkill,
+  BuiltinSkillVersionInfo,
+  SkillPreset,
+  SkillVersionRef,
   MarketplaceLoadError,
   SkillFrontmatter,
 } from './webview/skillMarketplace/types';
 import { ApiClient } from './apiClient';
 import type { ProjectStructureProvider } from './projectStructureProvider';
+import { SkillVersionManager } from './skillVersionManager';
 import { getPlatformAdapter, type SkillSource } from './platforms';
 import {
   CLAUDE_DISABLED_VAULT,
@@ -83,6 +87,7 @@ export class SkillMarketplacePanel {
             await this._loadAgentSkills();
             await this._loadClaudeCodeSkills();
             await this._loadBuiltinSkills();
+            await this._loadSkillPresets();
             await this._loadMarketplaceSkills();
             break;
 
@@ -193,8 +198,56 @@ export class SkillMarketplacePanel {
               vscode.window.showErrorMessage(r.message);
             }
             await this._loadClaudeCodeSkills();
+            await this._loadBuiltinSkills();
             break;
           }
+
+          // Skill Versioning
+          case 'listSkillPresets':
+            await this._loadSkillPresets();
+            break;
+          case 'applySkillPreset': {
+            const pl = data.payload as { name?: string } | undefined;
+            const name = typeof pl?.name === 'string' ? pl.name : '';
+            await this._applySkillPreset(name);
+            break;
+          }
+          case 'createSkillSnapshot': {
+            const pl = data.payload as { skill?: string; tag?: string } | undefined;
+            const skill = typeof pl?.skill === 'string' ? pl.skill : '';
+            const tag = typeof pl?.tag === 'string' ? pl.tag : '';
+            await this._createSkillSnapshot(skill, tag);
+            break;
+          }
+          case 'savePreset': {
+            const pl = data.payload as { name?: string; mapping?: Record<string, SkillVersionRef> } | undefined;
+            const name = typeof pl?.name === 'string' ? pl.name : '';
+            const mapping = pl?.mapping && typeof pl.mapping === 'object' ? pl.mapping : {};
+            await this._savePreset(name, mapping);
+            break;
+          }
+          case 'deletePreset': {
+            const pl = data.payload as { name?: string } | undefined;
+            const name = typeof pl?.name === 'string' ? pl.name : '';
+            await this._deletePreset(name);
+            break;
+          }
+
+          // Direct command-bridge from webview
+          case 'invokeSwitchSkillVersionCommand':
+            await vscode.commands.executeCommand('aiSocialScientist.switchSkillVersion');
+            await this._loadBuiltinSkills();
+            await this._loadSkillPresets();
+            break;
+          case 'invokeSnapshotSkillCommand':
+            await vscode.commands.executeCommand('aiSocialScientist.snapshotCurrentSkill');
+            await this._loadBuiltinSkills();
+            break;
+          case 'invokeEditSkillPresetsCommand':
+            await vscode.commands.executeCommand('aiSocialScientist.editSkillPresets');
+            break;
+
+          // Marketplace sources & GitHub token (from main)
           case 'getSkillSources': {
             const target = data.payload as 'agent' | 'claudeCode';
             await this._getSkillSources(target);
@@ -372,24 +425,83 @@ export class SkillMarketplacePanel {
 
   private async _loadBuiltinSkills(): Promise<void> {
     const skills: BuiltinSkill[] = [];
+    const versionManager = this._projectStructureProvider.getSkillVersionManager();
+    const wf = vscode.workspace.workspaceFolders?.[0];
+    const presetMap = wf ? versionManager.getActivePreset(wf.uri.fsPath).map : {};
+
     const skillsDir = path.join(this._extensionUri.fsPath, 'skills');
     if (fs.existsSync(skillsDir)) {
       try {
         const names = fs.readdirSync(skillsDir).filter((name) => {
           const skillPath = path.join(skillsDir, name);
-          return fs.statSync(skillPath).isDirectory() && skillMdPathInDir(skillPath) !== null;
+          if (!fs.statSync(skillPath).isDirectory()) {
+            return false;
+          }
+          // Versioned skill: must have manifest.json
+          if (SkillVersionManager.isVersioned(name)) {
+            return fs.existsSync(path.join(skillPath, 'manifest.json'));
+          }
+          // Legacy/office skill: must have SKILL.md at top level
+          return skillMdPathInDir(skillPath) !== null;
         });
+
         for (const name of names) {
           const skillPath = path.join(skillsDir, name);
-          const mdPath = skillMdPathInDir(skillPath)!;
-          const content = fs.readFileSync(mdPath, 'utf-8');
-          const frontmatter = parseFrontmatter(content);
-          skills.push({
-            name,
-            path: skillPath,
-            hasSkillMd: true,
-            description: typeof frontmatter.description === 'string' ? frontmatter.description : undefined
-          });
+
+          if (SkillVersionManager.isVersioned(name)) {
+            const versions: BuiltinSkillVersionInfo[] = [
+              ...versionManager.listBundledVersions(name),
+              ...versionManager.listSnapshots(name),
+            ];
+            const ref = presetMap[name] ?? {
+              source: 'bundled' as const,
+              version: versionManager.defaultVersion(name) || undefined,
+            };
+            const activeId = ref.source === 'bundled' ? ref.version : ref.tag;
+
+            // Use SKILL.md from active version dir for description preview
+            const activePath =
+              ref.source === 'bundled' && ref.version
+                ? path.join(skillPath, ref.version)
+                : skillPath;
+            const mdPath = skillMdPathInDir(activePath);
+            let description: string | undefined;
+            if (mdPath) {
+              try {
+                const content = fs.readFileSync(mdPath, 'utf-8');
+                const fm = parseFrontmatter(content);
+                description = typeof fm.description === 'string' ? fm.description : undefined;
+              } catch {
+                /* ignore */
+              }
+            }
+
+            skills.push({
+              name,
+              path: skillPath,
+              hasSkillMd: mdPath !== null,
+              description,
+              isVersioned: true,
+              activeVersion: activeId
+                ? { source: ref.source, id: activeId }
+                : undefined,
+              availableVersions: versions,
+              snapshotCount: versionManager.countSnapshots(name),
+            });
+          } else {
+            // Legacy/office skill — flat layout
+            const mdPath = skillMdPathInDir(skillPath)!;
+            const content = fs.readFileSync(mdPath, 'utf-8');
+            const frontmatter = parseFrontmatter(content);
+            skills.push({
+              name,
+              path: skillPath,
+              hasSkillMd: true,
+              description:
+                typeof frontmatter.description === 'string' ? frontmatter.description : undefined,
+              isVersioned: false,
+            });
+          }
         }
       } catch (error: any) {
         this._outputChannel.appendLine(`[SkillManagement] Failed to load extension skills: ${error.message}`);
@@ -424,6 +536,26 @@ export class SkillMarketplacePanel {
     await this._postMessage({ type: 'claudeCodeSkillsLoaded', payload: skills });
   }
 
+  /**
+   * Treat both real directories and symlinks-to-directories as valid skill dirs.
+   * Dirent.isDirectory() uses lstat semantics and returns false for symlinks,
+   * so version-managed skills (which we materialize as symlinks) would otherwise
+   * be filtered out from the workspace skill listing.
+   */
+  private _isSkillDirEntry(entry: fs.Dirent, fullPath: string): boolean {
+    if (entry.isDirectory()) {
+      return true;
+    }
+    if (entry.isSymbolicLink()) {
+      try {
+        return fs.statSync(fullPath).isDirectory();
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
   private _scanClaudeCodeSkills(dirPath: string, skills: ClaudeCodeSkill[], origin: 'workspace' | 'global'): void {
     if (!fs.existsSync(dirPath)) {
       return;
@@ -432,10 +564,13 @@ export class SkillMarketplacePanel {
     try {
       const entries = fs.readdirSync(dirPath, { withFileTypes: true });
       for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name.startsWith('.')) {
+        if (entry.name.startsWith('.')) {
           continue;
         }
         const skillPath = path.join(dirPath, entry.name);
+        if (!this._isSkillDirEntry(entry, skillPath)) {
+          continue;
+        }
         const mdPath = skillMdPathInDir(skillPath);
         const hasSkillMd = mdPath !== null;
 
@@ -473,10 +608,13 @@ export class SkillMarketplacePanel {
     try {
       const entries = fs.readdirSync(vault, { withFileTypes: true });
       for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name.startsWith('.')) {
+        if (entry.name.startsWith('.')) {
           continue;
         }
         const skillPath = path.join(vault, entry.name);
+        if (!this._isSkillDirEntry(entry, skillPath)) {
+          continue;
+        }
         const mdPath = skillMdPathInDir(skillPath);
         const hasSkillMd = mdPath !== null;
         let description: string | undefined;
@@ -1352,6 +1490,126 @@ export class SkillMarketplacePanel {
       const uri = vscode.Uri.file(skillPath);
       vscode.commands.executeCommand('revealInExplorer', uri);
     }
+  }
+
+  // ============ Skill Versioning ============
+
+  private async _loadSkillPresets(): Promise<void> {
+    const wf = vscode.workspace.workspaceFolders?.[0];
+    if (!wf) {
+      await this._postMessage({ type: 'skillPresetsLoaded', payload: { active: '', presets: [] } });
+      return;
+    }
+    const versionManager = this._projectStructureProvider.getSkillVersionManager();
+    const file = versionManager.ensureDefaultPresetExists(wf.uri.fsPath);
+    const presets: SkillPreset[] = Object.entries(file.presets).map(([name, mapping]) => ({
+      name,
+      active: name === file.active,
+      mapping: mapping as Record<string, SkillVersionRef>,
+    }));
+    await this._postMessage({
+      type: 'skillPresetsLoaded',
+      payload: { active: file.active, presets },
+    });
+  }
+
+  private async _applySkillPreset(name: string): Promise<void> {
+    const wf = vscode.workspace.workspaceFolders?.[0];
+    if (!wf) {
+      vscode.window.showErrorMessage('请先打开工作区文件夹');
+      return;
+    }
+    if (!name.trim()) {
+      return;
+    }
+    const versionManager = this._projectStructureProvider.getSkillVersionManager();
+    const result = versionManager.applyPreset(wf.uri.fsPath, name);
+    const summary =
+      `已切换到 preset「${result.preset}」：` +
+      `应用 ${result.applied.length} 个，` +
+      `回退 ${result.fallbacks.length} 个，` +
+      `错误 ${result.errors.length} 个`;
+    if (result.errors.length === 0) {
+      vscode.window.showInformationMessage(summary);
+    } else {
+      vscode.window.showWarningMessage(summary);
+    }
+    await this._postMessage({ type: 'skillPresetApplied', payload: { name, summary } });
+    await this._loadBuiltinSkills();
+    await this._loadClaudeCodeSkills();
+    await this._loadSkillPresets();
+  }
+
+  private async _createSkillSnapshot(skill: string, tag: string): Promise<void> {
+    const wf = vscode.workspace.workspaceFolders?.[0];
+    if (!wf) {
+      vscode.window.showErrorMessage('请先打开工作区文件夹');
+      return;
+    }
+    const versionManager = this._projectStructureProvider.getSkillVersionManager();
+    const result = versionManager.createSnapshot(wf.uri.fsPath, skill, tag);
+    if (result.success) {
+      vscode.window.showInformationMessage(result.message);
+      await this._postMessage({
+        type: 'skillSnapshotCreated',
+        payload: { skill, tag, path: result.path },
+      });
+      await this._loadBuiltinSkills();
+    } else {
+      vscode.window.showErrorMessage(result.message);
+    }
+  }
+
+  private async _savePreset(name: string, mapping: Record<string, SkillVersionRef>): Promise<void> {
+    const wf = vscode.workspace.workspaceFolders?.[0];
+    if (!wf) {
+      vscode.window.showErrorMessage('请先打开工作区文件夹');
+      return;
+    }
+    const trimmed = name.trim();
+    if (!trimmed) {
+      vscode.window.showErrorMessage('preset 名称为空');
+      return;
+    }
+    const versionManager = this._projectStructureProvider.getSkillVersionManager();
+    const file = versionManager.ensureDefaultPresetExists(wf.uri.fsPath);
+    file.presets[trimmed] = mapping;
+    const r = versionManager.savePresets(wf.uri.fsPath, file);
+    if (!r.success) {
+      vscode.window.showErrorMessage(r.message);
+      return;
+    }
+    vscode.window.showInformationMessage(`已保存 preset「${trimmed}」`);
+    await this._loadSkillPresets();
+  }
+
+  private async _deletePreset(name: string): Promise<void> {
+    const wf = vscode.workspace.workspaceFolders?.[0];
+    if (!wf) {
+      vscode.window.showErrorMessage('请先打开工作区文件夹');
+      return;
+    }
+    if (name === 'default') {
+      vscode.window.showErrorMessage('不能删除 default preset');
+      return;
+    }
+    const versionManager = this._projectStructureProvider.getSkillVersionManager();
+    const file = versionManager.ensureDefaultPresetExists(wf.uri.fsPath);
+    if (!file.presets[name]) {
+      return;
+    }
+    delete file.presets[name];
+    if (file.active === name) {
+      file.active = 'default';
+    }
+    const r = versionManager.savePresets(wf.uri.fsPath, file);
+    if (!r.success) {
+      vscode.window.showErrorMessage(r.message);
+      return;
+    }
+    vscode.window.showInformationMessage(`已删除 preset「${name}」`);
+    await this._loadSkillPresets();
+    await this._loadBuiltinSkills();
   }
 
   private async _postMessage(message: { type: string; payload?: any }): Promise<void> {

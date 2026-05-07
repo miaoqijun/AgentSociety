@@ -39,11 +39,39 @@ export interface ClaudeCodeSkill {
 
 // ============ Built-in Skills（插件自带，只读） ============
 
+export interface BuiltinSkillVersionInfo {
+  id: string;
+  label?: string;
+  addedIn?: string;
+  source: 'bundled' | 'snapshot';
+}
+
 export interface BuiltinSkill {
   name: string;
   path: string;
   hasSkillMd: boolean;
   description?: string;
+  /** True for agentsociety-* skills under version management. */
+  isVersioned?: boolean;
+  /** When isVersioned: which version is currently realized in .claude/skills/. */
+  activeVersion?: { source: 'bundled' | 'snapshot'; id: string };
+  availableVersions?: BuiltinSkillVersionInfo[];
+  snapshotCount?: number;
+}
+
+// ============ Skill Presets（仅 agentsociety-*） ============
+
+export interface SkillVersionRef {
+  source: 'bundled' | 'snapshot';
+  version?: string;
+  tag?: string;
+}
+
+export interface SkillPreset {
+  name: string;
+  active: boolean;
+  /** skillName -> SkillVersionRef. Skills not listed fall back to defaultVersion. */
+  mapping: Record<string, SkillVersionRef>;
 }
 
 // ============ Marketplace Skills（从 GitHub 仓库获取） ============
@@ -203,6 +231,15 @@ export interface ExtensionMessage {
   | 'syncOneClaudeSkillFromVsix'
   | 'setClaudeSkillActive'
   | 'purgeClaudeCodeSkill'
+  // Skill Versioning
+  | 'listSkillPresets'
+  | 'applySkillPreset'
+  | 'createSkillSnapshot'
+  | 'savePreset'
+  | 'deletePreset'
+  | 'invokeSwitchSkillVersionCommand'
+  | 'invokeSnapshotSkillCommand'
+  | 'invokeEditSkillPresetsCommand'
   // 市场源配置
   | 'getSkillSources'          // 获取市场源配置
   | 'saveSkillSources'         // 保存市场源配置
@@ -235,6 +272,10 @@ export interface WebviewMessage {
   | 'installProgress'
   | 'installComplete'
   | 'installFailed'
+  // Skill Versioning
+  | 'skillPresetsLoaded'
+  | 'skillPresetApplied'
+  | 'skillSnapshotCreated'
   // 更新相关
   | 'skillUpdateDiffLoaded'
   | 'skillUpdateDiffError'

@@ -1,80 +1,499 @@
-"""Paper generation data models
+"""Pydantic models for the paper-orchestrator harness (M1).
 
-Pydantic models for paper generation metadata and configuration.
+These data classes back the YAML/JSON files persisted under
+``<workspace>/paper/`` (state, artifacts, reviews, runs).  All non-LLM logic
+(state CRUD, adapter, compose) round-trips through these models so the
+on-disk shape stays consistent with subagent prompts and tests.
 """
 
 from __future__ import annotations
 
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class PaperFigure(BaseModel):
-    """Figure metadata for paper generation"""
-
-    id: str = Field(..., description="Figure identifier (e.g., 'fig:example')")
-    caption: str = Field(..., description="Figure caption")
-    description: str = Field(..., description="Figure description")
-    file_path: str = Field(..., description="Path to figure file")
+# ---------------------------------------------------------------------------
+# Envelope (skill return contract)
+# ---------------------------------------------------------------------------
 
 
-class PaperMetadata(BaseModel):
-    """Paper metadata for generation
+EnvelopeStatus = Literal[
+    "DONE",
+    "DONE_WITH_CONCERNS",
+    "NEEDS_CONTEXT",
+    "BLOCKED",
+    "PIVOT_RECOMMENDED",
+    "HUMAN_GATE_REQUIRED",
+]
+"""Producer / reviewer subagent return states (per harness design §Producer Return States)."""
 
-    Contains all metadata needed for paper generation.
+Severity = Literal["info", "warning", "fatal"]
+
+
+class Envelope(BaseModel):
+    """Common return shape for every paper-skill subagent dispatch.
+
+    Fields mirror §"Unified Skill Return Contract" of the harness design doc.
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="ignore")
 
-    title: str = Field(..., description="Paper title")
-    idea_hypothesis: str = Field(..., description="Research question or hypothesis")
-    method: str = Field(..., description="Methodology and design")
-    data: str = Field(..., description="Data or validation setup")
-    experiments: str = Field(..., description="Experiment design and results")
-    references: List[str] = Field(default_factory=list, description="BibTeX references")
-    figures: List[PaperFigure] = Field(default_factory=list, description="Figures")
-    tables: List[Dict[str, Any]] = Field(default_factory=list, description="Tables")
-
-
-class PaperGenerationRequest(BaseModel):
-    """Request for paper generation"""
-
-    model_config = ConfigDict(extra="allow")
-
-    # Metadata fields
-    title: str
-    idea_hypothesis: str
-    method: str
-    data: str
-    experiments: str
-    references: List[str] = Field(default_factory=list)
-    figures: List[PaperFigure] = Field(default_factory=list)
-    tables: List[Dict[str, Any]] = Field(default_factory=list)
-
-    # Generation options
-    compile_pdf: bool = Field(default=True, description="Whether to compile PDF")
-    figures_source_dir: Optional[str] = Field(
-        None, description="Directory containing figures"
-    )
-    save_output: bool = Field(default=True, description="Whether to save output")
-    output_dir: Optional[str] = Field(None, description="Output directory")
-    template_path: Optional[str] = Field(None, description="LaTeX template path")
-    style_guide: Optional[str] = Field(None, description="Style guide name")
-    target_pages: int = Field(default=6, description="Target page count")
-    enable_review: bool = Field(default=True, description="Enable review loop")
-    max_review_iterations: int = Field(default=3, description="Max review iterations")
-    enable_vlm_review: bool = Field(default=True, description="Enable VLM review")
+    status: EnvelopeStatus
+    artifacts_read: List[str] = Field(default_factory=list)
+    artifacts_written: List[str] = Field(default_factory=list)
+    key_findings: List[str] = Field(default_factory=list)
+    blocking_reason: Optional[str] = None
+    recommended_next_step: Optional[str] = None
+    severity: Optional[Severity] = None
 
 
-class PaperGenerationResult(BaseModel):
-    """Result of paper generation"""
+# ---------------------------------------------------------------------------
+# CompileResult (returned by compose.compiler)
+# ---------------------------------------------------------------------------
 
-    model_config = ConfigDict(extra="allow")
 
-    success: bool
-    status: str  # 'ok', 'partial', 'error'
-    content: str
+class CompileResult(BaseModel):
+    """Outcome of an ``latexmk`` invocation."""
+
     pdf_path: Optional[str] = None
-    output_path: Optional[str] = None
-    iteration_final_dir: Optional[str] = None
+    log_path: Optional[str] = None
+    success: bool = False
     errors: List[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# PaperMeta (un-namespaced user identity at <ws>/paper/paper_meta.yaml)
+# ---------------------------------------------------------------------------
+
+
+class Affiliation(BaseModel):
+    """Author affiliation entry."""
+
+    id: int = Field(..., description="Numeric ID referenced from Author.affils")
+    name: str
+
+
+class Author(BaseModel):
+    name: str
+    affils: List[int] = Field(default_factory=list, description="Affiliation IDs")
+    email: Optional[str] = None
+    corresponding: bool = False
+
+
+class PaperMeta(BaseModel):
+    """Identity block written to ``<workspace>/paper/paper_meta.yaml``."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    title: str
+    authors: List[Author] = Field(default_factory=list)
+    affils: List[Affiliation] = Field(default_factory=list)
+    data_availability_url: Optional[str] = None
+    code_availability_url: Optional[str] = None
+    target_journal: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Storyline map (paper-framing output)
+# ---------------------------------------------------------------------------
+
+
+class SectionLogic(BaseModel):
+    section: str = Field(..., description="abstract / main / results / discussion / ...")
+    purpose: str = ""
+    key_points: List[str] = Field(default_factory=list)
+
+
+class StorylineMap(BaseModel):
+    """Story constitution; persists as storyline_map.{md,json}."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    main_question: str = ""
+    core_tension: str = ""
+    why_now: str = ""
+    contribution_statement: str = ""
+    current_angle: str = ""
+    rejected_angles: List[str] = Field(default_factory=list)
+    kill_criteria: List[str] = Field(default_factory=list)
+    section_logic: List[SectionLogic] = Field(default_factory=list)
+    angle_version: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Claim ledger
+# ---------------------------------------------------------------------------
+
+
+WordingStrength = Literal["weak", "moderate", "strong"]
+
+
+class Claim(BaseModel):
+    """Single row in the claim ledger."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    claim_id: str = Field(..., description="Stable ID, e.g. 'C1' or 'C2.a'")
+    claim_text: str
+    claim_type: str = Field(default="factual", description="factual / causal / comparative / predictive / ...")
+    evidence_support: List[str] = Field(default_factory=list, description="Pointers: figure IDs, [CITE:key], analysis IDs")
+    linked_figures: List[str] = Field(default_factory=list)
+    unsupported_gaps: List[str] = Field(default_factory=list)
+    allowed_wording_strength: WordingStrength = "moderate"
+    reviewer_objections: List[str] = Field(default_factory=list)
+
+
+class ClaimLedger(BaseModel):
+    """Canonical register of claims; persists as claim_ledger.{md,json}."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    claims: List[Claim] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Evidence backlog
+# ---------------------------------------------------------------------------
+
+
+EvidenceCategory = Literal["analysis", "control", "robustness", "figure", "experiment"]
+Priority = Literal["high", "medium", "low"]
+
+
+class EvidenceGap(BaseModel):
+    """Single backlog item (missing analysis / control / figure / ...)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    gap_id: str
+    description: str
+    category: EvidenceCategory
+    priority: Priority = "medium"
+    auto_executable: bool = False
+    human_gated: bool = False
+    related_claim_ids: List[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+
+
+class EvidenceBacklog(BaseModel):
+    """Backlog persisted as evidence_backlog.{md,json}."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    items: List[EvidenceGap] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Figure-argument map
+# ---------------------------------------------------------------------------
+
+
+FigureStatus = Literal["planned", "drafted", "rendered", "final"]
+
+
+class FigureSpec(BaseModel):
+    """One row in figure_argument_map: figure -> claim/section roles."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    figure_id: str
+    title: str = ""
+    question_answered: str = ""
+    claim_supported: List[str] = Field(default_factory=list)
+    alternative_explanation_addressed: List[str] = Field(default_factory=list)
+    target_section: str = ""
+    status: FigureStatus = "planned"
+    file_path: Optional[str] = None
+    panels: List[str] = Field(default_factory=list, description="Per-panel description lines")
+
+
+class FigureArgumentMap(BaseModel):
+    """Persists as figure_argument_map.{md,json}."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    figures: List[FigureSpec] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Review round
+# ---------------------------------------------------------------------------
+
+
+Verdict = Literal[
+    "accept",
+    "revise_local",
+    "revise_structural",
+    "pivot_conceptual",
+    "pivot_major",
+    "fatal",
+]
+TargetLayer = Literal[
+    "wording",
+    "paragraph",
+    "section",
+    "figure_plan",
+    "evidence",
+    "framing",
+]
+ResolvedState = Literal["open", "resolved", "deferred"]
+
+
+class Review(BaseModel):
+    """Single reviewer entry inside a review round."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    reviewer_profile: str = Field(..., description="e.g. angle-critic / evidence-skeptic / precision-editor")
+    verdict: Verdict
+    severity: Severity = "warning"
+    target_artifact: str = ""
+    target_layer: TargetLayer = "wording"
+    issue_type: str = ""
+    reroute_target: Optional[str] = None
+    human_gate_flag: bool = False
+    resolved_state: ResolvedState = "open"
+    resolution_note: Optional[str] = None
+    raw_text: Optional[str] = Field(default=None, description="Free-form reviewer text")
+
+
+class ReviewRound(BaseModel):
+    """Persisted as reviews/review_round_NNN.yaml (append-only)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    round_num: int
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+    reviews: List[Review] = Field(default_factory=list)
+    unresolved_fatal: List[str] = Field(default_factory=list, description="Review IDs / descriptions of unresolved fatal items")
+
+
+# ---------------------------------------------------------------------------
+# Human gate queue
+# ---------------------------------------------------------------------------
+
+
+HumanGateSeverity = Literal["minor", "moderate", "major"]
+HumanDecision = Literal["accept", "reject", "modify"]
+
+
+class HumanGate(BaseModel):
+    """One entry in human_gates.yaml."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    gate_id: str
+    triggering_issue: str
+    proposed_pivot: str = ""
+    severity: HumanGateSeverity = "moderate"
+    rationale: str = ""
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    user_decision: Optional[HumanDecision] = None
+    accepted_version: Optional[str] = None
+    decided_at: Optional[datetime] = None
+    note: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Dispatch records (runs/<TS>/dispatch_NNN.json)
+# ---------------------------------------------------------------------------
+
+
+DispatchStatus = Literal["pending", "running", "completed", "failed"]
+
+
+class DispatchRecord(BaseModel):
+    """One subagent dispatch + its returned envelope."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    dispatch_num: int
+    target_skill: str
+    target_subagent: Optional[str] = None
+    dispatched_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+    status: DispatchStatus = "pending"
+    envelope: Optional[Envelope] = None
+    notes: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Paper-state machine (state/paper_state.yaml)
+# ---------------------------------------------------------------------------
+
+
+class PaperPhase(str, Enum):
+    intake = "intake"
+    framing = "framing"
+    evidence_audit = "evidence-audit"
+    expansion_plan = "expansion-plan"
+    manuscript_build = "manuscript-build"
+    skeptical_review = "skeptical-review"
+    revision_router = "revision-router"
+    release_gate = "release-gate"
+
+
+class ReleaseStatus(str, Enum):
+    not_started = "not-started"
+    draft = "draft"
+    in_review = "in-review"
+    ready = "ready"
+    released = "released"
+    blocked = "blocked"
+
+
+class Counters(BaseModel):
+    """Per-round dispatch caps (figure regen / citation aug)."""
+
+    figure_regenerations: int = 0
+    citation_augmentations: int = 0
+
+
+class PaperState(BaseModel):
+    """Kernel state persisted as ``state/paper_state.yaml``."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    current_phase: PaperPhase = PaperPhase.intake
+    round: int = 0
+    angle_version: int = 0
+    outline_version: int = 0
+    draft_version: int = 0
+    pending_human_gate: Optional[str] = None
+    last_blocker: Optional[str] = None
+    release_status: ReleaseStatus = ReleaseStatus.not_started
+    counters: Counters = Field(default_factory=Counters)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Research pack (paper-adapter output)
+# ---------------------------------------------------------------------------
+
+
+Confidence = Literal["high", "medium", "low"]
+
+
+class ResearchPackHypothesis(BaseModel):
+    hypothesis_id: str
+    text: str = ""
+    experiments: List[str] = Field(default_factory=list, description="experiment_id refs")
+    confidence: Confidence = "medium"
+
+
+class ResearchPackExperiment(BaseModel):
+    experiment_id: str
+    hypothesis_id: str
+    design: str = ""
+    confidence: Confidence = "medium"
+
+
+class ResearchPackAnalysis(BaseModel):
+    analysis_id: str
+    hypothesis_id: str
+    summary: str = ""
+    raw_json: Optional[Dict[str, Any]] = None
+
+
+class ResearchPackFigure(BaseModel):
+    figure_id: str
+    file_path: str
+    source: str = ""
+    caption_hint: str = ""
+
+
+class ResearchPackLiterature(BaseModel):
+    cite_key: str
+    title: str
+    authors: str = ""
+    year: str = ""
+    doi: str = ""
+    journal: str = ""
+    bibtex: str = ""
+
+
+class ProvenanceEntry(BaseModel):
+    artifact_id: str = Field(..., description="e.g. 'hypothesis:1' or 'figure:fig:foo'")
+    source_path: str
+    confidence: Confidence
+    notes: str = ""
+
+
+class ResearchPack(BaseModel):
+    """Standardized intake produced by ``agentsociety-paper-adapter``."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    workspace_path: str
+    topic: str = ""
+    research_objective: str = ""
+    hypotheses: List[ResearchPackHypothesis] = Field(default_factory=list)
+    experiments: List[ResearchPackExperiment] = Field(default_factory=list)
+    analyses: List[ResearchPackAnalysis] = Field(default_factory=list)
+    figures: List[ResearchPackFigure] = Field(default_factory=list)
+    literature: List[ResearchPackLiterature] = Field(default_factory=list)
+    synthesis_report: str = ""
+    draft_inputs: Dict[str, str] = Field(default_factory=dict)
+    provenance: List[ProvenanceEntry] = Field(default_factory=list)
+    generated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+__all__ = [
+    # Envelope
+    "EnvelopeStatus",
+    "Severity",
+    "Envelope",
+    # Compile
+    "CompileResult",
+    # Paper meta (identity)
+    "Affiliation",
+    "Author",
+    "PaperMeta",
+    # Storyline
+    "SectionLogic",
+    "StorylineMap",
+    # Claim ledger
+    "WordingStrength",
+    "Claim",
+    "ClaimLedger",
+    # Evidence backlog
+    "EvidenceCategory",
+    "Priority",
+    "EvidenceGap",
+    "EvidenceBacklog",
+    # Figure argument
+    "FigureStatus",
+    "FigureSpec",
+    "FigureArgumentMap",
+    # Review
+    "Verdict",
+    "TargetLayer",
+    "ResolvedState",
+    "Review",
+    "ReviewRound",
+    # Human gate
+    "HumanGateSeverity",
+    "HumanDecision",
+    "HumanGate",
+    # Dispatch record
+    "DispatchStatus",
+    "DispatchRecord",
+    # Paper state
+    "PaperPhase",
+    "ReleaseStatus",
+    "Counters",
+    "PaperState",
+    # Research pack
+    "Confidence",
+    "ResearchPackHypothesis",
+    "ResearchPackExperiment",
+    "ResearchPackAnalysis",
+    "ResearchPackFigure",
+    "ResearchPackLiterature",
+    "ProvenanceEntry",
+    "ResearchPack",
+]

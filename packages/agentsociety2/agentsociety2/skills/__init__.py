@@ -1,6 +1,6 @@
 """AgentSociety2 技能模块。
 
-本模块包含各种研究工作流的核心业务逻辑，支持完整的科研流程：
+本模块包含研究工作流和分析工具层入口，支持完整的科研流程：
 
 技能列表
 ========
@@ -9,15 +9,17 @@
 - **experiment**: 实验配置与执行，支持参数生成和配置验证
 - **hypothesis**: 假设生成与管理，支持创建、读取、列表和删除
 - **web_research**: 使用 Miro MCP 服务进行网络研究
-- **paper**: 学术论文生成，支持 EasyPaper 工作流
-- **analysis**: 数据分析与报告生成，包含洞察智能体和数据探索智能体
+- **paper**: Nature/Science 级学术论文生成，通过 paper-orchestrator 驱动的 6-skill 状态机
+- **analysis**: 数据分析工具层，提供实验上下文读取、EDA 和工具注册能力
 
 使用示例
 ========
 
 .. code-block:: python
 
-    from agentsociety2.skills import literature, hypothesis, analysis
+    from pathlib import Path
+
+    from agentsociety2.skills import analysis, hypothesis, literature
 
     # 文献检索
     results = await literature.search_literature("machine learning")
@@ -28,12 +30,10 @@
         hypothesis="社会网络密度影响信息传播速度"
     )
 
-    # 分析实验结果
-    await analysis.run_analysis(
-        workspace_path=Path("./workspace"),
-        hypothesis_id="1",
-        experiment_id="1"
-    )
+    # 读取实验数据库摘要
+    db_path = Path("./workspace/hypothesis_1/experiment_1/run/sqlite.db")
+    reader = analysis.DataReader(db_path)
+    summary = reader.read_full_summary()
 """
 
 from agentsociety2.skills import (
