@@ -262,13 +262,12 @@ PersonAgent workspace
 ``PersonAgent`` 不会把自身 step 状态写入 SQLite replay 表。它会把本地状态写到 workspace：
 
 * ``agent_config.json``: 能力参数、init state、技能可见性覆盖、已激活技能
-* ``session_state.json``: 最近一次 step 的可见技能与激活技能
-* ``session_state_history.jsonl``: 会话状态时间线
-* ``step_replay.jsonl``: 每个 step 的工具历史
-* ``tool_calls.jsonl``: 工具调用日志
-* ``thread_messages.jsonl``: 最近 thread 消息
-* ``AGENT_CONTEXT.md``: 动态维护的上下文文件（身份、状态摘要、最近事件）
-* ``AGENT_FILES.md``: 工作区文件清单（每 10 步自动更新）
+* ``.runtime/logs/session_state.json``: 最近一次 step 的可见技能与激活技能
+* ``.runtime/logs/session_state_history.jsonl``: 会话状态时间线
+* ``.runtime/logs/step_replay.jsonl``: 每个 step 的工具历史
+* ``.runtime/logs/tool_calls.jsonl``: 工具调用日志
+* ``.runtime/logs/thread_messages.jsonl``: 最近 thread 消息
+* ``AGENT.md``: 动态维护的上下文文件与工作区文件索引
 
 **状态文件 (state/)**：
 
@@ -276,8 +275,8 @@ PersonAgent workspace
 
 * ``emotion.json``: 情绪状态
 * ``intention.json``: 意图状态
-* ``needs.json``: 需求状态
 * ``plan_state.json``: 规划状态
+* ``memory.jsonl``: ``memory`` skill 写入的长期事件记忆
 * 用户自定义: 任何 ``state/*.json`` 文件都会被自动发现
 
 **WAL (Write-Ahead Log)**：

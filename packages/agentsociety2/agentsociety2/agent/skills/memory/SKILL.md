@@ -1,6 +1,7 @@
 ---
 name: memory
 description: Persist important outcomes from this step to long-term storage with automatic forgetting curve.
+script: scripts/memory_maintenance.py
 ---
 
 # Memory
@@ -17,7 +18,7 @@ Three layers:
 
 ### 1. Working context (implicit)
 
-- **What**: Recent tool-loop messages plus any workspace files you choose to read in this step.
+- **What**: Recent tool loop messages plus any workspace files you choose to read in this step.
 - **Purpose**: Immediate reasoning; there is no separate hidden memory buffer beyond workspace + thread.
 - **Usage**: Read only files that exist; skip missing paths.
 
@@ -30,7 +31,7 @@ Three layers:
 
 ### 3. Optional "step bundle" (convention)
 
-- If you want one rich JSONL line per tick, you may bundle highlights into `summary` from whatever files you read in this step-purely optional.
+- If you want one rich JSONL line per tick, you may bundle highlights into `summary` from whatever files you read in this step; this is purely optional.
 
 ## Forgetting and Activation
 
@@ -160,17 +161,7 @@ Each entry is a single JSON line in `state/memory.jsonl`:
 
 1. Optionally `workspace_read` any relevant context files.
 2. Decide if anything is worth remembering (see criteria above).
-3. If yes, construct the memory entry and append:
-
-```json
-{
-  "tool_name": "workspace_write",
-  "arguments": {
-    "path": "state/memory.jsonl",
-    "content": "<existing content>\n<new JSON line>"
-  }
-}
-```
+3. If yes, append one JSON line to `state/memory.jsonl`.
 
 **Important**: Since `workspace_write` overwrites the file, first `workspace_read("state/memory.jsonl")` to get existing content, then append the new entry.
 
@@ -190,12 +181,13 @@ Use `grep` on `state/memory.jsonl` to search for names or tags.
 
 ## Maintenance Script
 
-Run periodically to apply forgetting curve:
+Run periodically to apply the forgetting curve. This skill has a configured maintenance script; when the runtime executes it, pass arguments like:
 
-```bash
-python skills/memory/scripts/memory_maintenance.py \
-  --memory-file state/memory.jsonl \
-  --current-tick 100
+```json
+{
+  "memory_file": "state/memory.jsonl",
+  "current_tick": 100
+}
 ```
 
 Configuration via environment variables:

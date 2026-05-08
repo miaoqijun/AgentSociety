@@ -3,16 +3,23 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import tomllib
 from datetime import datetime
+from pathlib import Path
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+# Read version from pyproject.toml
+_pyproject = Path(__file__).parent.parent / "pyproject.toml"
+with open(_pyproject, "rb") as f:
+    _version = tomllib.load(f)["project"]["version"]
+
 project = "AgentSociety 2"
 copyright = f"{datetime.now().year}, FIBLAB"
 author = "AgentSociety Team"
-release = "2.2.0"
-version = "2.2.0"
+release = _version
+version = _version
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

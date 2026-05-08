@@ -571,7 +571,7 @@ It contains no functions or methods.
 
         When PersonAgent initializes within an environment, it automatically activates
         the specified skill. This allows environments to override the default
-        observation-needs-cognition-plan decision flow with specialized behavior.
+        observation-memory-cognition-plan decision flow with specialized behavior.
 
         **Use Cases:**
 

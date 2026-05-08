@@ -1,7 +1,7 @@
 """Skill discovery, metadata, and execution.
 
-- ``SKILL.md`` YAML frontmatter: ``name``, ``description``
-- Optional subprocess script: ``scripts/<skill_name>.py``
+- ``SKILL.md`` YAML frontmatter: ``name``, ``description``, optional ``script``
+- Optional subprocess script: frontmatter ``script`` or ``scripts/<skill_name>.py``
 - Catalog shows name + description; full ``SKILL.md`` loads after ``activate_skill``.
 - ``enabled`` is toggled only via management API / UI (not in SKILL.md); catalog lists enabled skills only.
 - Built-in skills (``source`` is ``builtin``) are always enabled and cannot be disabled.
@@ -15,7 +15,9 @@ Module Structure
 Skill Metadata
 ==============
 
-Frontmatter is only ``name`` and ``description``. Scripts are detected by path convention.
+Frontmatter uses ``name`` and ``description`` for the selection catalog.
+If ``script`` is present, it points to the subprocess script relative to the skill
+directory; otherwise ``scripts/<skill_name>.py`` is detected by convention.
 
 Example
 =======
@@ -54,7 +56,7 @@ Built-in Skills
 |-------|----------|
 | observation | Fetch environment perception |
 | cognition | Generate emotion, needs, intention |
-| memory | Long-term memory and relationships |
+| memory | Long-term event memory |
 | plan | Execute intentions via environment |
 """
 
@@ -345,7 +347,7 @@ class SkillRegistry:
 
         info.name = new_name
         info.description = str(meta.get("description", info.description))
-        info.script = _script_from_convention(skill_root, new_name)
+        info.script = _script_from_meta_or_convention(skill_root, new_name, meta)
         info.skill_md_loaded = False
         info.skill_md = ""
         return True
@@ -483,7 +485,7 @@ def _discover_skills(root: Path, source: str) -> list[SkillInfo]:
         info = SkillInfo(
             name=name,
             description=str(meta.get("description", "")),
-            script=_script_from_convention(child, name),
+            script=_script_from_meta_or_convention(child, name, meta),
             source=source,
             path=str(child.resolve()),
             skill_md_loaded=False,
@@ -492,7 +494,18 @@ def _discover_skills(root: Path, source: str) -> list[SkillInfo]:
     return result
 
 
-def _script_from_convention(skill_root: Path, name: str) -> str:
+def _script_from_meta_or_convention(
+    skill_root: Path, name: str, meta: dict[str, Any]
+) -> str:
+    raw = str(meta.get("script", "") or "").strip()
+    if raw:
+        candidate = (skill_root / raw).resolve()
+        root = skill_root.resolve()
+        if candidate.is_file() and (candidate == root or root in candidate.parents):
+            return raw.replace("\\", "/")
+        logger.warning(
+            "Ignoring invalid script path for skill '%s': %s", name, raw
+        )
     conventional = skill_root / "scripts" / f"{name}.py"
     if conventional.is_file():
         return f"scripts/{name}.py"

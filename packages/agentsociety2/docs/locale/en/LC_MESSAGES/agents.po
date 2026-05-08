@@ -94,7 +94,7 @@ msgstr ""
 
 #: ../../agents.rst:48
 msgid ""
-"常见内置技能包括 ``observation``、``needs``、``cognition``、``plan``、``memory``。 "
+"常见内置技能包括 ``observation``、``memory``、``cognition``、``plan``。 "
 "它们都不再属于固定“必须执行层”，而是由 LLM 按上下文按需选择。"
 msgstr ""
 

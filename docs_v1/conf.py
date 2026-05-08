@@ -3,21 +3,29 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import tomllib
+from datetime import datetime
+from pathlib import Path
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+# Read version from pyproject.toml
+_pyproject = (
+    Path(__file__).parent.parent / "packages" / "agentsociety" / "pyproject.toml"
+)
+with open(_pyproject, "rb") as f:
+    _version = tomllib.load(f)["project"]["version"]
+
 project = "AgentSociety"
-copyright = "2025, FIBLAB"
+copyright = f"{datetime.now().year}, FIBLAB"
 author = "严宇威, 闫珺博, 张钧"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-#
-# The short X.Y version.
-version = "1.5"
-# The full version, including alpha/beta/rc tags.
-release = "1.5.0"
+version = ".".join(_version.split(".")[:2])  # e.g., "1.5"
+release = _version
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -41,17 +49,17 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Internationalization options --------------------------------------------
 # 设置国际化支持
-locale_dirs = ['locale/']   # 翻译文件所在的路径
+locale_dirs = ["locale/"]  # 翻译文件所在的路径
 
 # 默认语言设置为中文
-language = 'zh'
+language = "zh"
 
 # 多语言配置
 html_context = {
-    'current_language': language,
-    'languages': {
-        'zh': '中文',
-        'en': 'English',
+    "current_language": language,
+    "languages": {
+        "zh": "中文",
+        "en": "English",
     },
 }
 
@@ -93,28 +101,26 @@ html_static_path = ["_static"]
 # -- Options for LaTeX output ------------------------------------------------
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
-    'papersize': 'a4paper',
-
+    "papersize": "a4paper",
     # The font size ('10pt', '11pt' or '12pt').
-    'pointsize': '11pt',
-
+    "pointsize": "11pt",
     # Additional stuff for the LaTeX preamble.
-    'preamble': r'''
+    "preamble": r"""
     \usepackage{xeCJK}
     \setCJKmainfont{SimSun}
-    ''',
+    """,
 }
 
 # -- Options for Epub output -------------------------------------------------
 epub_title = project
-epub_exclude_files = ['search.html']
+epub_exclude_files = ["search.html"]
 
 # -- Extension configuration -------------------------------------------------
 
 # -- Options for intersphinx extension ---------------------------------------
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3/', None),
+    "python": ("https://docs.python.org/3/", None),
 }
 
 # -- Options for MyST parser -------------------------------------------------

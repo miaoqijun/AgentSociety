@@ -568,7 +568,7 @@ class AgentSkillRuntime:
                 if existing_content
                 else f"## [{timestamp}]\n{notes}\n"
             )
-            # 对标 CLAUDE.md：保持简洁，避免无限增长
+            # 保持 AGENT.md 简洁，避免上下文无限增长
             max_chars = 2000
             if self._state_config is not None:
                 max_chars = int(

@@ -76,14 +76,8 @@ Human decisions arise from two systems:
 
 Most routine intentions execute in one `codegen` call:
 
-```json
-{
-  "tool_name": "codegen",
-  "arguments": {
-    "instruction": "Move to the café on Main Street.",
-    "ctx": {}
-  }
-}
+```text
+Move to the café on Main Street.
 ```
 
 No `plan_state.json` needed for single-step actions.
@@ -92,11 +86,11 @@ No `plan_state.json` needed for single-step actions.
 
 For complex goals, maintain `state/plan_state.json`:
 
-1. Check if `plan_state.json` exists
+1. Check if `state/plan_state.json` exists
 2. If new intention, generate steps (max 6)
 3. Execute current step via `codegen`
-4. Update `plan_state.json` with progress
-5. Clear when all steps complete
+4. Update `state/plan_state.json` with progress
+5. When all steps complete, write `status: "completed"` and a short completion note to `state/plan_state.json`
 
 ### Step Status
 
