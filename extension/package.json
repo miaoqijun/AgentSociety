@@ -66,7 +66,7 @@
             "title": "%walkthrough.welcome.title%",
             "description": "%walkthrough.welcome.description%",
             "media": {
-              "markdown": "%walkthrough.welcome.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/01-welcome.md"
             }
           },
           {
@@ -74,7 +74,7 @@
             "title": "%walkthrough.openSidebar.title%",
             "description": "%walkthrough.openSidebar.description%",
             "media": {
-              "markdown": "%walkthrough.openSidebar.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/02-open-sidebar.md"
             },
             "completionEvents": ["onView:projectStructureView"]
           },
@@ -83,7 +83,7 @@
             "title": "%walkthrough.initProject.title%",
             "description": "%walkthrough.initProject.description%",
             "media": {
-              "markdown": "%walkthrough.initProject.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/03-init-project.md"
             },
             "completionEvents": ["onCommand:aiSocialScientist.initProject"]
           },
@@ -92,7 +92,7 @@
             "title": "%walkthrough.configureApi.title%",
             "description": "%walkthrough.configureApi.description%",
             "media": {
-              "markdown": "%walkthrough.configureApi.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/04-configure-api.md"
             },
             "completionEvents": ["onCommand:aiSocialScientist.openConfigPage"]
           },
@@ -101,7 +101,7 @@
             "title": "%walkthrough.startBackend.title%",
             "description": "%walkthrough.startBackend.description%",
             "media": {
-              "markdown": "%walkthrough.startBackend.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/05-start-backend.md"
             },
             "completionEvents": ["onCommand:aiSocialScientist.startBackend"]
           },
@@ -110,7 +110,7 @@
             "title": "%walkthrough.exploreSkills.title%",
             "description": "%walkthrough.exploreSkills.description%",
             "media": {
-              "markdown": "%walkthrough.exploreSkills.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/06-explore-skills.md"
             },
             "completionEvents": ["onCommand:aiSocialScientist.openSkillMarketplace"]
           },
@@ -119,7 +119,7 @@
             "title": "%walkthrough.claudeCode.title%",
             "description": "%walkthrough.claudeCode.description%",
             "media": {
-              "markdown": "%walkthrough.claudeCode.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/07-claude-code.md"
             },
             "completionEvents": ["onCommand:aiSocialScientist.openClaudeSkillSourcesSettings"]
           },
@@ -128,7 +128,7 @@
             "title": "%walkthrough.nextSteps.title%",
             "description": "%walkthrough.nextSteps.description%",
             "media": {
-              "markdown": "%walkthrough.nextSteps.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/08-next-steps.md"
             },
             "completionEvents": [
               "onCommand:aiSocialScientist.openChat",
@@ -141,7 +141,7 @@
             "title": "%walkthrough.glossary.title%",
             "description": "%walkthrough.glossary.description%",
             "media": {
-              "markdown": "%walkthrough.glossary.media.markdown%"
+              "markdown": "resources/walkthrough/zh-CN/09-glossary.md"
             }
           }
         ]
