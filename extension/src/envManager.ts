@@ -53,14 +53,6 @@ export interface EnvConfig {
   backendLogLevel?: string;
   pythonPath?: string;
 
-  // Web Search
-  webSearchApiUrl?: string;
-  webSearchApiToken?: string;
-
-  // Miroflow
-  miroflowDefaultLlm?: string;
-  miroflowDefaultAgent?: string;
-
   // Literature Search
   literatureSearchApiUrl?: string;
   literatureSearchApiKey?: string;
@@ -91,39 +83,9 @@ const ENV_KEY_MAP: Record<keyof EnvConfig, string> = {
   backendPid: 'BACKEND_PID',
   backendLogLevel: 'BACKEND_LOG_LEVEL',
   pythonPath: 'PYTHON_PATH',
-  webSearchApiUrl: 'WEB_SEARCH_API_URL',
-  webSearchApiToken: 'WEB_SEARCH_API_TOKEN',
-  miroflowDefaultLlm: 'MIROFLOW_DEFAULT_LLM',
-  miroflowDefaultAgent: 'MIROFLOW_DEFAULT_AGENT',
   literatureSearchApiUrl: 'LITERATURE_SEARCH_API_URL',
   literatureSearchApiKey: 'LITERATURE_SEARCH_API_KEY',
 };
-
-const LEGACY_ENV_KEYS = new Set([
-  'EASYPAPER_API_URL',
-  'EASYPAPER_LLM_API_KEY',
-  'EASYPAPER_LLM_MODEL',
-  'EASYPAPER_VLM_MODEL',
-  'EASYPAPER_VLM_API_KEY',
-  'AGENTSOCIETY_EASYPAPER_WRITER_API_KEY',
-  'AGENTSOCIETY_EASYPAPER_WRITER_API_BASE',
-  'AGENTSOCIETY_EASYPAPER_WRITER_MODEL',
-  'AGENTSOCIETY_EASYPAPER_TYPESETTER_API_KEY',
-  'AGENTSOCIETY_EASYPAPER_TYPESETTER_API_BASE',
-  'AGENTSOCIETY_EASYPAPER_TYPESETTER_MODEL',
-  'AGENTSOCIETY_EASYPAPER_METADATA_API_KEY',
-  'AGENTSOCIETY_EASYPAPER_METADATA_API_BASE',
-  'AGENTSOCIETY_EASYPAPER_METADATA_MODEL',
-  'AGENTSOCIETY_EASYPAPER_REVIEWER_API_KEY',
-  'AGENTSOCIETY_EASYPAPER_REVIEWER_API_BASE',
-  'AGENTSOCIETY_EASYPAPER_REVIEWER_MODEL',
-  'AGENTSOCIETY_EASYPAPER_PLANNER_API_KEY',
-  'AGENTSOCIETY_EASYPAPER_PLANNER_API_BASE',
-  'AGENTSOCIETY_EASYPAPER_PLANNER_MODEL',
-  'AGENTSOCIETY_EASYPAPER_VLM_API_KEY',
-  'AGENTSOCIETY_EASYPAPER_VLM_API_BASE',
-  'AGENTSOCIETY_EASYPAPER_VLM_MODEL',
-]);
 
 /**
  * Default values for configuration
@@ -136,8 +98,6 @@ export const DEFAULT_ENV_CONFIG: Partial<EnvConfig> = {
   backendLogLevel: 'info',
   embeddingModel: 'text-embedding-3-large',
   embeddingDims: 1024,
-  miroflowDefaultLlm: 'qwen-3',
-  miroflowDefaultAgent: 'mirothinker_v1.5_keep5_max200',
   literatureSearchApiUrl: 'http://localhost:8008/api/search',
 };
 
@@ -257,9 +217,6 @@ export class EnvManager {
       const match = trimmed.match(/^([^=]+)=(.*)$/);
       if (match) {
         const key = match[1].trim();
-        if (LEGACY_ENV_KEYS.has(key)) {
-          continue;
-        }
         if (Object.values(ENV_KEY_MAP).includes(key)) {
           // Skip if this env key has already been written (handle duplicates)
           if (writtenEnvKeys.has(key)) {
@@ -377,18 +334,6 @@ BACKEND_PORT=8001
 BACKEND_LOG_LEVEL=info
 # Python executable path / Python 可执行文件路径
 PYTHON_PATH=
-
-# ========== Web Search / 网络搜索 ==========
-# Web search API URL / 网络搜索 API 地址
-WEB_SEARCH_API_URL=
-# Web search API token / 网络搜索 API 令牌
-WEB_SEARCH_API_TOKEN=
-
-# ========== Miroflow / Miroflow 配置 ==========
-# Default LLM for Miroflow / Miroflow 默认 LLM
-MIROFLOW_DEFAULT_LLM=qwen-3
-# Default agent for Miroflow / Miroflow 默认代理
-MIROFLOW_DEFAULT_AGENT=mirothinker_v1.5_keep5_max200
 
 # ========== Literature Search / 文献搜索 ==========
 # Literature search API URL / 文献搜索 API 地址

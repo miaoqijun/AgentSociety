@@ -5,29 +5,25 @@ const LEGACY_ENV_SETTING_MAP: Array<{
   settingKey: string;
   envKey: keyof EnvConfig;
 }> = [
-  { settingKey: 'env.backendHost', envKey: 'backendHost' },
-  { settingKey: 'env.backendPort', envKey: 'backendPort' },
-  { settingKey: 'env.backendLogLevel', envKey: 'backendLogLevel' },
-  { settingKey: 'backend.pythonPath', envKey: 'pythonPath' },
-  { settingKey: 'env.llmApiKey', envKey: 'llmApiKey' },
-  { settingKey: 'env.llmApiBase', envKey: 'llmApiBase' },
-  { settingKey: 'env.llmModel', envKey: 'llmModel' },
-  { settingKey: 'env.coderLlmApiKey', envKey: 'coderLlmApiKey' },
-  { settingKey: 'env.coderLlmApiBase', envKey: 'coderLlmApiBase' },
-  { settingKey: 'env.coderLlmModel', envKey: 'coderLlmModel' },
-  { settingKey: 'env.nanoLlmApiKey', envKey: 'nanoLlmApiKey' },
-  { settingKey: 'env.nanoLlmApiBase', envKey: 'nanoLlmApiBase' },
-  { settingKey: 'env.nanoLlmModel', envKey: 'nanoLlmModel' },
-  { settingKey: 'env.embeddingApiKey', envKey: 'embeddingApiKey' },
-  { settingKey: 'env.embeddingApiBase', envKey: 'embeddingApiBase' },
-  { settingKey: 'env.embeddingModel', envKey: 'embeddingModel' },
-  { settingKey: 'env.embeddingDims', envKey: 'embeddingDims' },
-  { settingKey: 'env.webSearchApiUrl', envKey: 'webSearchApiUrl' },
-  { settingKey: 'env.webSearchApiToken', envKey: 'webSearchApiToken' },
-  { settingKey: 'env.miroflowDefaultLlm', envKey: 'miroflowDefaultLlm' },
-  { settingKey: 'env.miroflowDefaultAgent', envKey: 'miroflowDefaultAgent' },
-  { settingKey: 'env.literatureSearchApiUrl', envKey: 'literatureSearchApiUrl' },
-];
+    { settingKey: 'env.backendHost', envKey: 'backendHost' },
+    { settingKey: 'env.backendPort', envKey: 'backendPort' },
+    { settingKey: 'env.backendLogLevel', envKey: 'backendLogLevel' },
+    { settingKey: 'backend.pythonPath', envKey: 'pythonPath' },
+    { settingKey: 'env.llmApiKey', envKey: 'llmApiKey' },
+    { settingKey: 'env.llmApiBase', envKey: 'llmApiBase' },
+    { settingKey: 'env.llmModel', envKey: 'llmModel' },
+    { settingKey: 'env.coderLlmApiKey', envKey: 'coderLlmApiKey' },
+    { settingKey: 'env.coderLlmApiBase', envKey: 'coderLlmApiBase' },
+    { settingKey: 'env.coderLlmModel', envKey: 'coderLlmModel' },
+    { settingKey: 'env.nanoLlmApiKey', envKey: 'nanoLlmApiKey' },
+    { settingKey: 'env.nanoLlmApiBase', envKey: 'nanoLlmApiBase' },
+    { settingKey: 'env.nanoLlmModel', envKey: 'nanoLlmModel' },
+    { settingKey: 'env.embeddingApiKey', envKey: 'embeddingApiKey' },
+    { settingKey: 'env.embeddingApiBase', envKey: 'embeddingApiBase' },
+    { settingKey: 'env.embeddingModel', envKey: 'embeddingModel' },
+    { settingKey: 'env.embeddingDims', envKey: 'embeddingDims' },
+    { settingKey: 'env.literatureSearchApiUrl', envKey: 'literatureSearchApiUrl' },
+  ];
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;

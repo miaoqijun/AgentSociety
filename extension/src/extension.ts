@@ -596,6 +596,17 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const openWalkthroughCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.openWalkthrough',
+    async () => {
+      await vscode.commands.executeCommand(
+        'workbench.action.openWalkthrough',
+        `${context.extension.id}#aiSocialScientist.gettingStarted`,
+        false
+      );
+    }
+  );
+
   // ========== Skill Marketplace（编辑器区域面板，避免侧边栏过窄） ==========
   const skillMarketplaceOutputChannel = vscode.window.createOutputChannel('Skill Marketplace');
   context.subscriptions.push(skillMarketplaceOutputChannel);
@@ -1063,6 +1074,7 @@ export function activate(context: vscode.ExtensionContext) {
     openApiDocsCommand,
     openConfigPageCommand,
     openHelpPageCommand,
+    openWalkthroughCommand,
     openSkillMarketplaceCommand,
     openSkillSourcesSettingsCommand,
     openClaudeSkillSourcesSettingsCommand,

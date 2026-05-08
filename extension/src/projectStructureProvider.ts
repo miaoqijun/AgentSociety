@@ -381,7 +381,8 @@ export class ProjectItem extends vscode.TreeItem {
 
     // 如果提供了文件路径，设置点击命令
     // 当用户点击这个节点时，会执行相应的命令打开文件
-    if (filePath) {
+    // 注意：可展开的目录节点不应设置 command，否则点击会执行命令而非展开
+    if (filePath && collapsibleState === vscode.TreeItemCollapsibleState.None) {
       if (type === 'reportHtml' || (ext === 'html' && (type === 'presentationExperiment' || type === 'synthesis'))) {
         // HTML 报告：使用 Live Preview 扩展在 VSCode 内部预览
         this.command = {
@@ -412,7 +413,7 @@ export class ProjectItem extends vscode.TreeItem {
           (fileName === 'init_config.json' && parentDir === 'init');
 
         if (hasCustomEditor) {
-          // 有自定义编辑器的文件：让 VSCode 自动选择
+          // 有自定义编辑器的配置文件：让 VSCode 自动选择对应插件编辑器。
           this.command = {
             command: 'vscode.open',
             title: '打开文件',
@@ -433,19 +434,38 @@ export class ProjectItem extends vscode.TreeItem {
           title: '查看 YAML',
           arguments: [filePath]
         };
-      } else {
-        // 其他文件使用默认打开方式
+      } else if ([
+        'pdf',
+        'csv',
+        'tsv',
+        'png',
+        'jpg',
+        'jpeg',
+        'gif',
+        'webp',
+        'svg'
+      ].includes(ext)) {
+        // 可视化/数据资产应直接打开 VS Code 的默认查看器（PDF、表格、图片等），
+        // 这类不是源码编辑入口，用户点击时预期就是查看内容。
         this.command = {
-          command: 'vscode.open',  // VSCode内置命令：打开文件
-          title: '打开文件',
-          arguments: [vscode.Uri.file(filePath)]  // 传递文件URI作为参数
+          command: 'vscode.open',
+          title: localize('extension.openAsset.commandTitle'),
+          arguments: [vscode.Uri.file(filePath)]
+        };
+      } else {
+        // 其他文本/源码类文件不在树上默认打开编辑器，避免误点进入编辑状态。
+        // 需要编辑时可使用右键菜单或 VS Code Explorer。
+        this.command = {
+          command: 'aiSocialScientist.copyFilePath',
+          title: localize('extension.copyPath.commandTitle'),
+          arguments: [{ filePath }]
         };
       }
     } else if (type === 'prefillParamsGroup') {
       // 环境与智能体节点：点击时打开统一的管理界面
       this.command = {
         command: 'agentsociety.viewPrefillParams',
-        title: '预填充参数',
+        title: localize('prefillParams.title'),
       };
     } else if (type === 'settings') {
       // 配置设置节点：点击时打开配置页（而非 VS Code 设置）
@@ -959,6 +979,10 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'initWorkspace',
           undefined
         );
+        infoItem.command = {
+          command: 'aiSocialScientist.openConfigPage',
+          title: localize('projectStructure.settings')
+        };
         infoItem.tooltip = localize('projectStructure.apiKeyRequired.tooltip');
         items.push(infoItem);
         return items;
@@ -1166,6 +1190,18 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
     if (element.type === 'topic') {
       const items: ProjectItem[] = [];
 
+      if (fs.existsSync(topicFile)) {
+        const topicFileItem = new ProjectItem(
+          'TOPIC.md',
+          vscode.TreeItemCollapsibleState.None,
+          'topic',
+          topicFile
+        );
+        topicFileItem.description = localize('projectStructure.topicFile.description');
+        topicFileItem.tooltip = localize('projectStructure.topicFile.tooltip');
+        items.push(topicFileItem);
+      }
+
       // 查找所有假设目录（hypothesis_12345格式）
       // findDirectories方法会匹配符合正则表达式的目录名
       const hypothesisDirs = this.findDirectories(workspacePath, /^hypothesis_\d+$/);
@@ -1260,6 +1296,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'papers',  // 节点类型为papers
           undefined  // 文献库节点本身不关联文件
         ));
+        items[items.length - 1].tooltip = localize('projectStructure.literature.tooltip');
       }
 
       // 查找user_data目录，如果存在，创建一个"用户数据"节点
@@ -1272,6 +1309,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'userdata',  // 节点类型为userdata
           undefined  // 用户数据节点本身不关联文件
         ));
+        items[items.length - 1].tooltip = localize('projectStructure.userData.tooltip');
       }
 
       // 查找datasets目录，如果存在，创建一个"数据集"节点
@@ -1288,12 +1326,14 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         const label = datasetCount > 0
           ? `${localize('projectStructure.datasets')} (${datasetCount})`
           : localize('projectStructure.datasets');
-        items.push(new ProjectItem(
+        const datasetsItem = new ProjectItem(
           label,
           vscode.TreeItemCollapsibleState.Collapsed,
           'datasets',
           undefined
-        ));
+        );
+        datasetsItem.tooltip = localize('projectStructure.datasets.tooltip');
+        items.push(datasetsItem);
       }
 
       // 查找custom目录，如果存在，创建一个"自定义模块"节点
@@ -1306,6 +1346,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'customWorkspace',
           undefined
         ));
+        items[items.length - 1].tooltip = localize('projectStructure.customModules.tooltip');
       }
 
       // 查找presentation目录（分析报告）
@@ -1317,6 +1358,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'presentation',
           undefined
         ));
+        items[items.length - 1].tooltip = localize('projectStructure.presentation.tooltip');
       }
 
       // 查找synthesis目录（综合报告）
@@ -1328,6 +1370,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'synthesis',
           undefined
         ));
+        items[items.length - 1].tooltip = localize('projectStructure.synthesis.tooltip');
       }
 
       return items;
