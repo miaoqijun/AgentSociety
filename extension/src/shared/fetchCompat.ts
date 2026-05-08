@@ -37,7 +37,7 @@ export function createTimeoutSignal(timeoutMs: number, parentSignal?: AbortSigna
 } {
   const controller = new AbortController();
 
-  let timer: NodeJS.Timeout | undefined;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   let removeParentListener: (() => void) | undefined;
 
   if (parentSignal) {
@@ -49,8 +49,6 @@ export function createTimeoutSignal(timeoutMs: number, parentSignal?: AbortSigna
       removeParentListener = () => parentSignal.removeEventListener('abort', onAbort);
     }
   }
-
-  timer = setTimeout(() => controller.abort(), timeoutMs);
 
   return {
     signal: controller.signal,
@@ -130,7 +128,7 @@ export async function fetchCompat(
     }
 
     if (requestBody) {
-        request.write(Buffer.from(requestBody));
+      request.write(Buffer.from(requestBody));
     }
 
     request.end();

@@ -73,9 +73,17 @@ def _compute_checksum(data: dict[str, Any]) -> str:
 def _fsync_path(path: Path) -> None:
     """确保文件内容刷新到磁盘。"""
     if path.exists():
-        fd = os.open(path, os.O_RDONLY)
+        flags = os.O_RDONLY
+        if hasattr(os, "O_BINARY"):
+            flags |= os.O_BINARY
+        try:
+            fd = os.open(path, flags)
+        except OSError:
+            return
         try:
             os.fsync(fd)
+        except OSError:
+            return
         finally:
             os.close(fd)
 
