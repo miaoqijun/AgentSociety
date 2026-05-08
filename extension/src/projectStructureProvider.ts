@@ -383,11 +383,11 @@ export class ProjectItem extends vscode.TreeItem {
     // 当用户点击这个节点时，会执行相应的命令打开文件
     if (filePath) {
       if (type === 'reportHtml' || (ext === 'html' && (type === 'presentationExperiment' || type === 'synthesis'))) {
-        // HTML 报告：使用系统默认浏览器打开（不依赖任何 VSCode 扩展）
+        // HTML 报告：使用 Live Preview 扩展在 VSCode 内部预览
         this.command = {
-          command: 'aiSocialScientist.openHtmlFile',
-          title: '打开 HTML 报告',
-          arguments: [filePath]
+          command: 'livePreview.start.preview.atFile',
+          title: 'Open HTML Report',
+          arguments: [vscode.Uri.file(filePath)]
         };
       } else if (type === 'reportMd' && isMarkdown) {
         // Markdown 报告默认以预览模式打开
