@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List
 
 from agentsociety2.skills.paper.adapter.summary import (
     sanitize_bibtex_key,
@@ -108,9 +108,26 @@ def write_bibtex_file(
 
     entries = load_literature_entries(literature_index_path)
     refs = build_reference_strings(entries, limit=limit)
+    return write_bibtex_strings(out_path, refs)
+
+
+def write_bibtex_strings(
+    out_path: Path,
+    refs: Iterable[str],
+) -> int:
+    """Write already-serialized BibTeX entries to ``out_path``.
+
+    This is used by the paper compile path, where ``research_pack.json``
+    is treated as the canonical literature source after adapter intake.
+    """
+
+    refs_list = [ref.strip() for ref in refs if str(ref).strip()]
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text("\n\n".join(refs) + ("\n" if refs else ""), encoding="utf-8")
-    return len(refs)
+    out_path.write_text(
+        "\n\n".join(refs_list) + ("\n" if refs_list else ""),
+        encoding="utf-8",
+    )
+    return len(refs_list)
 
 
 # Legacy alias for source-level back-compat with the old generator.
@@ -121,5 +138,6 @@ __all__ = [
     "build_reference_strings",
     "load_literature_entries",
     "write_bibtex_file",
+    "write_bibtex_strings",
     "_build_reference_strings",
 ]

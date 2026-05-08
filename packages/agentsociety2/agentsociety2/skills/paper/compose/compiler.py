@@ -15,8 +15,11 @@ Returns a :class:`CompileResult` populated with:
 
 - ``pdf_path`` - resolved path to ``out/<stem>.pdf`` if it exists
 - ``log_path`` - path to ``out/<stem>.log``
-- ``success`` - ``True`` iff exit code is 0 *and* the PDF exists
-- ``errors`` - lines from latexmk stderr / log when the PDF is missing
+- ``success`` - ``True`` iff exit code is 0, the PDF exists, and the log
+  contains no release-blocking warnings such as undefined references or an
+  empty bibliography
+- ``errors`` - lines from latexmk stderr / log when the PDF is missing or
+  the log contains release-blocking warnings
 """
 
 from __future__ import annotations
@@ -96,14 +99,19 @@ def compile(  # noqa: A001 - matches plan name
     pdf_path = out_dir / f"{pdf_stem}.pdf"
     log_path = out_dir / f"{pdf_stem}.log"
 
-    success = proc.returncode == 0 and pdf_path.exists()
+    log_text = ""
+    if log_path.exists():
+        log_text = log_path.read_text(encoding="utf-8", errors="replace")
+
+    blockers = _extract_log_blockers(log_text)
+    success = proc.returncode == 0 and pdf_path.exists() and not blockers
     errors: List[str] = []
     if not success:
         if stderr_text:
             errors.extend(line for line in stderr_text.splitlines() if line.strip())
-        if log_path.exists():
-            log_text = log_path.read_text(encoding="utf-8", errors="replace")
+        if log_text:
             errors.extend(_extract_log_errors(log_text))
+            errors.extend(blockers)
         if not pdf_path.exists() and proc.returncode == 0:
             errors.append(
                 "latexmk reported success but the PDF is missing at "
@@ -133,6 +141,41 @@ def _extract_log_errors(log_text: str, *, max_lines: int = 25) -> List[str]:
         if len(out) >= max_lines:
             break
     return out
+
+
+def _extract_log_blockers(log_text: str) -> List[str]:
+    """Return release-blocking warnings from a TeX log.
+
+    ``latexmk`` can exit with code 0 while still producing a manuscript with
+    broken figure references or an empty bibliography.  Those cases are fatal
+    for the paper harness and should block the compile stage.
+    """
+
+    if not log_text:
+        return []
+
+    blockers: List[str] = []
+    for line in log_text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if "LaTeX Warning: Empty bibliography" in stripped:
+            blockers.append(stripped)
+        elif "LaTeX Warning: There were undefined references." in stripped:
+            blockers.append(stripped)
+        elif "LaTeX Warning: Citation `" in stripped and " undefined" in stripped:
+            blockers.append(stripped)
+        elif "LaTeX Warning: Reference `" in stripped and " undefined" in stripped:
+            blockers.append(stripped)
+
+    deduped: List[str] = []
+    seen: set[str] = set()
+    for item in blockers:
+        if item in seen:
+            continue
+        seen.add(item)
+        deduped.append(item)
+    return deduped
 
 
 __all__ = [

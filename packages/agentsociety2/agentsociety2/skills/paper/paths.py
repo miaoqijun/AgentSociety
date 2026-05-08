@@ -237,11 +237,11 @@ def pdf_log_path(workspace_path: PathLike, timestamp: str) -> Path:
     return out_dir(workspace_path, timestamp) / PDF_LOG_FILENAME
 
 
-# --- package-internal templates --------------------------------------------
+# --- skill-packaged templates ----------------------------------------------
 
 
 def templates_dir() -> Path:
-    """Return the package-internal ``templates`` directory."""
+    """Return the skill-packaged ``templates`` directory."""
 
     return Path(__file__).resolve().parent / "templates"
 
