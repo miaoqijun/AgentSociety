@@ -24,7 +24,6 @@
     "onCommand:aiSocialScientist.deleteLiterature",
     "onCommand:aiSocialScientist.renameLiterature",
     "onCommand:aiSocialScientist.openMarkdownInEditor",
-    "onCommand:aiSocialScientist.openHtmlFile",
     "onCommand:agentsociety.viewPrefillParams",
     "onCommand:aiSocialScientist.openReplay",
     "onCommand:aiSocialScientist.startBackend",
@@ -98,11 +97,6 @@
         "command": "aiSocialScientist.openMarkdownInEditor",
         "title": "AI Social Scientist: Open Markdown in Editor",
         "icon": "$(edit)"
-      },
-      {
-        "command": "aiSocialScientist.openHtmlFile",
-        "title": "AI Social Scientist: Open HTML",
-        "icon": "$(browser)"
       },
       {
         "command": "agentsociety.viewPrefillParams",
