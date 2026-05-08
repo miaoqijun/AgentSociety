@@ -1,35 +1,59 @@
-## Description
+## Summary
 
-Please include a summary of the changes and the related issue.
+<!-- Briefly describe what this PR does and why. One or two sentences. -->
 
-Fixes # (issue)
+Closes #
+
+## Changes
+
+<!-- List the key changes. Be specific. -->
+
+-
 
 ## Type of Change
+
+<!-- Check all that apply. -->
 
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
-- [ ] Documentation update
+- [ ] Refactor
 - [ ] Performance improvement
-- [ ] Code refactor
+- [ ] Documentation update
+- [ ] CI / Build
+
+## Affected Modules
+
+<!-- Check all that apply. -->
+
+- [ ] Agent (`agentsociety2/agent/`)
+- [ ] Agent Skills (`agentsociety2/agent/skills/`)
+- [ ] Environment Router (`agentsociety2/env/`)
+- [ ] Research Skills (`agentsociety2/skills/`)
+- [ ] Backend API (`agentsociety2/backend/`)
+- [ ] Storage (`agentsociety2/storage/`)
+- [ ] CLI (`agentsociety2/society/cli.py`)
+- [ ] Frontend (`frontend/`)
+- [ ] Extension (`extension/`)
+- [ ] Other: ___
 
 ## Testing
 
-Please describe the tests you ran to verify your changes:
+<!-- Describe how you verified your changes. -->
 
-- [ ] Unit tests pass
-- [ ] Added new tests for new features
-- [ ] Manual testing completed
+- [ ] Ran `uv run pytest` (agentsociety2)
+- [ ] Ran `npm run lint` / `npm run build` (frontend, if applicable)
+- [ ] Manually tested
+- [ ] Added / updated tests
 
 ## Checklist
 
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my code
-- [ ] I have commented my code where necessary
-- [ ] I have updated the documentation accordingly
+- [ ] I have performed a self-review
+- [ ] I have added docstrings where needed (following project conventions)
+- [ ] I have updated relevant documentation
 - [ ] My changes generate no new warnings
-- [ ] I have tested my changes locally
+- [ ] I have checked for unintended breaking changes
 
-## Additional Notes
+## Notes for Reviewers
 
-Any additional information or context about the pull request.
+<!-- Anything reviewers should pay extra attention to? -->

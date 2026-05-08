@@ -3,11 +3,31 @@
   <h1 style="color: black; margin: 0; font-size: 3em;">AgentSociety: LLM Agents in Society</h1>
 </div>
 
+<p align="center">
+  <a href="https://github.com/tsinghua-fib-lab/AgentSociety/stargazers">
+    <img src="https://img.shields.io/github/stars/tsinghua-fib-lab/AgentSociety?style=social" alt="GitHub Stars">
+  </a>
+  <a href="https://github.com/tsinghua-fib-lab/AgentSociety/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License">
+  </a>
+  <a href="https://pypi.org/project/agentsociety2/">
+    <img src="https://img.shields.io/pypi/v/agentsociety2.svg" alt="PyPI (v2)">
+  </a>
+  <a href="https://pypi.org/project/agentsociety/">
+    <img src="https://img.shields.io/pypi/v/agentsociety.svg?label=pypi%20(v1)" alt="PyPI (v1)">
+  </a>
+</p>
 
-# AgentSociety
+<p align="center">
+  <a href="https://agentsociety2.readthedocs.io/">
+    <img src="https://img.shields.io/badge/docs-v2%20(recommended)-brightgreen" alt="Documentation v2">
+  </a>
+  <a href="https://agentsociety.readthedocs.io/">
+    <img src="https://img.shields.io/badge/docs-v1%20(legacy)-lightgrey" alt="Documentation v1">
+  </a>
+</p>
 
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Online Documentation](https://img.shields.io/badge/docs-online-blue)](https://agentsociety.readthedocs.io/en/latest/)
+---
 
 AgentSociety is a framework for building LLM-based agent simulations in urban environments and research workflows.
 
@@ -21,6 +41,16 @@ The paper is available at [arXiv](https://arxiv.org/abs/2502.08691):
   year={2025}
 }
 ```
+
+## Star History
+
+<a href="https://www.star-history.com/#tsinghua-fib-lab/AgentSociety&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tsinghua-fib-lab/AgentSociety&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=tsinghua-fib-lab/AgentSociety&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=tsinghua-fib-lab/AgentSociety&type=Date" />
+ </picture>
+</a>
 
 ## Packages
 
@@ -37,11 +67,13 @@ pip install agentsociety2
 ```
 
 **Features:**
-- LLM-Native Design: Built from the ground up for LLM-driven agents
-- Flexible Environment System: Modular environment components with hot-pluggable tools
-- Multiple Reasoning Patterns: ReAct, Plan-Execute, Code Generation routers
-- Research Skills: Literature search, hypothesis generation, experiment design, paper writing
-- Experiment Replay: Full SQLite-based replay system
+
+- **LLM-Native Design**: Built from the ground up for LLM-driven agents
+- **Flexible Environment System**: Modular environment components with hot-pluggable tools
+- **Multiple Reasoning Patterns**: ReAct, Plan-Execute, Code Generation, Two-Tier routers
+- **Research Skills**: Literature search, hypothesis generation, experiment design, paper writing
+- **Experiment Replay**: Full SQLite-based replay system
+- **MCP Support**: Model Context Protocol integration for tool extensibility
 
 **Documentation:** [agentsociety2.readthedocs.io](https://agentsociety2.readthedocs.io/)
 
@@ -58,6 +90,7 @@ pip install agentsociety
 ```
 
 **Features:**
+
 - City-scale simulation with Ray distributed computing
 - Urban environment modules (mobility, economy, social)
 - Multi-agent coordination and communication
@@ -82,7 +115,7 @@ AgentSociety/
 │   └── agentsociety-benchmark/
 ├── frontend/               # React web frontend
 ├── extension/              # VSCode extension
-├── docs/                   # Development documentation
+├── docs_v1/                # v1 Sphinx documentation
 └── examples/               # Example experiments
 ```
 
@@ -143,4 +176,5 @@ If you use AgentSociety in your research, please cite:
 ## Contact
 
 - **Issues**: [GitHub Issues](https://github.com/tsinghua-fib-lab/agentsociety/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/tsinghua-fib-lab/agentsociety/discussions)
 - **Email**: agentsociety.fiblab2025@gmail.com

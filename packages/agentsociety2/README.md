@@ -1,10 +1,28 @@
 # AgentSociety 2
 
-[![PyPI Version](https://img.shields.io/pypi/v/agentsociety2.svg)](https://pypi.org/project/agentsociety2/)
-[![Python Version](https://img.shields.io/pypi/pyversions/agentsociety2.svg)](https://pypi.org/project/agentsociety2/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://agentsociety2.readthedocs.io/)
-[![中文文档](https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-red.svg)](https://agentsociety2.readthedocs.io/zh_CN/latest/)
+<p align="center">
+  <a href="https://github.com/tsinghua-fib-lab/AgentSociety/stargazers">
+    <img src="https://img.shields.io/github/stars/tsinghua-fib-lab/AgentSociety?style=social" alt="GitHub Stars">
+  </a>
+  <a href="https://pypi.org/project/agentsociety2/">
+    <img src="https://img.shields.io/pypi/v/agentsociety2.svg" alt="PyPI Version">
+  </a>
+  <a href="https://pypi.org/project/agentsociety2/">
+    <img src="https://img.shields.io/pypi/pyversions/agentsociety2.svg" alt="Python Version">
+  </a>
+  <a href="https://github.com/tsinghua-fib-lab/AgentSociety/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://agentsociety2.readthedocs.io/">
+    <img src="https://img.shields.io/badge/docs-English-brightgreen" alt="English Docs">
+  </a>
+  <a href="https://agentsociety2.readthedocs.io/zh_CN/latest/">
+    <img src="https://img.shields.io/badge/docs-%E4%B8%AD%E6%96%87-red" alt="Chinese Docs">
+  </a>
+</p>
 
 > **AgentSociety 2** is a modern, LLM-native agent simulation platform designed for social science research and experimentation.
 
@@ -180,16 +198,17 @@ PersonAgent follows a **metadata-first, selected-only** model. Skills are self-c
 agent/skills/
 ├── observation/        # SKILL.md + scripts/observation.py
 ├── memory/             # SKILL.md + scripts/memory.py
-├── needs/              # SKILL.md + scripts/needs.py
 ├── cognition/          # SKILL.md + scripts/cognition.py
 └── plan/               # SKILL.md + scripts/plan.py
 ```
 
 Each skill has:
+
 - `SKILL.md` — YAML frontmatter (name, description) + behavior docs
 - `scripts/<name>.py` — optional subprocess script
 
 Skills follow metadata-first selection:
+
 - catalog exposes only name/description until activation
 - execution is tool-loop driven (activate/read/execute)
 
