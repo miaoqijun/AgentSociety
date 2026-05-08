@@ -58,21 +58,21 @@
     "walkthroughs": [
       {
         "id": "aiSocialScientist.gettingStarted",
-        "title": "%walkthrough.title%",
-        "description": "%walkthrough.description%",
+        "title": "AI Social Scientist 快速入门",
+        "description": "完成项目初始化、LLM 配置、后端启动和技能安装，开始使用 AI Social Scientist 做研究",
         "steps": [
           {
             "id": "welcome",
-            "title": "%walkthrough.welcome.title%",
-            "description": "%walkthrough.welcome.description%",
+            "title": "欢迎使用 AI Social Scientist",
+            "description": "了解插件的研究工作流、系统组成和最短上手路径。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/01-welcome.md"
             }
           },
           {
             "id": "openSidebar",
-            "title": "%walkthrough.openSidebar.title%",
-            "description": "%walkthrough.openSidebar.description%",
+            "title": "认识侧边栏",
+            "description": "打开 AI Social Scientist 侧边栏，这是你管理项目、技能和配置的主要入口。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/02-open-sidebar.md"
             },
@@ -80,8 +80,8 @@
           },
           {
             "id": "initProject",
-            "title": "%walkthrough.initProject.title%",
-            "description": "%walkthrough.initProject.description%",
+            "title": "初始化研究项目",
+            "description": "创建项目目录结构，或者打开一个已有的研究工作区。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/03-init-project.md"
             },
@@ -89,8 +89,8 @@
           },
           {
             "id": "configureApi",
-            "title": "%walkthrough.configureApi.title%",
-            "description": "%walkthrough.configureApi.description%",
+            "title": "配置 LLM API",
+            "description": "填写你的 API Key 和 API Base URL，让插件连接到大语言模型服务。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/04-configure-api.md"
             },
@@ -98,8 +98,8 @@
           },
           {
             "id": "startBackend",
-            "title": "%walkthrough.startBackend.title%",
-            "description": "%walkthrough.startBackend.description%",
+            "title": "启动后端服务",
+            "description": "启动本地后端，它负责运行 Agent 模拟、管理技能和处理实验数据。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/05-start-backend.md"
             },
@@ -107,8 +107,8 @@
           },
           {
             "id": "exploreSkills",
-            "title": "%walkthrough.exploreSkills.title%",
-            "description": "%walkthrough.exploreSkills.description%",
+            "title": "探索技能市场",
+            "description": "浏览和安装研究技能模块，为你的 Agent 添加文献检索、实验设计等能力。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/06-explore-skills.md"
             },
@@ -116,8 +116,8 @@
           },
           {
             "id": "claudeCode",
-            "title": "%walkthrough.claudeCode.title%",
-            "description": "%walkthrough.claudeCode.description%",
+            "title": "连接 Claude Code",
+            "description": "让 Claude Code 读取项目技能，并通过 MCP 连接本地后端，作为默认编码与研究协作入口。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/07-claude-code.md"
             },
@@ -125,8 +125,8 @@
           },
           {
             "id": "nextSteps",
-            "title": "%walkthrough.nextSteps.title%",
-            "description": "%walkthrough.nextSteps.description%",
+            "title": "下一步",
+            "description": "了解更多功能，包括模拟回放、Chat 对话等进阶用法。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/08-next-steps.md"
             },
@@ -138,8 +138,8 @@
           },
           {
             "id": "glossary",
-            "title": "%walkthrough.glossary.title%",
-            "description": "%walkthrough.glossary.description%",
+            "title": "术语附录",
+            "description": "集中解释 AgentSociety²、Agent、Skill、MCP 等关键概念。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/09-glossary.md"
             }
@@ -238,7 +238,7 @@
       },
       {
         "command": "aiSocialScientist.openWalkthrough",
-        "title": "%command.openWalkthrough.title%",
+        "title": "AI Social Scientist: 打开快速入门",
         "icon": "$(map)"
       },
       {
