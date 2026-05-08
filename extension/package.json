@@ -33,6 +33,7 @@
     "onCommand:aiSocialScientist.showBackendStatus",
     "onCommand:aiSocialScientist.openConfigPage",
     "onCommand:aiSocialScientist.openHelpPage",
+    "onCommand:aiSocialScientist.openWalkthrough",
     "onCommand:aiSocialScientist.openSkillMarketplace",
     "onCommand:aiSocialScientist.openSkillSourcesSettings",
     "onCommand:aiSocialScientist.openClaudeSkillSourcesSettings",
@@ -54,6 +55,98 @@
   "icon": "resources/icon128.png",
   "main": "./out/extension.js",
   "contributes": {
+    "walkthroughs": [
+      {
+        "id": "aiSocialScientist.gettingStarted",
+        "title": "%walkthrough.title%",
+        "description": "%walkthrough.description%",
+        "steps": [
+          {
+            "id": "welcome",
+            "title": "%walkthrough.welcome.title%",
+            "description": "%walkthrough.welcome.description%",
+            "media": {
+              "markdown": "%walkthrough.welcome.media.markdown%"
+            }
+          },
+          {
+            "id": "openSidebar",
+            "title": "%walkthrough.openSidebar.title%",
+            "description": "%walkthrough.openSidebar.description%",
+            "media": {
+              "markdown": "%walkthrough.openSidebar.media.markdown%"
+            },
+            "completionEvents": ["onView:projectStructureView"]
+          },
+          {
+            "id": "initProject",
+            "title": "%walkthrough.initProject.title%",
+            "description": "%walkthrough.initProject.description%",
+            "media": {
+              "markdown": "%walkthrough.initProject.media.markdown%"
+            },
+            "completionEvents": ["onCommand:aiSocialScientist.initProject"]
+          },
+          {
+            "id": "configureApi",
+            "title": "%walkthrough.configureApi.title%",
+            "description": "%walkthrough.configureApi.description%",
+            "media": {
+              "markdown": "%walkthrough.configureApi.media.markdown%"
+            },
+            "completionEvents": ["onCommand:aiSocialScientist.openConfigPage"]
+          },
+          {
+            "id": "startBackend",
+            "title": "%walkthrough.startBackend.title%",
+            "description": "%walkthrough.startBackend.description%",
+            "media": {
+              "markdown": "%walkthrough.startBackend.media.markdown%"
+            },
+            "completionEvents": ["onCommand:aiSocialScientist.startBackend"]
+          },
+          {
+            "id": "exploreSkills",
+            "title": "%walkthrough.exploreSkills.title%",
+            "description": "%walkthrough.exploreSkills.description%",
+            "media": {
+              "markdown": "%walkthrough.exploreSkills.media.markdown%"
+            },
+            "completionEvents": ["onCommand:aiSocialScientist.openSkillMarketplace"]
+          },
+          {
+            "id": "claudeCode",
+            "title": "%walkthrough.claudeCode.title%",
+            "description": "%walkthrough.claudeCode.description%",
+            "media": {
+              "markdown": "%walkthrough.claudeCode.media.markdown%"
+            },
+            "completionEvents": ["onCommand:aiSocialScientist.openClaudeSkillSourcesSettings"]
+          },
+          {
+            "id": "nextSteps",
+            "title": "%walkthrough.nextSteps.title%",
+            "description": "%walkthrough.nextSteps.description%",
+            "media": {
+              "markdown": "%walkthrough.nextSteps.media.markdown%"
+            },
+            "completionEvents": [
+              "onCommand:aiSocialScientist.openChat",
+              "onCommand:aiSocialScientist.openReplay",
+              "onCommand:aiSocialScientist.openHelpPage"
+            ]
+          },
+          {
+            "id": "glossary",
+            "title": "%walkthrough.glossary.title%",
+            "description": "%walkthrough.glossary.description%",
+            "media": {
+              "markdown": "%walkthrough.glossary.media.markdown%"
+            }
+          }
+        ]
+      }
+    ],
     "views": {
       "aiSocialScientist": [
         {
@@ -142,6 +235,11 @@
         "command": "aiSocialScientist.openHelpPage",
         "title": "AI Social Scientist: 使用指南",
         "icon": "$(book)"
+      },
+      {
+        "command": "aiSocialScientist.openWalkthrough",
+        "title": "%command.openWalkthrough.title%",
+        "icon": "$(map)"
       },
       {
         "command": "aiSocialScientist.openSkillMarketplace",
@@ -262,7 +360,7 @@
           "group": "navigation@2"
         },
         {
-          "command": "aiSocialScientist.openHelpPage",
+          "command": "aiSocialScientist.openWalkthrough",
           "when": "view == projectStructureView && workspaceFolderCount > 0",
           "group": "navigation@3"
         }

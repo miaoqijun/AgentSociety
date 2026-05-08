@@ -218,7 +218,6 @@ Agent Skills
 AgentSociety 2 还支持 Agent Skills，这些是 PersonAgent 的认知能力模块：
 
 * **observation** - 环境感知
-* **needs** - 需求系统
 * **cognition** - 认知与意图
 * **plan** - 规划与执行
 * **memory** - 记忆管理

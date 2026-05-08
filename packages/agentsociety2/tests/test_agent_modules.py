@@ -1,9 +1,11 @@
 """持久化、并发和上下文模块的单元测试。"""
 
 import asyncio
+import json
 
 import pytest
 
+from agentsociety2.agent.skills import SkillRegistry
 from agentsociety2.agent.persistence import (
     Checkpoint,
     WriteAheadLog,
@@ -18,6 +20,51 @@ from agentsociety2.agent.concurrent import (
 )
 from agentsociety2.agent.context import AgentMemory
 from agentsociety2.agent.config import AgentConfig
+
+
+class TestSkillRegistry:
+    """SkillRegistry 内置技能脚本发现与执行测试。"""
+
+    def test_builtin_script_metadata(self):
+        registry = SkillRegistry()
+        scripts = {info.name: info.script for info in registry.list_all()}
+
+        assert scripts["cognition"] == "scripts/update_cognition.py"
+        assert scripts["memory"] == "scripts/memory_maintenance.py"
+
+    @pytest.mark.asyncio
+    async def test_memory_maintenance_execute(self, tmp_path):
+        registry = SkillRegistry()
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        memory_file = state_dir / "memory.jsonl"
+        memory_file.write_text(
+            json.dumps(
+                {
+                    "tick": 1,
+                    "type": "event",
+                    "summary": "Met Alice.",
+                    "importance": "high",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = await registry.execute(
+            "memory",
+            {"memory_file": "state/memory.jsonl", "current_tick": 2},
+            tmp_path,
+        )
+
+        assert result["ok"] is True
+        rows = [
+            json.loads(line)
+            for line in memory_file.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        assert rows
+        assert "_retention" in rows[0]
 
 
 class TestCheckpoint:

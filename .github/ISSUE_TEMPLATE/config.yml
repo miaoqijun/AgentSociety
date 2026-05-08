@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation (v2)
+    url: https://agentsociety2.readthedocs.io/
+    about: AgentSociety 2 documentation (recommended).
+  - name: Documentation (v1)
+    url: https://agentsociety.readthedocs.io/
+    about: AgentSociety 1.x legacy documentation.
+  - name: Discussions
+    url: https://github.com/tsinghua-fib-lab/AgentSociety/discussions
+    about: For open-ended questions, ideas, and community discussions.

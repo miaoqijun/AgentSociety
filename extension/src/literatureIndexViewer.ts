@@ -46,7 +46,8 @@ export class LiteratureIndexViewer {
       const content = fs.readFileSync(filePath, 'utf-8');
       data = JSON.parse(content);
     } catch (error: any) {
-      vscode.window.showErrorMessage(`无法读取文献索引: ${error.message}`);
+      const isZh = vscode.env.language.startsWith('zh');
+      vscode.window.showErrorMessage(isZh ? `无法读取文献索引: ${error.message}` : `Could not read literature index: ${error.message}`);
       return;
     }
 
@@ -60,7 +61,7 @@ export class LiteratureIndexViewer {
     // 创建新的 webview 面板
     const panel = vscode.window.createWebviewPanel(
       'literatureIndexViewer',
-      '文献索引预览',
+      vscode.env.language.startsWith('zh') ? '文献索引预览' : 'Literature Index',
       vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -95,11 +96,16 @@ export class LiteratureIndexViewer {
               }
 
               const uri = vscode.Uri.file(candidatePath);
-              const doc = await vscode.workspace.openTextDocument(uri);
-              await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+              const ext = path.extname(candidatePath).toLowerCase();
+              if (ext === '.md') {
+                await vscode.commands.executeCommand('markdown.showPreview', uri);
+              } else {
+                await vscode.commands.executeCommand('vscode.open', uri);
+              }
             }
           } catch (error: any) {
-            vscode.window.showErrorMessage(`无法打开文件: ${error.message}`);
+            const isZh = vscode.env.language.startsWith('zh');
+            vscode.window.showErrorMessage(isZh ? `无法打开文件: ${error.message}` : `Could not open file: ${error.message}`);
           }
         } else if (message.command === 'openUrl') {
           // 打开外部链接（DOI、URL 等）
@@ -123,6 +129,18 @@ export class LiteratureIndexViewer {
             vscode.env.clipboard.writeText(atReference);
             const isZh = vscode.env.language.startsWith('zh');
             vscode.window.showInformationMessage(isZh ? `已复制: ${atReference}` : `Copied: ${atReference}`);
+          }
+        } else if (message.command === 'copyText') {
+          const text = typeof message.text === 'string' ? message.text : '';
+          if (text) {
+            await vscode.env.clipboard.writeText(text);
+            const isZh = vscode.env.language.startsWith('zh');
+            const count = typeof message.count === 'number' ? message.count : undefined;
+            vscode.window.showInformationMessage(
+              count
+                ? (isZh ? `已复制 ${count} 条` : `Copied ${count} item(s)`)
+                : (isZh ? '已复制到剪贴板' : 'Copied to clipboard')
+            );
           }
         }
       },
@@ -150,6 +168,8 @@ export class LiteratureIndexViewer {
 
     // 获取当前语言
     const isChinese = vscode.env.language.startsWith('zh');
+    const jsonForScript = (value: unknown) =>
+      JSON.stringify(value).replace(/</g, '\\u003c');
 
     panel.webview.html = `
 <!DOCTYPE html>
@@ -188,6 +208,12 @@ export class LiteratureIndexViewer {
       border-bottom: 1px solid var(--vscode-panel-border);
     }
 
+    .subtitle {
+      margin-top: 6px;
+      color: var(--vscode-descriptionForeground);
+      font-size: 13px;
+    }
+
     .header h1 {
       margin: 0;
       font-size: 24px;
@@ -198,8 +224,12 @@ export class LiteratureIndexViewer {
       font-size: 14px;
     }
 
-    .search-box {
-      margin-bottom: 20px;
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
     }
 
     .search-box input {
@@ -215,6 +245,12 @@ export class LiteratureIndexViewer {
 
     .search-box input:focus {
       border-color: var(--vscode-focusBorder);
+    }
+
+    .result-line {
+      color: var(--vscode-descriptionForeground);
+      font-size: 12px;
+      margin-bottom: 12px;
     }
 
     .entry {
@@ -256,6 +292,7 @@ export class LiteratureIndexViewer {
       border-radius: 12px;
       font-size: 12px;
       margin-left: 10px;
+      white-space: nowrap;
     }
 
     .entry-authors {
@@ -291,6 +328,7 @@ export class LiteratureIndexViewer {
       font-size: 12px;
       margin-top: 8px;
       font-family: var(--vscode-editor-font-family);
+      word-break: break-all;
     }
 
     .empty-state {
@@ -418,6 +456,7 @@ export class LiteratureIndexViewer {
       background-color: var(--vscode-input-background);
       border-radius: 6px;
       align-items: center;
+      flex-wrap: wrap;
     }
     .batch-btn {
       padding: 6px 12px;
@@ -442,50 +481,108 @@ export class LiteratureIndexViewer {
     .select-all-checkbox {
       margin-right: 8px;
     }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 12px;
+      }
+      .header,
+      .entry-header,
+      .toolbar {
+        display: block;
+      }
+      .stats,
+      .entry-year {
+        margin-top: 8px;
+        margin-left: 0;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>${isChinese ? '📚 文献索引' : '📚 Literature Index'}</h1>
+    <div>
+      <h1>${isChinese ? '📚 文献索引' : '📚 Literature Index'}</h1>
+      <div class="subtitle">${isChinese ? '检索、排序、复制引用并打开本地文献文件。' : 'Search, sort, copy references, and open local literature files.'}</div>
+    </div>
     <div class="stats">
       ${isChinese ? `共 ${total} 篇文献` : `${total} articles`}
       ${data.updated_at ? `<br>${isChinese ? '更新于' : 'Updated'}: ${new Date(data.updated_at).toLocaleString()}` : ''}
     </div>
   </div>
 
-  <div class="search-box">
-    <input type="text" id="searchInput" placeholder="${isChinese ? '搜索标题、作者或关键词...' : 'Search title, authors, or keywords...'}" />
-  </div>
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="${isChinese ? '搜索标题、作者、摘要或关键词...' : 'Search title, authors, abstract, or keywords...'}" />
+    </div>
 
-  <div class="filter-group">
-    <select id="sortSelect" class="sort-select">
-      <option value="default">${isChinese ? '默认排序' : 'Default Order'}</option>
-      <option value="year-desc">${isChinese ? '年份 (新→旧)' : 'Year (New→Old)'}</option>
-      <option value="year-asc">${isChinese ? '年份 (旧→新)' : 'Year (Old→New)'}</option>
-      <option value="title">${isChinese ? '标题 A-Z' : 'Title A-Z'}</option>
-    </select>
+    <div class="filter-group">
+      <select id="sortSelect" class="sort-select">
+        <option value="default">${isChinese ? '默认排序' : 'Default Order'}</option>
+        <option value="year-desc">${isChinese ? '年份 (新→旧)' : 'Year (New→Old)'}</option>
+        <option value="year-asc">${isChinese ? '年份 (旧→新)' : 'Year (Old→New)'}</option>
+        <option value="title">${isChinese ? '标题 A-Z' : 'Title A-Z'}</option>
+      </select>
+    </div>
   </div>
+  <div id="resultLine" class="result-line"></div>
 
   <div class="batch-actions">
     <input type="checkbox" id="selectAll" class="select-all-checkbox" />
     <label for="selectAll" style="font-size: 12px; margin-right: 12px;">${isChinese ? '全选' : 'Select All'}</label>
     <button class="batch-btn primary" id="copySelectedBtn">📋 ${isChinese ? '复制选中引用' : 'Copy Selected'}</button>
-    <button class="batch-btn" id="exportBtn">📥 ${isChinese ? '导出列表' : 'Export'}</button>
+    <button class="batch-btn" id="exportBtn">📋 ${isChinese ? '复制 CSV' : 'Copy CSV'}</button>
   </div>
 
   <div id="entries"></div>
 
   <script>
-    const entries = ${JSON.stringify(entries)};
-    const workspacePath = ${workspaceFolder ? `"${workspaceFolder.uri.fsPath}"` : 'null'};
+    const entries = ${jsonForScript(entries)};
+    const workspacePath = ${jsonForScript(workspaceFolder?.uri.fsPath ?? null)};
     const isChinese = ${isChinese ? 'true' : 'false'};
+    const vscodeApi = acquireVsCodeApi();
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function escapeJsArg(value) {
+      return String(value ?? '')
+        .replace(/\\\\/g, '\\\\\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\\\\n/g, '\\\\n')
+        .replace(/\\\\r/g, '');
+    }
+
+    function normalizeList(value) {
+      if (Array.isArray(value)) {
+        return value.map(item => String(item ?? '')).filter(Boolean);
+      }
+      if (value === undefined || value === null || value === '') {
+        return [];
+      }
+      return [String(value)];
+    }
+
+    function updateResultLine(count) {
+      const line = document.getElementById('resultLine');
+      line.textContent = isChinese
+        ? '当前显示 ' + count + ' / ' + entries.length + ' 篇文献'
+        : 'Showing ' + count + ' of ' + entries.length + ' articles';
+    }
 
     function renderEntries(filteredEntries) {
       const container = document.getElementById('entries');
       container.innerHTML = '';
+      updateResultLine(filteredEntries.length);
 
       if (filteredEntries.length === 0) {
-        container.innerHTML = '<div class="empty-state">' + (isChinese ? '没有找到匹配的文献' : 'No matching articles found') + '</div>';
+        container.innerHTML = '<div class="empty-state">' + (entries.length === 0 ? (isChinese ? '文献索引还是空的。把 PDF 或 Markdown 文献放入 papers/ 后再刷新索引。' : 'The literature index is empty. Add PDFs or Markdown notes under papers/ and refresh the index.') : (isChinese ? '没有找到匹配的文献' : 'No matching articles found')) + '</div>';
         return;
       }
 
@@ -498,29 +595,30 @@ export class LiteratureIndexViewer {
 
         const title = entry.title || (isChinese ? '未命名文献' : 'Untitled');
         const year = entry.year || '';
-        const authors = entry.authors || [];
+        const authors = normalizeList(entry.authors);
         const abstract = entry.abstract || '';
-        const keywords = entry.keywords || [];
+        const keywords = normalizeList(entry.keywords);
         const filePath = entry.file_path || '';
         const journal = entry.journal || '';
         const doi = entry.doi || '';
         const articleId = entry.extra_fields?.article_id || '';
+        const doiTarget = doi || (articleId && articleId.includes('/') ? articleId : '');
         const url = entry.url || '';
 
         // 构建 DOI/文章链接
         let doiLink = '';
         if (doi) {
-          doiLink = \`<a class="doi-link" href="#" onclick="openUrl('https://doi.org/\${doi}'); return false;">DOI: \${doi}</a>\`;
+          doiLink = \`<a class="doi-link" href="#" onclick="openUrl('https://doi.org/\${escapeJsArg(doi)}'); return false;">DOI: \${escapeHtml(doi)}</a>\`;
         } else if (articleId) {
           // 如果 articleId 看起来像 DOI
           if (articleId.includes('/')) {
-            doiLink = \`<a class="doi-link" href="#" onclick="openUrl('https://doi.org/\${articleId}'); return false;">DOI: \${articleId}</a>\`;
+            doiLink = \`<a class="doi-link" href="#" onclick="openUrl('https://doi.org/\${escapeJsArg(articleId)}'); return false;">DOI: \${escapeHtml(articleId)}</a>\`;
           } else {
-            doiLink = \`<span class="doi-link">ID: \${articleId}</span>\`;
+            doiLink = \`<span class="doi-link">ID: \${escapeHtml(articleId)}</span>\`;
           }
         }
         if (url) {
-          doiLink += \` <a class="doi-link" href="#" onclick="openUrl('\${url}'); return false;">🔗 \${isChinese ? '链接' : 'Link'}</a>\`;
+          doiLink += \` <a class="doi-link" href="#" onclick="openUrl('\${escapeJsArg(url)}'); return false;">🔗 \${isChinese ? '链接' : 'Link'}</a>\`;
         }
 
         // 构建摘要显示
@@ -529,8 +627,8 @@ export class LiteratureIndexViewer {
           const needsTruncate = abstract.length > 300;
           abstractHtml = \`
             <div class="entry-abstract">
-              <div class="abstract-preview" id="abstract-preview-\${index}">\${abstract.substring(0, 300)}\${needsTruncate ? '...' : ''}</div>
-              <div class="abstract-full" id="abstract-full-\${index}">\${abstract}</div>
+              <div class="abstract-preview" id="abstract-preview-\${index}">\${escapeHtml(abstract.substring(0, 300))}\${needsTruncate ? '...' : ''}</div>
+              <div class="abstract-full" id="abstract-full-\${index}">\${escapeHtml(abstract)}</div>
               \${needsTruncate ? \`<span class="abstract-toggle" onclick="toggleAbstract(\${index})">\${isChinese ? '展开全文' : 'Show more'}</span>\` : ''}
             </div>
           \`;
@@ -538,25 +636,25 @@ export class LiteratureIndexViewer {
 
         div.innerHTML = \`
           <div class="entry-header">
-            <input type="checkbox" class="entry-checkbox" data-filepath="\${filePath}" data-at-ref="\${entry.at_ref || ''}" data-title="\${title.replace(/"/g, '&quot;')}" style="margin-right: 10px;" />
-            <div class="entry-title" onclick="openFile('\${filePath}')">\${title}</div>
-            \${year ? \`<span class="entry-year">\${year}</span>\` : ''}
+            <input type="checkbox" class="entry-checkbox" data-filepath="\${escapeHtml(filePath)}" data-at-ref="\${escapeHtml(entry.at_ref || '')}" data-title="\${escapeHtml(title)}" style="margin-right: 10px;" />
+            <div class="entry-title" onclick="openFile('\${escapeJsArg(filePath)}')">\${escapeHtml(title)}</div>
+            \${year ? \`<span class="entry-year">\${escapeHtml(year)}</span>\` : ''}
           </div>
-          \${journal ? \`<div class="entry-journal">\${journal}</div>\` : ''}
-          \${authors.length > 0 ? \`<div class="entry-authors">\${authors.join(', ')}</div>\` : ''}
+          \${journal ? \`<div class="entry-journal">\${escapeHtml(journal)}</div>\` : ''}
+          \${authors.length > 0 ? \`<div class="entry-authors">\${escapeHtml(authors.join(', '))}</div>\` : ''}
           \${abstractHtml}
           <div class="entry-meta">
-            \${keywords.slice(0, 5).map(k => \`<span class="keyword">\${k}</span>\`).join('')}
+            \${keywords.slice(0, 5).map(k => \`<span class="keyword">\${escapeHtml(k)}</span>\`).join('')}
           </div>
-          \${filePath ? \`<div class="file-path">📄 \${filePath}</div>\` : ''}
+          \${filePath ? \`<div class="file-path">📄 \${escapeHtml(filePath)}</div>\` : ''}
           \${doiLink ? \`<div style="margin-top: 6px;">\${doiLink}</div>\` : ''}
           <div class="entry-actions">
-            <button class="action-btn primary" onclick="openFile('\${filePath}')">
+            \${filePath ? \`<button class="action-btn primary" onclick="openFile('\${escapeJsArg(filePath)}')">
               📖 \${isChinese ? '打开全文' : 'Open'}
-            </button>
+            </button>\` : ''}
             \${filePath ? \`<button class="action-btn" onclick="copyAtReferenceForEntry(this)">📋 \${isChinese ? '复制引用' : 'Copy Ref'}</button>\` : ''}
-            \${doi || articleId ? \`<button class="action-btn" onclick="openUrl('https://doi.org/\${doi || articleId}')">🔗 DOI</button>\` : ''}
-            \${url ? \`<button class="action-btn" onclick="openUrl('\${url}')">🌐 \${isChinese ? '网页' : 'Web'}</button>\` : ''}
+            \${doiTarget ? \`<button class="action-btn" onclick="openUrl('https://doi.org/\${escapeJsArg(doiTarget)}')">🔗 DOI</button>\` : ''}
+            \${url ? \`<button class="action-btn" onclick="openUrl('\${escapeJsArg(url)}')">🌐 \${isChinese ? '网页' : 'Web'}</button>\` : ''}
           </div>
         \`;
 
@@ -582,8 +680,7 @@ export class LiteratureIndexViewer {
 
     function openUrl(url) {
       if (url) {
-        const vscode = acquireVsCodeApi();
-        vscode.postMessage({
+        vscodeApi.postMessage({
           command: 'openUrl',
           url: url
         });
@@ -592,8 +689,7 @@ export class LiteratureIndexViewer {
 
     function openFile(filePath) {
       if (filePath && workspacePath) {
-        const vscode = acquireVsCodeApi();
-        vscode.postMessage({
+        vscodeApi.postMessage({
           command: 'openFile',
           filePath: filePath
         });
@@ -604,8 +700,7 @@ export class LiteratureIndexViewer {
       const row = btn.closest('.entry');
       const atRef = row && row.getAttribute('data-at-ref');
       if (!atRef) return;
-      const vscode = acquireVsCodeApi();
-      vscode.postMessage({
+      vscodeApi.postMessage({
         command: 'copyAtReference',
         atReference: atRef
       });
@@ -616,8 +711,8 @@ export class LiteratureIndexViewer {
       const query = e.target.value.toLowerCase();
       const filtered = entries.filter(entry => {
         const title = (entry.title || '').toLowerCase();
-        const authors = (entry.authors || []).join(' ').toLowerCase();
-        const keywords = (entry.keywords || []).join(' ').toLowerCase();
+        const authors = normalizeList(entry.authors).join(' ').toLowerCase();
+        const keywords = normalizeList(entry.keywords).join(' ').toLowerCase();
         const abstract = (entry.abstract || '').toLowerCase();
         return title.includes(query) || authors.includes(query) || keywords.includes(query) || abstract.includes(query);
       });
@@ -644,8 +739,8 @@ export class LiteratureIndexViewer {
       const query = document.getElementById('searchInput').value.toLowerCase();
       const filtered = entries.filter(entry => {
         const title = (entry.title || '').toLowerCase();
-        const authors = (entry.authors || []).join(' ').toLowerCase();
-        const keywords = (entry.keywords || []).join(' ').toLowerCase();
+        const authors = normalizeList(entry.authors).join(' ').toLowerCase();
+        const keywords = normalizeList(entry.keywords).join(' ').toLowerCase();
         const abstract = (entry.abstract || '').toLowerCase();
         return title.includes(query) || authors.includes(query) || keywords.includes(query) || abstract.includes(query);
       });
@@ -677,14 +772,14 @@ export class LiteratureIndexViewer {
           references.push(ar);
         }
       });
-      navigator.clipboard.writeText(references.join('\\n')).then(function() {
-        alert(isChinese ? '已复制 ' + references.length + ' 条引用' : 'Copied ' + references.length + ' references');
-      }).catch(function() {
-        alert(isChinese ? '复制失败' : 'Copy failed');
+      vscodeApi.postMessage({
+        command: 'copyText',
+        text: references.join('\\n'),
+        count: references.length
       });
     });
 
-    // 导出列表
+    // 复制 CSV 列表
     document.getElementById('exportBtn').addEventListener('click', function() {
       var checkboxes = document.querySelectorAll('.entry-checkbox:checked');
       var selectedEntries = checkboxes.length > 0 ? 
@@ -696,7 +791,7 @@ export class LiteratureIndexViewer {
       var csvContent = 'Title,Authors,Year,Journal,DOI,File Path\\n';
       selectedEntries.forEach(function(e) {
         var title = (e.title || '').replace(/"/g, '""');
-        var authors = (e.authors || []).join('; ').replace(/"/g, '""');
+        var authors = normalizeList(e.authors).join('; ').replace(/"/g, '""');
         var year = e.year || '';
         var journal = (e.journal || '').replace(/"/g, '""');
         var doi = e.doi || '';
@@ -704,13 +799,11 @@ export class LiteratureIndexViewer {
         csvContent += '"' + title + '","' + authors + '","' + year + '","' + journal + '","' + doi + '","' + fp + '"\\n';
       });
       
-      var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'literature_export.csv';
-      a.click();
-      URL.revokeObjectURL(url);
+      vscodeApi.postMessage({
+        command: 'copyText',
+        text: csvContent,
+        count: selectedEntries.length
+      });
     });
 
     // 键盘快捷键支持
@@ -741,12 +834,10 @@ export class LiteratureIndexViewer {
       if (entry) {
         var atRef = entry.getAttribute('data-at-ref');
         if (atRef) {
-          navigator.clipboard.writeText(atRef).then(function() {
-            var notification = document.createElement('div');
-            notification.style.cssText = 'position:fixed;top:20px;right:20px;background:#52c41a;color:#fff;padding:8px 16px;border-radius:4px;z-index:9999;animation:fadeIn 0.3s;';
-            notification.textContent = isChinese ? '已复制引用' : 'Reference copied';
-            document.body.appendChild(notification);
-            setTimeout(function() { notification.remove(); }, 2000);
+          vscodeApi.postMessage({
+            command: 'copyText',
+            text: atRef,
+            count: 1
           });
         }
       }

@@ -165,7 +165,7 @@ class PersonAgent(AgentBase):
         self._profile_for_prompt: Any = None
 
         # ── 上下文管理改进 ──
-        # 持久化记忆（类似 CLAUDE.md）
+        # 持久化运行时摘要，用于跨压缩轮次保留当前任务与重要决策。
         self._memory: Optional[AgentMemory] = None
         # 结构化摘要
         self._structured_summary: Optional[StructuredSummary] = None

@@ -1,13 +1,15 @@
-# Skill编写指南
+# Skill 编写指南
 
-本文档介绍如何为PersonAgent编写自定义Skill。
+本文档介绍如何为 `PersonAgent` 编写自定义 Skill。Skill 的目标不是把所有逻辑写成复杂插件，而是把一种能力的触发条件、输入文件、执行步骤和输出文件说明清楚，让智能体在合适的时候调用它。
 
 ## 概述
 
-Skill是PersonAgent的行为模块，每个Skill定义了Agent的一种能力。Skill可以：
-- 纯Prompt驱动（最简单，推荐）
-- 带Python脚本（用于确定性计算）
-- 环境路由（codegen模式）
+Skill 是 `PersonAgent` 的行为模块。常见写法有两种：
+
+- **Prompt-only**：只写 `SKILL.md`，适合判断、反思、总结、计划等开放任务。
+- **Subprocess script**：额外提供 Python 脚本，适合确定性计算、格式转换、批处理和可重复的数据维护。
+
+与环境交互时，不需要在 frontmatter 里声明特殊 executor；在正文中说明何时使用 `codegen` 工具即可。
 
 ## 快速开始
 
@@ -26,8 +28,6 @@ custom/skills/my-skill/
 ---
 name: my-skill
 description: 一句话描述功能。什么时候使用。产生什么输出。
-outputs:
-  - result.json
 ---
 
 # My Skill
@@ -36,8 +36,8 @@ outputs:
 描述触发条件。
 
 ## 输入文件
-- `observation.txt`：当前观察（如果存在）
-- `needs.json`：需求状态（如果存在）
+- `state/observation.txt`：当前观察（如果存在）
+- `state/needs.json`：需求状态（如果存在）
 
 ## 执行步骤
 1. 首先，用 `workspace_read` 读取需要的文件
@@ -56,7 +56,7 @@ outputs:
 
 **输入**：
 \`\`\`
-observation.txt: "在公园遇到了Alice"
+state/observation.txt: "在公园遇到了Alice"
 \`\`\`
 
 **输出**：
@@ -68,7 +68,7 @@ observation.txt: "在公园遇到了Alice"
 \`\`\`
 ```
 
-就这么简单！无需编程，LLM会根据你的描述自动执行。
+无需编程，模型会根据你的描述读取文件、调用工具并写入输出。写得越具体，行为越稳定。
 
 ## SKILL.md结构详解
 
@@ -100,9 +100,8 @@ Skill的Markdown body中可以指导LLM使用以下工具：
 
 | 工具 | 用途 | 示例 |
 |------|------|------|
-| `workspace_read` | 读取文件 | `workspace_read("observation.txt")` |
-| `workspace_write` | 写入文件 | `workspace_write("result.json", content)` |
-| `workspace_exists` | 检查文件存在 | `workspace_exists("needs.json")` |
+| `workspace_read` | 读取文件 | `workspace_read("state/observation.txt")` |
+| `workspace_write` | 写入文件 | `workspace_write("state/result.json", content)` |
 | `workspace_list` | 列出文件 | `workspace_list(".")` |
 | `codegen` | 执行环境指令 | `codegen("<observe>")` |
 | `bash` | 执行命令 | `bash("echo hello")` |
@@ -120,8 +119,6 @@ Skill的Markdown body中可以指导LLM使用以下工具：
 ---
 name: mood-check
 description: Check and record current mood based on recent events.
-outputs:
-  - mood.json
 ---
 
 # Mood Check
@@ -129,15 +126,15 @@ outputs:
 Analyze recent events and determine current mood.
 
 ## Input
-- `observation.txt`: Current perception
-- `emotion.json`: Current emotional state
-- `memory.jsonl`: Recent memories (last 5 lines)
+- `state/observation.txt`: Current perception
+- `state/emotion.json`: Current emotional state
+- `state/memory.jsonl`: Recent memories (last 5 lines)
 
 ## Output
-Write `mood.json`:
+Write `state/mood.json`:
 \`\`\`json
 {
-  "mood": "happy" | "sad" | "neutral" | "anxious" | "excited",
+  "mood": "happy|sad|neutral|anxious|excited",
   "intensity": 0.0-1.0,
   "reason": "Brief explanation"
 }
@@ -161,8 +158,6 @@ SKILL.md:
 name: calculator
 description: Perform precise numerical calculations.
 script: scripts/calc.py
-outputs:
-  - result.json
 ---
 ```
 
@@ -179,16 +174,18 @@ def main() -> int:
     ns = parser.parse_args()
     args = json.loads(ns.args_json)
 
-    # 计算逻辑
+    # 计算逻辑。真实项目中不要直接 eval 用户输入。
     expression = args.get("expression", "0")
     try:
-        result = eval(expression)  # 注意：实际使用时需要安全处理
+        result = eval(expression)
         output = {"ok": True, "result": result}
     except Exception as e:
         output = {"ok": False, "error": str(e)}
 
     # 写入输出
-    (Path.cwd() / "result.json").write_text(
+    state_dir = Path.cwd() / "state"
+    state_dir.mkdir(exist_ok=True)
+    (state_dir / "result.json").write_text(
         json.dumps(output, ensure_ascii=False, indent=2)
     )
     print(json.dumps(output))
@@ -206,15 +203,15 @@ if __name__ == "__main__":
 
 ### 1. 保持单一职责
 
-每个Skill只做一件事：
+每个 Skill 只做一件事：
 
-- ✅ `needs`: 管理生理需求
 - ✅ `cognition`: 生成情绪和意图
+- ✅ `memory`: 写入值得长期保留的记忆
 - ❌ `needs_and_emotion`: 做太多事情
 
 ### 2. 在正文写清产出文件
 
-在 Markdown 里列出会写入的路径（如 ``needs.json``）；frontmatter 不解析 ``outputs`` 等扩展字段。
+在 Markdown 里列出会写入的路径（如 ``state/result.json``）；frontmatter 不解析 ``outputs``、``inputs``、``requires`` 等扩展字段。
 
 ### 3. 处理缺失文件
 
@@ -222,8 +219,8 @@ Skill应该优雅处理输入文件不存在的情况：
 
 ```markdown
 ## Input Files
-- `observation.txt`: Current observation (skip if missing)
-- `needs.json`: Need state (use defaults if missing)
+- `state/observation.txt`: Current observation (skip if missing)
+- `state/needs.json`: Need state (use defaults if missing)
 ```
 
 ### 4. 提供示例
@@ -235,7 +232,7 @@ Skill应该优雅处理输入文件不存在的情况：
 
 **Input**:
 \`\`\`
-observation.txt: "You see a café across the street."
+state/observation.txt: "You see a café across the street."
 \`\`\`
 
 **Output** (intention.json):
@@ -292,18 +289,18 @@ Reflect on recent social interactions and how they affect relationships.
 - Before making social decisions
 
 ## Input Files
-- `observation.txt`: Current perception (may contain social events)
-- `relationships.json`: Current relationship state
-- `memory.jsonl`: Recent memories (last 10 lines)
-- `emotion.json`: Current emotional state
+- `state/observation.txt`: Current perception (may contain social events)
+- `state/relationships.json`: Current relationship state
+- `state/memory.jsonl`: Recent memories (last 10 lines)
+- `state/emotion.json`: Current emotional state
 
 ## Execution Steps
 
-1. Read `relationships.json` to understand current state
+1. Read `state/relationships.json` to understand current state
 2. Read recent memories for social interaction context
 3. Consider current emotional state
 4. Reflect on how recent events affect relationships
-5. Write reflection to `social_reflection.json`
+5. Write reflection to `state/social_reflection.json`
 
 ## Output Format
 
@@ -327,8 +324,8 @@ Reflect on recent social interactions and how they affect relationships.
 ## Example
 
 **Input**:
-- observation.txt: "Alice smiled and offered to help with my project."
-- relationships.json: Agent 2 (Alice) is an acquaintance with trust 0.3
+- state/observation.txt: "Alice smiled and offered to help with my project."
+- state/relationships.json: Agent 2 (Alice) is an acquaintance with trust 0.3
 
 **Output**:
 \`\`\`json

@@ -31,7 +31,7 @@ msgstr ""
 #: ../../agent_skills.rst:7
 msgid ""
 "Agent Skills 是 PersonAgent 的能力插件系统。PersonAgent 本身是轻量编排器， 真正的认知与行为能力由独立 "
-"skill 提供（如 observation、needs、cognition、plan、memory）。"
+"skill 提供（如 observation、memory、cognition、plan）。"
 msgstr ""
 
 #: ../../agent_skills.rst:10

@@ -40,10 +40,13 @@ Also use **Agent Identity** from the system prompt. Other JSON in the workspace 
 2. Write `state/emotion.json`: `primary`, `mood`, dimensional `intensities`, plus `valence` / `arousal` / `note`.
 3. Write `state/intention.json`: one chosen goal with TPB scores.
 
-If deterministic baseline is preferred, run `scripts/update_cognition.py` first, then optionally refine labels, reasoning, and candidate goals with LLM context.
+If a deterministic baseline is preferred, use this skill's configured script first, then optionally refine labels, reasoning, and candidate goals with LLM context. The script accepts optional arguments such as:
 
-```bash
-python skills/cognition/scripts/update_cognition.py --state-dir state --tick 120
+```json
+{
+  "state_dir": "state",
+  "tick": 120
+}
 ```
 
 The script uses Scherer-style appraisal checks and TPB scoring. It is intentionally conservative: it clamps emotion changes per tick and records appraisal values for debugging.

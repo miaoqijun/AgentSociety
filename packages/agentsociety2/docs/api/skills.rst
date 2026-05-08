@@ -33,7 +33,8 @@ SKILL.md 文件使用 YAML frontmatter 声明 skill 元信息：
    ---
    name: my_skill
    description: 这是一个示例 skill
+   script: scripts/my_skill.py
    ---
 
 **解析进 catalog 的字段**：``name``、``description``。
-子进程脚本通过约定路径 ``scripts/<name>.py`` 自动识别。环境交互走工具 ``codegen``，不经 skill 的 execute 分支。
+``script`` 为可选子进程脚本路径；未声明时会尝试按 ``scripts/<name>.py`` 自动识别。环境交互走工具 ``codegen``，不经 skill 的 execute 分支。

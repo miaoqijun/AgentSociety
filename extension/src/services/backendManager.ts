@@ -244,12 +244,7 @@ export class BackendManager {
     if (envConfig.embeddingModel) { env.AGENTSOCIETY_EMBEDDING_MODEL = envConfig.embeddingModel; }
     if (envConfig.embeddingDims) { env.AGENTSOCIETY_EMBEDDING_DIMS = String(envConfig.embeddingDims); }
 
-    // Web Search 配置
-    if (envConfig.webSearchApiUrl) { env.WEB_SEARCH_API_URL = envConfig.webSearchApiUrl; }
-    if (envConfig.webSearchApiToken) { env.WEB_SEARCH_API_TOKEN = envConfig.webSearchApiToken; }
-    if (envConfig.miroflowDefaultLlm) { env.MIROFLOW_DEFAULT_LLM = envConfig.miroflowDefaultLlm; }
-    if (envConfig.miroflowDefaultAgent) { env.MIROFLOW_DEFAULT_AGENT = envConfig.miroflowDefaultAgent; }
-
+    // Literature Search 配置
     if (envConfig.literatureSearchApiUrl) { env.LITERATURE_SEARCH_API_URL = envConfig.literatureSearchApiUrl; }
     if (envConfig.literatureSearchApiKey) { env.LITERATURE_SEARCH_API_KEY = envConfig.literatureSearchApiKey; }
 

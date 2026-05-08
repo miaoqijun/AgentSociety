@@ -32,7 +32,7 @@ workspace_write("state/observation_ctx.json", <ctx as JSON string>)
 
 ## Persisting perception
 
-After a successful observe, if you want a durable trace, append one line to `memory.jsonl` with `type: "observation"` (or `event`) and a short factual `summary`. Skip if this tick’s perception duplicates the latest entry.
+After a successful observe, if you want a durable trace, append one line to `state/memory.jsonl` with `type: "observation"` (or `event`) and a short factual `summary`. Skip if this tick's perception duplicates the latest entry.
 
 ## What Observation Contains
 
@@ -93,7 +93,7 @@ The `state/observation_ctx.json` typically contains:
 
 - Prefer writing `state/observation.txt` every time you observe so the workspace stays self-consistent.
 - If you skip observation, other skills have less grounding—work from profile + whatever files already exist.
-- The `ctx` JSON may be large; you don't need to memorize it all—write it to `state/observation_ctx.json` and let readers pull fields as needed.
+- The `ctx` JSON may be large; you do not need to memorize it all. Write it to `state/observation_ctx.json` and let readers pull fields as needed.
 - If `codegen` returns an error, write a short note into `state/observation.txt` so later reads see what failed.
 
 ## Notes on State

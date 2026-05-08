@@ -1,13 +1,15 @@
 /**
  * HelpPageViewProvider - Help Page Webview Provider
  *
- * Provides a webview for displaying plugin usage guide and help information.
- * Reads content from HELP.md or HELP.en-US.md based on VSCode locale.
+ * Embeds ReadTheDocs documentation as the primary help source,
+ * with local HELP.md as offline fallback.
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+
+const RTD_BASE_URL = 'https://agentsociety2.readthedocs.io';
 
 export class HelpPageViewProvider {
   private readonly panel: vscode.WebviewPanel;
@@ -15,10 +17,17 @@ export class HelpPageViewProvider {
   private readonly extensionPath: string;
   private disposables: vscode.Disposable[] = [];
 
+  public static currentPanel: HelpPageViewProvider | undefined;
+
   /**
-   * Create and show a new help page webview panel
+   * Create a new help page panel or reveal the existing one.
    */
   public static createOrShow(context: vscode.ExtensionContext, viewColumn: vscode.ViewColumn = vscode.ViewColumn.One): HelpPageViewProvider {
+    if (HelpPageViewProvider.currentPanel) {
+      HelpPageViewProvider.currentPanel.panel.reveal(viewColumn);
+      return HelpPageViewProvider.currentPanel;
+    }
+
     const locale = vscode.env.language;
     const title = locale.startsWith('zh') ? '使用指南 - AI Social Scientist' : 'User Guide - AI Social Scientist';
 
@@ -33,7 +42,8 @@ export class HelpPageViewProvider {
       }
     );
 
-    return new HelpPageViewProvider(panel, context);
+    HelpPageViewProvider.currentPanel = new HelpPageViewProvider(panel, context);
+    return HelpPageViewProvider.currentPanel;
   }
 
   private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
@@ -41,10 +51,8 @@ export class HelpPageViewProvider {
     this.extensionUri = context.extensionUri;
     this.extensionPath = context.extensionPath;
 
-    // Set webview content
     this.updateWebviewContent();
 
-    // Register event listeners
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
     this.panel.webview.onDidReceiveMessage(
@@ -68,12 +76,11 @@ export class HelpPageViewProvider {
   }
 
   /**
-   * Read help content from appropriate HELP.md file based on locale
+   * Read fallback help content from local HELP.md based on locale
    */
   private readHelpContent(): string {
     const locale = vscode.env.language;
 
-    // Try locale-specific file first (e.g., HELP.en-US.md for English)
     const localeSpecificPath = path.join(this.extensionPath, `HELP.${locale}.md`);
     if (fs.existsSync(localeSpecificPath)) {
       try {
@@ -83,7 +90,6 @@ export class HelpPageViewProvider {
       }
     }
 
-    // Try base locale (e.g., HELP.en.md for en-GB, en-AU, etc.)
     const baseLocale = locale.split('-')[0];
     if (baseLocale !== locale) {
       const baseLocalePath = path.join(this.extensionPath, `HELP.${baseLocale}.md`);
@@ -96,7 +102,6 @@ export class HelpPageViewProvider {
       }
     }
 
-    // Fall back to default Chinese HELP.md
     const defaultPath = path.join(this.extensionPath, 'HELP.md');
     try {
       if (fs.existsSync(defaultPath)) {
@@ -106,7 +111,6 @@ export class HelpPageViewProvider {
       console.error('Failed to read HELP.md:', error);
     }
 
-    // Fallback content
     const isZh = locale.startsWith('zh');
     if (isZh) {
       return `# AI Social Scientist 使用指南
@@ -133,17 +137,27 @@ Failed to load help documentation. Please visit [README.md](https://github.com/t
   }
 
   /**
+   * Get ReadTheDocs URL based on locale
+   */
+  private getRtdUrl(): string {
+    const locale = vscode.env.language;
+    const isZh = locale.startsWith('zh');
+    return isZh ? `${RTD_BASE_URL}/zh_CN/latest/` : `${RTD_BASE_URL}/en/latest/`;
+  }
+
+  /**
    * Update webview content
    */
   private updateWebviewContent(): void {
     const helpContent = this.readHelpContent();
-    this.panel.webview.html = this.getHtmlForWebview(helpContent);
+    const rtdUrl = this.getRtdUrl();
+    this.panel.webview.html = this.getHtmlForWebview(helpContent, rtdUrl);
   }
 
   /**
    * Generate HTML for webview
    */
-  private getHtmlForWebview(helpContent: string): string {
+  private getHtmlForWebview(helpContent: string, rtdUrl: string): string {
     const scriptUri = this.panel.webview.asWebviewUri(
       vscode.Uri.file(path.join(this.extensionUri.fsPath, 'out', 'webview', 'helpPage.js'))
     );
@@ -151,21 +165,20 @@ Failed to load help documentation. Please visit [README.md](https://github.com/t
     const nonce = Math.random().toString(36).slice(2);
     const csp = [
       "default-src 'none'",
-      `style-src ${this.panel.webview.cspSource} 'unsafe-inline'`,
+      `style-src ${this.panel.webview.cspSource} 'unsafe-inline' https://assets.readthedocs.org https://cdnjs.cloudflare.com`,
       `script-src ${this.panel.webview.cspSource} 'nonce-${nonce}'`,
-      `font-src ${this.panel.webview.cspSource}`,
+      `font-src ${this.panel.webview.cspSource} https://assets.readthedocs.org https://cdnjs.cloudflare.com`,
+      `frame-src ${RTD_BASE_URL} https://readthedocs.org`,
+      `img-src ${this.panel.webview.cspSource} https://assets.readthedocs.org https://cdnjs.cloudflare.com data:`,
+      `connect-src ${RTD_BASE_URL} https://assets.readthedocs.org`,
     ].join('; ');
 
-    // Determine language for HTML
     const locale = vscode.env.language;
     const htmlLang = locale.startsWith('zh') ? 'zh-CN' : 'en-US';
     const title = locale.startsWith('zh') ? '使用指南 - AI Social Scientist' : 'User Guide - AI Social Scientist';
 
-    // Escape the help content for embedding in JavaScript
-    const escapedContent = helpContent
-      .replace(/\\/g, '\\\\')
-      .replace(/`/g, '\\`')
-      .replace(/\$/g, '\\$');
+    const jsonHelpContent = JSON.stringify(helpContent);
+    const jsonRtdUrl = JSON.stringify(rtdUrl);
 
     return `<!DOCTYPE html>
 <html lang="${htmlLang}">
@@ -202,7 +215,8 @@ Failed to load help documentation. Please visit [README.md](https://github.com/t
 </head>
 <body>
     <div id="root"></div>
-    <script nonce="${nonce}">window.HELP_CONTENT = \`${escapedContent}\`;</script>
+    <script nonce="${nonce}">window.HELP_CONTENT = ${jsonHelpContent};</script>
+    <script nonce="${nonce}">window.RTD_URL = ${jsonRtdUrl};</script>
     <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
@@ -212,6 +226,7 @@ Failed to load help documentation. Please visit [README.md](https://github.com/t
    * Dispose the webview panel and resources
    */
   public dispose(): void {
+    HelpPageViewProvider.currentPanel = undefined;
     this.disposables.forEach((d) => d.dispose());
     this.disposables = [];
   }

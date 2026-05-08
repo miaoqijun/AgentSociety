@@ -148,10 +148,6 @@ export class ConfigPageViewProvider {
       embeddingApiBase: envConfig.embeddingApiBase || '',
       embeddingModel: envConfig.embeddingModel || 'text-embedding-3-large',
       embeddingDims: envConfig.embeddingDims ?? 1024,
-      webSearchApiUrl: envConfig.webSearchApiUrl || '',
-      webSearchApiToken: envConfig.webSearchApiToken || '',
-      miroflowDefaultLlm: envConfig.miroflowDefaultLlm || 'qwen-3',
-      miroflowDefaultAgent: envConfig.miroflowDefaultAgent || 'mirothinker_v1.5_keep5_max200',
       literatureSearchApiUrl: envConfig.literatureSearchApiUrl || 'http://localhost:8008/api/search',
       literatureSearchApiKey: envConfig.literatureSearchApiKey || '',
     };
@@ -266,10 +262,6 @@ export class ConfigPageViewProvider {
       embeddingApiBase: config.embeddingApiBase,
       embeddingModel: config.embeddingModel,
       embeddingDims: config.embeddingDims,
-      webSearchApiUrl: config.webSearchApiUrl,
-      webSearchApiToken: config.webSearchApiToken,
-      miroflowDefaultLlm: config.miroflowDefaultLlm,
-      miroflowDefaultAgent: config.miroflowDefaultAgent,
       literatureSearchApiUrl: config.literatureSearchApiUrl,
       literatureSearchApiKey: config.literatureSearchApiKey,
     });

@@ -193,7 +193,7 @@ graph TB
 PersonAgent follows a **metadata-first, selected-only** model:
 - Skills are self-contained directories under `agent/skills/`
 - Each skill has `SKILL.md` (YAML frontmatter + behavior docs) and `scripts/<name>.py`
-- Built-in skills: `observation`, `memory`, `needs`, `cognition`, `plan`
+- Built-in skills: `observation`, `memory`, `cognition`, `plan`
 - **Selection Stage**: LLM sees skill catalog (name/description only)
 - **Execution Stage**: Only LLM-selected skills are loaded and run
 - Unselected skills are NOT loaded or executed (lazy loading)

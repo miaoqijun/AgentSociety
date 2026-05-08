@@ -1,6 +1,6 @@
 # 自定义模块开发指南
 
-欢迎使用 AgentSociety2 自定义模块功能！本指南将帮助您创建和使用自定义的 Agent 和环境模块。
+欢迎使用 AgentSociety2 自定义模块功能！本指南将帮助您创建和使用自定义的 Agent、环境模块和 Agent Skill。
 
 ## 目录结构
 
@@ -71,7 +71,6 @@ class MyEnv(EnvBase):
 
     def __init__(self, config=None):
         super().__init__()
-        # 初始化你的环境状态
 
     @classmethod
     def mcp_description(cls) -> str:
@@ -198,7 +197,7 @@ async def my_tool(self, agent_id: int) -> dict:
 
 ## 创建自定义 Agent Skill
 
-每个 PersonAgent 就是一个独立的 Claude-like agent——它从 skill catalog 中选择技能、读取指令、调用工具完成任务。**skill 作者不需要了解 PersonAgent 的内部实现**，只需写一个 `SKILL.md`。
+每个 PersonAgent 都有独立的 workspace 和 skill catalog。运行时会先看到技能的 `name` 与 `description`，需要时再读取完整 `SKILL.md` 并调用工具完成任务。**skill 作者不需要了解 PersonAgent 的内部实现**，只需把触发条件、输入文件、执行步骤和输出文件写清楚。
 
 ### 目录结构
 
@@ -210,14 +209,13 @@ custom/skills/my-skill/
 
 ### SKILL.md frontmatter
 
-只需要三个字段：
+常用字段如下：
 
 | 字段 | 必需 | 说明 |
 |------|------|------|
 | `name` | 是 | skill 唯一标识 |
 | `description` | 是 | 一句话描述（出现在 agent 的 skill catalog 里） |
 | `script` | 否 | subprocess 脚本路径（如 `scripts/my-skill.py`） |
-| `requires` | 否 | 依赖列表（activate 时自动激活依赖） |
 
 ```yaml
 ---
@@ -230,13 +228,13 @@ description: One-line description of what this skill does.
 
 #### Prompt-only（推荐）
 
-不声明 `script`。agent `activate_skill` 后，`SKILL.md` 正文作为行为指令注入上下文，agent 用内置工具（`bash` / `codegen` / `workspace_*` / `glob` / `grep`）完成任务。
+不声明 `script`。agent `activate_skill` 后，`SKILL.md` 正文作为行为指令注入上下文，agent 用内置工具（`bash` / `codegen` / `workspace_read` / `workspace_write` / `workspace_list` / `glob` / `grep`）完成任务。
 
 #### Subprocess
 
 声明 `script: scripts/my-skill.py`。agent 调用 `execute_skill` 时框架以子进程运行脚本：
 
-- 参数：`--args-json '{...}'`（由 LLM 决定传什么）
+- 参数：`--args-json '{...}'`
 - 环境变量：`SKILL_NAME` / `SKILL_DIR` / `AGENT_WORK_DIR`
 - 产物：写入 `AGENT_WORK_DIR`（每个 agent 独立目录）
 
@@ -250,7 +248,9 @@ def main() -> int:
     args = json.loads(parser.parse_args().args_json or "{}")
 
     result = {"ok": True, "summary": f"ran (tick={args.get('tick')})"}
-    Path("result.json").write_text(json.dumps(result), encoding="utf-8")
+    state_dir = Path("state")
+    state_dir.mkdir(exist_ok=True)
+    (state_dir / "result.json").write_text(json.dumps(result), encoding="utf-8")
     print(json.dumps(result))
     return 0
 
@@ -268,8 +268,8 @@ if __name__ == "__main__":
 | `bash` | 在 agent workspace 运行 shell 命令 |
 | `workspace_read/write/list` | 读写 agent workspace 文件 |
 | `glob` / `grep` | 在 workspace 搜索文件 |
-| `execute_skill` | 运行另一个 skill 的 subprocess 脚本 |
-| `activate_skill` | 加载另一个 skill 的指令 |
+| `execute_skill` | 运行当前 skill 或其他 skill 的 subprocess 脚本 |
+| `activate_skill` | 加载另一个 skill 的完整指令 |
 
 ### 扫描注册
 
@@ -301,18 +301,18 @@ A: 检查以下几点：
 
 ### Q: 如何调试自定义模块？
 
-A: 使用"测试自定义模块"命令，系统会在内存中：
+A: 使用“测试自定义模块”命令，系统会在内存中：
 1. 动态导入自定义模块
 2. 运行测试验证
 3. 显示详细的测试输出
 
 ### Q: 如何清理自定义模块？
 
-A: 运行"清理自定义模块"命令，会删除所有 `is_custom=true` 的 JSON 配置。
+A: 运行“清理自定义模块”命令，会删除所有 `is_custom=true` 的 JSON 配置。
 
 ### Q: 自定义模块可以和内置模块一起使用吗？
 
-A: 可以！扫描后，自定义模块会与内置模块一起出现在可用列表中。
+A: 可以。扫描后，自定义模块会与内置模块一起出现在可用列表中。
 
 ## 最佳实践
 
