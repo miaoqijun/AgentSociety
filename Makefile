@@ -89,8 +89,8 @@ dev: sync install-node build
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SPHINXINTL    ?= sphinx-intl
-SOURCEDIR     = docs
-BUILDDIR      = docs/_build
+SOURCEDIR     = packages/agentsociety2/docs
+BUILDDIR      = packages/agentsociety2/docs/_build
 
 # 国际化相关命令
 

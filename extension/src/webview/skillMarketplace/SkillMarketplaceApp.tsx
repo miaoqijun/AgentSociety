@@ -1456,6 +1456,13 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
     const customSkills = filteredAgentSkills.filter(s => s.source !== 'builtin');
     return (
       <div>
+        <Alert
+          type="info"
+          showIcon
+          message={t('skillManagement.agentTabIntroTitle')}
+          description={t('skillManagement.agentBackendRequiredNotice')}
+          style={{ marginBottom: 12, borderRadius: 8 }}
+        />
         {tabToolbar(
           <Text type="secondary" style={{ fontSize: 13 }}>
             {t('skillManagement.agentSkillsCount', { count: filteredAgentSkills.length })}

@@ -39,7 +39,7 @@ This extension brings those capabilities into VS Code, so you do not have to jum
 | Literature review | Search papers, maintain literature indexes, and keep Markdown notes |
 | Hypothesis generation | Turn research questions and papers into testable hypotheses |
 | Experiment design | Generate AgentSociety2 initialization configs and experiment steps |
-| Agent simulation | Start a local backend and run multi-agent simulations and mechanism experiments |
+| Agent simulation | Run multi-agent simulations and mechanism experiments from experiment configs, usually through the CLI or Claude Code |
 | Replay and analysis | Inspect experiment traces, agent behavior, environment changes, and result data |
 | Paper writing | Organize results, charts, and arguments into manuscript material |
 
@@ -48,7 +48,7 @@ This extension brings those capabilities into VS Code, so you do not have to jum
 1. Open the **AI Social Scientist** sidebar.
 2. Initialize a research project, or open an existing one.
 3. Fill in your LLM `API Key` and `API Base`.
-4. Start the local backend service.
+4. Start the local backend service for the full extension experience.
 5. Install the research skills you need for your task.
 
 The next steps walk you through this setup in order.
@@ -58,7 +58,7 @@ The next steps walk you through this setup in order.
 | Configuration | Purpose | When you need it |
 |---------------|---------|------------------|
 | LLM API | Powers literature work, planning, analysis, and agent reasoning | Required for first use |
-| Backend service | Runs simulations, skills, and local API services | Needed for experiments, replay, and skills |
+| Backend service | Provides local APIs for agent runtime skill management, module discovery, replay endpoints, and API docs | Recommended for daily use; config editing and CLI/Claude Code experiment runs can continue even if it is not running yet |
 | Skill marketplace | Installs research and development skills | Choose based on your task |
 | Claude Code / MCP | Lets a coding assistant access project skills and the local backend | Recommended as the default research collaboration entry point |
 
@@ -67,7 +67,7 @@ The next steps walk you through this setup in order.
 [AgentSociety](https://github.com/tsinghua-fib-lab/agentsociety) is an LLM-native agentic research platform developed by Tsinghua FibLab. This VS Code extension is its research workbench:
 
 - **VS Code extension**: project tree, configuration page, skill management, replay, and help pages.
-- **FastAPI backend**: runs locally and handles LLM calls, experiment management, and API services.
+- **FastAPI backend**: runs locally and provides skill runtime management, module discovery, replay, and API services.
 - **AgentSociety2 core**: provides PersonAgent, environment modules, experiment execution, and replay data.
 - **Skills**: package literature, experiment, analysis, and writing capabilities into installable modules.
 

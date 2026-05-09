@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 22:32+0800\n"
+"POT-Creation-Date: 2026-05-09 12:39+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -21,11 +21,13 @@ msgstr ""
 "Generated-By: Babel 2.18.0\n"
 
 #: ../../skill_guide.md:1
-msgid "Skill编写指南"
+msgid "Skill 编写指南"
 msgstr ""
 
 #: ../../skill_guide.md:3
-msgid "本文档介绍如何为PersonAgent编写自定义Skill。"
+msgid ""
+"本文档介绍如何为 `PersonAgent` 编写自定义 Skill。Skill "
+"的目标不是把所有逻辑写成复杂插件，而是把一种能力的触发条件、输入文件、执行步骤和输出文件说明清楚，让智能体在合适的时候调用它。"
 msgstr ""
 
 #: ../../skill_guide.md:5
@@ -33,39 +35,39 @@ msgid "概述"
 msgstr ""
 
 #: ../../skill_guide.md:7
-msgid "Skill是PersonAgent的行为模块，每个Skill定义了Agent的一种能力。Skill可以："
-msgstr ""
-
-#: ../../skill_guide.md:8
-msgid "纯Prompt驱动（最简单，推荐）"
+msgid "Skill 是 `PersonAgent` 的行为模块。常见写法有两种："
 msgstr ""
 
 #: ../../skill_guide.md:9
-msgid "带Python脚本（用于确定性计算）"
+msgid "**Prompt-only**：只写 `SKILL.md`，适合判断、反思、总结、计划等开放任务。"
 msgstr ""
 
 #: ../../skill_guide.md:10
-msgid "环境路由（codegen模式）"
+msgid "**Subprocess script**：额外提供 Python 脚本，适合确定性计算、格式转换、批处理和可重复的数据维护。"
 msgstr ""
 
 #: ../../skill_guide.md:12
-msgid "快速开始"
+msgid "与环境交互时，不需要在 frontmatter 里声明特殊 executor；在正文中说明何时使用 `codegen` 工具即可。"
 msgstr ""
 
 #: ../../skill_guide.md:14
-msgid "创建一个简单的Skill"
+msgid "快速开始"
 msgstr ""
 
 #: ../../skill_guide.md:16
+msgid "创建一个简单的Skill"
+msgstr ""
+
+#: ../../skill_guide.md:18
 msgid "在`custom/skills/`目录下创建新文件夹："
 msgstr ""
 
-#: ../../skill_guide.md:23
+#: ../../skill_guide.md:25
 msgid "编写SKILL.md："
 msgstr ""
 
 #: ../../skill_guide.md:71
-msgid "就这么简单！无需编程，LLM会根据你的描述自动执行。"
+msgid "无需编程，模型会根据你的描述读取文件、调用工具并写入输出。写得越具体，行为越稳定。"
 msgstr ""
 
 #: ../../skill_guide.md:73
@@ -139,7 +141,7 @@ msgid "读取文件"
 msgstr ""
 
 #: ../../skill_guide.md
-msgid "`workspace_read(\"observation.txt\")`"
+msgid "`workspace_read(\"state/observation.txt\")`"
 msgstr ""
 
 #: ../../skill_guide.md
@@ -151,19 +153,7 @@ msgid "写入文件"
 msgstr ""
 
 #: ../../skill_guide.md
-msgid "`workspace_write(\"result.json\", content)`"
-msgstr ""
-
-#: ../../skill_guide.md
-msgid "`workspace_exists`"
-msgstr ""
-
-#: ../../skill_guide.md
-msgid "检查文件存在"
-msgstr ""
-
-#: ../../skill_guide.md
-msgid "`workspace_exists(\"needs.json\")`"
+msgid "`workspace_write(\"state/result.json\", content)`"
 msgstr ""
 
 #: ../../skill_guide.md
@@ -238,191 +228,240 @@ msgstr ""
 msgid "表示skill执行完毕"
 msgstr ""
 
-#: ../../skill_guide.md:113
+#: ../../skill_guide.md:112
 msgid "Skill类型"
 msgstr ""
 
-#: ../../skill_guide.md:115
+#: ../../skill_guide.md:114
 msgid "类型1：纯Prompt驱动（推荐）"
 msgstr ""
 
-#: ../../skill_guide.md:117
+#: ../../skill_guide.md:116
 msgid "大多数Skill不需要编程，只需要清晰的描述："
 msgstr ""
 
-#: ../../skill_guide.md:147
+#: ../../skill_guide.md:144
 msgid "类型2：带Python脚本"
 msgstr ""
 
-#: ../../skill_guide.md:149
+#: ../../skill_guide.md:146
 msgid "当需要确定性计算时，添加Python脚本："
 msgstr ""
 
-#: ../../skill_guide.md:158
+#: ../../skill_guide.md:155
 msgid "SKILL.md:"
 msgstr ""
 
-#: ../../skill_guide.md:169
+#: ../../skill_guide.md:164
 msgid "calc.py:"
 msgstr ""
 
-#: ../../skill_guide.md:201 ../../skill_guide.md:383
+#: ../../skill_guide.md:198 ../../skill_guide.md:380
 msgid "与环境交互"
 msgstr ""
 
-#: ../../skill_guide.md:203
+#: ../../skill_guide.md:200
 msgid ""
 "在 SKILL 正文里说明何时调用内置 **`codegen`** 工具即可；不要在 frontmatter 里写 "
 "``executor``（框架不解析）。"
 msgstr ""
 
-#: ../../skill_guide.md:205
+#: ../../skill_guide.md:202
 msgid "最佳实践"
 msgstr ""
 
-#: ../../skill_guide.md:207
+#: ../../skill_guide.md:204
 msgid "1. 保持单一职责"
 msgstr ""
 
-#: ../../skill_guide.md:209
-msgid "每个Skill只做一件事："
+#: ../../skill_guide.md:206
+msgid "每个 Skill 只做一件事："
 msgstr ""
 
-#: ../../skill_guide.md:211
-msgid "✅ `needs`: 管理生理需求"
-msgstr ""
-
-#: ../../skill_guide.md:212
+#: ../../skill_guide.md:208
 msgid "✅ `cognition`: 生成情绪和意图"
 msgstr ""
 
-#: ../../skill_guide.md:213
+#: ../../skill_guide.md:209
+msgid "✅ `memory`: 写入值得长期保留的记忆"
+msgstr ""
+
+#: ../../skill_guide.md:210
 msgid "❌ `needs_and_emotion`: 做太多事情"
 msgstr ""
 
-#: ../../skill_guide.md:215
+#: ../../skill_guide.md:212
 msgid "2. 在正文写清产出文件"
 msgstr ""
 
-#: ../../skill_guide.md:217
-msgid "在 Markdown 里列出会写入的路径（如 ``needs.json``）；frontmatter 不解析 ``outputs`` 等扩展字段。"
+#: ../../skill_guide.md:214
+msgid ""
+"在 Markdown 里列出会写入的路径（如 ``state/result.json``）；frontmatter 不解析 "
+"``outputs``、``inputs``、``requires`` 等扩展字段。"
 msgstr ""
 
-#: ../../skill_guide.md:219
+#: ../../skill_guide.md:216
 msgid "3. 处理缺失文件"
 msgstr ""
 
-#: ../../skill_guide.md:221
+#: ../../skill_guide.md:218
 msgid "Skill应该优雅处理输入文件不存在的情况："
 msgstr ""
 
-#: ../../skill_guide.md:229
+#: ../../skill_guide.md:226
 msgid "4. 提供示例"
 msgstr ""
 
-#: ../../skill_guide.md:231
+#: ../../skill_guide.md:228
 msgid "示例帮助LLM理解预期行为："
 msgstr ""
 
-#: ../../skill_guide.md:251
+#: ../../skill_guide.md:248
 msgid "5. 避免冗余描述"
 msgstr ""
 
-#: ../../skill_guide.md:253
+#: ../../skill_guide.md:250
 msgid "不需要告诉LLM\"仔细思考\"或\"认真分析\"，它会自然地做这些。"
 msgstr ""
 
-#: ../../skill_guide.md:255
+#: ../../skill_guide.md:252
 msgid "文件结构约定"
 msgstr ""
 
-#: ../../skill_guide.md:257
+#: ../../skill_guide.md:254
 msgid "推荐使用以下目录结构："
 msgstr ""
 
-#: ../../skill_guide.md:270
+#: ../../skill_guide.md:267
 msgid "调试技巧"
 msgstr ""
 
-#: ../../skill_guide.md:272
+#: ../../skill_guide.md:269
 msgid "**查看workspace文件**：检查输出文件是否正确生成"
 msgstr ""
 
-#: ../../skill_guide.md:273
+#: ../../skill_guide.md:270
 msgid "**检查tool_calls.jsonl**：查看LLM调用了哪些工具"
 msgstr ""
 
-#: ../../skill_guide.md:274
+#: ../../skill_guide.md:271
 msgid "**简化描述**：如果Skill行为异常，尝试简化描述"
 msgstr ""
 
-#: ../../skill_guide.md:275
+#: ../../skill_guide.md:272
 msgid "**添加示例**：示例通常能显著改善LLM理解"
 msgstr ""
 
-#: ../../skill_guide.md:277
+#: ../../skill_guide.md:274
 msgid "示例：完整的Skill"
 msgstr ""
 
-#: ../../skill_guide.md:351
+#: ../../skill_guide.md:348
 msgid "常见问题"
 msgstr ""
 
-#: ../../skill_guide.md:353
+#: ../../skill_guide.md:350
 msgid "**Q: Skill之间如何通信？**"
 msgstr ""
 
-#: ../../skill_guide.md:355
+#: ../../skill_guide.md:352
 msgid "A: 通过workspace文件。一个Skill写入文件，另一个Skill读取。"
 msgstr ""
 
-#: ../../skill_guide.md:357
+#: ../../skill_guide.md:354
 msgid "**Q: 如何控制Skill执行顺序？**"
 msgstr ""
 
-#: ../../skill_guide.md:359
+#: ../../skill_guide.md:356
 msgid ""
 "A: 由主模型在工具循环里决定先 ``activate_skill`` 哪一个；若有硬依赖，在 SKILL.md 正文写清并引导先激活依赖 "
 "skill。"
 msgstr ""
 
-#: ../../skill_guide.md:361
+#: ../../skill_guide.md:358
 msgid "**Q: Skill可以调用其他Skill吗？**"
 msgstr ""
 
-#: ../../skill_guide.md:363
+#: ../../skill_guide.md:360
 msgid "A: 不直接调用。通过workspace文件松耦合，LLM决定何时激活哪个Skill。"
 msgstr ""
 
-#: ../../skill_guide.md:365
+#: ../../skill_guide.md:362
 msgid "**Q: 如何测试Skill？**"
 msgstr ""
 
-#: ../../skill_guide.md:367
+#: ../../skill_guide.md:364
 msgid "A: 创建测试workspace，放置输入文件，运行agent，检查输出文件。"
 msgstr ""
 
-#: ../../skill_guide.md:369
+#: ../../skill_guide.md:366
 msgid "进阶主题"
 msgstr ""
 
-#: ../../skill_guide.md:371
+#: ../../skill_guide.md:368
 msgid "状态管理"
 msgstr ""
 
-#: ../../skill_guide.md:373
+#: ../../skill_guide.md:370
 msgid "如果Skill需要维护状态，写入JSON文件："
 msgstr ""
 
-#: ../../skill_guide.md:385
+#: ../../skill_guide.md:382
 msgid "使用`codegen`工具与环境交互："
 msgstr ""
 
-#: ../../skill_guide.md:395
+#: ../../skill_guide.md:392
 msgid "时间感知"
 msgstr ""
 
-#: ../../skill_guide.md:397
+#: ../../skill_guide.md:394
 msgid "Skill可以接收时间信息："
 msgstr ""
+
+#~ msgid "Skill编写指南"
+#~ msgstr ""
+
+#~ msgid "本文档介绍如何为PersonAgent编写自定义Skill。"
+#~ msgstr ""
+
+#~ msgid "Skill是PersonAgent的行为模块，每个Skill定义了Agent的一种能力。Skill可以："
+#~ msgstr ""
+
+#~ msgid "纯Prompt驱动（最简单，推荐）"
+#~ msgstr ""
+
+#~ msgid "带Python脚本（用于确定性计算）"
+#~ msgstr ""
+
+#~ msgid "环境路由（codegen模式）"
+#~ msgstr ""
+
+#~ msgid "就这么简单！无需编程，LLM会根据你的描述自动执行。"
+#~ msgstr ""
+
+#~ msgid "`workspace_read(\"observation.txt\")`"
+#~ msgstr ""
+
+#~ msgid "`workspace_write(\"result.json\", content)`"
+#~ msgstr ""
+
+#~ msgid "`workspace_exists`"
+#~ msgstr ""
+
+#~ msgid "检查文件存在"
+#~ msgstr ""
+
+#~ msgid "`workspace_exists(\"needs.json\")`"
+#~ msgstr ""
+
+#~ msgid "每个Skill只做一件事："
+#~ msgstr ""
+
+#~ msgid "✅ `needs`: 管理生理需求"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "在 Markdown 里列出会写入的路径（如 ``needs.json``）；frontmatter"
+#~ " 不解析 ``outputs`` 等扩展字段。"
+#~ msgstr ""
 

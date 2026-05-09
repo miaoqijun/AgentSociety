@@ -1,12 +1,13 @@
 # English translations for AgentSociety 2 package.
 # Copyright (C) 2026, FIBLAB
-# This file is distributed under the same license as the AgentSociety 2 package.
+# This file is distributed under the same license as the AgentSociety 2
+# package.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 22:32+0800\n"
+"POT-Creation-Date: 2026-05-09 12:39+0800\n"
 "PO-Revision-Date: 2026-03-20 00:00+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -23,7 +24,9 @@ msgstr "Research Skills"
 
 #: ../../skills.rst:4
 msgid "AgentSociety 2 包含一组 LLM 原生的研究技能，用于自动化科学研究工作流。"
-msgstr "AgentSociety 2 includes a set of LLM-native research skills for automating scientific research workflows."
+msgstr ""
+"AgentSociety 2 includes a set of LLM-native research skills for "
+"automating scientific research workflows."
 
 #: ../../skills.rst:7
 msgid "概述"
@@ -39,206 +42,293 @@ msgstr "**Literature Search**: Search and manage academic papers"
 
 #: ../../skills.rst:12
 msgid "**假设生成**: 从研究问题生成可测试的假设"
-msgstr "**Hypothesis Generation**: Generate testable hypotheses from research questions"
+msgstr ""
+"**Hypothesis Generation**: Generate testable hypotheses from research "
+"questions"
 
 #: ../../skills.rst:13
 msgid "**实验设计**: 设计完整的实验配置"
 msgstr "**Experiment Design**: Design complete experiment configurations"
 
 #: ../../skills.rst:14
-msgid "**网络研究**: 使用 Miro 进行网络搜索和总结"
-msgstr "**Web Research**: Use Miro for web search and summarization"
+msgid "**论文撰写**: 通过 paper-orchestrator skill 套件（重写中）生成 Nature 风格学术论文 PDF"
+msgstr ""
 
 #: ../../skills.rst:15
-msgid "**论文撰写**: 使用 EasyPaper 生成学术论文"
-msgstr "**Paper Writing**: Generate academic papers with EasyPaper"
-
-#: ../../skills.rst:16
 msgid "**数据分析**: 分析实验数据并生成报告"
 msgstr "**Data Analysis**: Analyze experiment data and generate reports"
 
-#: ../../skills.rst:17
+#: ../../skills.rst:16
 msgid "**智能体处理**: 智能体选择、生成和过滤"
 msgstr "**Agent Processing**: Agent selection, generation, and filtering"
 
-#: ../../skills.rst:20
+#: ../../skills.rst:19
 msgid "Claude Code Skills"
 msgstr ""
 
-#: ../../skills.rst:22
+#: ../../skills.rst:21
 msgid ""
 "研究工作流主要通过 Claude Code 的“skills-first”方式提供： - AgentSociety 内置研究 skills：随 "
 "VSCode 插件打包，可在插件树视图中浏览（只读）。 - Agent(Person) 扩展 skills：由后端 `/api/v1/agent-"
 "skills/*` 管理，支持扫描/导入/热重载。"
 msgstr ""
 
-#: ../../skills.rst:26
+#: ../../skills.rst:25
 msgid "**agentsociety-literature-search** - 文献检索"
 msgstr ""
 
-#: ../../skills.rst:27
+#: ../../skills.rst:26
 msgid "**agentsociety-hypothesis** - 假设管理（add, get, list, delete）"
 msgstr ""
 
-#: ../../skills.rst:28
+#: ../../skills.rst:27
 msgid "**agentsociety-experiment-config** - 实验配置生成与验证"
 msgstr ""
 
-#: ../../skills.rst:29
+#: ../../skills.rst:28
 msgid "**agentsociety-run-experiment** - 实验执行与监控"
 msgstr ""
 
+#: ../../skills.rst:29
+msgid "**agentsociety-analysis** - 数据分析与跨实验综合"
+msgstr ""
+
 #: ../../skills.rst:30
-msgid "**agentsociety-analysis** - 数据分析"
-msgstr ""
-
-#: ../../skills.rst:31
-msgid "**agentsociety-synthesize** - 结果综合"
-msgstr ""
-
-#: ../../skills.rst:32
-msgid "**agentsociety-generate-paper** - 论文生成"
+msgid "**agentsociety-paper-orchestrator** - Nature/Science 级论文生成（6-skill 状态机）"
 msgstr ""
 
 #: ../../skills.rst:33
-msgid "**agentsociety-quick-web-search** - 快速网络搜索"
-msgstr ""
-
-#: ../../skills.rst:34
-msgid "**agentsociety-web-research** - 深度网络研究"
-msgstr ""
-
-#: ../../skills.rst:37
 msgid "Python API"
 msgstr ""
 
-#: ../../skills.rst:39
+#: ../../skills.rst:35
 msgid "研究技能也可以通过 Python API 直接调用。"
 msgstr ""
 
-#: ../../skills.rst:42
+#: ../../skills.rst:38
 msgid "文献技能 (literature)"
 msgstr "Literature Skill"
 
-#: ../../skills.rst:69
+#: ../../skills.rst:65
 msgid ""
 "**数据源**: - ``local``: RAGFlow 本地知识库 - ``arxiv``: arXiv 预印本平台 - "
 "``crossref``: CrossRef DOI 元数据库 - ``openalex``: OpenAlex 学术图谱 (2.5亿+ 论文)"
 msgstr ""
 
-#: ../../skills.rst:75
+#: ../../skills.rst:71
 msgid "**配置**: 需要在 ``.env`` 文件中配置 API:"
 msgstr ""
 
-#: ../../skills.rst:84
+#: ../../skills.rst:80
 msgid "假设技能 (hypothesis)"
 msgstr "Hypothesis Skill"
 
-#: ../../skills.rst:100
+#: ../../skills.rst:96
 msgid "实验技能 (experiment)"
 msgstr "Experiment Skill"
 
-#: ../../skills.rst:121
+#: ../../skills.rst:117
 msgid "分析技能 (analysis)"
 msgstr "Analysis Skill"
 
-#: ../../skills.rst:160
+#: ../../skills.rst:135
+msgid ""
+"跨实验对比不再使用独立综合 skill，而是作为 ``agentsociety-analysis`` 的 Stage 5 在 Claude "
+"Code 中完成。"
+msgstr ""
+
+#: ../../skills.rst:139
 msgid "论文技能 (paper)"
 msgstr "Paper Skill"
 
+#: ../../skills.rst:141
+msgid ""
+"论文生成由 6 个 plugin skill 组成的状态机驱动，通过 ``paper-orchestrator`` "
+"作为唯一入口点调度。Python 包 ``agentsociety2.skills.paper`` 提供非 LLM 逻辑（状态管理、适配器、 "
+"LaTeX 编译）。"
+msgstr ""
+
+#: ../../skills.rst:146
+msgid "**Skill 套件：**"
+msgstr ""
+
+#: ../../skills.rst:148
+msgid ""
+"``agentsociety-paper-orchestrator`` — 状态机内核，读取 ``paper_state.yaml``，调度 "
+"Task subagent，持久化产出"
+msgstr ""
+
+#: ../../skills.rst:150
+msgid "``agentsociety-paper-adapter`` — workspace → ResearchPack 标准化"
+msgstr ""
+
+#: ../../skills.rst:151
+msgid "``agentsociety-paper-framing`` — storyline_map 生成（问题、角度、贡献类型）"
+msgstr ""
+
+#: ../../skills.rst:152
+msgid "``agentsociety-paper-evidence-expansion`` — 证据缺口审计与补全"
+msgstr ""
+
+#: ../../skills.rst:153
+msgid ""
+"``agentsociety-paper-architecture`` — claim tree + figure-argument map + "
+"章节大纲 + manuscript 草稿"
+msgstr ""
+
+#: ../../skills.rst:155
+msgid ""
+"``agentsociety-paper-skeptical-review`` — 3 审稿人评审轮次（significance-"
+"calibrator / precision-editor / evidence-skeptic）"
+msgstr ""
+
+#: ../../skills.rst:158
+msgid "**状态机阶段：**"
+msgstr ""
+
+#: ../../skills.rst:160
+msgid ""
+"``intake → framing → evidence-audit → expansion-plan → manuscript-build →"
+" skeptical-review → revision-router → release-gate``"
+msgstr ""
+
+#: ../../skills.rst:163
+msgid "**持久化布局：**"
+msgstr ""
+
+#: ../../skills.rst:165
+msgid "所有论文状态持久化在 ``<workspace>/paper/`` 下："
+msgstr ""
+
+#: ../../skills.rst:167
+msgid "``paper_meta.yaml`` — 标题、作者、机构"
+msgstr ""
+
+#: ../../skills.rst:168
+msgid ""
+"``state/`` — "
+"``paper_state.yaml``、``research_pack.json``、``human_gates.yaml``"
+msgstr ""
+
+#: ../../skills.rst:169
+msgid ""
+"``artifacts/`` — ``storyline_map.json``、``claim_ledger.json``、 "
+"``evidence_backlog.json``、``figure_argument_map.json``、 "
+"``manuscript/``（abstract.md, main.md, results/*, discussion.md）"
+msgstr ""
+
+#: ../../skills.rst:172
+msgid "``reviews/`` — ``review_round_NNN.yaml``"
+msgstr ""
+
 #: ../../skills.rst:173
-msgid "完整工作流示例"
-msgstr "Complete Workflow Example"
+msgid "``runs/<TS>/compose/out/paper.pdf`` — 最终交付物"
+msgstr ""
 
 #: ../../skills.rst:175
-msgid "下面是一个使用 Claude Code Skills 的典型研究工作流："
+msgid "**CLI 入口：**"
 msgstr ""
 
 #: ../../skills.rst:177
-msgid "**定义研究话题** - 编辑 ``TOPIC.md``"
-msgstr ""
-
-#: ../../skills.rst:178
-msgid "**文献检索** - 使用 ``/agentsociety-literature-search``"
+msgid "``$PYTHON_PATH .agentsociety/bin/ags.py paper-orchestrator <subcommand>``"
 msgstr ""
 
 #: ../../skills.rst:179
+msgid ""
+"子命令：init-meta, intake, build-pack, framing, evidence, architecture, "
+"review, compile, run-loop, status。别名 ``paper``、``generate-paper``、 "
+"``generate_paper`` 均路由至此。"
+msgstr ""
+
+#: ../../skills.rst:184
+msgid "完整工作流示例"
+msgstr "Complete Workflow Example"
+
+#: ../../skills.rst:186
+msgid "下面是一个使用 Claude Code Skills 的典型研究工作流："
+msgstr ""
+
+#: ../../skills.rst:188
+msgid "**定义研究话题** - 编辑 ``TOPIC.md``"
+msgstr ""
+
+#: ../../skills.rst:189
+msgid "**文献检索** - 使用 ``/agentsociety-literature-search``"
+msgstr ""
+
+#: ../../skills.rst:190
 msgid "**创建假设** - 使用 ``/agentsociety-hypothesis add``"
 msgstr ""
 
-#: ../../skills.rst:180
+#: ../../skills.rst:191
 msgid "**配置实验** - 使用 ``/agentsociety-experiment-config validate/prepare/run``"
 msgstr ""
 
-#: ../../skills.rst:181
+#: ../../skills.rst:192
 msgid "**执行实验** - 使用 ``/agentsociety-run-experiment start``"
 msgstr ""
 
-#: ../../skills.rst:182
+#: ../../skills.rst:193
 msgid "**分析结果** - 使用 ``/agentsociety-analysis``"
 msgstr ""
 
-#: ../../skills.rst:183
-msgid "**生成论文** - 使用 ``/agentsociety-generate-paper``"
+#: ../../skills.rst:194
+msgid "**生成论文** - 使用 ``/agentsociety-paper-orchestrator``（别名 ``/paper``）"
 msgstr ""
 
-#: ../../skills.rst:186
+#: ../../skills.rst:197
 msgid "配置"
 msgstr "Configuration"
 
-#: ../../skills.rst:188
+#: ../../skills.rst:199
 msgid "研究技能使用相同的 LLM 配置。可以通过环境变量为特定技能配置不同的模型："
 msgstr ""
 
-#: ../../skills.rst:202
+#: ../../skills.rst:213
 msgid "Agent Skills"
 msgstr ""
 
-#: ../../skills.rst:204
+#: ../../skills.rst:215
 msgid "AgentSociety 2 还支持 Agent Skills，这些是 PersonAgent 的认知能力模块："
 msgstr ""
 
-#: ../../skills.rst:206
+#: ../../skills.rst:217
 msgid "**observation** - 环境感知"
 msgstr ""
 
-#: ../../skills.rst:207
-msgid "**needs** - 需求系统"
-msgstr ""
-
-#: ../../skills.rst:208
+#: ../../skills.rst:218
 msgid "**cognition** - 认知与意图"
 msgstr ""
 
-#: ../../skills.rst:209
+#: ../../skills.rst:219
 msgid "**plan** - 规划与执行"
 msgstr ""
 
-#: ../../skills.rst:210
+#: ../../skills.rst:220
 msgid "**memory** - 记忆管理"
 msgstr ""
 
-#: ../../skills.rst:212
+#: ../../skills.rst:222
 msgid "详见 :doc:`agent_skills`。"
 msgstr ""
 
-#: ../../skills.rst:215
+#: ../../skills.rst:225
 msgid "参考"
 msgstr "References"
 
-#: ../../skills.rst:217
+#: ../../skills.rst:227
 msgid ":doc:`cli` - 使用 CLI 运行实验"
 msgstr ""
 
-#: ../../skills.rst:218
+#: ../../skills.rst:228
 msgid ":doc:`agent_skills` - Agent Skills 详解"
 msgstr ""
 
-#: ../../skills.rst:219
+#: ../../skills.rst:229
 msgid ":doc:`custom_modules` - 创建自定义模块"
 msgstr ""
 
-#: ../../skills.rst:220
+#: ../../skills.rst:230
 msgid ":doc:`development` - 开发指南"
 msgstr ""
 
@@ -256,4 +346,31 @@ msgstr ""
 
 #~ msgid "扩展研究技能"
 #~ msgstr "Extending Research Skills"
+
+#~ msgid "**网络研究**: 使用 Miro 进行网络搜索和总结"
+#~ msgstr "**Web Research**: Use Miro for web search and summarization"
+
+#~ msgid "**论文撰写**: 使用 EasyPaper 生成学术论文"
+#~ msgstr "**Paper Writing**: Generate academic papers with EasyPaper"
+
+#~ msgid "**agentsociety-analysis** - 数据分析"
+#~ msgstr ""
+
+#~ msgid "**agentsociety-synthesize** - 结果综合"
+#~ msgstr ""
+
+#~ msgid "**agentsociety-generate-paper** - 论文生成"
+#~ msgstr ""
+
+#~ msgid "**agentsociety-quick-web-search** - 快速网络搜索"
+#~ msgstr ""
+
+#~ msgid "**agentsociety-web-research** - 深度网络研究"
+#~ msgstr ""
+
+#~ msgid "**生成论文** - 使用 ``/agentsociety-generate-paper``"
+#~ msgstr ""
+
+#~ msgid "**needs** - 需求系统"
+#~ msgstr ""
 

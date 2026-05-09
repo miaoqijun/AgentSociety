@@ -181,6 +181,3 @@ asyncio_default_fixture_loop_scope = "function"
 
 [tool.mypy]
 python_version = "3.11"
-
-# 注意：Mirothinker Agent 是可选功能，不在默认依赖中
-# 如需使用，请参考 MiroThinker/README.md 进行配置

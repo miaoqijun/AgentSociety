@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.2.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 22:32+0800\n"
+"POT-Creation-Date: 2026-05-09 12:39+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -88,111 +88,113 @@ msgid "**hypothesis**: 假设生成和管理"
 msgstr ""
 
 #: ../../development.rst:96
-msgid "**web_research**: 使用 Miro 进行网络研究"
+msgid "**paper**: 通过 paper-orchestrator skill 套件生成 Nature 风格学术论文（重写中）"
 msgstr ""
 
 #: ../../development.rst:97
-msgid "**paper**: 使用 EasyPaper 生成学术论文"
-msgstr ""
-
-#: ../../development.rst:98
 msgid "**analysis**: 数据分析和报告"
 msgstr ""
 
-#: ../../development.rst:99
+#: ../../development.rst:98
 msgid "**agent**: 智能体处理、选择、生成和过滤"
 msgstr ""
 
-#: ../../development.rst:102
+#: ../../development.rst:101
 msgid "后端 API"
 msgstr "Backend API"
 
-#: ../../development.rst:104
+#: ../../development.rst:103
 msgid "``backend/`` 模块提供 FastAPI REST API："
 msgstr ""
 
-#: ../../development.rst:106
+#: ../../development.rst:105
 msgid ""
 "**Routers**: * ``/api/v1/experiments`` - 实验管理 * ``/api/v1/modules`` - "
 "模块管理 * ``/api/v1/replay`` - 回放数据访问 * ``/api/v1/custom`` - 自定义模块注册"
 msgstr ""
 
-#: ../../development.rst:112
+#: ../../development.rst:111
 msgid "**Service Layer**: 业务逻辑层"
 msgstr ""
 
-#: ../../development.rst:114
+#: ../../development.rst:113
 msgid "启动后端："
 msgstr ""
 
-#: ../../development.rst:123
+#: ../../development.rst:122
 msgid "日志系统"
 msgstr "Logging System"
 
-#: ../../development.rst:125
+#: ../../development.rst:124
 msgid "增强的日志系统支持："
 msgstr ""
 
-#: ../../development.rst:127
+#: ../../development.rst:126
 msgid "**彩色控制台输出**: 按日志级别着色"
 msgstr ""
 
-#: ../../development.rst:128
+#: ../../development.rst:127
 msgid "**文件日志**: 使用 ``add_file_handler()`` 写入日志文件"
 msgstr ""
 
-#: ../../development.rst:129
+#: ../../development.rst:128
 msgid "**LiteLLM 集成**: 自定义回调日志记录 LLM 调用"
 msgstr ""
 
-#: ../../development.rst:145
+#: ../../development.rst:144
 msgid "贡献"
 msgstr "Contributing"
 
-#: ../../development.rst:147
+#: ../../development.rst:146
 msgid "请参阅 :doc:`contributing` 了解贡献指南。"
 msgstr "Please see :doc:`contributing` for contribution guidelines."
 
-#: ../../development.rst:150
+#: ../../development.rst:149
 msgid "构建文档"
 msgstr "Build Documentation"
 
-#: ../../development.rst:157
+#: ../../development.rst:156
 msgid "构建的文档将位于 ``_build/html/``。"
 msgstr "Built documentation will be in ``_build/html/``."
 
-#: ../../development.rst:159
+#: ../../development.rst:158
 msgid "要在编辑时进行实时预览："
 msgstr "For live preview while editing:"
 
-#: ../../development.rst:166
+#: ../../development.rst:165
 msgid "发布流程"
 msgstr "Release Process"
 
-#: ../../development.rst:168
+#: ../../development.rst:167
 msgid "更新 ``pyproject.toml`` 中的版本"
 msgstr "Update version in ``pyproject.toml``"
 
-#: ../../development.rst:169
+#: ../../development.rst:168
 msgid "更新 ``CHANGELOG.md``"
 msgstr "Update ``CHANGELOG.md``"
 
-#: ../../development.rst:170
+#: ../../development.rst:169
 msgid "提交更改"
 msgstr "Commit changes"
 
-#: ../../development.rst:171
+#: ../../development.rst:170
 msgid "创建标签：``git tag agentsociety2-vX.Y.Z``"
 msgstr "Create tag: ``git tag agentsociety2-vX.Y.Z``"
 
-#: ../../development.rst:172
+#: ../../development.rst:171
 msgid "推送：``git push --tags``"
 msgstr "Push: ``git push --tags``"
 
-#: ../../development.rst:173
+#: ../../development.rst:172
 msgid "GitHub Actions 将构建并发布到 PyPI"
 msgstr "GitHub Actions will build and publish to PyPI"
 
 #~ msgid "设计器模块"
 #~ msgstr "Designer Module"
+
+#~ msgid "**web_research**: 使用 Miro 进行网络研究"
+#~ msgstr ""
+
+#~ msgid "**paper**: 使用 EasyPaper 生成学术论文"
+#~ msgstr ""
 

@@ -199,12 +199,12 @@
   },
   "configPage": {
     "title": "AI Social Scientist 配置",
-    "subtitle": "按步骤配置工作区环境",
-    "description": "按照步骤完成环境配置，每一步都可以单独保存",
+    "subtitle": "配置会写入当前工作区 .env；建议启动后端获得完整插件体验",
+    "description": "保存配置后启动本地后端，即可使用 Agent 技能运行时管理、模块探测、预填参数、回放 API 和 API 文档。若暂未启动后端，配置编辑和 CLI/Claude Code 实验运行仍可继续。",
     "advancedConfig": "高级配置（可选）",
     "resetDefaults": "恢复默认值",
-    "saveAndStart": "保存并启动",
-    "starting": "启动中...",
+    "saveAndStart": "保存并启动后端",
+    "starting": "正在启动后端...",
     "validationSuccess": "验证成功",
     "validationFailed": "验证失败",
     "analysis": {
@@ -273,7 +273,7 @@
     },
     "backend": {
       "title": "后端服务配置",
-      "hint": "端口将自动分配，Python 路径留空则自动检测",
+      "hint": "建议启动以获得完整插件体验；端口将自动分配，Python 路径留空则自动检测",
       "pythonPath": "Python 路径（可选，留空自动检测）",
       "pythonPathPlaceholder": "python3 或 /usr/bin/python3"
     },
@@ -319,12 +319,14 @@
     "finish": {
       "title": "配置完成！",
       "description": "所有配置已保存到工作区的 <code>.env</code> 文件中。",
-      "hint": "点击下方按钮启动后端服务。"
+      "hint": "配置已保存。建议启动后端以启用 Agent 技能管理、模块探测、预填参数、回放 API 和 API 文档。"
     },
     "notifications": {
       "saveSuccess": "保存成功",
       "saveSuccessDesc": "配置已保存到 .env 文件",
       "saveFailed": "保存失败",
+      "backendStarted": "后端服务已启动",
+      "backendStartFailed": "后端服务启动失败",
       "llmKeyRequired": "LLM API 密钥不能为空",
       "llmKeyRequiredDesc": "请输入 LLM API 密钥以继续",
       "apiKeyMissing": "请输入 LLM API 密钥",
@@ -386,7 +388,7 @@
     "title": "技能管理",
     "subtitle": "管理两类技能：模拟运行时使用的 Agent 技能，以及写入 Claude 配置目录的技能。开关立即生效；关闭不会删除磁盘上的文件。",
     "agentTabIntroTitle": "Agent 运行时技能",
-    "agentTabIntroBody": "此处与模拟运行时使用的能力保持一致。「内置」随软件提供；「工作区」包含您导入或从市场安装的技能。开关决定是否在运行时加载。「归档」会将技能移出常用目录并停止使用，但不会删除您磁盘上的原始文件。",
+    "agentTabIntroBody": "此处与模拟运行时使用的能力保持一致，需要本地后端在线才能读取运行时注册表、启停、重载或扫描技能。「内置」随软件提供；「工作区」包含您导入或从市场安装的技能。开关决定是否在运行时加载。「归档」会将技能移出常用目录并停止使用，但不会删除您磁盘上的原始文件。",
     "claudeTabIntroTitle": "Claude 目录技能",
     "claudeTabIntroBody": "下列为合并列表：扩展自带的模板会排在前面，可使用「同步到工作区」拷贝到当前项目；其余为您本机已有的技能文件夹。同步不会删除您已从市场安装的其它技能。",
     "claudeUnifiedListTitle": "Claude 目录技能",
@@ -406,10 +408,11 @@
     "archiveAgentConfirmContent": "将把「{{name}}」移至归档位置并停止使用。文件仍保留在您的工作区内；如需再次启用，可将文件夹移回原位置后执行「扫描工作区 Agent 技能」。",
     "archiveAgentTooltip": "归档（保留文件）",
     "claudeMergedSection": "Claude 技能",
-    "tagAgentBackend": "后端内置",
+    "agentBackendRequiredNotice": "Agent 运行时技能管理依赖本地后端。后端未启动时，仍可浏览/安装 Claude Code 技能、编辑配置文件和查看本地实验结果；但 Agent 技能列表、启停、重载、扫描和导入需要先启动后端。",
+    "tagAgentBackend": "运行时内置",
     "tagAgentRegistered": "工作区注册",
-    "agentBackendSection": "后端内置（随运行环境）",
-    "agentRegisteredSection": "工作区技能",
+    "agentBackendSection": "运行时内置（由本地后端读取）",
+    "agentRegisteredSection": "工作区技能（需后端注册）",
     "claudeWorkspaceSection": "当前项目",
     "claudeWorkspaceExplain": "仅作用于当前打开的文件夹；从市场安装或导入的技能通常保存在这里。",
     "claudeGlobalSection": "用户目录（全部项目共用）",

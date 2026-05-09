@@ -99,7 +99,7 @@
           {
             "id": "startBackend",
             "title": "启动后端服务",
-            "description": "启动本地后端，它负责运行 Agent 模拟、管理技能和处理实验数据。",
+            "description": "启动本地 API 服务，获得完整插件体验：Agent 技能管理、模块探测、预填参数、回放接口和 API 文档都依赖它；配置编辑与 CLI/Claude Code 实验运行不会被后端状态阻断。",
             "media": {
               "markdown": "resources/walkthrough/zh-CN/05-start-backend.md"
             },
@@ -468,8 +468,8 @@
         "aiSocialScientist.backend.autoStart": {
           "type": "boolean",
           "default": false,
-          "description": "是否在插件启动时自动启动后端服务",
-          "markdownDescription": "如果启用，插件启动时会自动启动后端服务。如果禁用，需要手动启动后端服务。"
+          "description": "是否在插件启动时自动启动本地后端服务",
+          "markdownDescription": "如果启用，插件启动时会自动启动本地后端服务。建议经常使用插件时开启，以便 Agent 技能管理、模块探测、预填参数、回放 API 与 API 文档随时可用。即使后端暂未启动，配置文件编辑、本地文件查看和通过 CLI/Claude Code 运行实验也不会被阻断。"
         },
         "aiSocialScientist.chat.viewColumn": {
           "type": "string",
