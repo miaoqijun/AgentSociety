@@ -35,11 +35,6 @@ export interface ConfigValues {
   embeddingApiBase: string;
   embeddingModel: string;
   embeddingDims: number;
-  // Web Search
-  webSearchApiUrl: string;
-  webSearchApiToken: string;
-  miroflowDefaultLlm: string;
-  miroflowDefaultAgent: string;
   // Literature Search (optional, for search_literature tool)
   literatureSearchApiUrl: string;
   literatureSearchApiKey: string;

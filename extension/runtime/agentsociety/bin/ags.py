@@ -25,6 +25,10 @@ TOOL_SCRIPTS = {
         "agentsociety-literature-search",
         "scripts/search.py",
     ),
+    "literature-full-text": (
+        "agentsociety-literature-search",
+        "scripts/full_text.py",
+    ),
     "web-research": (
         "agentsociety-web-research",
         "scripts/research.py",
@@ -85,7 +89,7 @@ TOOL_SCRIPTS = {
 
 ALIASES = {
     "literature_search": "literature-search",
-    "web_research": "web-research",
+    "literature_full_text": "literature-full-text",
     "scan_modules": "scan-modules",
     "experiment_config": "experiment-config",
     "run_experiment": "run-experiment",
@@ -109,7 +113,9 @@ def _normalize_tool(tool: str) -> str:
     return ALIASES.get(lowered, lowered)
 
 
-def _extract_workspace_and_passthrough_args(tool_args: list[str]) -> tuple[Path, list[str]]:
+def _extract_workspace_and_passthrough_args(
+    tool_args: list[str],
+) -> tuple[Path, list[str]]:
     passthrough_args: list[str] = []
     workspace = Path.cwd().resolve()
     skip_next = False

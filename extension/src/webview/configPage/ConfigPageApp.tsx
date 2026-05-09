@@ -45,10 +45,6 @@ const DEFAULT_VALUES: ConfigValues = {
   embeddingApiBase: 'https://api.openai.com/v1',
   embeddingModel: 'text-embedding-3-large',
   embeddingDims: 1024,
-  webSearchApiUrl: '',
-  webSearchApiToken: '',
-  miroflowDefaultLlm: 'qwen-3',
-  miroflowDefaultAgent: 'mirothinker_v1.5_keep5_max200',
   literatureSearchApiUrl: 'http://localhost:8008/api/search',
   literatureSearchApiKey: '',
 };
@@ -565,8 +561,13 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                   <span style={{ fontSize: 11, color: palette.descriptionForeground, fontWeight: 500 }}>后端服务</span>
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: backendStatus.isRunning ? palette.successForeground : palette.editorForeground, lineHeight: 1 }}>
-                  {backendStatus.isRunning ? `运行中 :${backendStatus.port}` : '已停止'}
+                  {backendStatus.isRunning ? `运行中 :${backendStatus.port}` : '未启动'}
                 </div>
+                {!backendStatus.isRunning && (
+                  <div style={{ marginTop: 4, fontSize: 11, color: palette.descriptionForeground }}>
+                    建议启动；暂未启动不影响配置编辑和 CLI/Claude Code 实验运行
+                  </div>
+                )}
                 {backendStatus.isRunning && backendStatus.url && (
                   <div style={{ marginTop: 4, fontSize: 11, color: palette.linkForeground, cursor: 'pointer' }}
                     onClick={() => { if (backendStatus.url) { vscode.postMessage({ command: 'openUrl', url: backendStatus.url }); } }}

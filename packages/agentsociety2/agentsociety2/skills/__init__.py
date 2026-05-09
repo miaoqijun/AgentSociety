@@ -8,7 +8,6 @@
 - **literature**: 学术文献搜索与管理，支持检索、索引和格式化
 - **experiment**: 实验配置与执行，支持参数生成和配置验证
 - **hypothesis**: 假设生成与管理，支持创建、读取、列表和删除
-- **web_research**: 使用 Miro MCP 服务进行网络研究
 - **paper**: Nature/Science 级学术论文生成，通过 paper-orchestrator 驱动的 6-skill 状态机
 - **analysis**: 数据分析工具层，提供实验上下文读取、EDA 和工具注册能力
 
@@ -40,16 +39,14 @@ from agentsociety2.skills import (
     literature,
     experiment,
     hypothesis,
-    web_research,
     paper,
     analysis,
 )
 
 __all__ = [
-    "literature",
+    "analysis",
     "experiment",
     "hypothesis",
-    "web_research",
+    "literature",
     "paper",
-    "analysis",
 ]
