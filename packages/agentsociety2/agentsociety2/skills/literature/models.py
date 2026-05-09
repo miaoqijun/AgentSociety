@@ -92,7 +92,7 @@ class LiteratureEntry(BaseModel):
         try:
             datetime.fromisoformat(v.replace("Z", "+00:00"))
         except ValueError:
-            raise ValueError(f"Invalid ISO format for saved_at: {v}")
+            raise ValueError(f"Invalid ISO format for saved_at: {v}") from None
         return v
 
     @field_validator("doi")

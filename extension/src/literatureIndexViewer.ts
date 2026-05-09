@@ -39,6 +39,15 @@ interface LiteratureIndex {
 export class LiteratureIndexViewer {
   private static currentPanel: vscode.WebviewPanel | undefined;
 
+  private static safeWorkspacePath(workspaceRoot: string, filePath: string): string | undefined {
+    const candidatePath = path.isAbsolute(filePath)
+      ? path.normalize(filePath)
+      : path.normalize(path.join(workspaceRoot, filePath));
+    const relative = path.relative(workspaceRoot, candidatePath);
+    const isInside = relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+    return isInside ? candidatePath : undefined;
+  }
+
   public static async show(context: vscode.ExtensionContext, filePath: string): Promise<void> {
     // 读取 JSON 文件
     let data: LiteratureIndex;
@@ -86,12 +95,8 @@ export class LiteratureIndexViewer {
               const workspaceRoot = workspaceFolder.uri.fsPath;
               // 仅允许打开工作区内文件：防止通过 ../ 进行路径穿越
               const requested = String(message.filePath);
-              const candidatePath = path.isAbsolute(requested)
-                ? path.normalize(requested)
-                : path.normalize(path.join(workspaceRoot, requested));
-              const relative = path.relative(workspaceRoot, candidatePath);
-              const isInside = relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-              if (!isInside) {
+              const candidatePath = this.safeWorkspacePath(workspaceRoot, requested);
+              if (!candidatePath) {
                 throw new Error('Refused to open a path outside the workspace');
               }
 
@@ -141,6 +146,67 @@ export class LiteratureIndexViewer {
                 ? (isZh ? `已复制 ${count} 条` : `Copied ${count} item(s)`)
                 : (isZh ? '已复制到剪贴板' : 'Copied to clipboard')
             );
+          } else {
+            const isZh = vscode.env.language.startsWith('zh');
+            vscode.window.showWarningMessage(
+              typeof message.emptyMessage === 'string' && message.emptyMessage
+                ? message.emptyMessage
+                : (isZh ? '没有可复制的内容' : 'Nothing to copy')
+            );
+          }
+        } else if (message.command === 'deleteEntry') {
+          const isZh = vscode.env.language.startsWith('zh');
+          const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+          const entryId = typeof message.entryId === 'string' ? message.entryId : '';
+          const title = typeof message.title === 'string' && message.title ? message.title : entryId;
+          if (!workspaceFolder || !entryId) {
+            vscode.window.showWarningMessage(isZh ? '无法定位要删除的文献记录。' : 'Could not locate the literature entry to delete.');
+            return;
+          }
+
+          const confirm = await vscode.window.showWarningMessage(
+            isZh
+              ? `删除「${title}」？将同时移除索引记录，并尝试删除本地 Markdown/PDF 文件。`
+              : `Delete "${title}"? This removes the index entry and tries to delete local Markdown/PDF files.`,
+            { modal: true },
+            isZh ? '删除' : 'Delete'
+          );
+          if (confirm !== (isZh ? '删除' : 'Delete')) {
+            return;
+          }
+
+          try {
+            const workspaceRoot = workspaceFolder.uri.fsPath;
+            const indexPath = filePath;
+            const currentData = JSON.parse(fs.readFileSync(indexPath, 'utf-8')) as LiteratureIndex;
+            const currentEntries = Array.isArray(currentData.entries) ? currentData.entries : [];
+            const entryIndex = Number(entryId);
+            if (!Number.isInteger(entryIndex) || entryIndex < 0 || entryIndex >= currentEntries.length) {
+              throw new Error('Entry no longer exists in the literature index');
+            }
+
+            const [removed] = currentEntries.splice(entryIndex, 1);
+            const filesToDelete = [
+              removed?.file_path,
+              removed?.filePath,
+              removed?.path,
+              removed?.extra_fields?.full_text?.file_path,
+            ].filter((value): value is string => typeof value === 'string' && !!value);
+
+            for (const relPath of filesToDelete) {
+              const target = this.safeWorkspacePath(workspaceRoot, relPath);
+              if (target && fs.existsSync(target) && fs.statSync(target).isFile()) {
+                fs.unlinkSync(target);
+              }
+            }
+
+            currentData.entries = currentEntries;
+            currentData.updated_at = new Date().toISOString();
+            fs.writeFileSync(indexPath, JSON.stringify(currentData, null, 2), 'utf-8');
+            this.updateWebview(panel, currentData, indexPath);
+            vscode.window.showInformationMessage(isZh ? `已删除「${title}」` : `Deleted "${title}"`);
+          } catch (error: any) {
+            vscode.window.showErrorMessage(isZh ? `删除失败: ${error.message}` : `Delete failed: ${error.message}`);
           }
         }
       },
@@ -160,10 +226,26 @@ export class LiteratureIndexViewer {
     const rawEntries = data.entries || [];
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     const workspaceRoot = workspaceFolder?.uri.fsPath;
-    const entries: LiteratureEntry[] = rawEntries.map((e) => ({
-      ...e,
-      at_ref: e.file_path ? filePathToAtReference(workspaceRoot, e.file_path) : '',
-    }));
+    const entries: LiteratureEntry[] = rawEntries.map((e, index) => {
+      const filePath =
+        typeof e.file_path === 'string' && e.file_path
+          ? e.file_path
+          : typeof e.filePath === 'string' && e.filePath
+            ? e.filePath
+            : typeof e.path === 'string' && e.path
+              ? e.path
+              : '';
+      return {
+        ...e,
+        file_path: filePath,
+        at_ref: typeof e.at_ref === 'string' && e.at_ref
+          ? e.at_ref
+          : filePath
+            ? filePathToAtReference(workspaceRoot, filePath)
+            : '',
+        _entry_id: String(index),
+      };
+    });
     const total = entries.length;
 
     // 获取当前语言
@@ -404,6 +486,15 @@ export class LiteratureIndexViewer {
       background-color: var(--vscode-button-hoverBackground);
     }
 
+    .action-btn.danger {
+      border-color: var(--vscode-errorForeground);
+      color: var(--vscode-errorForeground);
+    }
+
+    .action-btn.danger:hover {
+      background-color: var(--vscode-inputValidation-errorBackground);
+    }
+
     .entry-journal {
       color: var(--vscode-textPreformat-foreground);
       font-size: 12px;
@@ -503,7 +594,7 @@ export class LiteratureIndexViewer {
   <div class="header">
     <div>
       <h1>${isChinese ? '📚 文献索引' : '📚 Literature Index'}</h1>
-      <div class="subtitle">${isChinese ? '检索、排序、复制引用并打开本地文献文件。' : 'Search, sort, copy references, and open local literature files.'}</div>
+      <div class="subtitle">${isChinese ? '检索、排序、复制 @引用，并打开本地笔记或原文 PDF。' : 'Search, sort, copy @references, and open local notes or full-text PDFs.'}</div>
     </div>
     <div class="stats">
       ${isChinese ? `共 ${total} 篇文献` : `${total} articles`}
@@ -530,8 +621,8 @@ export class LiteratureIndexViewer {
   <div class="batch-actions">
     <input type="checkbox" id="selectAll" class="select-all-checkbox" />
     <label for="selectAll" style="font-size: 12px; margin-right: 12px;">${isChinese ? '全选' : 'Select All'}</label>
-    <button class="batch-btn primary" id="copySelectedBtn">📋 ${isChinese ? '复制选中引用' : 'Copy Selected'}</button>
-    <button class="batch-btn" id="exportBtn">📋 ${isChinese ? '复制 CSV' : 'Copy CSV'}</button>
+    <button class="batch-btn primary" id="copySelectedBtn">📋 ${isChinese ? '复制选中 @引用' : 'Copy Selected @Refs'}</button>
+    <button class="batch-btn" id="exportBtn">📋 ${isChinese ? '复制列表 CSV' : 'Copy List CSV'}</button>
   </div>
 
   <div id="entries"></div>
@@ -551,14 +642,6 @@ export class LiteratureIndexViewer {
         .replace(/'/g, '&#39;');
     }
 
-    function escapeJsArg(value) {
-      return String(value ?? '')
-        .replace(/\\\\/g, '\\\\\\\\')
-        .replace(/'/g, "\\'")
-        .replace(/\\\\n/g, '\\\\n')
-        .replace(/\\\\r/g, '');
-    }
-
     function normalizeList(value) {
       if (Array.isArray(value)) {
         return value.map(item => String(item ?? '')).filter(Boolean);
@@ -567,6 +650,74 @@ export class LiteratureIndexViewer {
         return [];
       }
       return [String(value)];
+    }
+
+    function getExtraFields(entry) {
+      return entry && typeof entry.extra_fields === 'object' && entry.extra_fields ? entry.extra_fields : {};
+    }
+
+    function getEntryYear(entry) {
+      const extra = getExtraFields(entry);
+      const value = entry.year ?? extra.year ?? '';
+      const numeric = Number(value);
+      return Number.isFinite(numeric) && value !== '' ? numeric : value;
+    }
+
+    function getEntryAuthors(entry) {
+      const extra = getExtraFields(entry);
+      return normalizeList(entry.authors ?? extra.authors);
+    }
+
+    function getEntryKeywords(entry) {
+      const extra = getExtraFields(entry);
+      return normalizeList(entry.keywords ?? extra.keywords);
+    }
+
+    function getEntryUrl(entry) {
+      const extra = getExtraFields(entry);
+      return entry.url || extra.url || '';
+    }
+
+    function getDoiUrl(value) {
+      if (!value) {
+        return '';
+      }
+      const doi = String(value).trim();
+      if (/^https?:\\/\\//i.test(doi)) {
+        return doi;
+      }
+      return 'https://doi.org/' + doi;
+    }
+
+    function getVisibleEntries() {
+      const rows = Array.from(document.querySelectorAll('.entry'));
+      return rows
+        .map(row => entries.find(entry => String(entry._entry_id) === row.getAttribute('data-entry-id')))
+        .filter(Boolean);
+    }
+
+    function getSelectedEntries() {
+      const selected = Array.from(document.querySelectorAll('.entry-checkbox:checked'))
+        .map(cb => entries.find(entry => String(entry._entry_id) === cb.getAttribute('data-entry-id')))
+        .filter(Boolean);
+      return selected.length > 0 ? selected : getVisibleEntries();
+    }
+
+    function updateSelectAllState() {
+      const selectAll = document.getElementById('selectAll');
+      const checkboxes = Array.from(document.querySelectorAll('.entry-checkbox'));
+      const checked = checkboxes.filter(cb => cb.checked).length;
+      selectAll.checked = checkboxes.length > 0 && checked === checkboxes.length;
+      selectAll.indeterminate = checked > 0 && checked < checkboxes.length;
+    }
+
+    function applySelectAllToVisible() {
+      const selectAll = document.getElementById('selectAll');
+      const shouldCheck = selectAll.checked && !selectAll.indeterminate;
+      document.querySelectorAll('.entry-checkbox').forEach(function(cb) {
+        cb.checked = shouldCheck;
+      });
+      updateSelectAllState();
     }
 
     function updateResultLine(count) {
@@ -583,6 +734,7 @@ export class LiteratureIndexViewer {
 
       if (filteredEntries.length === 0) {
         container.innerHTML = '<div class="empty-state">' + (entries.length === 0 ? (isChinese ? '文献索引还是空的。把 PDF 或 Markdown 文献放入 papers/ 后再刷新索引。' : 'The literature index is empty. Add PDFs or Markdown notes under papers/ and refresh the index.') : (isChinese ? '没有找到匹配的文献' : 'No matching articles found')) + '</div>';
+        updateSelectAllState();
         return;
       }
 
@@ -590,36 +742,43 @@ export class LiteratureIndexViewer {
         const div = document.createElement('div');
         div.className = 'entry';
         div.dataset.index = index;
+        div.setAttribute('data-entry-id', String(entry._entry_id || index));
         div.setAttribute('data-filepath', entry.file_path || '');
         div.setAttribute('data-at-ref', entry.at_ref || '');
 
         const title = entry.title || (isChinese ? '未命名文献' : 'Untitled');
-        const year = entry.year || '';
-        const authors = normalizeList(entry.authors);
+        const extraFields = getExtraFields(entry);
+        const year = getEntryYear(entry);
+        const authors = getEntryAuthors(entry);
         const abstract = entry.abstract || '';
-        const keywords = normalizeList(entry.keywords);
+        const keywords = getEntryKeywords(entry);
         const filePath = entry.file_path || '';
         const journal = entry.journal || '';
         const doi = entry.doi || '';
-        const articleId = entry.extra_fields?.article_id || '';
+        const articleId = extraFields.article_id || '';
         const doiTarget = doi || (articleId && articleId.includes('/') ? articleId : '');
-        const url = entry.url || '';
-
-        // 构建 DOI/文章链接
-        let doiLink = '';
-        if (doi) {
-          doiLink = \`<a class="doi-link" href="#" onclick="openUrl('https://doi.org/\${escapeJsArg(doi)}'); return false;">DOI: \${escapeHtml(doi)}</a>\`;
-        } else if (articleId) {
-          // 如果 articleId 看起来像 DOI
-          if (articleId.includes('/')) {
-            doiLink = \`<a class="doi-link" href="#" onclick="openUrl('https://doi.org/\${escapeJsArg(articleId)}'); return false;">DOI: \${escapeHtml(articleId)}</a>\`;
-          } else {
-            doiLink = \`<span class="doi-link">ID: \${escapeHtml(articleId)}</span>\`;
-          }
-        }
-        if (url) {
-          doiLink += \` <a class="doi-link" href="#" onclick="openUrl('\${escapeJsArg(url)}'); return false;">🔗 \${isChinese ? '链接' : 'Link'}</a>\`;
-        }
+        const doiUrl = getDoiUrl(doiTarget);
+        const url = getEntryUrl(entry);
+        const fullText = extraFields.full_text || {};
+        const fullTextPath = typeof fullText.file_path === 'string' ? fullText.file_path : '';
+        const sourceUrl = typeof fullText.source_url === 'string' && fullText.source_url
+          ? fullText.source_url
+          : (url || doiUrl);
+        const originalTarget = fullTextPath || sourceUrl;
+        const fullTextEnriched = fullText.enriched === true;
+        const fullTextStatus = typeof fullText.status === 'string' ? fullText.status : '';
+        const fullTextLabel = fullTextStatus === 'downloaded'
+          ? (isChinese ? '已下载原文 PDF' : 'Full-text PDF downloaded')
+          : fullTextEnriched
+            ? (isChinese ? '原文不可下载，笔记已通过搜索补充' : 'PDF unavailable, note enriched via web search')
+            : fullTextStatus === 'no_candidate'
+              ? (isChinese ? '未找到开放 PDF' : 'No open PDF found')
+              : fullTextStatus === 'failed'
+                ? (isChinese ? '原文 PDF 下载失败' : 'Full-text PDF download failed')
+                : sourceUrl
+                  ? (isChinese ? '未下载原文 PDF，可查看来源链接' : 'PDF not downloaded; source link available')
+                  : (isChinese ? '未记录原文链接' : 'No source link recorded');
+        const fullTextReason = typeof fullText.reason === 'string' && fullText.reason ? fullText.reason : '';
 
         // 构建摘要显示
         let abstractHtml = '';
@@ -636,8 +795,8 @@ export class LiteratureIndexViewer {
 
         div.innerHTML = \`
           <div class="entry-header">
-            <input type="checkbox" class="entry-checkbox" data-filepath="\${escapeHtml(filePath)}" data-at-ref="\${escapeHtml(entry.at_ref || '')}" data-title="\${escapeHtml(title)}" style="margin-right: 10px;" />
-            <div class="entry-title" onclick="openFile('\${escapeJsArg(filePath)}')">\${escapeHtml(title)}</div>
+            <input type="checkbox" class="entry-checkbox" data-entry-id="\${escapeHtml(String(entry._entry_id || index))}" data-filepath="\${escapeHtml(filePath)}" data-at-ref="\${escapeHtml(entry.at_ref || '')}" data-title="\${escapeHtml(title)}" style="margin-right: 10px;" />
+            <div class="entry-title" data-original-target="\${escapeHtml(originalTarget)}" data-is-local-file="\${fullTextPath ? 'true' : 'false'}" onclick="handleTitleClick(this)">\${escapeHtml(title)}</div>
             \${year ? \`<span class="entry-year">\${escapeHtml(year)}</span>\` : ''}
           </div>
           \${journal ? \`<div class="entry-journal">\${escapeHtml(journal)}</div>\` : ''}
@@ -646,20 +805,21 @@ export class LiteratureIndexViewer {
           <div class="entry-meta">
             \${keywords.slice(0, 5).map(k => \`<span class="keyword">\${escapeHtml(k)}</span>\`).join('')}
           </div>
-          \${filePath ? \`<div class="file-path">📄 \${escapeHtml(filePath)}</div>\` : ''}
-          \${doiLink ? \`<div style="margin-top: 6px;">\${doiLink}</div>\` : ''}
+          \${filePath ? \`<div class="file-path">📝 \${isChinese ? 'Markdown' : 'Markdown'}: \${escapeHtml(filePath)}</div>\` : ''}
+          \${sourceUrl ? \`<div class="file-path">🔗 \${isChinese ? '原文链接' : 'Source'}: \${escapeHtml(sourceUrl)}</div>\` : ''}
+          <div class="file-path">\${fullTextPath ? '📎' : 'ⓘ'} \${escapeHtml(fullTextLabel)}\${fullTextPath ? \`: \${escapeHtml(fullTextPath)}\` : ''}\${fullTextReason ? \` · \${escapeHtml(fullTextReason)}\` : ''}</div>
           <div class="entry-actions">
-            \${filePath ? \`<button class="action-btn primary" onclick="openFile('\${escapeJsArg(filePath)}')">
-              📖 \${isChinese ? '打开全文' : 'Open'}
-            </button>\` : ''}
-            \${filePath ? \`<button class="action-btn" onclick="copyAtReferenceForEntry(this)">📋 \${isChinese ? '复制引用' : 'Copy Ref'}</button>\` : ''}
-            \${doiTarget ? \`<button class="action-btn" onclick="openUrl('https://doi.org/\${escapeJsArg(doiTarget)}')">🔗 DOI</button>\` : ''}
-            \${url ? \`<button class="action-btn" onclick="openUrl('\${escapeJsArg(url)}')">🌐 \${isChinese ? '网页' : 'Web'}</button>\` : ''}
+            \${originalTarget ? \`<button class="action-btn primary" data-original-target="\${escapeHtml(originalTarget)}" data-is-local-file="\${fullTextPath ? 'true' : 'false'}" onclick="handleOpenOriginal(this)">📖 \${isChinese ? '查看原文' : 'View Original'}</button>\` : ''}
+            \${filePath ? \`<button class="action-btn" data-original-target="\${escapeHtml(filePath)}" data-is-local-file="true" onclick="handleOpenOriginal(this)">📝 \${isChinese ? '查看 Markdown' : 'View Markdown'}</button>\` : ''}
+            \${filePath ? \`<button class="action-btn" onclick="copyAtReferenceForEntry(this)">📋 \${isChinese ? '复制 @引用' : 'Copy @Ref'}</button>\` : ''}
+            \${sourceUrl ? \`<button class="action-btn" data-source-url="\${escapeHtml(sourceUrl)}" onclick="handleCopySourceUrl(this)">🔗 \${isChinese ? '复制原文链接' : 'Copy Source Link'}</button>\` : ''}
+            <button class="action-btn danger" data-entry-id="\${escapeHtml(String(entry._entry_id || index))}" data-title="\${escapeHtml(title)}" onclick="handleDeleteEntry(this)">🗑 \${isChinese ? '删除' : 'Delete'}</button>
           </div>
         \`;
 
         container.appendChild(div);
       });
+      applySelectAllToVisible();
     }
 
     function toggleAbstract(index) {
@@ -693,13 +853,78 @@ export class LiteratureIndexViewer {
           command: 'openFile',
           filePath: filePath
         });
+      } else if (!filePath) {
+        vscodeApi.postMessage({
+          command: 'copyText',
+          text: '',
+          emptyMessage: isChinese ? '该文献没有本地笔记路径，无法打开。' : 'This article has no local note path to open.'
+        });
       }
+    }
+
+    function openOriginal(target, isLocalFile) {
+      const shouldOpenLocalFile = isLocalFile === true || isLocalFile === 'true';
+      if (shouldOpenLocalFile && target) {
+        openFile(target);
+      } else if (target) {
+        openUrl(target);
+      } else {
+        vscodeApi.postMessage({
+          command: 'copyText',
+          text: '',
+          emptyMessage: isChinese ? '这条文献没有可打开的原文或来源链接。' : 'This article has no original file or source link to open.'
+        });
+      }
+    }
+
+    function handleTitleClick(el) {
+      const target = el.getAttribute('data-original-target');
+      const isLocal = el.getAttribute('data-is-local-file');
+      if (target) {
+        openOriginal(target, isLocal);
+      } else {
+        const row = el.closest('.entry');
+        const fp = row && row.getAttribute('data-filepath');
+        openFile(fp || '');
+      }
+    }
+
+    function handleOpenOriginal(btn) {
+      const target = btn.getAttribute('data-original-target');
+      const isLocal = btn.getAttribute('data-is-local-file');
+      openOriginal(target, isLocal);
+    }
+
+    function handleCopySourceUrl(btn) {
+      const url = btn.getAttribute('data-source-url');
+      vscodeApi.postMessage({
+        command: 'copyText',
+        text: url || '',
+        emptyMessage: isChinese ? '这条文献没有可复制的原文链接。' : 'This article has no source link to copy.'
+      });
+    }
+
+    function handleDeleteEntry(btn) {
+      const entryId = btn.getAttribute('data-entry-id') || '';
+      const title = btn.getAttribute('data-title') || '';
+      vscodeApi.postMessage({
+        command: 'deleteEntry',
+        entryId: entryId,
+        title: title
+      });
     }
 
     function copyAtReferenceForEntry(btn) {
       const row = btn.closest('.entry');
       const atRef = row && row.getAttribute('data-at-ref');
-      if (!atRef) return;
+      if (!atRef) {
+        vscodeApi.postMessage({
+          command: 'copyText',
+          text: '',
+          emptyMessage: isChinese ? '这条文献记录没有对应的本地文件，暂时无法复制 @引用。' : 'This article record has no matching local file, so no @ reference can be copied yet.'
+        });
+        return;
+      }
       vscodeApi.postMessage({
         command: 'copyAtReference',
         atReference: atRef
@@ -711,10 +936,12 @@ export class LiteratureIndexViewer {
       const query = e.target.value.toLowerCase();
       const filtered = entries.filter(entry => {
         const title = (entry.title || '').toLowerCase();
-        const authors = normalizeList(entry.authors).join(' ').toLowerCase();
-        const keywords = normalizeList(entry.keywords).join(' ').toLowerCase();
+        const authors = getEntryAuthors(entry).join(' ').toLowerCase();
+        const keywords = getEntryKeywords(entry).join(' ').toLowerCase();
         const abstract = (entry.abstract || '').toLowerCase();
-        return title.includes(query) || authors.includes(query) || keywords.includes(query) || abstract.includes(query);
+        const journal = (entry.journal || '').toLowerCase();
+        const doi = (entry.doi || '').toLowerCase();
+        return title.includes(query) || authors.includes(query) || keywords.includes(query) || abstract.includes(query) || journal.includes(query) || doi.includes(query);
       });
       applySort(filtered);
     });
@@ -725,9 +952,9 @@ export class LiteratureIndexViewer {
       let sorted = [...entriesToSort];
 
       if (sortValue === 'year-desc') {
-        sorted.sort((a, b) => (b.year || 0) - (a.year || 0));
+        sorted.sort((a, b) => (Number(getEntryYear(b)) || 0) - (Number(getEntryYear(a)) || 0));
       } else if (sortValue === 'year-asc') {
-        sorted.sort((a, b) => (a.year || 0) - (b.year || 0));
+        sorted.sort((a, b) => (Number(getEntryYear(a)) || 0) - (Number(getEntryYear(b)) || 0));
       } else if (sortValue === 'title') {
         sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
       }
@@ -739,10 +966,12 @@ export class LiteratureIndexViewer {
       const query = document.getElementById('searchInput').value.toLowerCase();
       const filtered = entries.filter(entry => {
         const title = (entry.title || '').toLowerCase();
-        const authors = normalizeList(entry.authors).join(' ').toLowerCase();
-        const keywords = normalizeList(entry.keywords).join(' ').toLowerCase();
+        const authors = getEntryAuthors(entry).join(' ').toLowerCase();
+        const keywords = getEntryKeywords(entry).join(' ').toLowerCase();
         const abstract = (entry.abstract || '').toLowerCase();
-        return title.includes(query) || authors.includes(query) || keywords.includes(query) || abstract.includes(query);
+        const journal = (entry.journal || '').toLowerCase();
+        const doi = (entry.doi || '').toLowerCase();
+        return title.includes(query) || authors.includes(query) || keywords.includes(query) || abstract.includes(query) || journal.includes(query) || doi.includes(query);
       });
       applySort(filtered);
     });
@@ -752,17 +981,25 @@ export class LiteratureIndexViewer {
 
     // 全选功能
     document.getElementById('selectAll').addEventListener('change', function() {
-      var checkboxes = document.querySelectorAll('.entry-checkbox');
-      checkboxes.forEach(function(cb) {
-        cb.checked = document.getElementById('selectAll').checked;
-      });
+      this.indeterminate = false;
+      applySelectAllToVisible();
+    });
+
+    document.getElementById('entries').addEventListener('change', function(e) {
+      if (e.target && e.target.classList && e.target.classList.contains('entry-checkbox')) {
+        updateSelectAllState();
+      }
     });
 
     // 复制选中引用
     document.getElementById('copySelectedBtn').addEventListener('click', function() {
       var checkboxes = document.querySelectorAll('.entry-checkbox:checked');
       if (checkboxes.length === 0) {
-        alert(isChinese ? '请先选择文献' : 'Please select articles first');
+        vscodeApi.postMessage({
+          command: 'copyText',
+          text: '',
+          emptyMessage: isChinese ? '请先勾选要复制的文献。' : 'Select articles before copying @references.'
+        });
         return;
       }
       var references = [];
@@ -772,6 +1009,14 @@ export class LiteratureIndexViewer {
           references.push(ar);
         }
       });
+      if (references.length === 0) {
+        vscodeApi.postMessage({
+          command: 'copyText',
+          text: '',
+          emptyMessage: isChinese ? '选中的文献记录没有对应的本地文件，暂时无法复制 @引用。' : 'The selected article records have no matching local files, so no @ references can be copied yet.'
+        });
+        return;
+      }
       vscodeApi.postMessage({
         command: 'copyText',
         text: references.join('\\n'),
@@ -781,18 +1026,21 @@ export class LiteratureIndexViewer {
 
     // 复制 CSV 列表
     document.getElementById('exportBtn').addEventListener('click', function() {
-      var checkboxes = document.querySelectorAll('.entry-checkbox:checked');
-      var selectedEntries = checkboxes.length > 0 ? 
-        Array.from(checkboxes).map(function(cb) {
-          return entries.find(function(e) { return e.file_path === cb.getAttribute('data-filepath'); });
-        }).filter(Boolean) : 
-        entries;
+      var selectedEntries = getSelectedEntries();
+      if (selectedEntries.length === 0) {
+        vscodeApi.postMessage({
+          command: 'copyText',
+          text: '',
+          emptyMessage: isChinese ? '当前没有可复制的文献条目。' : 'There are no article entries to copy.'
+        });
+        return;
+      }
       
       var csvContent = 'Title,Authors,Year,Journal,DOI,File Path\\n';
       selectedEntries.forEach(function(e) {
         var title = (e.title || '').replace(/"/g, '""');
-        var authors = normalizeList(e.authors).join('; ').replace(/"/g, '""');
-        var year = e.year || '';
+        var authors = getEntryAuthors(e).join('; ').replace(/"/g, '""');
+        var year = getEntryYear(e) || '';
         var journal = (e.journal || '').replace(/"/g, '""');
         var doi = e.doi || '';
         var fp = e.file_path || '';
@@ -817,9 +1065,8 @@ export class LiteratureIndexViewer {
       if ((e.ctrlKey || e.metaKey) && e.key === 'a' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
         document.getElementById('selectAll').checked = true;
-        document.querySelectorAll('.entry-checkbox').forEach(function(cb) {
-          cb.checked = true;
-        });
+        document.getElementById('selectAll').indeterminate = false;
+        applySelectAllToVisible();
       }
       // Escape: 清除搜索
       if (e.key === 'Escape') {
@@ -828,20 +1075,6 @@ export class LiteratureIndexViewer {
       }
     });
 
-    // 入口项双击复制引用
-    document.addEventListener('dblclick', function(e) {
-      var entry = e.target.closest('.entry');
-      if (entry) {
-        var atRef = entry.getAttribute('data-at-ref');
-        if (atRef) {
-          vscodeApi.postMessage({
-            command: 'copyText',
-            text: atRef,
-            count: 1
-          });
-        }
-      }
-    });
   </script>
 </body>
 </html>`;

@@ -86,7 +86,10 @@ async def search_literature_and_save(
     saved_files = []
     if articles and workspace_path:
         try:
-            saved_files = await _save_literature_to_workspace(result, workspace_path)
+            saved_files = await _save_literature_to_workspace(
+                result,
+                workspace_path,
+            )
             logger.info(f"Saved {len(saved_files)} literature files to workspace")
         except Exception as e:
             logger.error(f"Failed to save literature to workspace: {e}", exc_info=True)
@@ -195,7 +198,8 @@ Format the response as markdown with clear sections. Keep it concise but informa
 
 
 async def _save_literature_to_workspace(
-    result: Dict[str, Any], workspace_path: Path
+    result: Dict[str, Any],
+    workspace_path: Path,
 ) -> List[str]:
     """Save literature search results to workspace papers directory
 
@@ -214,7 +218,9 @@ async def _save_literature_to_workspace(
     papers_dir.mkdir(parents=True, exist_ok=True)
 
     saved_files = []
-    timestamp = datetime.now(timezone.utc).isoformat().replace(":", "-").replace(".", "-")[:19]
+    timestamp = (
+        datetime.now(timezone.utc).isoformat().replace(":", "-").replace(".", "-")[:19]
+    )
 
     articles = result.get("articles", [])
     json_entries = []
@@ -230,7 +236,8 @@ async def _save_literature_to_workspace(
             filepath.write_text(content, encoding="utf-8")
             saved_files.append(str(filepath))
 
-            # Prepare JSON entry data
+            # Prepare JSON entry data. file_path intentionally points to the
+            # local Markdown note so @references are always readable by agents.
             entry_data = {
                 "title": article.get("title", ""),
                 "journal": article.get("journal"),
@@ -287,11 +294,32 @@ async def _save_literature_to_workspace(
                 updated_at=now,
             )
 
-        # Merge new data (avoid duplicates)
-        existing_file_paths = {entry.file_path for entry in existing_index.entries}
+        # Merge new data (avoid duplicates by title/DOI, same logic as merge_literature_results)
+        # Build lookup by title (lowercase) and DOI (lowercase)
+        existing_by_title: dict[str, int] = {}
+        existing_by_doi: dict[str, int] = {}
+        for idx, entry in enumerate(existing_index.entries):
+            if entry.title:
+                existing_by_title[entry.title.strip().lower()] = idx
+            if entry.doi:
+                existing_by_doi[entry.doi.strip().lower()] = idx
+
         for entry in json_entries:
-            if entry.file_path not in existing_file_paths:
+            # Check for duplicates using title or DOI
+            is_duplicate = False
+            if entry.title and entry.title.strip().lower() in existing_by_title:
+                is_duplicate = True
+            elif entry.doi and entry.doi.strip().lower() in existing_by_doi:
+                is_duplicate = True
+
+            if not is_duplicate:
                 existing_index.entries.append(entry)
+                # Update lookup tables
+                idx = len(existing_index.entries) - 1
+                if entry.title:
+                    existing_by_title[entry.title.strip().lower()] = idx
+                if entry.doi:
+                    existing_by_doi[entry.doi.strip().lower()] = idx
 
         # Update update time
         existing_index.updated_at = datetime.now(timezone.utc).isoformat()

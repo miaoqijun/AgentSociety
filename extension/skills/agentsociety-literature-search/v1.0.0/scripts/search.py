@@ -3,7 +3,7 @@
 
 import asyncio
 import argparse
-import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -12,9 +12,6 @@ workspace_root = Path(__file__).resolve().parents[4]
 env_file = workspace_root / ".env"
 if env_file.exists():
     load_dotenv(env_file)
-
-# Add the workspace root to Python path
-import sys
 
 sys.path.insert(0, str(workspace_root / "packages" / "agentsociety2"))
 
@@ -95,6 +92,17 @@ async def main():
             content += "\n\n" + summary
         except Exception as e:
             print(f"Warning: Failed to generate summary: {e}")
+
+        saved_files = result.get("saved_files", [])
+        index_path = workspace_path / "papers" / "literature_index.json"
+        if saved_files:
+            content += (
+                "\n\n## Saved Artifacts\n"
+                f"- Literature index: `{index_path}`\n"
+                f"- Markdown notes saved: {len(saved_files)}\n"
+                "- Use `@papers/<note>.md` references for Claude/Agent reading.\n"
+                "- If original PDFs are needed, inspect DOI/URL/PDF metadata and save open-access files under `papers/full_texts/`."
+            )
 
         print(content)
         return 0
