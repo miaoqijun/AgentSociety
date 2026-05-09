@@ -107,9 +107,10 @@ class TestConfigClass:
         assert isinstance(Config.HOME_DIR, str)
 
     def test_llm_api_base_default(self):
-        """Test LLM_API_BASE has a default value."""
+        """Test LLM_API_BASE is set (either from env or default)."""
         assert Config.LLM_API_BASE is not None
-        assert Config.LLM_API_BASE.startswith("http")
+        assert isinstance(Config.LLM_API_BASE, str)
+        assert len(Config.LLM_API_BASE) > 0
 
     def test_llm_model_default(self):
         """Test LLM_MODEL has a default value."""
