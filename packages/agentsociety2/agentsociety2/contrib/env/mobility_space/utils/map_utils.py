@@ -141,6 +141,7 @@ def get_direction_by_s(
         _s += math.hypot(next_p[0] - cur_p[0], next_p[1] - cur_p[1])
         _line_lengths[i + 1] = _s
     for _i, (cur_p, next_p) in enumerate(itertools.pairwise(_lane_points)):
+        _direction = math.atan2(next_p[1] - cur_p[1], next_p[0] - cur_p[0])
         _pitch = math.atan2(
             next_p[2] - cur_p[2],
             math.hypot(next_p[0] - cur_p[0], next_p[1] - cur_p[1]),
