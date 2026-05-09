@@ -118,7 +118,7 @@ Players aim to maximize cumulative coins while balancing personal gain and colle
                     return choice.message.content or ""  # type: ignore
             return "[错误] LLM返回空响应"
         except Exception as e:
-            error_message = f"LLM调用失败: {type(e).__name__} - {str(e)}"
+            error_message = f"LLM调用失败: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
             return f"[错误] {error_message}"
 
@@ -173,7 +173,7 @@ Players aim to maximize cumulative coins while balancing personal gain and colle
             return f"[{self.name}] Round {current_round}: Submitted choice {choice}"
             
         except Exception as e:
-            error_message = f"Step execution failed: {type(e).__name__} - {str(e)}"
+            error_message = f"Step execution failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
             return f"[{self.name}] [ERROR] {error_message}"
 
@@ -252,7 +252,7 @@ Players aim to maximize cumulative coins while balancing personal gain and colle
             )
 
         except Exception as e:
-            error_message = f"Parsing/call failed: {type(e).__name__} - {str(e)}"
+            error_message = f"Parsing/call failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] [ERROR] {error_message}")
 
             choice = self.decision_options[1]

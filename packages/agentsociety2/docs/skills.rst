@@ -11,7 +11,6 @@ AgentSociety 2 包含一组 LLM 原生的研究技能，用于自动化科学研
 * **文献检索**: 搜索和管理学术论文
 * **假设生成**: 从研究问题生成可测试的假设
 * **实验设计**: 设计完整的实验配置
-* **网络研究**: 使用 Miro 进行网络搜索和总结
 * **论文撰写**: 通过 paper-orchestrator skill 套件（重写中）生成 Nature 风格学术论文 PDF
 * **数据分析**: 分析实验数据并生成报告
 * **智能体处理**: 智能体选择、生成和过滤
@@ -29,8 +28,6 @@ Claude Code Skills
 * **agentsociety-run-experiment** - 实验执行与监控
 * **agentsociety-analysis** - 数据分析与跨实验综合
 * **agentsociety-paper-orchestrator** - Nature/Science 级论文生成（6-skill 状态机）
-* **agentsociety-quick-web-search** - 快速网络搜索
-* **agentsociety-web-research** - 深度网络研究
 
 Python API
 --------------------
@@ -40,12 +37,18 @@ Python API
 文献技能 (literature)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+文献技能默认使用已经配置好的 ``LITERATURE_SEARCH_API_URL`` 和
+``LITERATURE_SEARCH_API_KEY`` 调用统一检索服务。推荐优先使用
+``search_literature_and_save``，而不是直接调用底层 ``search_literature``：
+前者会把检索结果落到工作区中，确保后续 Agent、Claude Code 和论文写作技能
+都能通过本地文件继续引用这些文献。
+
 .. code-block:: python
 
    from agentsociety2.skills.literature import search_literature_and_save, load_literature_index
 
-   # 搜索并保存文献（默认搜索所有数据源）
-   await search_literature_and_save(
+   # 搜索并保存文献（默认搜索所有数据源，并更新 papers/literature_index.json）
+   result = await search_literature_and_save(
        workspace_path=Path("./workspace"),
        query="agent-based modeling social networks",
        limit=10,
@@ -64,6 +67,47 @@ Python API
 
    # 加载文献索引
    index = load_literature_index(workspace_path=Path("./workspace"))
+
+**保存结果**:
+
+- 每篇检索结果都会保存为 ``papers/<title>_<timestamp>.md``。
+  这个 Markdown 文件是稳定的本地文献笔记，包含标题、检索词、年份、期刊、
+  DOI/URL、摘要、作者和相关内容片段。
+- ``papers/literature_index.json`` 会同步更新。索引中的 ``file_path``
+  指向本地 Markdown 文献笔记，因此插件中的 ``@引用`` 可以复制为
+  ``@papers/<title>_<timestamp>.md``，供 Claude Code 或 Agent 读取。
+- 重复运行检索时会生成新的本地文献笔记，并追加到索引中，便于保留不同检索轮次的上下文。
+
+**原文下载（由 Claude/Agent 按需执行）**:
+
+文献技能不会在 Python API 中硬编码下载策略。检索结果会尽量保留
+``doi``、``url``、``pdf_url``、``full_text_url``、``download_url``、
+``open_access``、``best_oa_location`` 等元信息；Claude Code 或 Agent
+可以基于这些线索按需下载开放获取原文。
+
+建议的下载约定：
+
+- 原文 PDF 放在 ``papers/full_texts/*.pdf``。
+- 优先使用 API 返回的 PDF 直链；arXiv 论文可从 ``/abs/<id>`` 转为
+  ``https://arxiv.org/pdf/<id>.pdf``。
+- DOI 仅作为落地页线索，不保证能直接得到 PDF；如果需要下载，应确认最终响应确实是 PDF。
+- 下载完成后，可在对应索引条目的 ``extra_fields["full_text"]`` 中记录:
+
+  .. code-block:: json
+
+     {
+       "status": "downloaded",
+       "file_path": "papers/full_texts/example.pdf",
+       "source_url": "https://arxiv.org/pdf/2401.01234.pdf"
+     }
+
+  如果没有找到开放原文，也可以记录 ``{"status": "no_candidate"}`` 或
+  ``{"status": "failed", "reason": "..."}``，便于插件页面显示状态。
+
+.. note::
+
+   许多 CrossRef/OpenAlex 结果只提供 DOI 或落地页，不一定有开放 PDF。
+   Claude/Agent 不应绕过出版商权限，也不应把 HTML 落地页当作 PDF 保存。
 
 **数据源**:
 - ``local``: RAGFlow 本地知识库

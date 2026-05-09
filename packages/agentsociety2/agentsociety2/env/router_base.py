@@ -410,15 +410,15 @@ class RouterBase(ABC):
                     # If this is the last attempt, raise the error
                     if attempt >= max_retries:
                         raise ValueError(
-                            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(e)}"
-                        )
+                            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
+                        ) from e
 
                     # For rate-limit-like errors, use exponential backoff
                     delay = min(base_delay * (2**attempt), max_delay)
                     logger.warning(
                         f"Rate limit-like error detected for model '{model}' "
                         f"(attempt {attempt + 1}/{max_retries + 1}). "
-                        f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {str(e)}"
+                        f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {e!s}"
                     )
                     await asyncio.sleep(delay)
                     last_error = e
@@ -427,19 +427,19 @@ class RouterBase(ABC):
                 # If this is the last attempt, raise the error
                 if attempt >= max_retries:
                     raise ValueError(
-                        f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(e)}"
-                    )
+                        f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
+                    ) from e
 
                 # For other errors, retry immediately
                 logger.warning(
                     f"Request failed for model '{model}' (attempt {attempt + 1}/{max_retries + 1}). "
-                    f"Retrying immediately. Error: {str(e)}"
+                    f"Retrying immediately. Error: {e!s}"
                 )
                 last_error = e
 
         # This should never be reached, but just in case
         raise ValueError(
-            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(last_error)}"
+            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {last_error!s}"
         )
 
     async def acompletion_with_system_prompt(
@@ -456,8 +456,9 @@ class RouterBase(ABC):
         """
         system_prompt = self.get_system_prompt()
         request_messages: list[AllMessageValues] = [
-            {"role": "system", "content": system_prompt}
-        ] + messages.copy()  # type: ignore
+            {"role": "system", "content": system_prompt},
+            *messages.copy(),  # type: ignore
+        ]
         response = await self.acompletion(
             model=model,
             messages=request_messages,
@@ -520,8 +521,9 @@ Your corrected response:
                 # Add system prompt
                 system_prompt = self.get_system_prompt()
                 request_messages: list[AllMessageValues] = [
-                    {"role": "system", "content": system_prompt}
-                ] + conversation_messages.copy()  # type: ignore
+                    {"role": "system", "content": system_prompt},
+                    *conversation_messages.copy(),  # type: ignore
+                ]
 
                 # Send request to LLM
                 response = await self.acompletion(
@@ -545,7 +547,7 @@ Your corrected response:
                 try:
                     parsed_data = json_repair.loads(json_str)
                 except Exception as e:
-                    raise ValueError(f"Failed to parse JSON: {str(e)}")
+                    raise ValueError(f"Failed to parse JSON: {e!s}") from e
 
                 # Validate against Pydantic model
                 try:
@@ -569,7 +571,7 @@ Your corrected response:
                     if attempt >= max_retries:
                         raise ValueError(
                             f"Failed to validate response after {max_retries + 1} attempts. Last error: {error_message}"
-                        )
+                        ) from e
 
                     # Prepare error feedback message
                     error_feedback = error_prompt_template.format(
@@ -593,14 +595,14 @@ Your corrected response:
                     # If this is the last attempt, raise the error
                     if attempt >= max_retries:
                         raise ValueError(
-                            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(e)}"
-                        )
+                            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
+                        ) from e
 
                     # For rate-limit-like errors, use exponential backoff
                     delay = min(base_delay * (2**attempt), max_delay)
                     logger.warning(
                         f"Rate limit-like error detected (attempt {attempt + 1}/{max_retries + 1}). "
-                        f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {str(e)}"
+                        f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {e!s}"
                     )
                     await asyncio.sleep(delay)
                     # delete the last assistant message
@@ -617,8 +619,8 @@ Your corrected response:
                 # If this is the last attempt, raise the error
                 if attempt >= max_retries:
                     raise ValueError(
-                        f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(e)}"
-                    )
+                        f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
+                    ) from e
 
                 # For other errors (ValueError, etc.), prepare error feedback and retry immediately
                 error_message = str(e)
@@ -641,7 +643,7 @@ Your corrected response:
 
         # This should never be reached, but just in case
         raise ValueError(
-            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(last_error)}"
+            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {last_error!s}"
         )
 
     def get_token_usages(self):
@@ -852,7 +854,7 @@ Your generated world description:"""
                         logger.warning(
                             f"Rate limit-like error detected when generating world description "
                             f"(attempt {attempt + 1}/{max_retries + 1}). "
-                            f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {str(e)}"
+                            f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {e!s}"
                         )
                         await asyncio.sleep(delay)
                         continue
@@ -861,7 +863,7 @@ Your generated world description:"""
                         raise e
                     logger.warning(
                         f"Request failed when generating world description (attempt {attempt + 1}/{max_retries + 1}). "
-                        f"Retrying immediately. Error: {str(e)}"
+                        f"Retrying immediately. Error: {e!s}"
                     )
             logger.info(f"  ✓ 生成世界描述的response: {world_description}")
 
@@ -901,7 +903,7 @@ Your generated world description:"""
             return world_description.strip()
 
         except Exception as e:
-            logger.error(f"  ❌ 生成世界描述时出错: {str(e)}")
+            logger.error(f"  ❌ 生成世界描述时出错: {e!s}")
             import traceback
 
             logger.error(traceback.format_exc())
@@ -1060,7 +1062,7 @@ Your generated world description:"""
         # 添加所有 pydantic BaseModel 的完整代码
         if pydantic_models:
             lines.append("# Pydantic BaseModel definitions")
-            for model_class, source_code in pydantic_models.items():
+            for source_code in pydantic_models.values():
                 lines.append("")
                 lines.append(source_code)
             lines.append("")

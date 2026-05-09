@@ -124,7 +124,7 @@ def _discover_contrib_env_modules() -> Dict[str, Type[EnvBase]]:
         from agentsociety2.contrib import env as env_package
 
         # Walk through all modules in contrib.env
-        for importer, modname, ispkg in pkgutil.walk_packages(
+        for _importer, modname, _ispkg in pkgutil.walk_packages(
             env_package.__path__, env_package.__name__ + "."
         ):
             if modname.startswith("__"):
@@ -144,9 +144,7 @@ def _discover_contrib_env_modules() -> Dict[str, Type[EnvBase]]:
                         # Use class name directly as the key
                         if name and name not in modules:
                             modules[name] = obj
-                            logger.debug(
-                                f"Discovered env module: {name}"
-                            )
+                            logger.debug(f"Discovered env module: {name}")
 
             except Exception as e:
                 logger.debug(f"Failed to import {modname}: {e}")
@@ -168,7 +166,7 @@ def _discover_contrib_agents() -> Dict[str, Type[AgentBase]]:
         from agentsociety2.contrib import agent as agent_package
 
         # Walk through all modules in contrib.agent
-        for importer, modname, ispkg in pkgutil.walk_packages(
+        for _importer, modname, _ispkg in pkgutil.walk_packages(
             agent_package.__path__, agent_package.__name__ + "."
         ):
             if modname.startswith("__"):
@@ -240,7 +238,9 @@ def _class_name_to_type(class_name: str) -> Optional[str]:
     return snake_case
 
 
-def discover_and_register_builtin_modules(registry: Optional[ModuleRegistry] = None) -> None:
+def discover_and_register_builtin_modules(
+    registry: Optional[ModuleRegistry] = None,
+) -> None:
     """发现并注册所有内置模块（contrib + 内置 agent）。
 
     :param registry: 可选注册中心；为空则使用全局 registry。
@@ -301,6 +301,7 @@ def scan_and_register_custom_modules(
 
 # Convenience functions
 
+
 def get_registered_env_modules() -> List[Tuple[str, Type[EnvBase]]]:
     """:returns: 已注册环境模块列表 ``[(module_type, module_class), ...]``。"""
     return get_registry().list_env_modules()
@@ -336,28 +337,40 @@ def list_all_modules() -> Dict[str, List[Dict[str, Any]]]:
     env_modules = []
     for module_type, module_class in registry.list_env_modules():
         try:
-            description = module_class.mcp_description() if hasattr(module_class, "mcp_description") else module_class.__doc__ or ""
+            description = (
+                module_class.mcp_description()
+                if hasattr(module_class, "mcp_description")
+                else module_class.__doc__ or ""
+            )
         except Exception:
             description = ""
-        env_modules.append({
-            "type": module_type,
-            "class_name": module_class.__name__,
-            "description": description,
-            "is_custom": getattr(module_class, "_is_custom", False),
-        })
+        env_modules.append(
+            {
+                "type": module_type,
+                "class_name": module_class.__name__,
+                "description": description,
+                "is_custom": getattr(module_class, "_is_custom", False),
+            }
+        )
 
     agents = []
     for agent_type, agent_class in registry.list_agent_modules():
         try:
-            description = agent_class.mcp_description() if hasattr(agent_class, "mcp_description") else agent_class.__doc__ or ""
+            description = (
+                agent_class.mcp_description()
+                if hasattr(agent_class, "mcp_description")
+                else agent_class.__doc__ or ""
+            )
         except Exception:
             description = ""
-        agents.append({
-            "type": agent_type,
-            "class_name": agent_class.__name__,
-            "description": description,
-            "is_custom": getattr(agent_class, "_is_custom", False),
-        })
+        agents.append(
+            {
+                "type": agent_type,
+                "class_name": agent_class.__name__,
+                "description": description,
+                "is_custom": getattr(agent_class, "_is_custom", False),
+            }
+        )
 
     return {
         "env_modules": env_modules,

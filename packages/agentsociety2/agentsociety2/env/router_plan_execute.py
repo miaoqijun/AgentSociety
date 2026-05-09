@@ -334,7 +334,7 @@ Your plan:"""
             return plan
 
         except Exception as e:
-            get_logger().error(f"PlanExecuteRouter: Failed to create plan: {str(e)}")
+            get_logger().error(f"PlanExecuteRouter: Failed to create plan: {e!s}")
             return []
 
     async def _create_replan(
@@ -441,7 +441,7 @@ Your new plan:"""
             return plan
 
         except Exception as e:
-            get_logger().error(f"PlanExecuteRouter: Failed to create replan: {str(e)}")
+            get_logger().error(f"PlanExecuteRouter: Failed to create replan: {e!s}")
             return []
 
     def _build_execution_summary(
@@ -591,7 +591,7 @@ Your new plan:"""
                     result["_error_suggests_replan"] = "true"  # type: ignore
             return result
         except Exception as e:
-            error_msg = f"Error executing {tool_name}: {str(e)}"
+            error_msg = f"Error executing {tool_name}: {e!s}"
             get_logger().error(f"PlanExecuteRouter: {error_msg}")
             # 检查异常是否是参数相关的
             error_str = str(e).lower()

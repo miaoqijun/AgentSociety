@@ -28,12 +28,12 @@ from shapely import wkt
 from shapely.geometry import LineString
 
 __all__ = [
-    "MobilitySpace",
     "MobilityPerson",
     "MobilityPersonInit",
+    "MobilitySpace",
+    "Poi",
     "Position",
     "Target",
-    "Poi",
 ]
 
 
@@ -154,7 +154,7 @@ class MobilitySpace(EnvBase):
         ColumnDef("lat", "REAL"),
     ]
 
-    TRIPMODE2STR = {
+    TRIPMODE2STR: ClassVar[dict] = {
         TripMode.TRIP_MODE_WALK_ONLY: "walking",
         TripMode.TRIP_MODE_DRIVE_ONLY: "driving",
     }

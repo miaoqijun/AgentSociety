@@ -12,8 +12,8 @@ from agentsociety2.contrib.agent.volunteer_dilemma_agent import VolunteerDilemma
 
 __all__ = [
     "CommonsTragedyAgent",
-    "PublicGoodsAgent",
     "PrisonersDilemmaAgent",
+    "PublicGoodsAgent",
     "TrustGameAgent",
     "VolunteerDilemmaAgent",
 ]

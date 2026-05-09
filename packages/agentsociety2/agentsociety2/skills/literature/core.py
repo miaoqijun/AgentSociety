@@ -592,6 +592,21 @@ def _convert_api_response(response: Dict[str, Any], query: str) -> Dict[str, Any
             "source_name": item.get("source_name", ""),
         }
 
+        # Preserve common open-access/full-text metadata so the higher-level
+        # saving layer can attempt a best-effort PDF download.
+        for field in (
+            "pdf_url",
+            "pdf",
+            "full_text_url",
+            "fulltext_url",
+            "download_url",
+            "open_access",
+            "best_oa_location",
+            "primary_location",
+        ):
+            if item.get(field) is not None:
+                article[field] = item[field]
+
         # 处理 chunks 信息，统一字段名
         chunks = item.get("chunks", [])
         if chunks:

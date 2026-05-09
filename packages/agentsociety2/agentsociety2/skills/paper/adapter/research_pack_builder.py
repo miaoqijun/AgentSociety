@@ -96,7 +96,7 @@ def _literature_to_models(
 
     bibtex_strings = build_reference_strings(valid_entries, limit=None)
     out: List[ResearchPackLiterature] = []
-    for idx, (entry, bibtex) in enumerate(zip(valid_entries, bibtex_strings)):
+    for idx, (entry, bibtex) in enumerate(zip(valid_entries, bibtex_strings, strict=False)):
         title = (entry.get("title") or "").strip()
         extra = entry.get("extra_fields") or {}
         year = extra.get("year") or entry.get("year") or ""

@@ -220,10 +220,10 @@ def validate_hypothesis_modules(hypothesis_data: Dict[str, Any]) -> Tuple[bool, 
 
 
 __all__ = [
-    "get_available_env_modules",
     "get_available_agent_modules",
-    "get_modules_summary",
-    "validate_module_selection",
+    "get_available_env_modules",
     "get_module_selection_guidance",
+    "get_modules_summary",
     "validate_hypothesis_modules",
+    "validate_module_selection",
 ]

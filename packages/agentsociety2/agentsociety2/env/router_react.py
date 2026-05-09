@@ -149,7 +149,7 @@ class ReActRouter(RouterBase):
         dialog: List[AllMessageValues] = [{"role": "user", "content": initial_prompt}]
 
         # 添加set_status工具到可用工具列表
-        tools_with_status = available_tools + [self._set_status_tool_schema]
+        tools_with_status = [*available_tools, self._set_status_tool_schema]
 
         # ReAct循环
         step_count = 0
@@ -178,7 +178,7 @@ class ReActRouter(RouterBase):
 
                 response = await self.acompletion_with_system_prompt(**call_kwargs)
             except Exception as e:
-                get_logger().error(f"ReActRouter: LLM call failed: {str(e)}")
+                get_logger().error(f"ReActRouter: LLM call failed: {e!s}")
                 status = "error"
                 error_msg = str(e)
                 results["status"] = status
@@ -267,7 +267,7 @@ class ReActRouter(RouterBase):
                     get_logger().error(
                         f"ReActRouter: Failed to parse tool arguments: {e}"
                     )
-                    error_result = {"error": f"Invalid JSON arguments: {str(e)}"}
+                    error_result = {"error": f"Invalid JSON arguments: {e!s}"}
                     tool_results.append(
                         {
                             "role": "tool",
@@ -339,7 +339,7 @@ class ReActRouter(RouterBase):
                         f"ReActRouter: Executed tool {func_name}, result: {result_str[:200]}"
                     )
                 except Exception as e:
-                    error_msg = f"Error executing {func_name}: {str(e)}"
+                    error_msg = f"Error executing {func_name}: {e!s}"
                     get_logger().error(f"ReActRouter: {error_msg}")
                     error_result = {"error": error_msg}
                     tool_results.append(

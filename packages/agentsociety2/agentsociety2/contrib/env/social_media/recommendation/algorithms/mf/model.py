@@ -302,7 +302,7 @@ class MFRecommender(RecommenderAlgorithm):
         """
         item_ratings: Dict[int, List[float]] = {}
 
-        for item_id, rating in zip(data.item_ids, data.ratings):
+        for item_id, rating in zip(data.item_ids, data.ratings, strict=False):
             if item_id not in item_ratings:
                 item_ratings[item_id] = []
             item_ratings[item_id].append(rating)

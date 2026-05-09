@@ -180,7 +180,7 @@ class TwoTierPlanExecuteRouter(RouterBase):
 
             # 检查是否有明显的错误
             if isinstance(module_result, dict):
-                for key, value in module_result.items():
+                for value in module_result.values():
                     if isinstance(value, dict) and "error" in value:
                         error = str(value.get("error"))
                         break
@@ -317,7 +317,7 @@ Your selection and plan:"""
 
         except Exception as e:
             get_logger().error(
-                f"TwoTierPlanExecuteRouter: Failed to select module and plan: {str(e)}"
+                f"TwoTierPlanExecuteRouter: Failed to select module and plan: {e!s}"
             )
             # Fallback
             for module_name in self._module_info.keys():
@@ -393,7 +393,7 @@ Your selection and plan:"""
                     f"TwoTierPlanExecuteRouter: Executed {tool_name} in {module_name}"
                 )
             except Exception as e:
-                error_msg = f"Error executing {tool_name}: {str(e)}"
+                error_msg = f"Error executing {tool_name}: {e!s}"
                 get_logger().error(f"TwoTierPlanExecuteRouter: {error_msg}")
                 results[f"{tool_name}_error"] = error_msg
 

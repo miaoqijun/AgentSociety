@@ -21,7 +21,7 @@ Quick index: [A](#a) · [B-C](#b-c) · [D-E](#d-e) · [F-I](#f-i) · [L-M](#l-m)
 
 | Term | Meaning |
 |------|---------|
-| **Backend** | The local Python service behind the extension. The UI handles interaction; the backend handles model calls, experiment runs, and data services. |
+| **Backend** | The local Python service behind the extension. Start it for the full extension experience; local file viewing, config editing, and CLI/Claude Code experiment runs can continue if it is not running yet. |
 | **Claude Code skill** | A skill installed under `.claude/skills/`, mainly used by Claude Code or similar coding assistants in the IDE. |
 | **CLAUDE.md** | Project instructions for Claude Code, used to explain how the coding assistant should understand and work with this project. |
 | **Command Palette** | VS Code's quick command launcher, opened with `Ctrl+Shift+P` or `Cmd+Shift+P`. |
@@ -43,7 +43,7 @@ Quick index: [A](#a) · [B-C](#b-c) · [D-E](#d-e) · [F-I](#f-i) · [L-M](#l-m)
 
 | Term | Meaning |
 |------|---------|
-| **FastAPI backend** | The local Python service that handles LLM calls, experiment execution, skill management, and APIs. |
+| **FastAPI backend** | The local Python API service for extension features such as agent runtime skill management, module discovery, prefill parameters, replay endpoints, and API docs. |
 | **Integrated Research Environment** | A unified research environment that connects literature, hypotheses, experiments, simulations, analysis, and writing in one workflow. |
 
 ### L-M

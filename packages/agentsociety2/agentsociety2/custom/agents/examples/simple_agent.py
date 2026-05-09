@@ -69,7 +69,7 @@ class SimpleAgent(AgentBase):
             response = await self.acompletion([{"role": "user", "content": prompt}])
             return response.choices[0].message.content or ""
         except Exception as e:
-            return f"抱歉，我无法回答这个问题：{str(e)}"
+            return f"抱歉，我无法回答这个问题：{e!s}"
 
     async def step(self, tick: int, t: datetime) -> str:
         """
@@ -90,7 +90,7 @@ class SimpleAgent(AgentBase):
                 readonly=True
             )
         except Exception as e:
-            observation = f"无法获取环境状态：{str(e)}"
+            observation = f"无法获取环境状态：{e!s}"
 
         # 记录状态
         action = f"Agent {self.name} 观察到：{observation}，继续活动"

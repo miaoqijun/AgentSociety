@@ -192,9 +192,9 @@ class RecommendationEngine:
         posts: List[Post],
         user_id: int,
         limit: int = 20,
-        follows: Dict[int, List[int]] = None,
-        likes: Dict[int, List[int]] = None,
-        weights: Dict[str, float] = None
+        follows: Dict[int, List[int]] | None = None,
+        likes: Dict[int, List[int]] | None = None,
+        weights: Dict[str, float] | None = None
     ) -> List[Post]:
         """
         Twitter排序算法

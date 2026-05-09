@@ -367,7 +367,7 @@ def cmd_build_pack(args: argparse.Namespace) -> int:
             research_objective=args.research_objective or None,
         )
         _state.research_pack.save(workspace, pack)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return _error(f"failed to build research pack: {exc}", traceback=traceback.format_exc())
 
     state = _state.paper_state.load(workspace)
@@ -445,7 +445,7 @@ def _persist_artifact(workspace: Path, artifact: str, payload: Any) -> int:
         return _error(f"{artifact} payload must be a JSON object")
     try:
         model = spec["model"].model_validate(payload)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return _error(f"{artifact} payload failed validation: {exc}")
     spec["save"](workspace, model)
     out_path = spec["json_path"](workspace)
@@ -925,7 +925,7 @@ def cmd_review(args: argparse.Namespace) -> int:
     if isinstance(payload, dict) and "reviews" in payload:
         try:
             rd = _models.ReviewRound.model_validate(payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return _error(f"ReviewRound validation failed: {exc}")
         rd.round_num = round_num
         if rd.completed_at is None:
@@ -954,7 +954,7 @@ def cmd_review(args: argparse.Namespace) -> int:
         from agentsociety2.skills.paper.models import Review as _Review
 
         review = _Review.model_validate(payload)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return _error(f"Review validation failed: {exc}")
     rd = _state.reviews.append_review(workspace, round_num, review)
     out_path = _paper_paths.review_round_path(workspace, round_num)
@@ -1527,7 +1527,7 @@ def cmd_run_loop(args: argparse.Namespace) -> int:
         try:
             pack = _adapter_research_pack_builder.build_research_pack(workspace)
             _state.research_pack.save(workspace, pack)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return _error(f"failed to build research pack: {exc}")
         st = _state.paper_state.load(workspace)
         if st.current_phase == _models.PaperPhase.intake:
@@ -1846,7 +1846,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return int(args.func(args))
     except SystemExit:
         raise
-    except Exception as exc:  # noqa: BLE001 - top-level guard
+    except Exception as exc:
         return _error(
             f"unhandled error: {exc}",
             traceback=traceback.format_exc(),

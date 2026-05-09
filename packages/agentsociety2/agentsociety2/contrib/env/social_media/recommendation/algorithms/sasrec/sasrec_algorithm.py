@@ -305,7 +305,7 @@ class SASRecRecommender(RecommenderAlgorithm):
         user_sequences = defaultdict(list)
 
         # 按用户分组收集物品
-        for user_id, item_id in zip(data.user_ids, data.item_ids):
+        for user_id, item_id in zip(data.user_ids, data.item_ids, strict=False):
             # 转换为内部索引 (+1因为0是padding)
             item_idx = self._item_map[item_id] + 1
             user_sequences[user_id].append(item_idx)
@@ -360,7 +360,7 @@ class SASRecRecommender(RecommenderAlgorithm):
         """
         train_data = []
 
-        for user_id, seq in self._user_sequences.items():
+        for seq in self._user_sequences.values():
             if len(seq) < 2:
                 continue  # 序列太短，跳过
 
@@ -407,7 +407,7 @@ class SASRecRecommender(RecommenderAlgorithm):
         """
         item_ratings: Dict[int, List[float]] = defaultdict(list)
 
-        for item_id, rating in zip(data.item_ids, data.ratings):
+        for item_id, rating in zip(data.item_ids, data.ratings, strict=False):
             item_ratings[item_id].append(rating)
 
         popular_scores = []

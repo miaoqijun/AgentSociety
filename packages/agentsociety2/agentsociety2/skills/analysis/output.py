@@ -269,7 +269,7 @@ class EDAGenerator:
 
             out_file = output_dir / "eda_missingno.html"
 
-            fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+            _fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
             try:
                 msno.matrix(combined_df, ax=axes[0, 0], fontsize=8)
@@ -393,7 +393,7 @@ class EDAGenerator:
 
                 corr_matrix = numeric_df.corr()
 
-                fig, ax = plt.subplots(figsize=(12, 10))
+                _fig, ax = plt.subplots(figsize=(12, 10))
                 sns.heatmap(
                     corr_matrix,
                     annot=True,

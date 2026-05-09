@@ -41,10 +41,36 @@ uv sync --extra dev
 ## Commit & PR conventions
 
 - Use clear, descriptive commit messages.
+- Use [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope): description`
+  - **Types**: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `chore`, `ci`
+  - **Scopes** (optional): `agent`, `env`, `literature`, `extension`, `frontend`, `backend`, etc.
+  - Examples: `feat(literature): add PDF download support`, `fix(agent): resolve memory leak on close`
 - In PR description, include:
   - **Summary** (1–3 bullets)
   - **Test plan** (commands or steps)
   - **Breaking changes** (if any)
+
+## Changelog
+
+The CHANGELOG is auto-generated from commit messages using [git-cliff](https://git-cliff.org/).
+
+```bash
+# Preview unreleased changes
+git-cliff --unreleased
+
+# Preview changelog for the latest tag
+git-cliff --latest
+
+# Generate and write to CHANGELOG.md
+git-cliff -o CHANGELOG.md
+
+# Generate for a specific upcoming version
+git-cliff --tag agentsociety2-v2.4.0 --unreleased
+```
+
+When a version tag (e.g. `agentsociety2-v2.4.0`) is pushed, the `release` workflow automatically:
+1. Generates the changelog from conventional commits
+2. Creates a GitHub Release with the changelog body
 
 ## Code style
 

@@ -217,7 +217,6 @@ PersonAgent follows a **metadata-first, selected-only** model:
 - **literature**: Academic literature search and management
 - **experiment**: Experiment configuration and execution
 - **hypothesis**: Hypothesis generation and management
-- **web_research**: Web research using Miro
 - **paper**: Academic paper generation (rewriting: will be replaced by the `agentsociety-paper-orchestrator` skill suite that produces a Nature-style PDF via LaTeX)
 - **analysis**: Data analysis and reporting
 - **agent**: Agent processing, selection, generation, and filtering
@@ -358,10 +357,9 @@ graph TD
         SK1[literature/]
         SK2[experiment/]
         SK3[hypothesis/]
-        SK4[web_research/]
-        SK5[paper/]
-        SK6[analysis/]
-        SK7[agent/]
+        SK4[paper/]
+        SK5[analysis/]
+        SK6[agent/]
     end
 
     subgraph "backend/"

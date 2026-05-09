@@ -199,12 +199,12 @@
   },
   "configPage": {
     "title": "AI Social Scientist Configuration",
-    "subtitle": "Configure your workspace step by step",
-    "description": "Complete the environment setup step by step. Each step can be saved independently.",
+    "subtitle": "Configuration is saved to the workspace .env; start the backend for the full extension experience",
+    "description": "After saving configuration, start the local backend to enable agent skill runtime management, module discovery, prefill parameters, replay APIs, and API documentation. If the backend is not running yet, config editing and CLI/Claude Code experiment runs can still continue.",
     "advancedConfig": "Advanced Configuration (optional)",
     "resetDefaults": "Reset to Defaults",
-    "saveAndStart": "Save and Start",
-    "starting": "Starting...",
+    "saveAndStart": "Save and Start Backend",
+    "starting": "Starting backend...",
     "validationSuccess": "Validation Successful",
     "validationFailed": "Validation Failed",
     "analysis": {
@@ -273,7 +273,7 @@
     },
     "backend": {
       "title": "Backend Service Configuration",
-      "hint": "Port will be auto-allocated, Python path auto-detects if empty",
+      "hint": "Recommended for the full extension experience; port is auto-allocated and Python path auto-detects if empty",
       "pythonPath": "Python Path (optional, auto-detect if empty)",
       "pythonPathPlaceholder": "python3 or /usr/bin/python3"
     },
@@ -319,12 +319,14 @@
     "finish": {
       "title": "Configuration Complete!",
       "description": "All configurations have been saved to the workspace's <code>.env</code> file.",
-      "hint": "Click the button below to start the backend service."
+      "hint": "Configuration is saved. Start the backend to enable agent skill management, module discovery, prefill parameters, replay APIs, and API docs."
     },
     "notifications": {
       "saveSuccess": "Save Successful",
       "saveSuccessDesc": "Configuration has been saved to .env file",
       "saveFailed": "Save Failed",
+      "backendStarted": "Backend service started",
+      "backendStartFailed": "Failed to start backend service",
       "llmKeyRequired": "LLM API Key Required",
       "llmKeyRequiredDesc": "Please enter LLM API key to continue",
       "apiKeyMissing": "Please enter LLM API Key",
@@ -386,7 +388,7 @@
     "title": "Skill Management",
     "subtitle": "Manage Agent skills used in simulation and Claude folder skills. Toggles apply immediately; turning off does not delete files on disk.",
     "agentTabIntroTitle": "Agent runtime skills",
-    "agentTabIntroBody": "Same capabilities the simulation uses. “Built-in” ships with the product; “Workspace” lists skills you imported or installed from the marketplace. The toggle controls whether a skill loads at runtime. Archive moves a skill out of regular use without deleting its files.",
+    "agentTabIntroBody": "Same capabilities the simulation uses. This tab needs the local backend to read the runtime registry, enable/disable, reload, scan, or import agent skills. “Built-in” ships with the product; “Workspace” lists skills you imported or installed from the marketplace. The toggle controls whether a skill loads at runtime. Archive moves a skill out of regular use without deleting its files.",
     "claudeTabIntroTitle": "Claude folder skills",
     "claudeTabIntroBody": "One combined list: bundled templates appear first—use Sync to workspace to copy them into the project. Other rows are folders already on your machine. Syncing does not remove skills you installed from the marketplace.",
     "claudeUnifiedListTitle": "Claude Directory Skills",
@@ -406,10 +408,11 @@
     "archiveAgentConfirmContent": "“{{name}}” will be archived and taken out of regular use. Files stay in your workspace; to use it again, move the folder back and run Scan workspace for agent skills.",
     "archiveAgentTooltip": "Archive (keep files)",
     "claudeMergedSection": "Claude skills",
-    "tagAgentBackend": "Backend built-in",
+    "agentBackendRequiredNotice": "Agent runtime skill management depends on the local backend. Without it, you can still browse/install Claude Code skills, edit configuration files, and inspect local experiment outputs; agent skill listing, toggles, reload, scan, and import require starting the backend first.",
+    "tagAgentBackend": "Runtime built-in",
     "tagAgentRegistered": "Workspace-registered",
-    "agentBackendSection": "Backend built-in (shipped with runtime)",
-    "agentRegisteredSection": "Workspace skills",
+    "agentBackendSection": "Runtime built-in (read through local backend)",
+    "agentRegisteredSection": "Workspace skills (registered through backend)",
     "claudeWorkspaceSection": "This project",
     "claudeWorkspaceExplain": "Applies only to the folder you have open; marketplace installs and imports usually land here.",
     "claudeGlobalSection": "Your user folder (all projects)",

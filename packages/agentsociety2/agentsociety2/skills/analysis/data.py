@@ -167,7 +167,7 @@ class DataReader:
                 cursor.execute(f"SELECT * FROM {_quote_identifier(table)} LIMIT {limit}")
                 cols = [desc[0] for desc in cursor.description]
                 rows = cursor.fetchall()
-                result[table] = [dict(zip(cols, row)) for row in rows]
+                result[table] = [dict(zip(cols, row, strict=False)) for row in rows]
             except sqlite3.Error:
                 continue
 
@@ -330,7 +330,7 @@ class DataReader:
             if description:
                 lines.append(f"- Description: {description}")
 
-            if table in sample_data and sample_data[table]:
+            if sample_data.get(table):
                 lines.append("Sample data (first rows):")
                 for i, row in enumerate(sample_data[table][:3], 1):
                     items = [f"  - {k}: {v}" for k, v in list(row.items())[:5]]

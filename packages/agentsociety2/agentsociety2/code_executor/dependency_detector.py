@@ -6,7 +6,7 @@
 
 import ast
 import sys
-from typing import List, Set, Dict
+from typing import ClassVar, Dict, List, Set
 
 from agentsociety2.logger import get_logger
 
@@ -24,7 +24,7 @@ class DependencyDetector:
     """
 
     # 标准库模块列表
-    STANDARD_LIBRARY = {
+    STANDARD_LIBRARY: ClassVar[set[str]] = {
         *sys.builtin_module_names,
         "os",
         "sys",
@@ -85,7 +85,7 @@ class DependencyDetector:
     }
 
     # 导入名到安装包名的映射
-    IMPORT_TO_PACKAGE: Dict[str, str] = {
+    IMPORT_TO_PACKAGE: ClassVar[Dict[str, str]] = {
         "PIL": "Pillow",
         "cv2": "opencv-python",
         "sklearn": "scikit-learn",

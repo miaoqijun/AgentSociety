@@ -171,14 +171,14 @@ def complete_dispatch(
 
 
 __all__ = [
-    "open_run",
-    "list_runs",
-    "latest_run",
-    "write_envelope",
-    "read_envelope",
     "append_dispatch",
-    "list_dispatches",
-    "next_dispatch_num",
-    "new_dispatch",
     "complete_dispatch",
+    "latest_run",
+    "list_dispatches",
+    "list_runs",
+    "new_dispatch",
+    "next_dispatch_num",
+    "open_run",
+    "read_envelope",
+    "write_envelope",
 ]

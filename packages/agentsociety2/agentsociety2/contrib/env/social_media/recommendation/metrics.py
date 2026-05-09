@@ -101,7 +101,7 @@ class MetricsCalculator:
         computed_users = 0
 
         total_num = 0
-        for k_idx, user_id in enumerate(unique_users):
+        for k_idx, _user_id in enumerate(unique_users):
             start_id = total_num
             end_id = total_num + counts[k_idx]
             user_indices = index[start_id:end_id]
@@ -211,7 +211,7 @@ class MetricsCalculator:
         computed_users = 0
 
         total_num = 0
-        for k, user_id in enumerate(unique_users):
+        for k, _user_id in enumerate(unique_users):
             start_id = total_num
             end_id = total_num + counts[k]
             user_indices = index[start_id:end_id]
@@ -246,6 +246,6 @@ class MetricsCalculator:
 
 
 __all__ = [
-    "RecommendationMetrics",
-    "MetricsCalculator"
+    "MetricsCalculator",
+    "RecommendationMetrics"
 ]

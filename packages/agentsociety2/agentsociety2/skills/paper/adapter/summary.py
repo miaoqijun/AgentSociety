@@ -152,17 +152,17 @@ _summarize_analysis_result_json = summarize_analysis_result_json
 
 __all__ = [
     "SUPPORTED_IMAGE_FORMATS",
-    "collect_figure_paths_under",
-    "read_text_safe",
-    "extract_heading",
-    "trim_text",
-    "format_title_from_filename",
-    "sanitize_bibtex_key",
-    "summarize_analysis_result_json",
     # legacy aliases
     "_extract_heading",
-    "_trim_text",
     "_format_title_from_filename",
     "_sanitize_bibtex_key",
     "_summarize_analysis_result_json",
+    "_trim_text",
+    "collect_figure_paths_under",
+    "extract_heading",
+    "format_title_from_filename",
+    "read_text_safe",
+    "sanitize_bibtex_key",
+    "summarize_analysis_result_json",
+    "trim_text",
 ]

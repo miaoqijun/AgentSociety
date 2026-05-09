@@ -38,7 +38,7 @@ class EndowmentEffectEnv(EnvBase):
     """Environment for Endowment Effect experiment based on V2 framework"""
 
     # Valid items for the experiment
-    VALID_ITEMS = ["pen", "plate", "glass", "doll"]
+    VALID_ITEMS: ClassVar[list[str]] = ["pen", "plate", "glass", "doll"]
     _agent_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("evaluations", "JSON", nullable=False),
         ColumnDef("completed_items", "INTEGER", nullable=False),

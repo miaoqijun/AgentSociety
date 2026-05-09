@@ -77,9 +77,9 @@ def exists(workspace_path: PathLike) -> bool:
 
 
 __all__ = [
-    "load",
-    "save",
-    "render_markdown",
-    "unsupported_claims",
     "exists",
+    "load",
+    "render_markdown",
+    "save",
+    "unsupported_claims",
 ]

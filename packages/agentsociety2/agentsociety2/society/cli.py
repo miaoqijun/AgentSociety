@@ -1,4 +1,3 @@
-# ruff: noqa: E402
 
 """命令行接口，用于快速启动AgentSociety2模拟实验"""
 

@@ -163,7 +163,7 @@ class LightGCNRecommender(RecommenderAlgorithm):
         train_items = []
         train_labels = []
         
-        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings):
+        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings, strict=False):
             if user_id in self.user_index_map and item_id in self.item_index_map:
                 train_users.append(self.user_index_map[user_id])
                 train_items.append(self.item_index_map[item_id])
@@ -225,7 +225,7 @@ class LightGCNRecommender(RecommenderAlgorithm):
         user_indices = []
         item_indices = []
         
-        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings):
+        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings, strict=False):
             if rating >= 3.0:  # 使用rating >= 3.0作为正反馈
                 if user_id in self.user_index_map and item_id in self.item_index_map:
                     user_indices.append(self.user_index_map[user_id])
@@ -402,7 +402,7 @@ class LightGCNRecommender(RecommenderAlgorithm):
         """计算热门物品（用于冷启动）"""
         item_ratings: Dict[int, List[float]] = {}
         
-        for item_id, rating in zip(data.item_ids, data.ratings):
+        for item_id, rating in zip(data.item_ids, data.ratings, strict=False):
             if item_id not in item_ratings:
                 item_ratings[item_id] = []
             item_ratings[item_id].append(rating)

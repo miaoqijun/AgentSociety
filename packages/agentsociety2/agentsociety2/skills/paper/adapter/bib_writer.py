@@ -135,9 +135,9 @@ _build_reference_strings = build_reference_strings
 
 
 __all__ = [
+    "_build_reference_strings",
     "build_reference_strings",
     "load_literature_entries",
     "write_bibtex_file",
     "write_bibtex_strings",
-    "_build_reference_strings",
 ]

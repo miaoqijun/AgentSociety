@@ -19,7 +19,7 @@ from .config import NCFConfig
 class NCFModel(nn.Module):
     """Neural Collaborative Filtering 模型"""
     
-    def __init__(self, n_users: int, n_items: int, embedding_dim: int = 32, mlp_layers: List[int] = None):
+    def __init__(self, n_users: int, n_items: int, embedding_dim: int = 32, mlp_layers: List[int] | None = None):
         """
         初始化NCF模型
         
@@ -167,7 +167,7 @@ class NCFRecommender(RecommenderAlgorithm):
         
         # 准备训练数据
         train_data = []
-        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings):
+        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings, strict=False):
             user_idx = self.user_index_map[user_id]
             item_idx = self.item_index_map[item_id]
             train_data.append((user_idx, item_idx, rating))
@@ -374,7 +374,7 @@ class NCFRecommender(RecommenderAlgorithm):
         """
         item_ratings: Dict[int, List[float]] = {}
         
-        for item_id, rating in zip(data.item_ids, data.ratings):
+        for item_id, rating in zip(data.item_ids, data.ratings, strict=False):
             if item_id not in item_ratings:
                 item_ratings[item_id] = []
             item_ratings[item_id].append(rating)

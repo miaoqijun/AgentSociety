@@ -17,20 +17,19 @@ from .service import RecommendationService, ServiceConfig
 from .trainer import IncrementalTrainer, TrainerConfig
 
 __all__ = [
+    "FeedCache",
+    "IncrementalTrainer",
     # 数据模型
     "Item",
-    "Rating",
-    "UserPreference",
-    "FeedCache",
-    "RecommendationHistory",
-    "RecommendationStorageManager",
-
-    "RecommenderAlgorithm",
-    "RatingMatrix",
-    "MFRecommender",
     "MFConfig",
+    "MFRecommender",
+    "Rating",
+    "RatingMatrix",
+    "RecommendationHistory",
     "RecommendationService",
+    "RecommendationStorageManager",
+    "RecommenderAlgorithm",
     "ServiceConfig",
-    "IncrementalTrainer",
     "TrainerConfig",
+    "UserPreference",
 ]

@@ -51,7 +51,7 @@ class RecommendationStorageManager:
             except json.JSONDecodeError:
                 return {}
             except Exception as e:
-                raise IOError(f"Failed to read {file_path}: {e}")
+                raise IOError(f"Failed to read {file_path}: {e}") from e
     
     async def _write_json(self, file_path: Path, data: Dict[str, Any]) -> None:
         """Write JSON file (atomic write)"""
@@ -62,7 +62,7 @@ class RecommendationStorageManager:
                     json.dump(data, f, ensure_ascii=False, indent=2)
                 temp_file.replace(file_path)
             except Exception as e:
-                raise IOError(f"Failed to write {file_path}: {e}")
+                raise IOError(f"Failed to write {file_path}: {e}") from e
     
     async def _read_json_list(self, file_path: Path) -> List[Dict[str, Any]]:
         """Read JSON file as a list"""
@@ -77,7 +77,7 @@ class RecommendationStorageManager:
             except json.JSONDecodeError:
                 return []
             except Exception as e:
-                raise IOError(f"Failed to read {file_path}: {e}")
+                raise IOError(f"Failed to read {file_path}: {e}") from e
     
     async def _write_json_list(self, file_path: Path, data: List[Dict[str, Any]]) -> None:
         """Write JSON file as a list (atomic write)"""
@@ -88,7 +88,7 @@ class RecommendationStorageManager:
                     json.dump(data, f, ensure_ascii=False, indent=2)
                 temp_file.replace(file_path)
             except Exception as e:
-                raise IOError(f"Failed to write {file_path}: {e}")
+                raise IOError(f"Failed to write {file_path}: {e}") from e
     
     # ===== Items =====
     

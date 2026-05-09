@@ -276,8 +276,8 @@ async def upload_skill(
     data = await file.read()
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
-    except zipfile.BadZipFile:
-        raise HTTPException(400, "Invalid zip file")
+    except zipfile.BadZipFile as e:
+        raise HTTPException(400, "Invalid zip file") from e
 
     # 找到顶层目录名
     top_dirs = {n.split("/")[0] for n in zf.namelist() if "/" in n}

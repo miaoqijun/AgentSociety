@@ -33,8 +33,8 @@ from .replay_metadata import ReplayDatasetSpec
 from .table_schema import ColumnDef, TableSchema
 
 __all__ = [
-    "ReplayWriter",
     "ColumnDef",
-    "TableSchema",
     "ReplayDatasetSpec",
+    "ReplayWriter",
+    "TableSchema",
 ]

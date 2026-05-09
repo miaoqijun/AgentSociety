@@ -36,10 +36,10 @@ import mem0.memory.main as _mem0_main
 
 __all__ = [
     "Config",
+    "extract_json",
     "get_llm_router",
     "get_llm_router_and_model",
     "get_model_name",
-    "extract_json",
 ]
 
 logger = get_logger()
@@ -359,40 +359,6 @@ class Config:
     Default: "" (empty, must be set for authenticated requests)
     """
 
-    WEB_SEARCH_API_URL: str = os.getenv("WEB_SEARCH_API_URL", "").strip()
-    """
-    Base URL for the Web Search / MiroFlow MCP HTTP endpoint.
-
-    Environment variable: WEB_SEARCH_API_URL
-    Example: "http://localhost:8003/api/v1/search"
-    """
-
-    WEB_SEARCH_API_TOKEN: str = os.getenv("WEB_SEARCH_API_TOKEN", "").strip()
-    """
-    Authentication token for the Web Search / MiroFlow MCP server.
-
-    Environment variable: WEB_SEARCH_API_TOKEN
-    The token is sent as a Bearer token in the Authorization header.
-    """
-
-    MIROFLOW_DEFAULT_LLM: str = os.getenv("MIROFLOW_DEFAULT_LLM", "qwen-3").strip()
-    """
-    Default LLM model name used by MiroFlow MCP tasks.
-
-    Environment variable: MIROFLOW_DEFAULT_LLM
-    Default: "qwen-3"
-    """
-
-    MIROFLOW_DEFAULT_AGENT: str = os.getenv(
-        "MIROFLOW_DEFAULT_AGENT", "mirothinker_v1.5_keep5_max200"
-    ).strip()
-    """
-    Default agent configuration name used by MiroFlow MCP tasks.
-
-    Environment variable: MIROFLOW_DEFAULT_AGENT
-    Default: "mirothinker_v1.5_keep5_max200"
-    """
-
     @classmethod
     def get_router(
         cls, model_type: Literal["default", "coder", "nano", "analysis"] = "default"
@@ -658,29 +624,6 @@ class Config:
         return (
             os.getenv("LITERATURE_SEARCH_API_KEY", "").strip()
             or cls.LITERATURE_SEARCH_API_KEY
-        )
-
-    @classmethod
-    def get_web_search_api_url(cls) -> str:
-        """Get web search MCP URL, preferring the latest environment value."""
-        return os.getenv("WEB_SEARCH_API_URL", "").strip() or cls.WEB_SEARCH_API_URL
-
-    @classmethod
-    def get_web_search_api_token(cls) -> str:
-        """Get web search MCP token, preferring the latest environment value."""
-        return os.getenv("WEB_SEARCH_API_TOKEN", "").strip() or cls.WEB_SEARCH_API_TOKEN
-
-    @classmethod
-    def get_miroflow_default_llm(cls) -> str:
-        """Get default MiroFlow LLM, preferring the latest environment value."""
-        return os.getenv("MIROFLOW_DEFAULT_LLM", "").strip() or cls.MIROFLOW_DEFAULT_LLM
-
-    @classmethod
-    def get_miroflow_default_agent(cls) -> str:
-        """Get default MiroFlow agent, preferring the latest environment value."""
-        return (
-            os.getenv("MIROFLOW_DEFAULT_AGENT", "").strip()
-            or cls.MIROFLOW_DEFAULT_AGENT
         )
 
     @classmethod

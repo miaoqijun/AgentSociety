@@ -53,7 +53,7 @@ class ImplicitAssociationTestEnv(EnvBase):
     # Standard IAT trial sequence
     # This is a simplified version - in practice, trials should be loaded from data files
     # or generated according to IAT protocol
-    STANDARD_TRIALS = [
+    STANDARD_TRIALS: ClassVar[list[dict]] = [
         # Block 1: Identity Practice (12 trials)
         {"block_code": "identity_practice", "stimuli": "我", "identity": "1", "valence": None, "left_label": "others", "right_label": "self", "correct_key": "m"},
         {"block_code": "identity_practice", "stimuli": "他们", "identity": "2", "valence": None, "left_label": "others", "right_label": "self", "correct_key": "z"},
@@ -604,4 +604,4 @@ The IAT consists of 5 blocks with a total of {self.total_trials} trials:
         self._step_counter = state.get("step_counter", 0)
 
 
-__all__ = ["ImplicitAssociationTestEnv", "TrialInfo", "SubmitTrialResponse"]
+__all__ = ["ImplicitAssociationTestEnv", "SubmitTrialResponse", "TrialInfo"]

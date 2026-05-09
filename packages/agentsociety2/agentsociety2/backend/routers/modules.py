@@ -118,8 +118,8 @@ async def get_agent_classes(
     except Exception as e:
         logger.error(f"Failed to get agent classes: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to get agent classes: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to get agent classes: {e!s}"
+        ) from None
 
 
 @router.get("/env_module_classes")
@@ -179,8 +179,8 @@ async def get_env_module_classes(
     except Exception as e:
         logger.error(f"Failed to get env module classes: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to get env module classes: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to get env module classes: {e!s}"
+        ) from None
 
 
 @router.get("/all")
@@ -255,5 +255,5 @@ async def get_all_modules(
     except Exception as e:
         logger.error(f"Failed to get all modules: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to get all modules: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to get all modules: {e!s}"
+        ) from None

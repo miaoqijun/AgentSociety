@@ -106,7 +106,7 @@ class FullyConnectedLayer(nn.Module):
 class LocalActivationUnit(nn.Module):
     """DIN 中的局部激活单元，建模 target item 与历史行为的细粒度交互"""
     
-    def __init__(self, hidden_unit: List[int] = None, embedding_dim: int = 4, batch_norm: bool = False):
+    def __init__(self, hidden_unit: List[int] | None = None, embedding_dim: int = 4, batch_norm: bool = False):
         super().__init__()
         if hidden_unit is None:
             hidden_unit = [80, 40]
@@ -175,7 +175,7 @@ class DINModel(nn.Module):
         n_users: int,
         n_items: int,
         embedding_dim: int = 192,
-        hidden_units: List[int] = None,
+        hidden_units: List[int] | None = None,
         drop: float = 0.2,
     ):
         super().__init__()
@@ -201,7 +201,7 @@ class DINModel(nn.Module):
         # 全连接层（Dice 激活）
         self.fc_layer = FullyConnectedLayer(
             input_size=self.emb_dim * 3,
-            hidden_unit=hidden_units + [1],
+            hidden_unit=[*hidden_units, 1],
             batch_norm=False,
             sigmoid=True,  # 输出概率值（0-1之间）
             activation="dice",
@@ -435,7 +435,7 @@ class DINRecommender(RecommenderAlgorithm):
         user_sequences = defaultdict(list)
         
         # 按用户分组，收集正反馈（rating >= 3.0）
-        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings):
+        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings, strict=False):
             if rating >= 3.0:  # 使用rating >= 3.0作为正反馈阈值
                 if user_id in self.user_index_map and item_id in self.item_index_map:
                     item_idx = self.item_index_map[item_id]
@@ -459,7 +459,7 @@ class DINRecommender(RecommenderAlgorithm):
         user_current_history = {uid: hist.copy() for uid, hist in self.user_history.items()}
         
         # 遍历所有交互，构建训练样本
-        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings):
+        for user_id, item_id, rating in zip(data.user_ids, data.item_ids, data.ratings, strict=False):
             if user_id not in self.user_index_map or item_id not in self.item_index_map:
                 continue
             
@@ -592,7 +592,7 @@ class DINRecommender(RecommenderAlgorithm):
         
         recommendations = [
             (self.index_item_map[i_idx], float(score))
-            for i_idx, score in zip(all_item_indices, scores)
+            for i_idx, score in zip(all_item_indices, scores, strict=False)
             if self.index_item_map[i_idx] not in exclude_ids
         ]
         
@@ -656,7 +656,7 @@ class DINRecommender(RecommenderAlgorithm):
         """计算热门物品（用于冷启动）"""
         item_ratings: Dict[int, List[float]] = {}
         
-        for item_id, rating in zip(data.item_ids, data.ratings):
+        for item_id, rating in zip(data.item_ids, data.ratings, strict=False):
             if item_id not in item_ratings:
                 item_ratings[item_id] = []
             item_ratings[item_id].append(rating)

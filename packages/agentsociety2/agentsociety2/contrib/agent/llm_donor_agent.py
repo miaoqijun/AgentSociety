@@ -208,7 +208,7 @@ This agent participates in a reputation-based donation game where it can choose 
 
         # 从环境查询 Z 值
         try:
-            ctx, ans, _ = await self.ask_env(
+            ctx, _ans, _ = await self.ask_env(
                 {}, "Query the population size (Z) of the environment.", readonly=True
             )
             Z = ctx.get("population_size") or ctx.get("Z")
@@ -451,7 +451,7 @@ Only return "cooperate" or "defect", do not return any other content.
             f"Use donor_id={self.id} and recipient_id={recipient_id} exactly."
         )
 
-        ctx2, ans, _ = await self.ask_env(ctx, message, readonly=False)
+        _ctx2, ans, _ = await self.ask_env(ctx, message, readonly=False)
 
         # 保存记忆
         if self._memory:
@@ -576,7 +576,7 @@ Please answer the question."""
             else:
                 return "I'm sorry, I couldn't generate a response."
         except Exception as e:
-            return f"I encountered an error while processing your question: {str(e)}"
+            return f"I encountered an error while processing your question: {e!s}"
 
     async def dump(self) -> dict:
         """序列化状态"""

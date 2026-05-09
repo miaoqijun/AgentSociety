@@ -87,10 +87,10 @@ def exists(workspace_path: PathLike) -> bool:
 
 
 __all__ = [
-    "load",
-    "save",
-    "render_markdown",
-    "panels_missing_for",
     "by_section",
     "exists",
+    "load",
+    "panels_missing_for",
+    "render_markdown",
+    "save",
 ]

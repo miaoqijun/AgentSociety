@@ -42,22 +42,22 @@ from agentsociety2.registry.models import (
 )
 
 __all__ = [
-    # Registry
-    "ModuleRegistry",
-    "get_registry",
-    "get_registered_env_modules",
-    "get_registered_agent_modules",
-    "get_env_module_class",
-    "get_agent_module_class",
-    "list_all_modules",
-    "reload_modules",
-    "register_scanned_custom_modules",
-    "scan_and_register_custom_modules",
-    "discover_and_register_builtin_modules",
+    "AgentInitConfig",
+    "AskRequest",
+    "CreateInstanceRequest",
     # Models
     "EnvModuleInitConfig",
-    "AgentInitConfig",
-    "CreateInstanceRequest",
-    "AskRequest",
     "InterventionRequest",
+    # Registry
+    "ModuleRegistry",
+    "discover_and_register_builtin_modules",
+    "get_agent_module_class",
+    "get_env_module_class",
+    "get_registered_agent_modules",
+    "get_registered_env_modules",
+    "get_registry",
+    "list_all_modules",
+    "register_scanned_custom_modules",
+    "reload_modules",
+    "scan_and_register_custom_modules",
 ]

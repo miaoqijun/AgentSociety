@@ -26,7 +26,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any, Callable, Coroutine, Optional, TypeVar
+from typing import Any, Callable, ClassVar, Coroutine, Optional, TypeVar
 
 from .config import AgentConfig
 
@@ -166,7 +166,7 @@ class ParallelExecutor:
         results = await executor.execute(tools, my_executor)
     """
 
-    PARALLEL_SAFE = {"workspace_read", "glob", "grep", "workspace_list", "read_skill"}
+    PARALLEL_SAFE: ClassVar[set[str]] = {"workspace_read", "glob", "grep", "workspace_list", "read_skill"}
 
     def __init__(self, config: AgentConfig):
         self.config = config
@@ -203,7 +203,7 @@ class ParallelExecutor:
         if parallel:
             tasks = [self._exec(executor, t, a) for _, t, a in parallel]
             outcomes = await asyncio.gather(*tasks, return_exceptions=True)
-            for (idx, _, _), result in zip(parallel, outcomes):
+            for (idx, _, _), result in zip(parallel, outcomes, strict=False):
                 results[idx] = (
                     {"ok": False, "error": str(result)}
                     if isinstance(result, Exception)

@@ -319,9 +319,9 @@ def format_module_suggestion_message(suggestions: Dict[str, Any]) -> str:
 
 
 __all__ = [
-    "suggest_modules_for_topic",
-    "generate_hypothesis_config",
-    "validate_experiment_ready",
-    "get_experiment_template",
     "format_module_suggestion_message",
+    "generate_hypothesis_config",
+    "get_experiment_template",
+    "suggest_modules_for_topic",
+    "validate_experiment_ready",
 ]

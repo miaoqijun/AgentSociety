@@ -268,7 +268,7 @@ Your task is to use the available social functions to manage individual mailboxe
             group = Group(
                 group_id=group_id,
                 name=name,
-                members=[creator_id] + init_members,
+                members=[creator_id, *init_members],
             )
 
             self._groups[group_id] = group

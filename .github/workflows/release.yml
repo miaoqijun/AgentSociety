@@ -1,0 +1,36 @@
+name: Generate Changelog & Release
+
+on:
+  push:
+    tags:
+      - "agentsociety2-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Generate changelog and create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGELOG.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.git-cliff.outputs.content }}
+          draft: false
+          prerelease: false

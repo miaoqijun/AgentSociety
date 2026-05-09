@@ -164,6 +164,9 @@ include = [
 known_first_party = ["agentsociety2"]
 optional_dependencies_dev_groups = ["dev", "docs"]
 
+[tool.ruff.lint]
+ignore = ["E402"]
+
 [tool.deptry.per_rule_ignores]
 DEP002 = ["aiosqlite", "chromadb", "networkx", "statsmodels", "agentsociety2"]
 DEP003 = ["debugpy"]
@@ -181,6 +184,3 @@ asyncio_default_fixture_loop_scope = "function"
 
 [tool.mypy]
 python_version = "3.11"
-
-# 注意：Mirothinker Agent 是可选功能，不在默认依赖中
-# 如需使用，请参考 MiroThinker/README.md 进行配置

@@ -1,6 +1,6 @@
 ## Start the Backend Service
 
-The backend is the local engine of AI Social Scientist. It runs agent simulations, manages skills, calls LLMs, produces replay data, and serves APIs.
+The backend is the local API service for AI Social Scientist. You should normally start it so agent skill management, module discovery, prefill parameters, custom module tests, replay APIs, and API documentation are ready to use.
 
 ---
 
@@ -8,9 +8,9 @@ The backend is the local engine of AI Social Scientist. It runs agent simulation
 
 This plugin uses a **client-server architecture**:
 - **Frontend** = The VS Code plugin UI (what you see now)
-- **Backend** = A Python service (based on FastAPI) running locally that handles AI calls and simulations
+- **Backend** = A local Python service (based on FastAPI) that serves extension APIs
 
-You need to start the backend before most plugin features will work.
+Most interactive management features use the backend, especially agent runtime skill management, module discovery, prefill parameters, custom module scan/test, the replay webview, and API docs. If the backend is not running yet, you can still edit experiment configs, browse the project tree, open PDFs/CSVs/images, view the literature index, or run experiments through the CLI / Claude Code.
 
 The backend reads the current workspace `.env` on startup. If you just changed API settings, restart the backend so the new configuration takes effect.
 
@@ -22,7 +22,7 @@ The backend reads the current workspace `.env` on startup. If you just changed A
 |--------|--------|-------------|
 | ⭐ Status Bar | Click the AI Social Scientist status in the bottom bar → **Start** | ✅ Easiest |
 | Command Palette | `Ctrl+Shift+P` → search `Start Backend` | |
-| Auto Start | Enable `aiSocialScientist.backend.autoStart` in settings | Great for daily use |
+| Auto Start | Enable `aiSocialScientist.backend.autoStart` in settings | Good for daily use |
 
 ### Status Bar Guide
 
@@ -32,15 +32,15 @@ After starting, the VS Code **bottom status bar** shows the backend status:
 
 | Number | Meaning |
 |--------|---------|
-| 1 | Status cards at the top of the page: confirm whether the backend service, LLM configuration, and Python environment are ready. |
+| 1 | Status cards at the top of the page: show backend, LLM, and Python status. |
 | 2 | VS Code bottom status bar: shows whether the backend is running and which port it uses; click it to open backend management. |
 
 | Status | Meaning | What to Do |
 |--------|---------|------------|
-| 🟢 **Running** | Backend is running normally | Nothing — you're good to go |
+| 🟢 **Running** | Backend is running normally | You can use the full extension experience |
 | 🟡 **Starting** | Currently starting | Wait a few seconds |
 | 🔴 **Error** | Failed to start | Click to check logs, verify API config |
-| ⚪ **Stopped** | Backend is not running | Click to start |
+| ⚪ **Stopped** | Backend is not running | Starting is recommended; local file editing and CLI/Claude Code experiment runs can still continue |
 
 Click the backend status in the status bar to open the **backend management menu**:
 
@@ -66,8 +66,8 @@ Click the backend status in the status bar to open the **backend management menu
 | Next step | Entry point |
 |-----------|-------------|
 | Check whether APIs are available | Status bar → Open API Docs |
-| Install research skills | Sidebar → Skill Marketplace |
-| Run an experiment | Experiment config files or AI Chat |
+| Manage agent runtime skills | Sidebar → Skill Marketplace → Agent skills |
+| Scan/test custom modules | Project tree → Custom modules |
 | Inspect results | Right-click an experiment folder and open replay |
 
 [Start Backend](command:aiSocialScientist.startBackend) | [Show Logs](command:aiSocialScientist.showBackendLogs) | [Show Backend Status](command:aiSocialScientist.showBackendStatus)

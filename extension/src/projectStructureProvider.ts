@@ -88,6 +88,7 @@ function shouldShowFileByExt(fileName: string): boolean {
   // 只展示常见可读/可视化的产物，避免把大二进制/缓存塞满树
   return [
     '.json',
+    '.pdf',
     '.yaml',
     '.yml',
     '.md',
@@ -100,6 +101,7 @@ function shouldShowFileByExt(fileName: string): boolean {
     '.jpg',
     '.jpeg',
     '.gif',
+    '.webp',
     '.svg',
     '.log',
     '.db',
@@ -1500,13 +1502,16 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
         // 子目录
         for (const dir of directories) {
+          const displayName = dir.name === 'full_texts'
+            ? localize('projectStructure.fullTextPdfs')
+            : dir.name;
           const dirItem = new ProjectItem(
-            dir.count > 0 ? `${dir.name} (${dir.count})` : dir.name,
+            dir.count > 0 ? `${displayName} (${dir.count})` : displayName,
             vscode.TreeItemCollapsibleState.Collapsed,
             'paper',
             dir.path
           );
-          dirItem.tooltip = `${dir.name} - ${dir.count} ${localize('projectStructure.files')}`;
+          dirItem.tooltip = `${displayName} - ${dir.count} ${localize('projectStructure.files')}`;
           items.push(dirItem);
         }
       }

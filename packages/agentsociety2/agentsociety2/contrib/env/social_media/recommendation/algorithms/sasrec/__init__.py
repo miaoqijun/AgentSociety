@@ -7,8 +7,8 @@ from .sasrec_model import SASRec, PointWiseFeedForward
 from .sasrec_algorithm import SASRecRecommender
 
 __all__ = [
-    "SASRecConfig",
-    "SASRec",
     "PointWiseFeedForward",
+    "SASRec",
+    "SASRecConfig",
     "SASRecRecommender"
 ]

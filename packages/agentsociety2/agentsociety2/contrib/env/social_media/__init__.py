@@ -7,9 +7,9 @@ from .recommend import RecommendationEngine
 from .social_media_space import SocialMediaSpace
 
 __all__ = [
-    "SocialMediaPerson",
-    "Post",
     "Comment",
+    "Post",
     "RecommendationEngine",
+    "SocialMediaPerson",
     "SocialMediaSpace",
 ]
