@@ -6,11 +6,6 @@ stages:
 
 variables:
   PYTHON_VERSION: "3.12"
-  # 华为云 SWR 相关变量
-  HW_REGISTRY: swr.cn-north-4.myhuaweicloud.com
-  HW_NAMESPACE: tsinghua-fib-lab
-  HW_IMAGE_NAME: agentsociety
-  HW_REGISTRY_IMAGE: ${HW_REGISTRY}/${HW_NAMESPACE}/${HW_IMAGE_NAME}
   # 遥测禁用
   MEM0_TELEMETRY: "False"
   ANONYMIZED_TELEMETRY: "False"
@@ -76,14 +71,9 @@ build-docker-image:
       else
         echo "Main branch - build and push"
         docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
-        docker login -u cn-north-4@${HW_AK} -p ${HW_PASSWORD} ${HW_REGISTRY}
-        docker build -t ${CI_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${CI_REGISTRY_IMAGE}:v2 -t ${HW_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${HW_REGISTRY_IMAGE}:v2 .
-        # 推送到GitLab容器注册表
+        docker build -t ${CI_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME} -t ${CI_REGISTRY_IMAGE}:v2 .
         docker push ${CI_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME}
         docker push ${CI_REGISTRY_IMAGE}:v2
-        # 推送到华为云SWR
-        docker push ${HW_REGISTRY_IMAGE}:v2-${CI_COMMIT_SHORT_SHA}-${TIME}
-        docker push ${HW_REGISTRY_IMAGE}:v2
       fi
 
 generate-changelog:
