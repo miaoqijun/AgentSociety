@@ -173,7 +173,7 @@ You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to
             
             # Validate percentile
             if not isinstance(percentile, int):
-                percentile = int(round(percentile))
+                percentile = percentile
             percentile = max(0, min(100, percentile))  # Clamp to 0-100
             
             # Check if already submitted
@@ -313,4 +313,4 @@ You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to
         self._step_counter = state.get("step_counter", 0)
 
 
-__all__ = ["SelfEnhancementEnv", "VALID_DIMENSIONS"]
+__all__ = ["VALID_DIMENSIONS", "SelfEnhancementEnv"]

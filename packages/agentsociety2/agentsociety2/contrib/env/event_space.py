@@ -66,12 +66,12 @@ DEFAULT_EVENT_TYPES_CONFIG = """
 """
 
 __all__ = [
-    "EventSpace",
-    "CurrentEvent",
-    "StartEventResponse",
-    "GetEventResponse",
-    "EndEventResponse",
     "VALID_EVENT_TYPES",
+    "CurrentEvent",
+    "EndEventResponse",
+    "EventSpace",
+    "GetEventResponse",
+    "StartEventResponse",
 ]
 
 

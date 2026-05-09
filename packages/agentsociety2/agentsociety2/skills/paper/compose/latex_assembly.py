@@ -219,11 +219,11 @@ def assemble_compose_tree(
 
 
 __all__ = [
-    "NATURE_SUPPORT_FILES",
     "MAIN_TEMPLATE_NAME",
-    "render_authors_block",
-    "render_affils_block",
-    "render_main_tex",
-    "copy_support_files",
+    "NATURE_SUPPORT_FILES",
     "assemble_compose_tree",
+    "copy_support_files",
+    "render_affils_block",
+    "render_authors_block",
+    "render_main_tex",
 ]

@@ -38,8 +38,8 @@ def _load_prefill_params_file(workspace_path: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to load prefill params file: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to load prefill params file: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to load prefill params file: {e!s}"
+        ) from None
 
 
 @router.get("")
@@ -76,8 +76,8 @@ async def get_prefill_params(
     except Exception as e:
         logger.error(f"Failed to get prefill params: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to get prefill params: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to get prefill params: {e!s}"
+        ) from None
 
 
 @router.get("/{class_kind}/{class_name}")
@@ -133,5 +133,5 @@ async def get_class_prefill_params(
     except Exception as e:
         logger.error(f"Failed to get class prefill params: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to get class prefill params: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to get class prefill params: {e!s}"
+        ) from None

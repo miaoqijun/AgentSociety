@@ -23,7 +23,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Tuple
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional, Protocol, Tuple
 
 if TYPE_CHECKING:
     from agentsociety2.storage import ReplayWriter
@@ -39,7 +39,7 @@ from agentsociety2.env.router_base import RouterBase
 from agentsociety2.logger import get_logger
 from litellm import AllMessageValues, aembedding
 
-__all__ = ["CodeGenRouter", "AskContext"]
+__all__ = ["AskContext", "CodeGenRouter"]
 
 
 @dataclass
@@ -215,7 +215,7 @@ async def clean_coroutines_from_results(results: dict) -> dict:
             try:
                 return await value
             except Exception as e:
-                get_logger().warning(f"Failed to await coroutine: {str(e)}")
+                get_logger().warning(f"Failed to await coroutine: {e!s}")
                 return f"<unawaited_coroutine: {type(value).__name__}>"
         elif isinstance(value, dict):
             obj_id = id(value)
@@ -491,7 +491,7 @@ class InstructionLogObserver:
                     pickle.dump(self._router._instruction_log, f)
             except Exception as e:
                 get_logger().warning(
-                    f"Failed to pickle instruction log: {str(e)}, skipping file write"
+                    f"Failed to pickle instruction log: {e!s}, skipping file write"
                 )
 
 
@@ -681,7 +681,7 @@ class CacheCodeProvider:
                 faiss.normalize_L2(query)
                 k = min(32, router._cache_faiss_index.ntotal)
                 scores, indices = router._cache_faiss_index.search(query, k)
-                for score, idx in zip(scores[0], indices[0]):
+                for score, idx in zip(scores[0], indices[0], strict=False):
                     if idx < 0:
                         break
                     entry_idx = router._cache_faiss_entry_indices[idx]
@@ -768,13 +768,13 @@ You are a code generation assistant. Your task is to generate Python code that c
 {tools_pyi}
 ```
 ```python
-modules = {repr(router._modules)}
+modules = {router._modules!r}
 ```
 
 ## Agent Input
 <instruction>{instruction}</instruction>
 ```python
-ctx = {repr(ctx)}
+ctx = {ctx!r}
 ```
 {template_note}
 
@@ -966,9 +966,9 @@ class CodeStage:
                 )
             return True, ""
         except SyntaxError as e:
-            return False, f"Code syntax error: {str(e)}"
+            return False, f"Code syntax error: {e!s}"
         except Exception as e:
-            return False, f"Code validation error: {str(e)}"
+            return False, f"Code validation error: {e!s}"
 
     @staticmethod
     async def _execute_code(
@@ -1066,7 +1066,7 @@ class CodeStage:
                 "success": True,
             }
         except asyncio.TimeoutError:
-            raise TimeoutError("Code execution timeout: exceeded 10 seconds limit")
+            raise TimeoutError("Code execution timeout: exceeded 10 seconds limit") from None
         except Exception as e:
             return {
                 "results": results,
@@ -1288,7 +1288,7 @@ class CodeGenRouter(RouterBase):
     """
 
     # 允许的内置函数
-    ALLOWED_BUILTINS = {
+    ALLOWED_BUILTINS: ClassVar[set[str]] = {
         "print",
         "len",
         "str",
@@ -1319,7 +1319,7 @@ class CodeGenRouter(RouterBase):
     }
 
     # 禁止的AST节点类型（黑名单）
-    FORBIDDEN_AST_NODES = {
+    FORBIDDEN_AST_NODES: ClassVar[set[type]] = {
         ast.ClassDef,  # 禁止定义类
         ast.Delete,  # 禁止del语句
         ast.Global,
@@ -1330,7 +1330,7 @@ class CodeGenRouter(RouterBase):
     }
 
     # 允许导入的模块白名单
-    ALLOWED_MODULES = {
+    ALLOWED_MODULES: ClassVar[set[str]] = {
         "collections",
         "itertools",
         "functools",
@@ -1350,7 +1350,7 @@ class CodeGenRouter(RouterBase):
     }
 
     # 危险模块列表
-    DANGEROUS_MODULES = {
+    DANGEROUS_MODULES: ClassVar[set[str]] = {
         "os",
         "sys",
         "subprocess",
@@ -1793,7 +1793,7 @@ class CodeGenRouter(RouterBase):
                     f"Loaded {len(instruction_log)} instruction log entries"
                 )
         except Exception as e:
-            get_logger().warning(f"Failed to load instruction log: {str(e)}")
+            get_logger().warning(f"Failed to load instruction log: {e!s}")
 
     async def _generate_initialization_code_with_retry(
         self,
@@ -1891,12 +1891,12 @@ class CodeGenRouter(RouterBase):
                     )
                     continue
             except Exception as e:
-                previous_errors.append(f"Execution exception: {str(e)}")
+                previous_errors.append(f"Execution exception: {e!s}")
                 previous_code = code
                 if retry_count >= self.max_llm_call_retry:
                     raise ValueError(
-                        f"Generated {kind} code failed execution after retries: {str(e)}"
-                    )
+                        f"Generated {kind} code failed execution after retries: {e!s}"
+                    ) from e
                 retry_count += 1
                 dialog_history.append(
                     {

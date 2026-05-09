@@ -144,6 +144,6 @@ def load_meta(workspace_path: Path | str) -> PaperMeta:
 
 __all__ = [
     "build_meta_from_dict",
-    "write_meta_from_json",
     "load_meta",
+    "write_meta_from_json",
 ]

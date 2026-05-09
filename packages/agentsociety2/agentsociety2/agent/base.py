@@ -142,7 +142,7 @@ class AgentBase(ABC):
         elif isinstance(profile, dict) and profile.get("name") is not None:
             self._name = str(profile["name"])
         elif hasattr(profile, "name"):
-            self._name = str(getattr(profile, "name"))
+            self._name = str(profile.name)
         else:
             self._name = f"Agent_{id}"
         self._router, self._model_name = get_llm_router_and_model("nano")
@@ -253,9 +253,9 @@ class AgentBase(ABC):
         if not enabled:
             return
 
-        assert self._router is not None and self._model_name is not None, (
-            "LLM is not initialized"
-        )
+        assert (
+            self._router is not None and self._model_name is not None
+        ), "LLM is not initialized"
 
         history_record = LLMInteractionHistory(
             agent_id=self._id,
@@ -464,9 +464,9 @@ class AgentBase(ABC):
         :param stream: 是否启用流式响应。默认 ``False``。
         :returns: ``ModelResponse`` 或 ``CustomStreamWrapper``，取决于 ``stream`` 参数。
         """
-        assert self._router is not None and self._model_name is not None, (
-            "LLM is not initialized"
-        )
+        assert (
+            self._router is not None and self._model_name is not None
+        ), "LLM is not initialized"
         response = await self._router.acompletion(
             model=self._model_name,
             messages=messages,
@@ -494,13 +494,14 @@ class AgentBase(ABC):
         :param t: 当前仿真时间。
         :returns: LLM 响应对象。
         """
-        assert self._router is not None and self._model_name is not None, (
-            "LLM is not initialized"
-        )
+        assert (
+            self._router is not None and self._model_name is not None
+        ), "LLM is not initialized"
         system_prompt = self.get_system_prompt(tick, t)
         request_messages: list[AllMessageValues] = [
-            {"role": "system", "content": system_prompt}
-        ] + messages.copy()  # type: ignore
+            {"role": "system", "content": system_prompt},
+            *messages.copy(),  # type: ignore
+        ]
         response = await self._router.acompletion(
             model=self._model_name,
             messages=request_messages,
@@ -723,9 +724,9 @@ Remember: You are simulating a real person living in a simulated world. Your beh
            二进制指数退避仅在检测到 429（速率限制）错误时应用。
            对于验证错误和其他非速率限制错误，函数立即重试以向 LLM 提供更快的反馈。
         """
-        assert self._router is not None and self._model_name is not None, (
-            "LLM is not initialized"
-        )
+        assert (
+            self._router is not None and self._model_name is not None
+        ), "LLM is not initialized"
 
         # Get JSON schema for the model
         model_schema = model_type.model_json_schema()
@@ -756,8 +757,9 @@ Your corrected response:
                 # Add system prompt
                 system_prompt = self.get_system_prompt(tick, t)
                 request_messages = [
-                    {"role": "system", "content": system_prompt}
-                ] + conversation_messages.copy()
+                    {"role": "system", "content": system_prompt},
+                    *conversation_messages.copy(),
+                ]
 
                 # Send request to LLM
                 _kwargs: dict[str, Any] = {
@@ -808,7 +810,7 @@ Your corrected response:
                     if attempt >= max_retries:
                         raise ValueError(
                             f"Failed to validate response after {max_retries + 1} attempts. Last error: {error_message}"
-                        )
+                        ) from None
 
                     # Prepare error feedback message
                     error_feedback = error_prompt_template.format(
@@ -832,14 +834,14 @@ Your corrected response:
                     # If this is the last attempt, raise the error
                     if attempt >= max_retries:
                         raise ValueError(
-                            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(e)}"
-                        )
+                            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
+                        ) from e
 
                     # For rate-limit-like errors, use exponential backoff
                     delay = min(base_delay * (2**attempt), max_delay)
                     self._logger.warning(
                         f"Rate limit-like error detected (attempt {attempt + 1}/{max_retries + 1}). "
-                        f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {str(e)}"
+                        f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {e!s}"
                     )
                     await asyncio.sleep(delay)
                     # delete the last assistant message
@@ -856,8 +858,8 @@ Your corrected response:
                 # If this is the last attempt, raise the error
                 if attempt >= max_retries:
                     raise ValueError(
-                        f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(e)}"
-                    )
+                        f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
+                    ) from e
 
                 # For other errors (ValueError, etc.), prepare error feedback and retry immediately
                 error_message = str(e)
@@ -880,5 +882,5 @@ Your corrected response:
 
         # This should never be reached, but just in case
         raise ValueError(
-            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {str(last_error)}"
+            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {last_error!s}"
         )

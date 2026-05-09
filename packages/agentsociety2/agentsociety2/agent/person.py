@@ -1580,7 +1580,7 @@ class PersonAgent(AgentBase):
                     self._invalidate_workspace_cache(p)
                     self._bump_workspace_state_version()
                 except Exception as e:
-                    write_errors.append(f"{p}: {str(e)}")
+                    write_errors.append(f"{p}: {e!s}")
 
             results.append(
                 {

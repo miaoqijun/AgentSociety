@@ -16,7 +16,7 @@ class AdvancedAgent(AgentBase):
     展示如何添加记忆、情绪等高级功能。
     """
 
-    def __init__(self, id: int, profile: Any, name: str = None):
+    def __init__(self, id: int, profile: Any, name: str | None = None):
         super().__init__(id, profile, name)
         # 添加自定义属性
         self._memories: List[str] = []  # 记忆列表
@@ -80,7 +80,7 @@ class AdvancedAgent(AgentBase):
 
             return answer
         except Exception as e:
-            return f"抱歉，我无法回答这个问题：{str(e)}"
+            return f"抱歉，我无法回答这个问题：{e!s}"
 
     async def step(self, tick: int, t: datetime) -> str:
         """执行仿真步骤，更新情绪"""

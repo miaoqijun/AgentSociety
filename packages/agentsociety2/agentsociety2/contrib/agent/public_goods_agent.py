@@ -112,7 +112,7 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
                     return choice.message.content or ""  # type: ignore
             return "[错误] LLM返回空响应"
         except Exception as e:
-            error_message = f"LLM调用失败: {type(e).__name__} - {str(e)}"
+            error_message = f"LLM调用失败: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
             return f"[错误] {error_message}"
 
@@ -167,7 +167,7 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
             return f"[{self.name}] Round {current_round}: Submitted contribution {contribution}"
             
         except Exception as e:
-            error_message = f"Step execution failed: {type(e).__name__} - {str(e)}"
+            error_message = f"Step execution failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
             return f"[{self.name}] [ERROR] {error_message}"
 
@@ -258,7 +258,7 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
                     )
 
         except Exception as e:
-            error_message = f"Parsing/call failed: {type(e).__name__} - {str(e)}"
+            error_message = f"Parsing/call failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] [ERROR] {error_message}")
 
             contribution = 0

@@ -154,12 +154,12 @@ class ExperimentConfigTool:
         )
 
 
-def _result(success: bool, content: str, error: str = None) -> Any:
+def _result(success: bool, content: str, error: str | None = None) -> Any:
     """Create a result object compatible with ToolResult"""
 
     # Use a simple class since we can't import the original ToolResult
     class SimpleResult:
-        def __init__(self, success: bool, content: str, error: str = None):
+        def __init__(self, success: bool, content: str, error: str | None = None):
             self.success = success
             self.content = content
             self.error = error

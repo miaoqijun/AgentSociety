@@ -67,11 +67,11 @@ def envelope_to_json(envelope: Envelope, *, indent: Optional[int] = None) -> str
 
 
 __all__ = [
-    "SkillEnvelope",
     "Envelope",
     "EnvelopeStatus",
     "Severity",
+    "SkillEnvelope",
     "build_envelope",
-    "parse_envelope",
     "envelope_to_json",
+    "parse_envelope",
 ]

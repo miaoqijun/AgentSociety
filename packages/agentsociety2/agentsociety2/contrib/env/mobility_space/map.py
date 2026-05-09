@@ -229,7 +229,7 @@ class Map:
             )
             lane["shapely_xy"] = LineString(nodes)
             lngs, lats = projector(nodes[:, 0], nodes[:, 1], inverse=True)
-            lane["shapely_lnglat"] = LineString(list(zip(lngs, lats)))
+            lane["shapely_lnglat"] = LineString(list(zip(lngs, lats, strict=False)))
         logging.debug("Finish process lane geos")
         # 处理road的Geos和其他属性
         logging.debug("Start process road geos")
@@ -258,7 +258,7 @@ class Map:
                 )
             xys = np.array([[one["x"], one["y"]] for one in aoi["positions"]])
             lngs, lats = projector(xys[:, 0], xys[:, 1], inverse=True)
-            lnglat_positions = list(zip(lngs, lats))
+            lnglat_positions = list(zip(lngs, lats, strict=False))
             if "area" not in aoi:
                 aoi["shapely_lnglat"] = Point(lnglat_positions[0])
             else:
@@ -357,7 +357,7 @@ class Map:
         elif position.HasField("lane_position"):
             return position.lane_position.s
         else:
-            assert False, f"position {position} has no valid field"
+            raise AssertionError(f"position {position} has no valid field")
 
     def _get_driving_geo(self, road_id: int):
         """
@@ -434,7 +434,7 @@ class Map:
             point = lane["shapely_xy"].interpolate(s)
             return point.x, point.y
         else:
-            assert False, f"position {position} has no valid field"
+            raise AssertionError(f"position {position} has no valid field")
 
     def get_header(self):
         """
@@ -670,7 +670,9 @@ class Map:
         feature = Feature(id=id, geometry=geometry, properties=properties)
         return dict(feature)
 
-    def export_road_as_geojson(self, id: int, properties: Dict[str, Any] = {}) -> dict:
+    def export_road_as_geojson(
+        self, id: int, properties: Dict[str, Any] | None = None
+    ) -> dict:
         """
         导出road为geojson
         Export road as geojson
@@ -682,6 +684,8 @@ class Map:
         Returns:
         - dict: geojson格式的dict。dict in geojson format.
         """
+        if properties is None:
+            properties = {}
         road = self.get_road(id)
         assert road is not None, f"road {id} not found"
         geometry = road["shapely_lnglat"]
@@ -744,12 +748,12 @@ class Map:
             aoi_center = self.aois[route_req.start.aoi_position.aoi_id][
                 "shapely_xy"
             ].centroid.coords[0]
-            coordinates = [aoi_center] + coordinates
+            coordinates = [aoi_center, *coordinates]
         if route_req.end.HasField("aoi_position"):
             aoi_center = self.aois[route_req.end.aoi_position.aoi_id][
                 "shapely_xy"
             ].centroid.coords[0]
-            coordinates = coordinates + [aoi_center]
+            coordinates = [*coordinates, aoi_center]
         coordinates = np.array(coordinates)
         return coordinates
 
@@ -757,7 +761,7 @@ class Map:
         self,
         route_req: Union[routing_service.GetRouteRequest, dict],
         route_res: Union[routing_service.GetRouteResponse, dict],
-        properties: dict = {},
+        properties: dict | None = None,
     ) -> dict:
         """
         导出route为geojson
@@ -771,6 +775,8 @@ class Map:
         Returns:
         - dict: geojson格式的dict。dict in geojson format.
         """
+        if properties is None:
+            properties = {}
         if not isinstance(route_req, routing_service.GetRouteRequest):
             route_req = ParseDict(route_req, routing_service.GetRouteRequest())
         if not isinstance(route_res, routing_service.GetRouteResponse):
@@ -779,7 +785,7 @@ class Map:
         coordinates = self._route_to_xys(route_req, route_res)
         # xy -> lnglat
         lngs, lats = self.projector(coordinates[:, 0], coordinates[:, 1], inverse=True)
-        geo = LineString(list(zip(lngs, lats)))
+        geo = LineString(list(zip(lngs, lats, strict=False)))
         feature = Feature(geometry=geo, properties=properties)
         return dict(feature)
 

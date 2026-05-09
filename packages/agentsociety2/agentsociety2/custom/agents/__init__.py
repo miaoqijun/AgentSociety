@@ -20,4 +20,4 @@ def get_custom_agents() -> List[Tuple[str, Type[AgentBase]]]:
     """获取所有自定义 Agent"""
     return _CUSTOM_AGENTS.copy()
 
-__all__ = ["register_agent", "get_custom_agents"]
+__all__ = ["get_custom_agents", "register_agent"]

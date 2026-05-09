@@ -18,7 +18,7 @@ def clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
 
 
 def clamp10(value: float) -> int:
-    return int(round(max(0.0, min(10.0, value))))
+    return round(max(0.0, min(10.0, value)))
 
 
 def parse_args() -> argparse.Namespace:

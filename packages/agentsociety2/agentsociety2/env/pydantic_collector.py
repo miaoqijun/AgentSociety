@@ -75,7 +75,7 @@ class PydanticModelCollector:
 
             # Recursively check all field types for nested BaseModels
             if hasattr(model_class, "model_fields"):
-                for field_name, field_info in model_class.model_fields.items():
+                for field_info in model_class.model_fields.values():
                     # Extract annotation from field_info
                     field_annotation = field_info.annotation
                     self.collect_from_annotation(field_annotation)
@@ -83,7 +83,7 @@ class PydanticModelCollector:
             # If we can't get source code, skip this model
             # But still try to collect nested models from fields if possible
             if hasattr(model_class, "model_fields"):
-                for field_name, field_info in model_class.model_fields.items():
+                for field_info in model_class.model_fields.values():
                     field_annotation = field_info.annotation
                     self.collect_from_annotation(field_annotation)
 

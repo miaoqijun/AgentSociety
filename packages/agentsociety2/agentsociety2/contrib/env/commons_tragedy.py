@@ -316,7 +316,7 @@ If you don't submit, other agents' submissions will be delayed.
                 pool_before_this_round = self.current_pool_resources
 
                 # Calculate actual extractions with proportional allocation
-                actual_extractions, total_extracted, remaining_pool = (
+                actual_extractions, _total_extracted, remaining_pool = (
                     self._calculate_actual_extractions_sync(
                         self._pending_extractions.copy(), pool_before_this_round
                     )

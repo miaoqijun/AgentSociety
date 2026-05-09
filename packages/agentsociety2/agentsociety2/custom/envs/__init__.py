@@ -20,4 +20,4 @@ def get_custom_envs() -> List[Tuple[str, Type[EnvBase]]]:
     """获取所有自定义环境模块"""
     return _CUSTOM_ENVS.copy()
 
-__all__ = ["register_env", "get_custom_envs"]
+__all__ = ["get_custom_envs", "register_env"]

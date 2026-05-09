@@ -8,8 +8,8 @@ from .enhanced_config import EnhancedMFConfig
 from .enhanced_model import EnhancedMFRecommender
 
 __all__ = [
-    "MFConfig",
-    "MFRecommender",
     "EnhancedMFConfig",
-    "EnhancedMFRecommender"
+    "EnhancedMFRecommender",
+    "MFConfig",
+    "MFRecommender"
 ]

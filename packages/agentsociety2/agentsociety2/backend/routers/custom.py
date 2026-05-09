@@ -213,7 +213,7 @@ async def scan_custom_modules(request: ScanRequest):
 
     except Exception as e:
         logger.error(f"[Custom Modules] Scan failed: {e}")
-        raise HTTPException(status_code=500, detail=f"扫描失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"扫描失败: {e!s}") from None
 
 
 @router.post("/clean", response_model=CleanResponse)
@@ -255,7 +255,7 @@ async def clean_custom_modules(request: ScanRequest):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"清理失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"清理失败: {e!s}") from e
 
 
 @router.post("/test", response_model=TestResponse)
@@ -412,7 +412,7 @@ async def test_custom_modules(request: TestRequest):
 
     except Exception as e:
         logger.error(f"[Custom Modules] Test failed: {e}")
-        raise HTTPException(status_code=500, detail=f"测试失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"测试失败: {e!s}") from None
 
 
 @router.get("/list", response_model=ListResponse)
@@ -483,7 +483,7 @@ async def list_custom_modules():
         )
     except Exception as e:
         logger.error(f"[Custom Modules] List failed: {e}")
-        raise HTTPException(status_code=500, detail=f"列表获取失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"列表获取失败: {e!s}") from None
 
 
 @router.get("/status")
@@ -544,11 +544,11 @@ async def get_custom_modules_status():
 
     # 统计已注册的模块（从内存注册表中读取）
     try:
-        for agent_type, agent_class in get_registered_agent_modules():
+        for _agent_type, agent_class in get_registered_agent_modules():
             if getattr(agent_class, "_is_custom", False):
                 status["registered_agents"] += 1
 
-        for module_type, env_class in get_registered_env_modules():
+        for _module_type, env_class in get_registered_env_modules():
             if getattr(env_class, "_is_custom", False):
                 status["registered_envs"] += 1
     except Exception as e:
@@ -661,8 +661,8 @@ async def list_available_classes(
     except Exception as e:
         logger.error(f"Failed to list available classes: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to list available classes: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to list available classes: {e!s}"
+        ) from None
 
 
 @router.post("/rescan")
@@ -704,5 +704,5 @@ async def rescan_custom_modules(
     except Exception as e:
         logger.error(f"Failed to rescan custom modules: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to rescan custom modules: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to rescan custom modules: {e!s}"
+        ) from None

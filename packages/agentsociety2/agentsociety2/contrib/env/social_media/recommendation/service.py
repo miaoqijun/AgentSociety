@@ -172,7 +172,7 @@ class RecommendationService:
 
         return {
             user_id: result
-            for user_id, result in zip(user_ids, results)
+            for user_id, result in zip(user_ids, results, strict=False)
         }
 
     async def save_model(self, path: str) -> None:

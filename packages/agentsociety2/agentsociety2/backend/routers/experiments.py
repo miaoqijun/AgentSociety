@@ -331,7 +331,7 @@ def _load_agent_profiles_from_profile_dataset(
 
     profiles: List[AgentProfile] = []
     for row in cursor.fetchall():
-        payload = dict(zip(column_names, row))
+        payload = dict(zip(column_names, row, strict=False))
         raw_agent_id = payload.get(entity_key)
         if raw_agent_id is None:
             continue
@@ -380,7 +380,7 @@ def _load_agent_status_entries_from_dataset(
 
     entries: List[Dict[str, Any]] = []
     for row in cursor.fetchall():
-        payload = dict(zip(column_names, row))
+        payload = dict(zip(column_names, row, strict=False))
         timestamp = _coerce_datetime(payload.pop(time_key, None))
         raw_agent_id = payload.pop(entity_key, None)
         step = payload.pop(step_key, None)

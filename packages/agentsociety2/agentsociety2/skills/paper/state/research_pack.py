@@ -57,9 +57,9 @@ def low_confidence_entries(pack: ResearchPack) -> List[ProvenanceEntry]:
 
 
 __all__ = [
-    "load",
-    "save",
     "exists",
-    "provenance_map",
+    "load",
     "low_confidence_entries",
+    "provenance_map",
+    "save",
 ]

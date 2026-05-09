@@ -174,7 +174,7 @@ class TwoTierReActRouter(RouterBase):
 
             # 检查是否有明显的错误
             if isinstance(module_result, dict):
-                for key, value in module_result.items():
+                for value in module_result.values():
                     if isinstance(value, dict) and "error" in value:
                         error = str(value.get("error"))
                         break
@@ -300,7 +300,7 @@ Selected module:"""
                 return None
 
         except Exception as e:
-            get_logger().error(f"TwoTierReActRouter: Failed to select module: {str(e)}")
+            get_logger().error(f"TwoTierReActRouter: Failed to select module: {e!s}")
             # 返回第一个未使用的模块作为fallback
             for module_name in self._module_info.keys():
                 if module_name not in used_modules:
@@ -344,7 +344,7 @@ Selected module:"""
                 },
             },
         }
-        tools_with_status = available_tools + [set_status_tool]
+        tools_with_status = [*available_tools, set_status_tool]
 
         # 构建ReAct对话
         dialog: List[AllMessageValues] = [
@@ -378,8 +378,8 @@ Selected module:"""
 
                 response = await self.acompletion_with_system_prompt(**call_kwargs)
             except Exception as e:
-                get_logger().error(f"TwoTierReActRouter: LLM call failed: {str(e)}")
-                return module_results, f"Error during module execution: {str(e)}"
+                get_logger().error(f"TwoTierReActRouter: LLM call failed: {e!s}")
+                return module_results, f"Error during module execution: {e!s}"
 
             # 检查tool calls
             message = response.choices[0].message  # type: ignore
@@ -430,7 +430,7 @@ Selected module:"""
                             "tool_call_id": tool_call.id,
                             "name": func_name,
                             "content": json.dumps(
-                                {"error": f"Invalid JSON arguments: {str(e)}"}
+                                {"error": f"Invalid JSON arguments: {e!s}"}
                             ),
                         }
                     )
@@ -471,7 +471,7 @@ Selected module:"""
                         )
                         module_results[func_name] = result
                     except Exception as e:
-                        error_msg = f"Error executing {func_name}: {str(e)}"
+                        error_msg = f"Error executing {func_name}: {e!s}"
                         tool_results.append(
                             {
                                 "role": "tool",

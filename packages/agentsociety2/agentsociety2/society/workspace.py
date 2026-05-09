@@ -481,7 +481,7 @@ def create_prefill_params(target_dir: Path, map_file_path: str) -> dict:
     return result
 
 
-async def init_workspace(target_dir: Path, topic: str = "", components: list[str] = None, force: bool = False) -> dict:
+async def init_workspace(target_dir: Path, topic: str = "", components: list[str] | None = None, force: bool = False) -> dict:
     """
     初始化工作区，创建所需的目录结构
 

@@ -142,14 +142,14 @@ def unresolved_fatal_count(review_round: ReviewRound) -> int:
 
 __all__ = [
     "VERDICT_ROUTING",
-    "round_path",
-    "load_round",
-    "save_round",
-    "open_round",
     "append_review",
     "close_round",
-    "list_rounds",
     "latest_round_num",
+    "list_rounds",
+    "load_round",
+    "open_round",
+    "round_path",
     "route_for",
+    "save_round",
     "unresolved_fatal_count",
 ]

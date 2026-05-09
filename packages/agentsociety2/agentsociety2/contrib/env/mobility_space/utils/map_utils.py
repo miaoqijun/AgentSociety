@@ -2,6 +2,7 @@ import math
 from typing import Literal, Union
 
 import numpy as np
+import itertools
 
 
 def get_angle(x, y):
@@ -63,7 +64,7 @@ def get_key_index_in_lane(
     ]
     _line_lengths: list[float] = [0.0 for _ in range(len(_nodes))]
     _s = 0.0
-    for i, (cur_p, next_p) in enumerate(zip(_lane_points[:-1], _lane_points[1:])):
+    for i, (cur_p, next_p) in enumerate(itertools.pairwise(_lane_points)):
         _s += math.hypot(next_p[0] - cur_p[0], next_p[1] - cur_p[1])
         _line_lengths[i + 1] = _s
     s = np.clip(distance, _line_lengths[0], _line_lengths[-1])
@@ -71,7 +72,7 @@ def get_key_index_in_lane(
     for (
         prev_s,
         cur_s,
-    ) in zip(_line_lengths[:-1], _line_lengths[1:]):
+    ) in itertools.pairwise(_line_lengths):
         if prev_s <= s < cur_s:
             break
         _key_index += 1
@@ -94,7 +95,7 @@ def get_xy_in_lane(
     ]
     _line_lengths: list[float] = [0.0 for _ in range(len(_nodes))]
     _s = 0.0
-    for i, (cur_p, next_p) in enumerate(zip(_lane_points[:-1], _lane_points[1:])):
+    for i, (cur_p, next_p) in enumerate(itertools.pairwise(_lane_points)):
         _s += math.hypot(next_p[0] - cur_p[0], next_p[1] - cur_p[1])
         _line_lengths[i + 1] = _s
     s = np.clip(distance, _line_lengths[0], _line_lengths[-1])
@@ -103,6 +104,7 @@ def get_xy_in_lane(
         _lane_points[:-1],
         _line_lengths[1:],
         _lane_points[1:],
+        strict=False,
     ):
         if prev_s <= s < cur_s:
             _delta_x, _delta_y, _delta_z = [
@@ -135,11 +137,10 @@ def get_direction_by_s(
     _line_lengths: list[float] = [0.0 for _ in range(len(_nodes))]
     _line_directions: list[tuple[float, float]] = []
     _s = 0.0
-    for i, (cur_p, next_p) in enumerate(zip(_lane_points[:-1], _lane_points[1:])):
+    for i, (cur_p, next_p) in enumerate(itertools.pairwise(_lane_points)):
         _s += math.hypot(next_p[0] - cur_p[0], next_p[1] - cur_p[1])
         _line_lengths[i + 1] = _s
-    for i, (cur_p, next_p) in enumerate(zip(_lane_points[:-1], _lane_points[1:])):
-        _direction = math.atan2(next_p[1] - cur_p[1], next_p[0] - cur_p[0])
+    for _i, (cur_p, next_p) in enumerate(itertools.pairwise(_lane_points)):
         _pitch = math.atan2(
             next_p[2] - cur_p[2],
             math.hypot(next_p[0] - cur_p[0], next_p[1] - cur_p[1]),
@@ -147,7 +148,7 @@ def get_direction_by_s(
         _line_directions.append((_direction / math.pi * 180, _pitch / math.pi * 180))
     s = np.clip(distance, _line_lengths[0], _line_lengths[-1])
     for prev_s, cur_s, direcs in zip(
-        _line_lengths[:-1], _line_lengths[1:], _line_directions
+        _line_lengths[:-1], _line_lengths[1:], _line_directions, strict=False
     ):
         if prev_s <= s < cur_s:
             return direcs[0]

@@ -190,7 +190,7 @@ class AgentSocietyHelper:
                         "success": False,
                     }
                 )
-                print(f"  ✗ Error: {str(e)}\n")
+                print(f"  ✗ Error: {e!s}\n")
 
                 # Check if replanning is needed
                 if replan_count < self._max_replans:
@@ -291,11 +291,11 @@ class AgentSocietyHelper:
                         error_history.append(
                             {
                                 "response": response,
-                                "error": f"Step validation failed: {str(validation_error)}",
+                                "error": f"Step validation failed: {validation_error!s}",
                             }
                         )
                         continue
-                    return f"Plan validation failed: {str(validation_error)}"
+                    return f"Plan validation failed: {validation_error!s}"
 
             except Exception as e:
                 get_logger().error(f"Planning attempt {retry + 1} failed: {e}")
@@ -307,7 +307,7 @@ class AgentSocietyHelper:
                         }
                     )
                     continue
-                return f"Planning failed: {str(e)}"
+                return f"Planning failed: {e!s}"
 
         return "Unable to create a plan for this task after multiple attempts."
 
@@ -399,7 +399,7 @@ class AgentSocietyHelper:
                         error_history.append(
                             {
                                 "response": response,
-                                "error": f"Step validation failed: {str(validation_error)}",
+                                "error": f"Step validation failed: {validation_error!s}",
                             }
                         )
                         continue
@@ -846,7 +846,7 @@ Generate the final answer. Your JSON response:"""
         results: List[str] = []
         if tasks:
             results = list(await asyncio.gather(*tasks, return_exceptions=False))
-        for agent_id, ans in zip(order, results):
+        for agent_id, ans in zip(order, results, strict=False):
             try:
                 if str(ans).strip().lower() == str(value).strip().lower():
                     ids.append(agent_id)
@@ -881,6 +881,6 @@ Generate the final answer. Your JSON response:"""
         if tasks:
             results = list(await asyncio.gather(*tasks, return_exceptions=False))
         answers: Dict[str, Any] = {}
-        for i, ans in zip(order, results):
+        for i, ans in zip(order, results, strict=False):
             answers[str(i)] = ans
         return {"answers": answers}

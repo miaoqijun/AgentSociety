@@ -136,7 +136,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
                     return choice.message.content or ""  # type: ignore
             return "[错误] LLM返回空响应"
         except Exception as e:
-            error_message = f"LLM调用失败: {type(e).__name__} - {str(e)}"
+            error_message = f"LLM调用失败: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
             return f"[错误] {error_message}"
 
@@ -270,7 +270,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
                     return f"[{self.name}] Round {current_round}: Cannot determine partner, submitted return 0"
             
         except Exception as e:
-            error_message = f"Step execution failed: {type(e).__name__} - {str(e)}"
+            error_message = f"Step execution failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
             return f"[{self.name}] [ERROR] {error_message}"
 
@@ -304,7 +304,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
             if not hasattr(choice, "message") or not choice.message:
                 raise ValueError("LLM returned empty response")
 
-            content = choice.message.content or ""  # type: ignore  # noqa: E501
+            content = choice.message.content or ""  # type: ignore
             self._logger.debug(f"[{self.name}] Raw LLM response: {content[:200]}...")
 
             if not content or content.isspace():
@@ -321,7 +321,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
             )
 
         except Exception as e:
-            error_msg = f"Decision making failed: {type(e).__name__} - {str(e)}"
+            error_msg = f"Decision making failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_msg}")
             investment = 0
             explanation = f"[CRITICAL FAILURE] {error_msg}, using default amount: 0"
@@ -360,7 +360,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
             if not hasattr(choice, "message") or not choice.message:
                 raise ValueError("LLM returned empty response")
 
-            content = choice.message.content or ""  # type: ignore  # noqa: E501
+            content = choice.message.content or ""  # type: ignore
             self._logger.debug(f"[{self.name}] Raw LLM response: {content[:200]}...")
 
             if not content or content.isspace():
@@ -377,7 +377,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
             )
 
         except Exception as e:
-            error_msg = f"Decision making failed: {type(e).__name__} - {str(e)}"
+            error_msg = f"Decision making failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_msg}")
             return_amount = 0
             explanation = f"[CRITICAL FAILURE] {error_msg}, using default amount: 0"

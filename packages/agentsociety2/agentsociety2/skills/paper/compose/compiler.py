@@ -53,7 +53,7 @@ def _default_args(main_tex_name: str, *, out_dir: str = "out") -> List[str]:
     ]
 
 
-def compile(  # noqa: A001 - matches plan name
+def compile(
     compose_dir: Path | str,
     *,
     main_tex: str = "main.tex",

@@ -1,4 +1,3 @@
-# ruff: noqa: E402
 
 """
 FastAPI backend service for AI Social Scientist VSCode extension

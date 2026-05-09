@@ -443,57 +443,57 @@ class ResearchPack(BaseModel):
 
 
 __all__ = [
-    # Envelope
-    "EnvelopeStatus",
-    "Severity",
-    "Envelope",
-    # Compile
-    "CompileResult",
     # Paper meta (identity)
     "Affiliation",
     "Author",
-    "PaperMeta",
-    # Storyline
-    "SectionLogic",
-    "StorylineMap",
-    # Claim ledger
-    "WordingStrength",
     "Claim",
     "ClaimLedger",
+    # Compile
+    "CompileResult",
+    # Research pack
+    "Confidence",
+    "Counters",
+    "DispatchRecord",
+    # Dispatch record
+    "DispatchStatus",
+    "Envelope",
+    # Envelope
+    "EnvelopeStatus",
+    "EvidenceBacklog",
     # Evidence backlog
     "EvidenceCategory",
-    "Priority",
     "EvidenceGap",
-    "EvidenceBacklog",
+    "FigureArgumentMap",
+    "FigureSpec",
     # Figure argument
     "FigureStatus",
-    "FigureSpec",
-    "FigureArgumentMap",
-    # Review
-    "Verdict",
-    "TargetLayer",
+    "HumanDecision",
+    "HumanGate",
+    # Human gate
+    "HumanGateSeverity",
+    "PaperMeta",
+    # Paper state
+    "PaperPhase",
+    "PaperState",
+    "Priority",
+    "ProvenanceEntry",
+    "ReleaseStatus",
+    "ResearchPack",
+    "ResearchPackAnalysis",
+    "ResearchPackExperiment",
+    "ResearchPackFigure",
+    "ResearchPackHypothesis",
+    "ResearchPackLiterature",
     "ResolvedState",
     "Review",
     "ReviewRound",
-    # Human gate
-    "HumanGateSeverity",
-    "HumanDecision",
-    "HumanGate",
-    # Dispatch record
-    "DispatchStatus",
-    "DispatchRecord",
-    # Paper state
-    "PaperPhase",
-    "ReleaseStatus",
-    "Counters",
-    "PaperState",
-    # Research pack
-    "Confidence",
-    "ResearchPackHypothesis",
-    "ResearchPackExperiment",
-    "ResearchPackAnalysis",
-    "ResearchPackFigure",
-    "ResearchPackLiterature",
-    "ProvenanceEntry",
-    "ResearchPack",
+    # Storyline
+    "SectionLogic",
+    "Severity",
+    "StorylineMap",
+    "TargetLayer",
+    # Review
+    "Verdict",
+    # Claim ledger
+    "WordingStrength",
 ]

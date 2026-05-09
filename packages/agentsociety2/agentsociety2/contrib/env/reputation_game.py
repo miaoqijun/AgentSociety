@@ -84,7 +84,7 @@ class ReputationGameConfig(BaseModel):
             except ValueError:
                 raise ValueError(
                     f"Invalid norm_type: {v}. Must be one of {[e.value for e in NormType]}"
-                )
+                ) from None
         return v
 
     model_config = {"json_schema_extra": {"examples": [{"Z": 5, "BENEFIT": 5, "COST": 1, "norm_type": "stern_judging", "seed": 42}]}}
@@ -462,7 +462,7 @@ Your task is to use the available functions to manage agent reputations, payoffs
             except ValueError:
                 raise ValueError(
                     f"Invalid action: {action}. Must be 'cooperate' or 'defect'."
-                )
+                ) from None
 
             # Get recipient reputation
             recipient_rep = self._reputations.get(recipient_id, Reputation.GOOD)
@@ -898,4 +898,4 @@ Your task is to use the available functions to manage agent reputations, payoffs
         self._step_counter = state.get("step_counter", 0)
 
 
-__all__ = ["ReputationGameEnv", "ReputationGameConfig", "Reputation", "Action", "NormType"]
+__all__ = ["Action", "NormType", "Reputation", "ReputationGameConfig", "ReputationGameEnv"]

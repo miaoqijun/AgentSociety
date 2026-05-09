@@ -72,8 +72,8 @@ class SelfReferenceEffectEnv(EnvBase):
     def __init__(
         self,
         agent_ids: List[int],
-        encoding_traits: List[Dict[str, Any]] = None,
-        recognition_traits: List[str] = None,
+        encoding_traits: List[Dict[str, Any]] | None = None,
+        recognition_traits: List[str] | None = None,
     ):
         """
         Initialize the Self-Reference Effect environment.
@@ -291,7 +291,7 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
             
             # Validate rating
             if not isinstance(rating, int):
-                rating = int(round(rating))
+                rating = rating
             rating = max(1, min(5, rating))  # Clamp to 1-5
             
             # Check if this trait-identity combination exists in encoding traits
@@ -609,4 +609,4 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
         self._step_counter = state.get("step_counter", 0)
 
 
-__all__ = ["SelfReferenceEffectEnv", "IdentityType"]
+__all__ = ["IdentityType", "SelfReferenceEffectEnv"]

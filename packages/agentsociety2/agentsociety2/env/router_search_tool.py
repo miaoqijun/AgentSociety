@@ -228,7 +228,7 @@ class SearchToolRouter(RouterBase):
 
                 response = await self.acompletion_with_system_prompt(**call_kwargs)
             except Exception as e:
-                get_logger().error(f"SearchToolRouter: LLM call failed: {str(e)}")
+                get_logger().error(f"SearchToolRouter: LLM call failed: {e!s}")
                 error = str(e)
                 # 构建过程文本
                 process_text = (
@@ -318,7 +318,7 @@ class SearchToolRouter(RouterBase):
                             "tool_call_id": tool_call.id,
                             "name": func_name,
                             "content": json.dumps(
-                                {"error": f"Invalid JSON arguments: {str(e)}"}
+                                {"error": f"Invalid JSON arguments: {e!s}"}
                             ),
                         }
                     )
@@ -403,7 +403,7 @@ class SearchToolRouter(RouterBase):
                             f"SearchToolRouter: Executed tool {func_name}"
                         )
                     except Exception as e:
-                        error_msg = f"Error executing {func_name}: {str(e)}"
+                        error_msg = f"Error executing {func_name}: {e!s}"
                         get_logger().error(f"SearchToolRouter: {error_msg}")
                         error_result = {"error": error_msg}
                         tool_results.append(

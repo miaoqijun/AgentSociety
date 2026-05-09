@@ -239,7 +239,7 @@ class QuestionnaireRunner:
                 prompt=prompt,
                 t=t,
             )
-            for agent, raw_answer in zip(selected_agents, raw_answers):
+            for agent, raw_answer in zip(selected_agents, raw_answers, strict=False):
                 answers_by_agent[agent.id].append(_parse_question_answer(question, raw_answer))
 
         return QuestionnaireResponse(

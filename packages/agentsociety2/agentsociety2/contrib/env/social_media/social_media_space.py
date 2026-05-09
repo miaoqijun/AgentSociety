@@ -168,8 +168,12 @@ class SocialMediaSpace(EnvBase):
         # 极化实验参数（feed 候选池与同阵营/异阵营比例）
         self._feed_source: str = str(kwargs.get("feed_source", "global"))
         self._polarization_mode: str = str(kwargs.get("polarization_mode", "none"))
-        self._within_community_ratio: float = float(kwargs.get("within_community_ratio", 0.5))
-        self._community_detection: str = str(kwargs.get("community_detection", "follow_components"))
+        self._within_community_ratio: float = float(
+            kwargs.get("within_community_ratio", 0.5)
+        )
+        self._community_detection: str = str(
+            kwargs.get("community_detection", "follow_components")
+        )
         _seed = kwargs.get("random_seed")
         self._random_seed: Optional[int] = int(_seed) if _seed is not None else None
 
@@ -236,7 +240,9 @@ class SocialMediaSpace(EnvBase):
             return {uid: int(uid % 2) for uid in user_ids}
         adj: Dict[int, List[int]] = defaultdict(list)
         for uid in user_ids:
-            for followee in (self._persons[uid].following if uid in self._persons else []):
+            for followee in (
+                self._persons[uid].following if uid in self._persons else []
+            ):
                 if followee in user_ids:
                     adj[uid].append(followee)
                     adj[followee].append(uid)
@@ -271,7 +277,9 @@ class SocialMediaSpace(EnvBase):
         all_posts = list(self._posts.values())
         if self._feed_source != "following":
             return all_posts
-        followees = set(self._persons[user_id].following if user_id in self._persons else [])
+        followees = set(
+            self._persons[user_id].following if user_id in self._persons else []
+        )
         allow_authors = followees | {user_id}
         return [p for p in all_posts if p.author_id in allow_authors]
 
@@ -286,10 +294,14 @@ class SocialMediaSpace(EnvBase):
             return candidate_posts
         labels = self._get_community_labels()
         viewer_community = labels.get(user_id, 0)
-        same: List[Post] = [p for p in candidate_posts if labels.get(p.author_id, 0) == viewer_community]
-        other: List[Post] = [p for p in candidate_posts if labels.get(p.author_id, 0) != viewer_community]
+        same: List[Post] = [
+            p for p in candidate_posts if labels.get(p.author_id, 0) == viewer_community
+        ]
+        other: List[Post] = [
+            p for p in candidate_posts if labels.get(p.author_id, 0) != viewer_community
+        ]
         rng = random.Random(self._random_seed if self._random_seed is not None else 0)
-        n_same = max(0, int(round(self._within_community_ratio * limit)))
+        n_same = max(0, round(self._within_community_ratio * limit))
         n_other = limit - n_same
         if n_same >= len(same) and n_other >= len(other):
             mixed = same + other
@@ -446,7 +458,9 @@ Use the available tools based on the agent's request."""
         """Normalize user dict for SocialMediaPerson(...); accept ISO datetime strings."""
         d = dict(data)
         if "created_at" in d and isinstance(d["created_at"], str):
-            d["created_at"] = datetime.fromisoformat(d["created_at"].replace("Z", "+00:00"))
+            d["created_at"] = datetime.fromisoformat(
+                d["created_at"].replace("Z", "+00:00")
+            )
         return d
 
     @staticmethod
@@ -454,7 +468,9 @@ Use the available tools based on the agent's request."""
         """Normalize post dict for Post(...)."""
         d = dict(data)
         if "created_at" in d and isinstance(d["created_at"], str):
-            d["created_at"] = datetime.fromisoformat(d["created_at"].replace("Z", "+00:00"))
+            d["created_at"] = datetime.fromisoformat(
+                d["created_at"].replace("Z", "+00:00")
+            )
         return d
 
     @staticmethod
@@ -462,7 +478,9 @@ Use the available tools based on the agent's request."""
         """Normalize comment dict for Comment(...)."""
         d = dict(data)
         if "created_at" in d and isinstance(d["created_at"], str):
-            d["created_at"] = datetime.fromisoformat(d["created_at"].replace("Z", "+00:00"))
+            d["created_at"] = datetime.fromisoformat(
+                d["created_at"].replace("Z", "+00:00")
+            )
         return d
 
     @staticmethod
@@ -526,7 +544,7 @@ Use the available tools based on the agent's request."""
                 self._persons[post.author_id].post_ids.append(pid)
 
         # 建立 person.comment_ids 反向索引
-        for post_id, comment_list in self._comments.items():
+        for comment_list in self._comments.values():
             for c in comment_list:
                 if c.author_id in self._persons:
                     self._persons[c.author_id].comment_ids.append(c.comment_id)
@@ -542,7 +560,9 @@ Use the available tools based on the agent's request."""
                     if pid in self._posts:
                         if uid not in self._posts[pid].liked_by:
                             self._posts[pid].liked_by.append(uid)
-                            self._posts[pid].likes_count = len(self._posts[pid].liked_by)
+                            self._posts[pid].likes_count = len(
+                                self._posts[pid].liked_by
+                            )
 
         get_logger().info(
             f"Applied initial data: {len(self._persons)} persons, {len(self._posts)} posts, "
@@ -623,7 +643,8 @@ Use the available tools based on the agent's request."""
         """
         state = {
             "persons": {
-                pid: person.model_dump(mode="json") for pid, person in self._persons.items()
+                pid: person.model_dump(mode="json")
+                for pid, person in self._persons.items()
             },
             "posts": {
                 pid: post.model_dump(mode="json") for pid, post in self._posts.items()
@@ -819,7 +840,9 @@ Use the available tools based on the agent's request."""
                     "action": action,
                     "created_at": self._event_time_to_iso(event),
                     "post_id": post_id,
-                    "post_preview": post.content if post is not None else event.get("content"),
+                    "post_preview": (
+                        post.content if post is not None else event.get("content")
+                    ),
                     "content": event.get("content"),
                 }
             )
@@ -854,7 +877,6 @@ Use the available tools based on the agent's request."""
                 break
         return items
 
-
     # @tool Methods
 
     @tool(readonly=True, kind="observe")
@@ -878,9 +900,13 @@ Use the available tools based on the agent's request."""
         candidate_posts = self._get_candidate_posts(user_id)
         if candidate_posts:
             if self._polarization_mode == "follow_community":
-                recent_feed_posts = self._apply_polarization_mix(user_id, candidate_posts, 5)
+                recent_feed_posts = self._apply_polarization_mix(
+                    user_id, candidate_posts, 5
+                )
             else:
-                recent_feed_posts = self._rec_engine.chronological(candidate_posts, user_id, limit=5)
+                recent_feed_posts = self._rec_engine.chronological(
+                    candidate_posts, user_id, limit=5
+                )
             recent_feed = [p.model_dump() for p in recent_feed_posts]
         else:
             recent_feed = []
@@ -910,15 +936,12 @@ Use the available tools based on the agent's request."""
             recent_activity=self._build_recent_activity(user_id),
             social_updates=self._build_social_updates(user_id),
             recent_feed=recent_feed,
-            available_actions=available_actions
+            available_actions=available_actions,
         )
 
     @tool(readonly=False)
     async def create_post(
-        self,
-        author_id: int,
-        content: str,
-        tags: List[str] = []
+        self, author_id: int, content: str, tags: List[str] | None = None
     ) -> CreatePostResponse:
         """
         Create a new original post (支持话题标签)
@@ -931,6 +954,8 @@ Use the available tools based on the agent's request."""
         Returns:
             CreatePostResponse with post details
         """
+        if tags is None:
+            tags = []
         async with self._lock:
             self._ensure_person_exists(author_id)
 
@@ -942,16 +967,20 @@ Use the available tools based on the agent's request."""
                 content=content,
                 tags=tags,
                 post_type="original",
-                created_at=self.t
+                created_at=self.t,
             )
 
             self._posts[post_id] = post
             self._persons[author_id].posts_count += 1
             self._persons[author_id].post_ids.append(post_id)
 
-            get_logger().info(f"User {author_id} created post {post_id} with tags {tags}")
+            get_logger().info(
+                f"User {author_id} created post {post_id} with tags {tags}"
+            )
 
-            self._append_event("post", sender_id=author_id, content=content, target_id=post_id)
+            self._append_event(
+                "post", sender_id=author_id, content=content, target_id=post_id
+            )
 
             return CreatePostResponse(
                 post_id=post_id,
@@ -959,15 +988,11 @@ Use the available tools based on the agent's request."""
                 content=content,
                 tags=tags,
                 created_at=post.created_at.isoformat(),
-                post_type="original"
+                post_type="original",
             )
 
     @tool(readonly=False)
-    async def like_post(
-        self,
-        user_id: int,
-        post_id: int
-    ) -> LikePostResponse:
+    async def like_post(self, user_id: int, post_id: int) -> LikePostResponse:
         """
         Like a post
 
@@ -1001,15 +1026,11 @@ Use the available tools based on the agent's request."""
             return LikePostResponse(
                 post_id=post_id,
                 user_id=user_id,
-                total_likes=self._posts[post_id].likes_count
+                total_likes=self._posts[post_id].likes_count,
             )
 
     @tool(readonly=False)
-    async def unlike_post(
-        self,
-        user_id: int,
-        post_id: int
-    ) -> UnlikePostResponse:
+    async def unlike_post(self, user_id: int, post_id: int) -> UnlikePostResponse:
         """
         Unlike a post
 
@@ -1043,14 +1064,12 @@ Use the available tools based on the agent's request."""
             return UnlikePostResponse(
                 post_id=post_id,
                 user_id=user_id,
-                total_likes=self._posts[post_id].likes_count
+                total_likes=self._posts[post_id].likes_count,
             )
 
     @tool(readonly=False)
     async def follow_user(
-        self,
-        follower_id: int,
-        followee_id: int
+        self, follower_id: int, followee_id: int
     ) -> FollowUserResponse:
         """
         Follow a user
@@ -1067,10 +1086,14 @@ Use the available tools based on the agent's request."""
             self._ensure_person_exists(followee_id)
 
             if follower_id == followee_id:
-                raise ValueError(f"Failed to follow: user {follower_id} cannot follow themselves")
+                raise ValueError(
+                    f"Failed to follow: user {follower_id} cannot follow themselves"
+                )
 
             if followee_id in self._persons[follower_id].following:
-                raise ValueError(f"User {follower_id} is already following user {followee_id}")
+                raise ValueError(
+                    f"User {follower_id} is already following user {followee_id}"
+                )
 
             self._persons[follower_id].following.append(followee_id)
             self._persons[follower_id].following_count += 1
@@ -1084,14 +1107,12 @@ Use the available tools based on the agent's request."""
                 follower_id=follower_id,
                 followee_id=followee_id,
                 follower_following_count=self._persons[follower_id].following_count,
-                followee_followers_count=self._persons[followee_id].followers_count
+                followee_followers_count=self._persons[followee_id].followers_count,
             )
 
     @tool(readonly=False)
     async def unfollow_user(
-        self,
-        follower_id: int,
-        followee_id: int
+        self, follower_id: int, followee_id: int
     ) -> UnfollowUserResponse:
         """
         Unfollow a user
@@ -1108,7 +1129,9 @@ Use the available tools based on the agent's request."""
             self._ensure_person_exists(followee_id)
 
             if followee_id not in self._persons[follower_id].following:
-                raise ValueError(f"User {follower_id} is not following user {followee_id}")
+                raise ValueError(
+                    f"User {follower_id} is not following user {followee_id}"
+                )
 
             self._persons[follower_id].following.remove(followee_id)
             self._persons[follower_id].following_count -= 1
@@ -1116,21 +1139,19 @@ Use the available tools based on the agent's request."""
 
             get_logger().info(f"User {follower_id} unfollowed user {followee_id}")
 
-            self._append_event("unfollow", sender_id=follower_id, receiver_id=followee_id)
+            self._append_event(
+                "unfollow", sender_id=follower_id, receiver_id=followee_id
+            )
 
             return UnfollowUserResponse(
                 follower_id=follower_id,
                 followee_id=followee_id,
                 follower_following_count=self._persons[follower_id].following_count,
-                followee_followers_count=self._persons[followee_id].followers_count
+                followee_followers_count=self._persons[followee_id].followers_count,
             )
 
     @tool(readonly=False)
-    async def view_post(
-        self,
-        user_id: int,
-        post_id: int
-    ) -> ViewPostResponse:
+    async def view_post(self, user_id: int, post_id: int) -> ViewPostResponse:
         """
         View a post (increments view count)
 
@@ -1168,10 +1189,7 @@ Use the available tools based on the agent's request."""
 
     @tool(readonly=False)
     async def comment_on_post(
-        self,
-        user_id: int,
-        post_id: int,
-        content: str
+        self, user_id: int, post_id: int, content: str
     ) -> CommentOnPostResponse:
         """
         Comment on a post
@@ -1198,7 +1216,7 @@ Use the available tools based on the agent's request."""
                 post_id=post_id,
                 author_id=user_id,
                 content=content,
-                created_at=self.t
+                created_at=self.t,
             )
 
             self._comments[post_id].append(comment)
@@ -1207,22 +1225,21 @@ Use the available tools based on the agent's request."""
 
             get_logger().info(f"User {user_id} commented on post {post_id}")
 
-            self._append_event("comment", sender_id=user_id, content=content, target_id=post_id)
+            self._append_event(
+                "comment", sender_id=user_id, content=content, target_id=post_id
+            )
 
             return CommentOnPostResponse(
                 comment_id=comment_id,
                 post_id=post_id,
                 user_id=user_id,
                 content=content,
-                total_comments=self._posts[post_id].comments_count
+                total_comments=self._posts[post_id].comments_count,
             )
 
     @tool(readonly=False)
     async def repost(
-        self,
-        user_id: int,
-        post_id: int,
-        comment: str = ""
+        self, user_id: int, post_id: int, comment: str = ""
     ) -> RepostResponse:
         """
         Repost a post (with optional comment)
@@ -1252,7 +1269,7 @@ Use the available tools based on the agent's request."""
                 content=repost_content,
                 post_type="repost",
                 parent_id=post_id,
-                created_at=self.t
+                created_at=self.t,
             )
 
             self._posts[new_post_id] = repost_post
@@ -1260,24 +1277,25 @@ Use the available tools based on the agent's request."""
             self._persons[user_id].posts_count += 1
             self._persons[user_id].post_ids.append(new_post_id)
 
-            get_logger().info(f"User {user_id} reposted post {post_id} as {new_post_id}")
+            get_logger().info(
+                f"User {user_id} reposted post {post_id} as {new_post_id}"
+            )
 
-            self._append_event("repost", sender_id=user_id, content=repost_content, target_id=post_id)
+            self._append_event(
+                "repost", sender_id=user_id, content=repost_content, target_id=post_id
+            )
 
             return RepostResponse(
                 new_post_id=new_post_id,
                 original_post_id=post_id,
                 user_id=user_id,
                 comment=comment,
-                original_reposts_count=self._posts[post_id].reposts_count
+                original_reposts_count=self._posts[post_id].reposts_count,
             )
 
     @tool(readonly=True)
     async def refresh_feed(
-        self,
-        user_id: int,
-        algorithm: str = "chronological",
-        limit: int = 20
+        self, user_id: int, algorithm: str = "chronological", limit: int = 20
     ) -> RefreshFeedResponse:
         """
         刷新用户Feed流（贴文推荐流 Feed Recommendation）
@@ -1306,15 +1324,14 @@ Use the available tools based on the agent's request."""
 
         if not candidate_posts:
             return RefreshFeedResponse(
-                user_id=user_id,
-                algorithm=algorithm,
-                posts=[],
-                count=0
+                user_id=user_id, algorithm=algorithm, posts=[], count=0
             )
 
         # 极化混合：若 polarization_mode=="follow_community"，按 within_community_ratio 混合同/异阵营
         if self._polarization_mode == "follow_community":
-            candidate_posts = self._apply_polarization_mix(user_id, candidate_posts, limit)
+            candidate_posts = self._apply_polarization_mix(
+                user_id, candidate_posts, limit
+            )
             # 混合后已按时间倒序；若算法非 chronological 则再按该算法重排
             if algorithm == "chronological":
                 recommended_posts = candidate_posts
@@ -1328,7 +1345,7 @@ Use the available tools based on the agent's request."""
                     user_id,
                     limit,
                     follows={uid: u.following for uid, u in self._persons.items()},
-                    likes={pid: post.liked_by for pid, post in self._posts.items()}
+                    likes={pid: post.liked_by for pid, post in self._posts.items()},
                 )
             elif algorithm == "random":
                 rng = random.Random(self._random_seed)
@@ -1336,7 +1353,10 @@ Use the available tools based on the agent's request."""
                     recommended_posts = list(candidate_posts)
                 else:
                     recommended_posts = rng.sample(candidate_posts, limit)
-            elif algorithm in ("mf", "model") or algorithm == self._rec_engine.get_model_algorithm_name():
+            elif (
+                algorithm in ("mf", "model")
+                or algorithm == self._rec_engine.get_model_algorithm_name()
+            ):
                 recommended_posts = self._rec_engine.model_recommend(
                     candidate_posts, user_id, limit, exclude_post_ids=None
                 )
@@ -1358,23 +1378,32 @@ Use the available tools based on the agent's request."""
                     user_id,
                     limit,
                     follows={uid: u.following for uid, u in self._persons.items()},
-                    likes={pid: post.liked_by for pid, post in self._posts.items()}
+                    likes={pid: post.liked_by for pid, post in self._posts.items()},
                 )
             elif algorithm == "random":
                 if self._random_seed is not None:
                     rng = random.Random(self._random_seed)
-                    recommended_posts = rng.sample(candidate_posts, limit) if len(candidate_posts) > limit else list(candidate_posts)
+                    recommended_posts = (
+                        rng.sample(candidate_posts, limit)
+                        if len(candidate_posts) > limit
+                        else list(candidate_posts)
+                    )
                 else:
                     recommended_posts = self._rec_engine.random_recommend(
                         candidate_posts, user_id, limit
                     )
-            elif algorithm in ("mf", "model") or algorithm == self._rec_engine.get_model_algorithm_name():
+            elif (
+                algorithm in ("mf", "model")
+                or algorithm == self._rec_engine.get_model_algorithm_name()
+            ):
                 # 预训练推荐模型（如 MF）；未加载模型时 model_recommend 内部回退为时间序
                 recommended_posts = self._rec_engine.model_recommend(
                     candidate_posts, user_id, limit, exclude_post_ids=None
                 )
             else:
-                get_logger().warning(f"Unknown algorithm '{algorithm}', using chronological")
+                get_logger().warning(
+                    f"Unknown algorithm '{algorithm}', using chronological"
+                )
                 recommended_posts = self._rec_engine.chronological(
                     candidate_posts, user_id, limit
                 )
@@ -1387,16 +1416,16 @@ Use the available tools based on the agent's request."""
             user_id=user_id,
             algorithm=algorithm,
             posts=[p.model_dump() for p in recommended_posts],
-            count=len(recommended_posts)
+            count=len(recommended_posts),
         )
 
     @tool(readonly=True)
     async def search_posts(
         self,
         keyword: str,
-        tags: List[str] = [],
+        tags: List[str] | None = None,
         limit: int = 20,
-        sort_by: str = "time"  # "time", "relevance", "popularity"
+        sort_by: str = "time",  # "time", "relevance", "popularity"
     ) -> SearchPostsResponse:
         """
         搜索贴文
@@ -1413,6 +1442,8 @@ Use the available tools based on the agent's request."""
         Returns:
             匹配的贴文列表
         """
+        if tags is None:
+            tags = []
         keyword_lower = keyword.lower()
         matched_posts = []
 
@@ -1434,11 +1465,15 @@ Use the available tools based on the agent's request."""
                 if in_tags:
                     relevance_score += 10  # 标签匹配权重高
 
-                matched_posts.append({
-                    "post": post,
-                    "relevance_score": relevance_score,
-                    "popularity_score": post.likes_count + post.comments_count * 2 + post.reposts_count * 3
-                })
+                matched_posts.append(
+                    {
+                        "post": post,
+                        "relevance_score": relevance_score,
+                        "popularity_score": post.likes_count
+                        + post.comments_count * 2
+                        + post.reposts_count * 3,
+                    }
+                )
 
         # 排序
         if sort_by == "time":
@@ -1461,7 +1496,7 @@ Use the available tools based on the agent's request."""
             sort_by=sort_by,
             posts=[p.model_dump() for p in result_posts],
             count=len(result_posts),
-            total_matched=len(matched_posts)
+            total_matched=len(matched_posts),
         )
 
     # 一些辅助函数

@@ -71,14 +71,6 @@ from agentsociety2.skills.paper.models import (
 
 
 __all__ = [
-    "paths",
-    "Envelope",
-    "EnvelopeStatus",
-    "Severity",
-    "SkillEnvelope",
-    "build_envelope",
-    "envelope_to_json",
-    "parse_envelope",
     "Affiliation",
     "Author",
     "Claim",
@@ -88,6 +80,8 @@ __all__ = [
     "Counters",
     "DispatchRecord",
     "DispatchStatus",
+    "Envelope",
+    "EnvelopeStatus",
     "EvidenceBacklog",
     "EvidenceCategory",
     "EvidenceGap",
@@ -113,8 +107,14 @@ __all__ = [
     "Review",
     "ReviewRound",
     "SectionLogic",
+    "Severity",
+    "SkillEnvelope",
     "StorylineMap",
     "TargetLayer",
     "Verdict",
     "WordingStrength",
+    "build_envelope",
+    "envelope_to_json",
+    "parse_envelope",
+    "paths",
 ]

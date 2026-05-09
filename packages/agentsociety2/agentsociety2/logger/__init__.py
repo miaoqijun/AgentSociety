@@ -35,7 +35,7 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional
 
 __all__ = [
     "get_logger",
@@ -59,7 +59,7 @@ class ColoredFormatter(logging.Formatter):
     """按级别着色，仅 INFO 超长时截断（保留前后）。格式 [HH:MM:SS] LEVEL  msg"""
 
     # 颜色方案：INFO 用青色减少视觉疲劳，WARNING/ERROR 用亮色提高可见度
-    _colors = {
+    _colors: ClassVar[dict[int, str]] = {
         logging.DEBUG: "\x1b[90m",  # 暗灰，DEBUG 通常量大，弱化
         logging.INFO: "\x1b[36m",  # 青色，大量 INFO 时比绿色更柔和
         logging.WARNING: "\x1b[93m",  # 亮黄，比普通黄更醒目
@@ -229,7 +229,7 @@ class LiteLLMLogger:
     def _format_messages(self, messages: List[Dict[str, Any]]) -> str:
         """将 messages 格式化为可读字符串。"""
         formatted_parts = []
-        for i, msg in enumerate(messages):
+        for _i, msg in enumerate(messages):
             role = msg.get("role", "unknown")
             content = msg.get("content", "")
 
@@ -279,7 +279,7 @@ class LiteLLMLogger:
                     if tool_calls:
                         return f"[Tool calls: {len(tool_calls)}]"
         except Exception as e:
-            return f"[Error extracting response: {str(e)}]"
+            return f"[Error extracting response: {e!s}]"
 
         return "[Empty or unknown response]"
 

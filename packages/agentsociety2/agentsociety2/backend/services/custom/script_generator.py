@@ -14,7 +14,7 @@ import sys
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Type
+from typing import Any, ClassVar, Optional, Type
 
 from agentsociety2.backend.services.custom.compatibility import (
     get_registered_tool_names,
@@ -55,7 +55,7 @@ class ModuleTestReport:
 class SafeModuleTester:
     """安全的模块测试器。"""
 
-    ALLOWED_PATH_PREFIXES = [
+    ALLOWED_PATH_PREFIXES: ClassVar[list[str]] = [
         "custom.agents",
         "custom.envs",
         "agentsociety2",
