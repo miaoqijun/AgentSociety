@@ -373,12 +373,12 @@
         },
         {
           "command": "aiSocialScientist.deleteLiterature",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && viewItem !~ /literatureIndex/))",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && !(viewItem =~ /literatureIndex/)))",
           "group": "1_modification"
         },
         {
           "command": "aiSocialScientist.renameLiterature",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && viewItem !~ /literatureIndex/))",
+          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && !(viewItem =~ /literatureIndex/)))",
           "group": "1_modification"
         },
         {
