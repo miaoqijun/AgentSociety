@@ -33,6 +33,13 @@ RUN vsce package --out /app/extension.vsix
 # Stage 2: Python runtime with extension
 FROM python:3.12
 
+# Switch to Tsinghua TUNA mirror for faster apt downloads
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources; \
+    else \
+        sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list; \
+    fi
+
 RUN apt-get update && apt-get install -y \
     curl \
     sudo \
