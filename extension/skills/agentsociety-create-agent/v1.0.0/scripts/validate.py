@@ -45,6 +45,39 @@ def _class_direct_agent_bases(class_def: ast.ClassDef) -> set[str]:
     return out & ALLOWED_DIRECT_BASES
 
 
+def _audit_ask_env_calls(tree: ast.AST) -> list[str]:
+    """Detect `ask_env(..., readonly=False, ..., template_mode=True)` pattern.
+
+    This is the Pitfall P3 anti-pattern: stateful writes that engage the
+    template cache (keyed on instruction-text similarity + variable names,
+    NOT tool name) and can collide silently across writes.
+    See references/pitfalls.md P3.
+    """
+    warnings_out: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr == "ask_env"):
+            continue
+        kw = {k.arg: k.value for k in node.keywords if k.arg}
+        readonly_val = kw.get("readonly")
+        template_val = kw.get("template_mode")
+        if (
+            isinstance(readonly_val, ast.Constant)
+            and readonly_val.value is False
+            and isinstance(template_val, ast.Constant)
+            and template_val.value is True
+        ):
+            warnings_out.append(
+                f"ask_env at line {node.lineno}: readonly=False with template_mode=True. "
+                "This pattern caches a closure keyed on instruction-text similarity + "
+                "argument names (NOT tool name) and can silently collide between writes. "
+                "Default to template_mode=False for writes. See references/pitfalls.md P3."
+            )
+    return warnings_out
+
+
 def validate_file(file_path: Path) -> dict[str, Any]:
     """Validate an Agent Python file.
 
@@ -144,6 +177,10 @@ def validate_file(file_path: Path) -> dict[str, Any]:
         result["warnings"].append(
             "No mcp_description() method. Agent will show generic description in module list."
         )
+
+    # Pitfall P3 audit: template_mode=True with readonly=False
+    for warn in _audit_ask_env_calls(tree):
+        result["warnings"].append(warn)
 
     # Try to import and instantiate
     try:

@@ -49,14 +49,22 @@ async def ask(self, message, readonly=True):
 
 ```python
 async def step(self, tick, t):
-    # Get state
-    _, state = await self.ask_env({}, "Get game state", readonly=True)
-    
-    # Submit action
+    # Get state (readonly query — template_mode=True is safe)
+    _, state = await self.ask_env(
+        {"variables": {"agent_id": self.id}},
+        "Please call get_state() using agent_id from ctx['variables'].",
+        readonly=True,
+        template_mode=True,
+    )
+
+    # Submit action (stateful write — default template_mode=False unless the
+    # env tool is verified idempotent AND no other write tool shares argument
+    # names. See references/pitfalls.md P3.)
     _, result = await self.ask_env(
-        {"variables": {"action": decision}},
-        "Submit {action}",
+        {"variables": {"agent_id": self.id, "action": decision}},
+        "Please call submit_action() using agent_id and action "
+        "from ctx['variables'] to submit my decision.",
         readonly=False,
-        template_mode=True
+        template_mode=False,
     )
 ```

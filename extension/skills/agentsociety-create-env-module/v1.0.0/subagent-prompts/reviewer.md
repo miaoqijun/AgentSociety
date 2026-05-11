@@ -17,6 +17,7 @@ The orchestrator will provide:
 1. The generated env module file (primary review target)
 2. `checklists/compatibility.md` -- Full compatibility checklist
 3. `references/persistence-patterns.md` -- State persistence patterns (if module has mutable state)
+4. `references/pitfalls.md` -- Four production-class bugs to check against (return shape, instruction style, same-step idempotency, variable-name cache collision)
 
 ## Review Dimensions
 
@@ -34,15 +35,31 @@ The orchestrator will provide:
 - [ ] Read-write tools use `@tool(readonly=False)`
 - [ ] Statistics tools use `@tool(readonly=True, kind="statistics")` if applicable
 - [ ] Each tool's first parameter is `agent_id: str` (framework convention)
-- [ ] Tool return types are JSON-serializable (str, dict, list, int, float, bool)
+- [ ] Tool return values follow the framework contract: a dict (or Pydantic model) with a STRING `status` field whose value is one of `"success" | "fail" | "in_progress" | "error"` — see `references/pitfalls.md` P1. `return True` / `return False` / `return {"success": bool}` are CRITICAL bugs.
+- [ ] Tool return annotations do NOT declare `bool` (a tool returning `-> bool` is a P1 smell)
 
-### 3. Design Consistency
+### 3. Instruction Style (see `references/pitfalls.md` P2)
+
+- [ ] `mcp_description()` and the `description` property phrase available operations in prose with bold function names + parameter descriptions (NOT as Python call literals like `submit_contribution(agent_name="X", contribution=10)`)
+- [ ] Tool docstrings describe semantics, not echo Python signatures
+
+### 4. Same-step Idempotency (see `references/pitfalls.md` P3)
+
+- [ ] Every `@tool(readonly=False)` is safe under repeated invocation in one step (router retries and template-cache replay can fire a tool >1 time per step)
+- [ ] Idempotent pattern is one of: last-write-wins (`self._pending[agent_id] = value`), set-based dedup (`self._submitted_this_step.add(...)`), or explicit dedup-key guard with per-step reset
+- [ ] List `.append` / counter `+= 1` inside a `readonly=False` tool without a dedup guard is a CRITICAL bug
+
+### 5. Variable-name Cache-collision Risk (see `references/pitfalls.md` P4)
+
+- [ ] If the module exposes 2+ write tools, their parameter names are sufficiently distinct that agent-side `template_mode=True` callers won't collide (e.g. avoid `read_post(post_id)` + `share_post(post_id)` — prefer `share_post(target_post_id)` or document the agent-side mitigation)
+
+### 6. Design Consistency
 
 - [ ] Tool signatures match the design summary specs
 - [ ] State transitions in tools are logically sound
 - [ ] Module behavior aligns with the design's stated purpose
 
-### 4. State Persistence (only if design requires mutable state)
+### 7. State Persistence (only if design requires mutable state)
 
 - [ ] `_agent_state_columns` / `_env_state_columns` declared for replay tables
 - [ ] State writes use `_write_agent_state()` / `_write_env_state()` (not raw SQL)
@@ -51,14 +68,14 @@ The orchestrator will provide:
 - [ ] `_dump_state()` / `_load_state()` are symmetric and cover all mutable state
 - [ ] No placeholder persistence hooks — either real implementations or stateless design
 
-### 5. Safety
+### 8. Safety
 
 - [ ] No `eval()`, `exec()`, `subprocess`, or `os.system` calls
 - [ ] No hard-coded credentials, API keys, or absolute file paths
 - [ ] Tool methods validate agent_id and input parameters before acting
 - [ ] No unbounded data structures that could grow without limit across steps
 
-### 6. Registration
+### 9. Registration
 
 - [ ] File is at `custom/envs/<name>.py` (single file, not a package)
 - [ ] `class_name` attribute matches the registry key
@@ -79,6 +96,9 @@ Report as a structured list:
 ### Summary
 - Interface compliance: OK / issues
 - Tool correctness: OK / issues
+- Instruction style: OK / issues
+- Same-step idempotency: OK / issues
+- Variable-name cache-collision risk: OK / issues
 - Design consistency: OK / issues
 - State persistence: OK / issues / N/A (stateless)
 - Safety: OK / issues

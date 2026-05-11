@@ -58,19 +58,22 @@ decision = await self.acompletion_with_pydantic_validation(
 Minimal examples below; templates, context overlay, and error handling live in **`environment-interaction.md`** (single place to maintain).
 
 ```python
-# Query (readonly)
-ctx, response = await self.ask_env(
-    {}, 
-    "Current environment state?", 
-    readonly=True
-)
-
-# Execute action
+# Query (readonly) — template_mode=True is safe and saves a codegen call
 ctx, response = await self.ask_env(
     {"variables": {"location": "Beijing"}},
-    "Get weather for {location}",
+    "Please call get_weather() using location from ctx['variables'].",
+    readonly=True,
+    template_mode=True,
+)
+
+# Execute action — stateful write, default template_mode=False unless the
+# env tool is verified idempotent. See references/pitfalls.md P3.
+ctx, response = await self.ask_env(
+    {"variables": {"agent_id": self.id, "destination": "Beijing"}},
+    "Please call travel_to() using agent_id and destination "
+    "from ctx['variables'].",
     readonly=False,
-    template_mode=True
+    template_mode=False,
 )
 ```
 

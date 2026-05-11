@@ -45,6 +45,7 @@ digraph create_env_flow {
 
 ## Shared References
 - Compatibility contract: `checklists/compatibility.md`
+- **Common pitfalls (read before writing tool bodies): `references/pitfalls.md`**
 - Artifact schema: `artifacts/schema.md`
 - Persistence patterns: `references/persistence-patterns.md`
 - Runtime source guide: `references/runtime-sources.md`
@@ -66,6 +67,10 @@ Use the Python interpreter from `.env`. See `CLAUDE.md` for setup.
 | Skipping validation after code generation | Always run `.agentsociety/bin/ags.py create-env-module-validate` before finishing |
 | Forgetting `@tool` decorator on environment methods | Every public method agents can call needs `@tool(readonly=...)` |
 | Defining class in `__init__.py` instead of the module file | Define the class directly in `custom/envs/<module>.py` |
+| `@tool` returning `bool` or `{"success": bool}` | Return a dict / Pydantic model with `status: str` ∈ `{success, fail, in_progress, error}` — see `references/pitfalls.md` P1 |
+| `mcp_description` / `description` phrasing operations as Python call literals | Use prose with bold function names and parameter descriptions — see `references/pitfalls.md` P2 |
+| `readonly=False` tool not idempotent within one step (counter `+= 1`, list `.append`) | Use last-write-wins, set-based dedup, or explicit dedup-key — see `references/pitfalls.md` P3 |
+| 2+ write tools sharing argument names (`post_id` on both `read_post` and `share_post`) | Rename to distinct argument names or document the agent-side cache-collision mitigation — see `references/pitfalls.md` P4 |
 
 ## Subagent Delegation
 

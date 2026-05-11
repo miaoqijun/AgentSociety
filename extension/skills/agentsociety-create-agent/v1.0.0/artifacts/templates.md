@@ -140,19 +140,28 @@ class {AgentName}(AgentBase):
         return response.choices[0].message.content or ""
 
     async def step(self, tick: int, t: datetime) -> str:
-        # Get game state
-        _, state = await self.ask_env({}, "Get state", readonly=True)
-        
+        # Get game state (readonly query — template_mode=True is safe)
+        _, state = await self.ask_env(
+            {"variables": {"agent_name": self.name}},
+            "Please call get_state() using agent_name from ctx['variables'].",
+            readonly=True,
+            template_mode=True,
+        )
+
         # Make decision
         decision = await self._decide(state)
-        
-        # Submit action
+
+        # Submit action (stateful write — see references/pitfalls.md P3).
+        # template_mode=False unless your env tool is verified idempotent
+        # AND argument names don't collide with other write tools.
         _, result = await self.ask_env(
-            {"variables": decision},
-            "Submit with {variables}",
-            readonly=False, template_mode=True
+            {"variables": {"agent_name": self.name, "action": decision}},
+            "Please call submit_action() using agent_name and action "
+            "from ctx['variables'] to submit my decision for this round.",
+            readonly=False,
+            template_mode=False,
         )
-        
+
         return f"{self.name}: {decision}"
 
     async def _decide(self, state: str) -> dict:

@@ -66,6 +66,7 @@ Required and optional methods, LLM/env APIs, config: use **`references/agent-bas
 ## Environment and Profile
 
 - Env call patterns: `references/environment-interaction.md`
+- **Common pitfalls (read before writing `ask_env` code): `references/pitfalls.md`**
 - Profile fields: `references/profile-design.md`
 - In-repo examples: `references/examples.md`
 
@@ -90,6 +91,9 @@ For the full human checklist see `stages/validate.md` and `checklists/compatibil
 | Forgetting to make required methods async | All four required methods must be `async def` |
 | Not running the validator after creating the agent | Always run `.agentsociety/bin/ags.py create-agent --file ...` as the final step |
 | Adding files under an `examples/` path | The scanner skips any path containing an `examples/` segment; place files directly under `custom/agents/` |
+| Phrasing `ask_env` message as a Python call literal (`"tool(arg=val)"`) | Use natural language `"Please call tool_name() using <args> from ctx['variables'] ..."` — see `references/pitfalls.md` P2 |
+| Using `template_mode=True` for `readonly=False` writes without checking idempotency / argument-name collisions | Default to `template_mode=False` for writes; only enable when the env tool is verified idempotent AND argument names don't collide with other writes — see `references/pitfalls.md` P3 |
+| Calling the same write tool more than once per `step()` "to be safe" | Trust the `status` return; retry only on `fail`/`error` — see `references/pitfalls.md` P4 |
 
 ## Subagent Delegation
 

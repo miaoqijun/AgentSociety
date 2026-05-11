@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib.util
 import inspect
 import json
@@ -267,6 +268,170 @@ def _import_compat_helpers():
     return get_registered_tool_names, is_no_arg_constructible, overrides_base_method
 
 
+def _decorator_is_tool(dec: ast.expr) -> tuple[bool, dict[str, Any]]:
+    """Return (is_tool, kwargs_constants) for @tool / @tool(...) decorators."""
+
+    if isinstance(dec, ast.Name) and dec.id == "tool":
+        return True, {}
+    if isinstance(dec, ast.Attribute) and dec.attr == "tool":
+        return True, {}
+    if isinstance(dec, ast.Call):
+        f = dec.func
+        name: str | None = None
+        if isinstance(f, ast.Name):
+            name = f.id
+        elif isinstance(f, ast.Attribute):
+            name = f.attr
+        if name == "tool":
+            kw: dict[str, Any] = {}
+            for kwarg in dec.keywords:
+                if kwarg.arg and isinstance(kwarg.value, ast.Constant):
+                    kw[kwarg.arg] = kwarg.value.value
+            return True, kw
+    return False, {}
+
+
+def _return_is_bool_literal(val: ast.expr) -> bool:
+    return isinstance(val, ast.Constant) and isinstance(val.value, bool)
+
+
+def _return_is_success_bool_dict(val: ast.expr) -> bool:
+    if not isinstance(val, ast.Dict):
+        return False
+    for key, value in zip(val.keys, val.values):
+        if (
+            isinstance(key, ast.Constant)
+            and key.value == "success"
+            and isinstance(value, ast.Constant)
+            and isinstance(value.value, bool)
+        ):
+            return True
+    return False
+
+
+def _return_dict_has_status(val: ast.expr) -> bool:
+    if not isinstance(val, ast.Dict):
+        return False
+    for key in val.keys:
+        if isinstance(key, ast.Constant) and key.value == "status":
+            return True
+    return False
+
+
+def _return_annotation_is_bool(node: ast.AsyncFunctionDef | ast.FunctionDef) -> bool:
+    ann = node.returns
+    return isinstance(ann, ast.Name) and ann.id == "bool"
+
+
+def static_audit_tool_returns(file_path: Path, target_class: str) -> list[dict[str, Any]]:
+    """Static AST audit of `@tool` method return shapes (Pitfall P1).
+
+    Detects:
+    - `@tool(readonly=False)` methods returning a bool literal (`return True`)
+    - methods returning `{"success": True/False}` (wrong field; status must be a string)
+    - methods annotated `-> bool` (smell, not strict error for readonly tools)
+    - `readonly=False` methods returning a dict literal without a `status` key (WARNING)
+
+    Args:
+        file_path: source file containing the env class.
+        target_class: class name to audit (siblings are ignored).
+    """
+
+    issues: list[dict[str, Any]] = []
+    try:
+        source = file_path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+    except (OSError, SyntaxError):
+        return issues
+
+    for cls_node in ast.walk(tree):
+        if not isinstance(cls_node, ast.ClassDef) or cls_node.name != target_class:
+            continue
+        for item in cls_node.body:
+            if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            tool_kwargs: dict[str, Any] | None = None
+            for dec in item.decorator_list:
+                ok, kw = _decorator_is_tool(dec)
+                if ok:
+                    tool_kwargs = kw
+                    break
+            if tool_kwargs is None:
+                continue
+            readonly = tool_kwargs.get("readonly", True)
+            severity_write = "error" if readonly is False else "warning"
+            location = f"{cls_node.name}.{item.name} (line {item.lineno})"
+
+            if _return_annotation_is_bool(item):
+                issues.append(
+                    {
+                        "code": "tool_return_annotation_bool",
+                        "severity": severity_write,
+                        "message": (
+                            f"{location} has return annotation `-> bool`. "
+                            "Framework expects a dict / Pydantic model with `status: str`. "
+                            "See references/pitfalls.md P1."
+                        ),
+                        "check": "tool_return_shape",
+                        "details": {"line": item.lineno, "readonly": readonly},
+                    }
+                )
+
+            for sub in ast.walk(item):
+                if not isinstance(sub, ast.Return) or sub.value is None:
+                    continue
+                if _return_is_bool_literal(sub.value):
+                    issues.append(
+                        {
+                            "code": "tool_returns_bool_literal",
+                            "severity": severity_write,
+                            "message": (
+                                f"{location} returns a bool literal at line "
+                                f"{sub.lineno}. Framework expects "
+                                "{'status': 'success'|'fail'|'in_progress'|'error', ...}. "
+                                "See references/pitfalls.md P1."
+                            ),
+                            "check": "tool_return_shape",
+                            "details": {"line": sub.lineno, "readonly": readonly},
+                        }
+                    )
+                elif _return_is_success_bool_dict(sub.value):
+                    issues.append(
+                        {
+                            "code": "tool_returns_success_bool_dict",
+                            "severity": severity_write,
+                            "message": (
+                                f"{location} returns {{'success': bool}} at line "
+                                f"{sub.lineno}. Use {{'status': 'success'|'fail'|...}} "
+                                "(string, not bool). See references/pitfalls.md P1."
+                            ),
+                            "check": "tool_return_shape",
+                            "details": {"line": sub.lineno, "readonly": readonly},
+                        }
+                    )
+                elif (
+                    readonly is False
+                    and isinstance(sub.value, ast.Dict)
+                    and not _return_dict_has_status(sub.value)
+                ):
+                    issues.append(
+                        {
+                            "code": "tool_dict_missing_status",
+                            "severity": "warning",
+                            "message": (
+                                f"{location} (readonly=False) returns a dict literal "
+                                f"without a 'status' key at line {sub.lineno}. "
+                                "Writes should include `status: str`. "
+                                "See references/pitfalls.md P1."
+                            ),
+                            "check": "tool_return_shape",
+                            "details": {"line": sub.lineno, "readonly": readonly},
+                        }
+                    )
+
+    return issues
+
+
 def load_env_class(
     workspace_path: Path,
     module_path: str,
@@ -351,6 +516,8 @@ def build_scan_diagnostic(module_path: str, file_path: Path, cls: type[Any]) -> 
                 "details": {"required_parameters": required_params},
             }
         )
+
+    issues.extend(static_audit_tool_returns(file_path, cls.__name__))
 
     accepted = not any(issue["severity"] == "error" for issue in issues)
     return {

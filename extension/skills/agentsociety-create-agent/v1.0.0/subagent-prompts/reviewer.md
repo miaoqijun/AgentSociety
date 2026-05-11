@@ -17,6 +17,7 @@ The orchestrator will provide:
 1. The generated agent file (primary review target)
 2. `checklists/compatibility.md` -- Full compatibility checklist
 3. `references/agent-base-interface.md` -- API contract for AgentBase/PersonAgent
+4. `references/pitfalls.md` -- Four production-class bugs to check against (return shape, instruction style, template-cache collision, retry inflation)
 
 ## Review Dimensions
 
@@ -40,13 +41,20 @@ The orchestrator will provide:
 - [ ] `load()` restores all state that `dump()` exports (symmetric)
 - [ ] No blanket `except: pass` or silent exception swallowing in `ask`/`step`
 
-### 4. Safety
+### 4. Env Interaction Hygiene (see `references/pitfalls.md`)
+
+- [ ] Every `ask_env` `message` is phrased as natural-language instruction ("Please call …"), NOT as a Python call literal (`tool(arg=val)`)
+- [ ] For each `ask_env(readonly=False, ..., template_mode=True)`: confirm the targeted env tool is documented idempotent per step AND no other write tool shares the same argument names; otherwise flag as WARNING
+- [ ] `step()` does not call the same write tool more than once per agent per tick "to be safe"
+- [ ] If structured data is read from `ctx`, the code does not assume a fixed `{"success": bool}` shape — it tolerates the framework's `status: str` contract
+
+### 5. Safety
 
 - [ ] No `eval()`, `exec()`, `subprocess`, or `os.system` calls
 - [ ] No hard-coded credentials, API keys, or file paths
 - [ ] Only standard library + `agentsociety2` imports (no arbitrary third-party packages)
 
-### 5. Registration
+### 6. Registration
 
 - [ ] File is at `custom/agents/<name>.py`
 - [ ] Class is defined directly in the file (not imported from elsewhere)
@@ -68,6 +76,7 @@ Report as a structured list:
 - Interface compliance: OK / issues
 - Design consistency: OK / issues
 - State management: OK / issues
+- Env interaction hygiene: OK / issues
 - Safety: OK / issues
 - Registration: OK / issues
 ```

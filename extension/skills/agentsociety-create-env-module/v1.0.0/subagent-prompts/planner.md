@@ -18,6 +18,7 @@ The orchestrator will provide:
 1. `references/persistence-patterns.md` -- State persistence patterns and failure modes
 2. `references/runtime-sources.md` -- Runtime file locations and import paths
 3. `checklists/compatibility.md` -- Compatibility contract
+4. `references/pitfalls.md` -- Four production-class bugs (return shape, instruction style, same-step idempotency, variable-name collision) — read this BEFORE finalising tool signatures
 
 If the orchestrator provides paths to HYPOTHESIS.md or EXPERIMENT.md, read them to understand the research context.
 
@@ -101,7 +102,7 @@ Produce a JSON-structured spec:
         {"name": "agent_id", "type": "str", "purpose": "caller agent"},
         {"name": "param1", "type": "type", "purpose": "description"}
       ],
-      "returns": {"type": "str|dict|list|int|float|bool", "description": "what it returns"},
+      "returns": {"type": "dict|pydantic_model|str|list|int|float", "description": "what it returns; for readonly=False writes the dict MUST include status: 'success'|'fail'|'in_progress'|'error' (string, not bool) — see references/pitfalls.md P1"},
       "side_effects": "what state changes, or 'none'"
     }
   ],
@@ -150,6 +151,10 @@ After the JSON, include a brief prose summary (3-5 sentences) explaining how the
 - Every design decision must reference either a user requirement or the hypothesis
 - If information is insufficient to make a decision, flag it as `UNRESOLVED` with a question for the orchestrator
 - Every tool must have `agent_id: str` as first parameter
+- Every `readonly=False` tool's `returns` must include `status: str` (one of `"success"|"fail"|"in_progress"|"error"`) — never `bool`, never `{"success": True}` (see `references/pitfalls.md` P1)
+- Every `readonly=False` tool must specify, in its `side_effects` field, an explicit idempotency plan (last-write-wins / set-based dedup / explicit dedup-key with per-step reset) — see `references/pitfalls.md` P3
+- If 2+ write tools share parameter names (e.g. both take `post_id`), call this out as a known collision risk and either rename or flag for the agent author (see `references/pitfalls.md` P4)
+- `mcp_description()` and the `description` property must phrase operations in prose with bold function names, NOT as Python call literals (see `references/pitfalls.md` P2)
 - Persistence classification must be explicit for every mutable state variable
 - `step_counter` must be specified if any replay table uses step-keyed writes
 - Do NOT use `tick` (duration parameter) as the replay step index
