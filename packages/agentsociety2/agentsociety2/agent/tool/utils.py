@@ -155,8 +155,14 @@ def pagination_from_args(args: dict[str, Any], default_limit: int) -> tuple[int,
     :return: (offset, limit) 元组。
     :rtype: tuple[int, int]
     """
-    offset = max(0, int(args.get("offset", 0)))
-    limit = max(1, min(default_limit, int(args.get("limit", default_limit))))
+    try:
+        offset = max(0, int(args.get("offset", 0)))
+    except (ValueError, TypeError):
+        offset = 0
+    try:
+        limit = max(1, min(default_limit, int(args.get("limit", default_limit))))
+    except (ValueError, TypeError):
+        limit = default_limit
     return offset, limit
 
 

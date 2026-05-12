@@ -1042,7 +1042,8 @@ async def run_thread_compaction(
         try:
             response = await run_summary_llm(summary_prompt)
             if response.choices:
-                summary_text = (response.choices[0].message.content or "").strip()
+                msg = response.choices[0].message
+                summary_text = (msg.content or "").strip() if msg else ""
         except Exception as e:
             logger.warning(
                 f"Agent {agent_id}: LLM compression failed: {e}, using rolling summary"
