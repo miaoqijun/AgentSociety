@@ -315,9 +315,10 @@ class PersonAgent(AgentBase):
         :param path: 文件路径。
         :return: 缓存内容，未命中返回 None。
         """
-        if path in self._cache_valid_paths and path in self._workspace_cache:
-            self._workspace_cache.move_to_end(path)
-            return self._workspace_cache[path]
+        with self._cache_lock:
+            if path in self._cache_valid_paths and path in self._workspace_cache:
+                self._workspace_cache.move_to_end(path)
+                return self._workspace_cache[path]
         return None
 
     def _invalidate_all_workspace_cache(self) -> None:
@@ -423,7 +424,10 @@ class PersonAgent(AgentBase):
             s = raw.strip()
             if not s:
                 return {}
-            parsed = jr_parse(s)
+            try:
+                parsed = jr_parse(s)
+            except Exception:
+                return {}
             return dict(parsed) if isinstance(parsed, dict) else {}
         return {}
 
@@ -757,7 +761,10 @@ class PersonAgent(AgentBase):
         s = str(raw).strip()
         if not s:
             return "", []
-        parts = [x for x in shlex.split(s) if x]
+        try:
+            parts = [x for x in shlex.split(s) if x]
+        except ValueError:
+            parts = s.split()
         return s, parts
 
     @staticmethod
@@ -873,7 +880,10 @@ class PersonAgent(AgentBase):
                     "stderr": (stderr_b or b"").decode("utf-8", errors="replace"),
                 }
             except asyncio.TimeoutError:
-                proc.kill()
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
                 await proc.wait()
                 if attempt + 1 < attempts:
                     logger.warning(
@@ -975,9 +985,15 @@ class PersonAgent(AgentBase):
             scanned_files += 1
             if scanned_files > max_files:
                 break
-            if p.stat().st_size > max_file_bytes:
+            try:
+                if p.stat().st_size > max_file_bytes:
+                    continue
+            except OSError:
                 continue
-            text = p.read_text(encoding="utf-8", errors="ignore")
+            try:
+                text = p.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
             for i, line in enumerate(text.splitlines(), start=1):
                 if rx.search(line):
                     matches.append(
@@ -1161,7 +1177,10 @@ class PersonAgent(AgentBase):
                 self._update_workspace_cache(p, cached)
             if cached:
                 if p.endswith(".json"):
-                    parsed = jr_parse(cached)
+                    try:
+                        parsed = jr_parse(cached)
+                    except Exception:
+                        parsed = None
                     if parsed:
                         key_state[p] = parsed
                 elif len(cached) > self._ctx_config.key_state_file_limit:
@@ -2309,7 +2328,10 @@ class PersonAgent(AgentBase):
             # ── bash ──
             if action == "bash":
                 command = str(args.get("command", "")).strip()
-                timeout_sec = int(args.get("timeout_sec", 20))
+                try:
+                    timeout_sec = int(args.get("timeout_sec", 20))
+                except (ValueError, TypeError):
+                    timeout_sec = 20
                 timeout_sec = max(1, min(120, timeout_sec))
 
                 # WAL: 记录 bash 执行意图
@@ -2556,22 +2578,31 @@ class PersonAgent(AgentBase):
             step_end_reason = "step_timeout"
 
         # 使用 tool loop 结束后的最终技能状态
-        self._skill_runtime.persist_session_state(
-            tick=tick,
-            t=t,
-            selected_skills=self._selectable_skill_names,
-            activated_skills=self._activated_skills,
-        )
-        self._skill_runtime.append_step_replay(
-            tick=tick,
-            t=t,
-            selected_skills=self._selectable_skill_names,
-            tool_history=tool_history,
-            step_end_reason=step_end_reason,
-        )
+        try:
+            self._skill_runtime.persist_session_state(
+                tick=tick,
+                t=t,
+                selected_skills=self._selectable_skill_names,
+                activated_skills=self._activated_skills,
+            )
+        except Exception as e:
+            logger.warning(f"Agent {self.id}: persist_session_state failed: {e}")
+        try:
+            self._skill_runtime.append_step_replay(
+                tick=tick,
+                t=t,
+                selected_skills=self._selectable_skill_names,
+                tool_history=tool_history,
+                step_end_reason=step_end_reason,
+            )
+        except Exception as e:
+            logger.warning(f"Agent {self.id}: append_step_replay failed: {e}")
 
         # 将当前状态写入持久化记忆
-        self.handoff_to_memory()
+        try:
+            self.handoff_to_memory()
+        except Exception as e:
+            logger.warning(f"Agent {self.id}: handoff_to_memory failed: {e}")
 
         # 自动同步状态和文件清单
         try:

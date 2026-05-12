@@ -323,16 +323,13 @@ class AgentSkillRuntime:
         path = self._agent_work_dir / RUNTIME_LOG_DIR / "tool_calls.jsonl"
         if not path.exists():
             return []
-        if limit > 0:
-            recent_lines: deque[str] = deque(maxlen=limit)
-            with path.open("r", encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        recent_lines.append(line)
-            source = list(recent_lines)
-        else:
-            with path.open("r", encoding="utf-8") as f:
-                source = [line for line in f if line.strip()]
+        effective_limit = max(1, limit) if limit > 0 else 100
+        recent_lines: deque[str] = deque(maxlen=effective_limit)
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    recent_lines.append(line)
+        source = list(recent_lines)
         return [jr_parse(line) for line in source]
 
     def append_thread_message(

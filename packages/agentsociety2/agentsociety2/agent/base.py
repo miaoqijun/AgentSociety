@@ -436,7 +436,10 @@ class AgentBase(ABC):
             ],
             stream=False,
         )
-        content = response.choices[0].message.content  # type: ignore
+        if response.choices and response.choices[0].message:
+            content = response.choices[0].message.content
+        else:
+            content = ""
         return str(content or "").strip()
 
     @overload
