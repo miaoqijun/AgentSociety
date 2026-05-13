@@ -24,6 +24,7 @@
     "onCommand:aiSocialScientist.deleteLiterature",
     "onCommand:aiSocialScientist.renameLiterature",
     "onCommand:aiSocialScientist.openMarkdownInEditor",
+    "onCommand:aiSocialScientist.openTreeFileInEditor",
     "onCommand:agentsociety.viewPrefillParams",
     "onCommand:aiSocialScientist.openReplay",
     "onCommand:aiSocialScientist.startBackend",
@@ -48,6 +49,7 @@
     "onCommand:aiSocialScientist.copyAtReference",
     "onCommand:aiSocialScientist.viewJsonFile",
     "onCommand:aiSocialScientist.viewYamlFile",
+    "onCommand:aiSocialScientist.viewCsvFile",
     "onCommand:aiSocialScientist.openInExplorer",
     "onCommand:aiSocialScientist.copyFileName",
     "onCommand:aiSocialScientist.exportWorkspaceZip"
@@ -76,7 +78,9 @@
             "media": {
               "markdown": "resources/walkthrough/zh-CN/02-open-sidebar.md"
             },
-            "completionEvents": ["onView:projectStructureView"]
+            "completionEvents": [
+              "onView:projectStructureView"
+            ]
           },
           {
             "id": "initProject",
@@ -85,7 +89,9 @@
             "media": {
               "markdown": "resources/walkthrough/zh-CN/03-init-project.md"
             },
-            "completionEvents": ["onCommand:aiSocialScientist.initProject"]
+            "completionEvents": [
+              "onCommand:aiSocialScientist.initProject"
+            ]
           },
           {
             "id": "configureApi",
@@ -94,7 +100,9 @@
             "media": {
               "markdown": "resources/walkthrough/zh-CN/04-configure-api.md"
             },
-            "completionEvents": ["onCommand:aiSocialScientist.openConfigPage"]
+            "completionEvents": [
+              "onCommand:aiSocialScientist.openConfigPage"
+            ]
           },
           {
             "id": "startBackend",
@@ -103,7 +111,9 @@
             "media": {
               "markdown": "resources/walkthrough/zh-CN/05-start-backend.md"
             },
-            "completionEvents": ["onCommand:aiSocialScientist.startBackend"]
+            "completionEvents": [
+              "onCommand:aiSocialScientist.startBackend"
+            ]
           },
           {
             "id": "exploreSkills",
@@ -112,7 +122,9 @@
             "media": {
               "markdown": "resources/walkthrough/zh-CN/06-explore-skills.md"
             },
-            "completionEvents": ["onCommand:aiSocialScientist.openSkillMarketplace"]
+            "completionEvents": [
+              "onCommand:aiSocialScientist.openSkillMarketplace"
+            ]
           },
           {
             "id": "claudeCode",
@@ -121,7 +133,9 @@
             "media": {
               "markdown": "resources/walkthrough/zh-CN/07-claude-code.md"
             },
-            "completionEvents": ["onCommand:aiSocialScientist.openClaudeSkillSourcesSettings"]
+            "completionEvents": [
+              "onCommand:aiSocialScientist.openClaudeSkillSourcesSettings"
+            ]
           },
           {
             "id": "nextSteps",
@@ -178,18 +192,23 @@
       },
       {
         "command": "aiSocialScientist.deleteLiterature",
-        "title": "AI Social Scientist: Delete Literature",
+        "title": "AI Social Scientist: 删除文献",
         "icon": "$(trash)"
       },
       {
         "command": "aiSocialScientist.renameLiterature",
-        "title": "AI Social Scientist: Rename Literature",
+        "title": "AI Social Scientist: 重命名文献",
         "icon": "$(edit)"
       },
       {
+        "command": "aiSocialScientist.openTreeFileInEditor",
+        "title": "AI Social Scientist: Open in Editor",
+        "icon": "$(go-to-file)"
+      },
+      {
         "command": "aiSocialScientist.openMarkdownInEditor",
-        "title": "AI Social Scientist: Open Markdown in Editor",
-        "icon": "$(edit)"
+        "title": "AI Social Scientist: 在编辑器中打开 Markdown",
+        "icon": "$(markdown)"
       },
       {
         "command": "agentsociety.viewPrefillParams",
@@ -322,6 +341,11 @@
         "icon": "$(json)"
       },
       {
+        "command": "aiSocialScientist.viewCsvFile",
+        "title": "AI Social Scientist: 表格预览 (CSV/TSV)",
+        "icon": "$(table)"
+      },
+      {
         "command": "aiSocialScientist.viewYamlFile",
         "title": "AI Social Scientist: View YAML",
         "icon": "$(file-code)"
@@ -345,17 +369,17 @@
     "menus": {
       "view/title": [
         {
-          "command": "aiSocialScientist.refreshProjectView",
+          "command": "aiSocialScientist.openConfigPage",
           "when": "view == projectStructureView && workspaceFolderCount > 0",
           "group": "navigation@0"
         },
         {
-          "command": "aiSocialScientist.openSkillMarketplace",
+          "command": "aiSocialScientist.refreshProjectView",
           "when": "view == projectStructureView && workspaceFolderCount > 0",
           "group": "navigation@1"
         },
         {
-          "command": "aiSocialScientist.openConfigPage",
+          "command": "aiSocialScientist.openSkillMarketplace",
           "when": "view == projectStructureView && workspaceFolderCount > 0",
           "group": "navigation@2"
         },
@@ -373,17 +397,22 @@
         },
         {
           "command": "aiSocialScientist.deleteLiterature",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && !(viewItem =~ /literatureIndex/)))",
+          "when": "view == projectStructureView && viewItem =~ /^literatureFile/ && !(viewItem =~ /literatureIndex/)",
           "group": "1_modification"
         },
         {
           "command": "aiSocialScientist.renameLiterature",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem =~ /markdown/ || (viewItem =~ / json$/ && !(viewItem =~ /literatureIndex/)))",
+          "when": "view == projectStructureView && viewItem =~ /^literatureFile/ && !(viewItem =~ /literatureIndex/)",
           "group": "1_modification"
         },
         {
+          "command": "aiSocialScientist.openTreeFileInEditor",
+          "when": "view == projectStructureView && (viewItem == file || viewItem =~ /^file / || viewItem =~ /^literatureFile/) && !(viewItem =~ / tabular$/)",
+          "group": "2_actions"
+        },
+        {
           "command": "aiSocialScientist.openMarkdownInEditor",
-          "when": "view == projectStructureView && viewItem =~ /markdown/",
+          "when": "view == projectStructureView && viewItem =~ /markdown/ && viewItem != 'experiment markdown'",
           "group": "2_actions"
         },
         {
@@ -407,28 +436,33 @@
           "group": "1_view"
         },
         {
+          "command": "aiSocialScientist.viewCsvFile",
+          "when": "view == projectStructureView && viewItem =~ / tabular$/",
+          "group": "1_view"
+        },
+        {
           "command": "aiSocialScientist.viewYamlFile",
           "when": "view == projectStructureView && viewItem =~ / yaml$/",
           "group": "1_view"
         },
         {
           "command": "aiSocialScientist.openInExplorer",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
+          "when": "view == projectStructureView && (viewItem == paperFolder || viewItem =~ /^literatureFile/ || viewItem == file || viewItem =~ /^file / || viewItem =~ / tabular$/ || viewItem == pidJson || viewItem == replayableDatabase || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "3_system"
         },
         {
           "command": "aiSocialScientist.copyFileName",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
+          "when": "view == projectStructureView && (viewItem == paperFolder || viewItem =~ /^literatureFile/ || viewItem == file || viewItem =~ /^file / || viewItem =~ / tabular$/ || viewItem == pidJson || viewItem == replayableDatabase || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@3"
         },
         {
           "command": "aiSocialScientist.copyFilePath",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
+          "when": "view == projectStructureView && (viewItem == paperFolder || viewItem =~ /^literatureFile/ || viewItem == file || viewItem =~ /^file / || viewItem =~ / tabular$/ || viewItem == pidJson || viewItem == replayableDatabase || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@1"
         },
         {
           "command": "aiSocialScientist.copyAtReference",
-          "when": "view == projectStructureView && (viewItem == paper || viewItem == file || viewItem == pidJson || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
+          "when": "view == projectStructureView && (viewItem == paperFolder || viewItem =~ /^literatureFile/ || viewItem == file || viewItem =~ /^file / || viewItem =~ / tabular$/ || viewItem == pidJson || viewItem == replayableDatabase || viewItem == experiment || viewItem =~ /markdown/ || viewItem =~ / yaml$/ || viewItem =~ /stepsYaml/ || viewItem =~ /literatureIndex/ || viewItem =~ / json$/ || viewItem =~ /^json /)",
           "group": "0_copy@2"
         }
       ]

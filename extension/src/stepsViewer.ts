@@ -117,6 +117,17 @@ export class StepsViewer {
     const interveneCount = steps.filter(s => s.type === 'intervene').length;
     const questionnaireCount = steps.filter(s => s.type === 'questionnaire').length;
 
+    const stepSnippets: Record<string, string> = {
+      run: '\n  - type: run\n    num_steps: 10\n    tick: 60\n',
+      ask: isChinese
+        ? '\n  - type: ask\n    question: "在此填写问题"\n'
+        : '\n  - type: ask\n    question: "Your question here"\n',
+      intervene: '\n  - type: intervene\n    target: agent_0\n    action: noop\n    params: {}\n',
+      questionnaire: isChinese
+        ? '\n  - type: questionnaire\n    questionnaire_id: q1\n    title: 问卷标题\n    questions:\n      - id: q1_1\n        prompt: 题目内容\n        response_type: text\n'
+        : '\n  - type: questionnaire\n    questionnaire_id: q1\n    title: Questionnaire title\n    questions:\n      - id: q1_1\n        prompt: Question text\n        response_type: text\n',
+    };
+
     panel.webview.html = `
 <!DOCTYPE html>
 <html lang="${isChinese ? 'zh-CN' : 'en'}">
@@ -467,6 +478,46 @@ export class StepsViewer {
       padding: 48px;
       color: var(--vscode-descriptionForeground);
     }
+
+    .snippet-bar {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--vscode-panel-border);
+      background-color: var(--vscode-sideBar-background);
+    }
+
+    .snippet-bar-label {
+      font-size: 12px;
+      color: var(--vscode-descriptionForeground);
+      flex: 0 0 100%;
+    }
+
+    @media (min-width: 560px) {
+      .snippet-bar-label {
+        flex: 0 0 auto;
+        margin-right: 6px;
+      }
+    }
+
+    .snippet-btn {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--vscode-button-border);
+      background-color: var(--vscode-button-secondaryBackground);
+      color: var(--vscode-button-secondaryForeground);
+      cursor: pointer;
+    }
+
+    .snippet-btn:hover {
+      background-color: var(--vscode-button-secondaryHoverBackground);
+    }
+
     .copy-btn {
       padding: 6px 12px;
       background-color: var(--vscode-button-background);
@@ -506,6 +557,13 @@ export class StepsViewer {
   <div class="timeline" id="timeline"></div>
   
   <div id="editor" style="display: none; margin-top: 24px;">
+    <div id="snippetBar" class="snippet-bar">
+      <span class="snippet-bar-label">${isChinese ? '在光标处插入：' : 'Insert at cursor:'}</span>
+      <button type="button" class="snippet-btn" data-snippet="run">Run</button>
+      <button type="button" class="snippet-btn" data-snippet="ask">Ask</button>
+      <button type="button" class="snippet-btn" data-snippet="intervene">Intervene</button>
+      <button type="button" class="snippet-btn" data-snippet="questionnaire">${isChinese ? '问卷' : 'Questionnaire'}</button>
+    </div>
     <textarea id="yamlEditor" style="width: 100%; min-height: 300px; padding: 12px; background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border); border-radius: 6px; color: var(--vscode-input-foreground); font-family: var(--vscode-editor-font-family); font-size: 13px; resize: vertical;"></textarea>
     <div style="margin-top: 12px; display: flex; gap: 8px;">
       <button class="copy-btn" id="saveBtn">💾 ${isChinese ? '保存' : 'Save'}</button>
@@ -517,6 +575,7 @@ export class StepsViewer {
     const steps = ${JSON.stringify(steps)};
     const startT = ${JSON.stringify(data.start_t || '')};
     const serializedYaml = ${JSON.stringify(serializedYaml)};
+    const stepSnippets = ${JSON.stringify(stepSnippets)};
     const isChinese = ${isChinese ? 'true' : 'false'};
     const vscode = acquireVsCodeApi();
     
@@ -534,19 +593,46 @@ export class StepsViewer {
     function toggleEditor() {
       const editor = document.getElementById('editor');
       const timeline = document.getElementById('timeline');
+      const bar = document.getElementById('snippetBar');
       isEditing = !isEditing;
       
       if (isEditing) {
         editor.style.display = 'block';
         timeline.style.display = 'none';
+        bar.style.display = 'flex';
         document.getElementById('yamlEditor').value = serializedYaml;
         document.getElementById('editBtn').textContent = '👁️ ' + (isChinese ? '预览' : 'Preview');
       } else {
         editor.style.display = 'none';
         timeline.style.display = 'block';
+        bar.style.display = 'none';
         document.getElementById('editBtn').textContent = '✏️ ' + (isChinese ? '编辑' : 'Edit');
       }
     }
+
+    function insertSnippetAtCursor(text) {
+      const ta = document.getElementById('yamlEditor');
+      const start = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
+      const end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : start;
+      const v = ta.value;
+      ta.value = v.slice(0, start) + text + v.slice(end);
+      ta.focus();
+      const pos = start + text.length;
+      ta.setSelectionRange(pos, pos);
+    }
+
+    function bindSnippetBar() {
+      document.querySelectorAll('.snippet-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const key = btn.getAttribute('data-snippet');
+          const text = stepSnippets[key] || '';
+          if (text) {
+            insertSnippetAtCursor(text);
+          }
+        });
+      });
+    }
+    bindSnippetBar();
     
     document.getElementById('editBtn').addEventListener('click', toggleEditor);
     
