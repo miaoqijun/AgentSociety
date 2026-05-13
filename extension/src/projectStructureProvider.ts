@@ -76,6 +76,28 @@ function shouldHideFsEntry(entryName: string): boolean {
   return false;
 }
 
+const TREE_OPEN_AS_DOCUMENT_EXTS = new Set([
+  'c', 'cc', 'cpp', 'cxx', 'cs', 'css', 'cts', 'go', 'h', 'hpp', 'ini', 'java', 'js',
+  'jsx', 'kt', 'less', 'log', 'mjs', 'mts', 'php', 'py', 'rb', 'rs', 'r', 'sass', 'scala',
+  'scss', 'sh', 'sql', 'swift', 'toml', 'ts', 'tsx', 'txt', 'vue', 'svelte',
+]);
+
+function workspaceRelativePosix(workspaceRoot: string, absolutePath: string): string {
+  const rel = path.relative(workspaceRoot, absolutePath);
+  if (!rel || rel.startsWith('..')) {
+    return absolutePath;
+  }
+  return rel.split(path.sep).join('/');
+}
+
+function workspaceRelativeTreeTooltip(workspaceRoot: string, absolutePath: string): string {
+  const rel = workspaceRelativePosix(workspaceRoot, absolutePath);
+  if (rel === absolutePath) {
+    return rel;
+  }
+  return localize('projectStructure.treeItem.pathHint', rel);
+}
+
 function shouldShowFileByExt(fileName: string): boolean {
   const ext = path.extname(fileName).toLowerCase();
   if (!ext) {
@@ -93,6 +115,7 @@ function shouldShowFileByExt(fileName: string): boolean {
     '.yml',
     '.md',
     '.txt',
+    '.py',
     '.csv',
     '.tsv',
     '.html',
@@ -107,6 +130,36 @@ function shouldShowFileByExt(fileName: string): boolean {
     '.db',
     '.sqlite',
   ].includes(ext);
+}
+
+const CUSTOM_CODE_SUBDIR = new Set(['agents', 'envs']);
+
+function shouldShowFileInTreeListing(parentDir: string, fileName: string): boolean {
+  if (!shouldShowFileByExt(fileName)) {
+    return false;
+  }
+  const norm = parentDir.replace(/\\/g, '/');
+  const segs = norm.split('/').filter(Boolean);
+  const iCustom = segs.lastIndexOf('custom');
+  if (iCustom >= 0 && iCustom + 1 < segs.length) {
+    const sub = segs[iCustom + 1].toLowerCase();
+    if (CUSTOM_CODE_SUBDIR.has(sub)) {
+      const ext = path.extname(fileName).toLowerCase();
+      if (
+        [
+          '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp',
+          '.csv', '.tsv', '.html', '.htm', '.pdf',
+        ].includes(ext)
+      ) {
+        return false;
+      }
+      if (['.log', '.db', '.sqlite'].includes(ext)) {
+        return false;
+      }
+      return ['.py', '.md', '.json', '.yaml', '.yml', '.toml', '.txt'].includes(ext);
+    }
+  }
+  return true;
 }
 
 function safeStatSync(fsPath: string): fs.Stats | null {
@@ -256,12 +309,31 @@ export class ProjectItem extends vscode.TreeItem {
     // 检查是否为 YAML 文件
     const isYaml = ext === 'yaml' || ext === 'yml';
 
-    // contextValue: 用于上下文菜单的条件判断
-    // 例如：当contextValue为'hypothesis'时，可以显示特定的右键菜单项
-    // 对于 markdown 文件，添加 'markdown' 标识以便在右键菜单中显示特定选项
-    // 对于 JSON 文件，添加 'json' 标识
-    // 对于 YAML 文件，添加 'yaml' 标识
-    if (isMarkdown) {
+    let isDirectoryPath = false;
+    if (filePath) {
+      try {
+        isDirectoryPath = fs.existsSync(filePath) && fs.statSync(filePath).isDirectory();
+      } catch {
+        isDirectoryPath = false;
+      }
+    }
+
+    const underPapers =
+      !!filePath && filePath.replace(/\\/g, '/').toLowerCase().includes('/papers/');
+
+    if (type === 'paper' && filePath && underPapers) {
+      if (isDirectoryPath) {
+        this.contextValue = 'paperFolder';
+      } else if (path.basename(filePath).toLowerCase() === 'literature_index.json') {
+        this.contextValue = 'literatureFile literatureIndex json';
+      } else if (isMarkdown) {
+        this.contextValue = 'literatureFile markdown';
+      } else if (isJson) {
+        this.contextValue = 'literatureFile json';
+      } else {
+        this.contextValue = 'literatureFile';
+      }
+    } else if (isMarkdown) {
       this.contextValue = `${type} markdown`;
     } else if (isJson) {
       this.contextValue = `${type} json`;
@@ -269,6 +341,10 @@ export class ProjectItem extends vscode.TreeItem {
       this.contextValue = `${type} yaml`;
     } else {
       this.contextValue = type;
+    }
+
+    if (filePath && !isDirectoryPath && (ext === 'csv' || ext === 'tsv')) {
+      this.contextValue = `${this.contextValue} tabular`.trim();
     }
 
     // 根据节点类型设置不同的图标
@@ -291,11 +367,11 @@ export class ProjectItem extends vscode.TreeItem {
       'prefillParamsAgent': 'symbol-interface', // 接口图标，表示智能体类预置参数
       'settings': 'gear', // 齿轮设置图标，表示配置设置
       'custom': 'extensions', // 自定义模块 / 插件扩展
-      'customWorkspace': 'folder', // custom/ 目录节点图标
+      'customWorkspace': 'library', // custom/ 根：研究扩展资产
       'customScan': 'search', // 搜索图标，扫描
       'customTest': 'debug-start', // 播放图标，测试
-      'customAgentItem': 'symbol-class', // 自定义Agent图标
-      'customEnvItem': 'symbol-namespace', // 自定义环境模块图标
+      'customAgentItem': 'hubot',
+      'customEnvItem': 'server-environment',
       'customAgentsGroup': 'folder', // Agents组图标
       'customEnvsGroup': 'folder', // Envs组图标
       'presentation': 'graph-line', // 分析报告（图表/结果展示）
@@ -305,9 +381,9 @@ export class ProjectItem extends vscode.TreeItem {
       'reportHtml': 'file-code', // HTML 报告图标
       'reportMd': 'file-text', // Markdown 报告图标
       'skillManagement': 'extensions', // 技能管理（打开面板）
-      'paperPdfGroup': 'references', // PDF 文献组
-      'paperMdGroup': 'markdown', // Markdown 笔记组
-      'paperJsonGroup': 'json', // JSON 索引组
+      'paperPdfGroup': 'file-pdf',
+      'paperMdGroup': 'markdown',
+      'paperJsonGroup': 'list-tree',
       'pidJson': 'info', // 进程状态图标
       'experimentInitGroup': 'settings-gear', // 实验配置文件组
       'experimentRunGroup': 'graph-line', // 实验运行结果组
@@ -317,15 +393,6 @@ export class ProjectItem extends vscode.TreeItem {
 
     // 对于 paper 和 file 类型，根据文件扩展名设置图标
     let iconId: string;
-    let isDirectoryPath = false;
-    if (filePath) {
-      try {
-        isDirectoryPath = fs.existsSync(filePath) && fs.statSync(filePath).isDirectory();
-      } catch {
-        isDirectoryPath = false;
-      }
-    }
-
     if ((type === 'paper' || type === 'file') && isDirectoryPath) {
       // 目录节点应始终显示为文件夹，避免误显示为白色文件图标
       iconId = 'folder';
@@ -369,14 +436,26 @@ export class ProjectItem extends vscode.TreeItem {
       this.iconPath = makeThemeIcon('primitive-dot', 'descriptionForeground');
     } else if (type === 'prefillParamsGroup') {
       this.iconPath = makeThemeIcon('server-environment', 'charts.blue');
+    } else if (type === 'customWorkspace') {
+      this.iconPath = makeThemeIcon('library', 'charts.purple');
+    } else if (type === 'customAgentItem') {
+      this.iconPath = makeThemeIcon('hubot', 'charts.blue');
+    } else if (type === 'customEnvItem') {
+      this.iconPath = makeThemeIcon('server-environment', 'charts.orange');
+    } else if (type === 'paperPdfGroup') {
+      this.iconPath = makeThemeIcon('file-pdf', 'charts.red');
+    } else if (type === 'paperJsonGroup') {
+      this.iconPath = makeThemeIcon('list-tree', 'charts.blue');
     }
 
-    // paper / file：磁盘上存在的路径交由「文件图标主题」绘制（Markdown、JSON 等与资源管理器一致）
-    if (
+    const useThemedFileIcon =
       filePath &&
-      (type === 'paper' || type === 'file') &&
-      fs.existsSync(filePath)
-    ) {
+      fs.existsSync(filePath) &&
+      (type === 'paper' ||
+        type === 'file' ||
+        ((type === 'reportHtml' || type === 'reportMd') && !isDirectoryPath));
+
+    if (useThemedFileIcon) {
       this.resourceUri = vscode.Uri.file(filePath);
       this.iconPath = undefined;
     }
@@ -436,10 +515,14 @@ export class ProjectItem extends vscode.TreeItem {
           title: '查看 YAML',
           arguments: [filePath]
         };
+      } else if (ext === 'csv' || ext === 'tsv') {
+        this.command = {
+          command: 'aiSocialScientist.viewCsvFile',
+          title: localize('extension.viewCsv.commandTitle'),
+          arguments: [filePath]
+        };
       } else if ([
         'pdf',
-        'csv',
-        'tsv',
         'png',
         'jpg',
         'jpeg',
@@ -447,16 +530,18 @@ export class ProjectItem extends vscode.TreeItem {
         'webp',
         'svg'
       ].includes(ext)) {
-        // 可视化/数据资产应直接打开 VS Code 的默认查看器（PDF、表格、图片等），
-        // 这类不是源码编辑入口，用户点击时预期就是查看内容。
         this.command = {
           command: 'vscode.open',
           title: localize('extension.openAsset.commandTitle'),
           arguments: [vscode.Uri.file(filePath)]
         };
+      } else if (ext && TREE_OPEN_AS_DOCUMENT_EXTS.has(ext)) {
+        this.command = {
+          command: 'vscode.open',
+          title: localize('extension.openDocument.commandTitle'),
+          arguments: [vscode.Uri.file(filePath)]
+        };
       } else {
-        // 其他文本/源码类文件不在树上默认打开编辑器，避免误点进入编辑状态。
-        // 需要编辑时可使用右键菜单或 VS Code Explorer。
         this.command = {
           command: 'aiSocialScientist.copyFilePath',
           title: localize('extension.copyPath.commandTitle'),
@@ -489,13 +574,13 @@ function makeThemeIcon(id: string, colorId?: string): vscode.ThemeIcon {
 function getCustomWorkspaceDirIcon(dirName: string): vscode.ThemeIcon | undefined {
   const normalized = dirName.trim().toLowerCase();
   if (normalized === 'agents') {
-    return makeThemeIcon('symbol-class', 'charts.blue');
+    return makeThemeIcon('hubot', 'charts.blue');
   }
   if (normalized === 'envs') {
-    return makeThemeIcon('symbol-namespace', 'charts.orange');
+    return makeThemeIcon('server-environment', 'charts.orange');
   }
   if (normalized === 'skills') {
-    return makeThemeIcon('puzzle', 'charts.green');
+    return makeThemeIcon('wand', 'charts.green');
   }
   return undefined;
 }
@@ -1018,15 +1103,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         return items;
       }
 
-      // 已初始化：配置设置按钮始终在最上面
-      const settingsItem = new ProjectItem(
-        localize('projectStructure.settings'),
-        vscode.TreeItemCollapsibleState.None,
-        'settings',
-        undefined
-      );
-      settingsItem.tooltip = localize('projectStructure.settings.tooltip');
-      items.push(settingsItem);
+      // 已初始化：配置入口在视图标题栏（齿轮），此处不再重复「配置设置」以免与标题操作重叠
 
       // 添加 AI Chat 入口
       const aiChatItem = new ProjectItem(
@@ -1199,7 +1276,6 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           'topic',
           topicFile
         );
-        topicFileItem.description = localize('projectStructure.topicFile.description');
         topicFileItem.tooltip = localize('projectStructure.topicFile.tooltip');
         items.push(topicFileItem);
       }
@@ -1325,15 +1401,15 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
               fs.existsSync(path.join(subDir, 'metadata.json'));
           }).length;
 
-        const label = datasetCount > 0
-          ? `${localize('projectStructure.datasets')} (${datasetCount})`
-          : localize('projectStructure.datasets');
         const datasetsItem = new ProjectItem(
-          label,
+          localize('projectStructure.datasets'),
           vscode.TreeItemCollapsibleState.Collapsed,
           'datasets',
           undefined
         );
+        if (datasetCount > 0) {
+          datasetsItem.description = localize('projectStructure.groupItemCount', datasetCount);
+        }
         datasetsItem.tooltip = localize('projectStructure.datasets.tooltip');
         items.push(datasetsItem);
       }
@@ -1446,9 +1522,12 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
               'paper',
               literatureIndexFile.path
             );
-            fileItem.tooltip = `${localize('projectStructure.literatureIndex')} (${count} ${localize('projectStructure.articles')})`;
-            fileItem.description = `(${count} ${localize('projectStructure.articles')})`;
-            fileItem.contextValue = 'paper json literatureIndex';
+            fileItem.description = localize('projectStructure.literatureIndex.countSuffix', count);
+            fileItem.tooltip = [
+              localize('projectStructure.literatureIndex'),
+              localize('projectStructure.literatureIndex.detail', count),
+              workspaceRelativeTreeTooltip(workspacePath, literatureIndexFile.path),
+            ].join('\n');
             fileItem.command = {
               command: 'aiSocialScientist.viewLiteratureIndex',
               title: '查看文献索引',
@@ -1461,11 +1540,12 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         // PDF 文献组
         if (pdfFiles.length > 0) {
           const pdfGroup = new ProjectItem(
-            `${localize('projectStructure.pdfFiles')} (${pdfFiles.length})`,
+            localize('projectStructure.pdfFiles'),
             vscode.TreeItemCollapsibleState.Collapsed,
             'paperPdfGroup',
             papersDir
           );
+          pdfGroup.description = localize('projectStructure.groupItemCount', pdfFiles.length);
           (pdfGroup as any).fileList = pdfFiles;
           items.push(pdfGroup);
         }
@@ -1473,11 +1553,12 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         // Markdown 笔记组
         if (mdFiles.length > 0) {
           const mdGroup = new ProjectItem(
-            `${localize('projectStructure.mdFiles')} (${mdFiles.length})`,
+            localize('projectStructure.mdFiles'),
             vscode.TreeItemCollapsibleState.Collapsed,
             'paperMdGroup',
             papersDir
           );
+          mdGroup.description = localize('projectStructure.groupItemCount', mdFiles.length);
           (mdGroup as any).fileList = mdFiles;
           items.push(mdGroup);
         }
@@ -1486,11 +1567,12 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         const otherJsonFiles = jsonFiles.filter(f => f.name !== 'literature_index.json');
         if (otherJsonFiles.length > 0) {
           const jsonGroup = new ProjectItem(
-            `${localize('projectStructure.jsonFiles')} (${otherJsonFiles.length})`,
+            localize('projectStructure.jsonFiles'),
             vscode.TreeItemCollapsibleState.Collapsed,
             'paperJsonGroup',
             papersDir
           );
+          jsonGroup.description = localize('projectStructure.groupItemCount', otherJsonFiles.length);
           (jsonGroup as any).fileList = otherJsonFiles;
           items.push(jsonGroup);
         }
@@ -1506,12 +1588,18 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
             ? localize('projectStructure.fullTextPdfs')
             : dir.name;
           const dirItem = new ProjectItem(
-            dir.count > 0 ? `${displayName} (${dir.count})` : displayName,
+            displayName,
             vscode.TreeItemCollapsibleState.Collapsed,
             'paper',
             dir.path
           );
-          dirItem.tooltip = `${displayName} - ${dir.count} ${localize('projectStructure.files')}`;
+          if (dir.count > 0) {
+            dirItem.description = localize('projectStructure.groupItemCount', dir.count);
+          }
+          dirItem.tooltip = [
+            `${displayName} — ${dir.count} ${localize('projectStructure.files')}`,
+            workspaceRelativeTreeTooltip(workspacePath, dir.path),
+          ].join('\n');
           items.push(dirItem);
         }
       }
@@ -1536,24 +1624,26 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           }
 
           if (stat.isFile()) {
-            if (!shouldShowFileByExt(entry)) {
+            if (!shouldShowFileInTreeListing(filePath, entry)) {
               continue;
             }
-            // 如果是文件，创建文件节点
-            items.push(new ProjectItem(
-              entry,  // 文件名作为标签
-              vscode.TreeItemCollapsibleState.None,  // 文件没有子节点
+            const pi = new ProjectItem(
+              entry,
+              vscode.TreeItemCollapsibleState.None,
               'paper',
-              fullPath  // 完整文件路径
-            ));
+              fullPath
+            );
+            pi.tooltip = workspaceRelativeTreeTooltip(workspacePath, fullPath);
+            items.push(pi);
           } else if (stat.isDirectory()) {
-            // 如果是目录，创建可展开的目录节点
-            items.push(new ProjectItem(
-              entry,  // 目录名作为标签
-              vscode.TreeItemCollapsibleState.Collapsed,  // 可展开
-              'paper',  // 使用paper类型
-              fullPath  // 存储目录路径，用于获取子节点
-            ));
+            const pi = new ProjectItem(
+              entry,
+              vscode.TreeItemCollapsibleState.Collapsed,
+              'paper',
+              fullPath
+            );
+            pi.tooltip = workspaceRelativeTreeTooltip(workspacePath, fullPath);
+            items.push(pi);
           }
         }
 
@@ -1567,12 +1657,17 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       const items: ProjectItem[] = [];
 
       for (const file of fileList) {
-        items.push(new ProjectItem(
+        const pi = new ProjectItem(
           file.name,
           vscode.TreeItemCollapsibleState.None,
           'paper',
           file.path
-        ));
+        );
+        const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (ws) {
+          pi.tooltip = workspaceRelativeTreeTooltip(ws, file.path);
+        }
+        items.push(pi);
       }
 
       return items;
@@ -1607,22 +1702,23 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
             if (!shouldShowFileByExt(entry)) {
               continue;
             }
-            // 如果是文件，创建文件节点
-            items.push(new ProjectItem(
-              entry,  // 文件名作为标签
-              vscode.TreeItemCollapsibleState.None,  // 文件没有子节点
+            const fileItem = new ProjectItem(
+              entry,
+              vscode.TreeItemCollapsibleState.None,
               'file',
-              fullPath  // 完整文件路径
-            ));
+              fullPath
+            );
+            fileItem.tooltip = workspaceRelativeTreeTooltip(workspacePath, fullPath);
+            items.push(fileItem);
           } else if (stat.isDirectory()) {
-            // 如果是目录，创建可展开的目录节点
-            // 将目录路径存储在filePath中，用于后续获取子节点
-            items.push(new ProjectItem(
-              entry,  // 目录名作为标签
-              vscode.TreeItemCollapsibleState.Collapsed,  // 可展开
-              'file',  // 使用file类型
-              fullPath  // 存储目录路径，用于获取子节点
-            ));
+            const dirItem = new ProjectItem(
+              entry,
+              vscode.TreeItemCollapsibleState.Collapsed,
+              'file',
+              fullPath
+            );
+            dirItem.tooltip = workspaceRelativeTreeTooltip(workspacePath, fullPath);
+            items.push(dirItem);
           }
         }
       }
@@ -1682,6 +1778,8 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
     // DatasetItem展开时显示目录内容
     if (element.type === 'datasetItem') {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      const workspacePathRoot = workspaceFolder?.uri.fsPath ?? '';
       const datasetDirPath = (element as any).datasetDirPath;
       if (!datasetDirPath || !fs.existsSync(datasetDirPath) || !fs.statSync(datasetDirPath).isDirectory()) {
         return [];
@@ -1707,6 +1805,9 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
             'file',
             fullPath
           );
+          if (workspacePathRoot) {
+            fileItem.tooltip = workspaceRelativeTreeTooltip(workspacePathRoot, fullPath);
+          }
           if (entry.toLowerCase().endsWith('.md')) {
             fileItem.command = {
               command: 'markdown.showPreview',
@@ -1716,12 +1817,16 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           }
           items.push(fileItem);
         } else if (stat.isDirectory()) {
-          items.push(new ProjectItem(
+          const subdirItem = new ProjectItem(
             entry,
             vscode.TreeItemCollapsibleState.Collapsed,
             'file',
             fullPath
-          ));
+          );
+          if (workspacePathRoot) {
+            subdirItem.tooltip = workspaceRelativeTreeTooltip(workspacePathRoot, fullPath);
+          }
+          items.push(subdirItem);
         }
       }
 
@@ -1750,7 +1855,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           if (stat.isFile()) {
             const allowFile = chartsDir
               ? shouldShowFileInPresentationCharts(entry)
-              : shouldShowFileByExt(entry);
+              : shouldShowFileInTreeListing(filePath, entry);
             if (!allowFile) {
               continue;
             }
@@ -1760,7 +1865,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
               'file',
               fullPath,
             );
-            fileItem.tooltip = fullPath;
+            fileItem.tooltip = workspaceRelativeTreeTooltip(workspacePath, fullPath);
             if (chartsDir) {
               fileItem.description = getPresentationChartsFileDescription(entry);
             }
@@ -1772,7 +1877,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
               'file',
               fullPath,
             );
-            dirItem.tooltip = fullPath;
+            dirItem.tooltip = workspaceRelativeTreeTooltip(workspacePath, fullPath);
             items.push(dirItem);
           }
         }
@@ -1816,22 +1921,28 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
             const dirItem = new ProjectItem(
               entry,
               vscode.TreeItemCollapsibleState.Collapsed,
-              'file',  // 使用file类型来复用目录展开逻辑
+              'file',
               fullPath
             );
             const semanticIcon = getCustomWorkspaceDirIcon(entry);
             if (semanticIcon) {
               dirItem.iconPath = semanticIcon;
+              dirItem.resourceUri = undefined;
             }
+            dirItem.tooltip = workspaceRelativeTreeTooltip(workspacePath, fullPath);
             items.push(dirItem);
           } else if (stat.isFile()) {
-            // 创建文件节点
-            items.push(new ProjectItem(
+            if (!shouldShowFileInTreeListing(customDir, entry)) {
+              continue;
+            }
+            const fileItem = new ProjectItem(
               entry,
               vscode.TreeItemCollapsibleState.None,
               'file',
               fullPath
-            ));
+            );
+            fileItem.tooltip = workspaceRelativeTreeTooltip(workspacePath, fullPath);
+            items.push(fileItem);
           }
         }
       }
@@ -2191,16 +2302,19 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
               }
             }
 
-            const countSuffix = reportCount > 0 ? ` (${reportCount})` : '';
             const displayName = match
-              ? `${localize('projectStructure.hypothesis')} ${match[1]}${countSuffix}`
+              ? `${localize('projectStructure.hypothesis')} ${match[1]}`
               : entry;
-            items.push(new ProjectItem(
+            const hypItem = new ProjectItem(
               displayName,
               vscode.TreeItemCollapsibleState.Collapsed,
               'presentationHypothesis',
               fullPath
-            ));
+            );
+            if (reportCount > 0) {
+              hypItem.description = localize('projectStructure.presentationReportsAvailable', reportCount);
+            }
+            items.push(hypItem);
           }
         }
       }
@@ -2338,12 +2452,15 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         // 添加 data 目录（分析数据）
         const dataDir = path.join(element.filePath, 'data');
         if (fs.existsSync(dataDir)) {
-          items.push(new ProjectItem(
+          const dataItem = new ProjectItem(
             localize('projectStructure.analysisData'),
             vscode.TreeItemCollapsibleState.Collapsed,
             'file',
             dataDir
-          ));
+          );
+          dataItem.iconPath = makeThemeIcon('database', 'descriptionForeground');
+          dataItem.resourceUri = undefined;
+          items.push(dataItem);
         }
 
         const chartsDir = path.join(element.filePath, 'charts');
@@ -2355,18 +2472,23 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
             chartsDir,
           );
           chartsItem.tooltip = localize('projectStructure.reportChartsTooltip');
+          chartsItem.iconPath = makeThemeIcon('graph-line', 'charts.blue');
+          chartsItem.resourceUri = undefined;
           items.push(chartsItem);
         }
 
         // 添加 assets 目录（资源）
         const assetsDir = path.join(element.filePath, 'assets');
         if (fs.existsSync(assetsDir)) {
-          items.push(new ProjectItem(
+          const assetsItem = new ProjectItem(
             localize('projectStructure.reportAssets'),
             vscode.TreeItemCollapsibleState.Collapsed,
             'file',
             assetsDir
-          ));
+          );
+          assetsItem.iconPath = makeThemeIcon('file-media', 'charts.yellow');
+          assetsItem.resourceUri = undefined;
+          items.push(assetsItem);
         }
       }
 
@@ -2434,48 +2556,51 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           const isHtml = ext === 'html';
 
           if (isHtml) {
-            // 中文 HTML
             if (paths.zh) {
               const item = new ProjectItem(
-                `${localize('projectStructure.synthesis')} ${timestamp} (${localize('projectStructure.reportHtmlZh')})`,
+                timestamp,
                 vscode.TreeItemCollapsibleState.None,
                 'reportHtml',
                 paths.zh
               );
+              item.description = localize('projectStructure.synthesisRowDesc.htmlZh');
+              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.zh);
               items.push(item);
             }
 
-            // 英文 HTML
             if (paths.en) {
               const item = new ProjectItem(
-                `${localize('projectStructure.synthesis')} ${timestamp} (${localize('projectStructure.reportHtmlEn')})`,
+                timestamp,
                 vscode.TreeItemCollapsibleState.None,
                 'reportHtml',
                 paths.en
               );
+              item.description = localize('projectStructure.synthesisRowDesc.htmlEn');
+              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.en);
               items.push(item);
             }
 
-            // 通用 HTML（仅当没有语言特定版本时）
             if (!paths.zh && !paths.en && paths.generic) {
               const item = new ProjectItem(
-                `${localize('projectStructure.synthesis')} ${timestamp}`,
+                timestamp,
                 vscode.TreeItemCollapsibleState.None,
                 'reportHtml',
                 paths.generic
               );
+              item.description = localize('projectStructure.synthesisRowDesc.html');
+              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.generic);
               items.push(item);
             }
           } else {
-            // Markdown
-            // 中文 MD
             if (paths.zh) {
               const item = new ProjectItem(
-                `${localize('projectStructure.synthesis')} ${timestamp} (${localize('projectStructure.reportMdZh')})`,
+                timestamp,
                 vscode.TreeItemCollapsibleState.None,
                 'reportMd',
                 paths.zh
               );
+              item.description = localize('projectStructure.synthesisRowDesc.mdZh');
+              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.zh);
               item.command = {
                 command: 'markdown.showPreview',
                 title: 'Open Preview',
@@ -2484,14 +2609,15 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
               items.push(item);
             }
 
-            // 英文 MD
             if (paths.en) {
               const item = new ProjectItem(
-                `${localize('projectStructure.synthesis')} ${timestamp} (${localize('projectStructure.reportMdEn')})`,
+                timestamp,
                 vscode.TreeItemCollapsibleState.None,
                 'reportMd',
                 paths.en
               );
+              item.description = localize('projectStructure.synthesisRowDesc.mdEn');
+              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.en);
               item.command = {
                 command: 'markdown.showPreview',
                 title: 'Open Preview',
@@ -2500,14 +2626,15 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
               items.push(item);
             }
 
-            // 通用 MD（仅当没有语言特定版本时）
             if (!paths.zh && !paths.en && paths.generic) {
               const item = new ProjectItem(
-                `${localize('projectStructure.synthesis')} ${timestamp} (${localize('projectStructure.reportMd')})`,
+                timestamp,
                 vscode.TreeItemCollapsibleState.None,
                 'reportMd',
                 paths.generic
               );
+              item.description = localize('projectStructure.synthesisRowDesc.md');
+              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.generic);
               item.command = {
                 command: 'markdown.showPreview',
                 title: 'Open Preview',
@@ -2549,30 +2676,36 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         undefined
       )
     );
-    rows.push(
-      new ProjectItem(
-        localize('projectStructure.experimentStats.lineRun', overview.runningExperiments),
-        vscode.TreeItemCollapsibleState.None,
-        'projectStatsMetric',
-        undefined
-      )
-    );
-    rows.push(
-      new ProjectItem(
-        localize('projectStructure.experimentStats.lineFailed', overview.failedExperiments),
-        vscode.TreeItemCollapsibleState.None,
-        'projectStatsMetric',
-        undefined
-      )
-    );
-    rows.push(
-      new ProjectItem(
-        localize('projectStructure.experimentStats.linePending', overview.pendingExperiments),
-        vscode.TreeItemCollapsibleState.None,
-        'projectStatsMetric',
-        undefined
-      )
-    );
+    if (overview.runningExperiments > 0) {
+      rows.push(
+        new ProjectItem(
+          localize('projectStructure.experimentStats.lineRun', overview.runningExperiments),
+          vscode.TreeItemCollapsibleState.None,
+          'projectStatsMetric',
+          undefined
+        )
+      );
+    }
+    if (overview.failedExperiments > 0) {
+      rows.push(
+        new ProjectItem(
+          localize('projectStructure.experimentStats.lineFailed', overview.failedExperiments),
+          vscode.TreeItemCollapsibleState.None,
+          'projectStatsMetric',
+          undefined
+        )
+      );
+    }
+    if (overview.pendingExperiments > 0) {
+      rows.push(
+        new ProjectItem(
+          localize('projectStructure.experimentStats.linePending', overview.pendingExperiments),
+          vscode.TreeItemCollapsibleState.None,
+          'projectStatsMetric',
+          undefined
+        )
+      );
+    }
     if (overview.unknownExperiments > 0) {
       rows.push(
         new ProjectItem(
@@ -2657,12 +2790,25 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       pendingExperiments
     );
 
-    const descriptionShort = localize(
-      'projectStructure.experimentStats.short',
-      completedExperiments,
-      totalExperiments,
-      completionRate
-    );
+    const allClear =
+      runningExperiments === 0 &&
+      failedExperiments === 0 &&
+      pendingExperiments === 0 &&
+      unknownExperiments === 0 &&
+      completedExperiments === totalExperiments &&
+      totalExperiments > 0;
+    const descriptionShort = allClear
+      ? localize(
+        'projectStructure.experimentStats.allDone',
+        completedExperiments,
+        totalExperiments
+      )
+      : localize(
+        'projectStructure.experimentStats.short',
+        completedExperiments,
+        totalExperiments,
+        completionRate
+      );
 
     const tooltipLines: string[] = [
       localize('projectStructure.experimentStats.tooltipTitle'),

@@ -41,6 +41,7 @@ import { StepsViewer } from './stepsViewer';
 import { PidStatusViewer } from './pidStatusViewer';
 import { JsonViewer } from './jsonViewer';
 import { YamlViewer } from './yamlViewer';
+import { CsvViewer } from './csvViewer';
 import { hasConfiguredLlmApiKey, migrateLegacySettingsToEnv } from './runtimeConfig';
 import { SkillMarketplacePanel } from './skillMarketplaceProvider';
 
@@ -121,6 +122,25 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register tree view disposal
   context.subscriptions.push(treeView);
+
+  const configEntryTitleBarHintKey = 'projectStructure.configEntryTitleBarHintShown';
+  if (!context.globalState.get<boolean>(configEntryTitleBarHintKey)) {
+    void vscode.window
+      .showInformationMessage(
+        localize('extension.configEntryTitleBarHint'),
+        localize('extension.configEntryTitleBarHint.open'),
+        localize('extension.configEntryTitleBarHint.dismiss')
+      )
+      .then((choice) => {
+        if (choice === undefined) {
+          return;
+        }
+        void context.globalState.update(configEntryTitleBarHintKey, true);
+        if (choice === localize('extension.configEntryTitleBarHint.open')) {
+          void vscode.commands.executeCommand('aiSocialScientist.openConfigPage');
+        }
+      });
+  }
 
   // Register commands
   const initProjectCommand = vscode.commands.registerCommand(
@@ -313,6 +333,26 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (error: any) {
         vscode.window.showErrorMessage(localize('extension.openMarkdown.failed'));
       }
+    }
+  );
+
+  const openTreeFileInEditorCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.openTreeFileInEditor',
+    async (item: any) => {
+      const filePath = item?.filePath;
+      if (!filePath) {
+        vscode.window.showErrorMessage(localize('extension.noFilePath'));
+        return;
+      }
+      if (!fs.existsSync(filePath)) {
+        vscode.window.showErrorMessage(localize('extension.openTreeFile.missing'));
+        return;
+      }
+      if (!fs.statSync(filePath).isFile()) {
+        vscode.window.showWarningMessage(localize('extension.openTreeFile.isDirectory'));
+        return;
+      }
+      await vscode.window.showTextDocument(vscode.Uri.file(filePath));
     }
   );
 
@@ -1018,6 +1058,22 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const viewCsvFileCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.viewCsvFile',
+    async (filePathOrItem: string | any) => {
+      const filePath = typeof filePathOrItem === 'string' ? filePathOrItem : filePathOrItem?.filePath;
+      if (!filePath || !fs.existsSync(filePath)) {
+        vscode.window.showErrorMessage(localize('extension.noFilePath'));
+        return;
+      }
+      const lower = filePath.toLowerCase();
+      if (!lower.endsWith('.csv') && !lower.endsWith('.tsv')) {
+        return;
+      }
+      await CsvViewer.show(filePath);
+    }
+  );
+
   // 在文件管理器中打开命令
   const openInExplorerCommand = vscode.commands.registerCommand(
     'aiSocialScientist.openInExplorer',
@@ -1061,6 +1117,7 @@ export function activate(context: vscode.ExtensionContext) {
     deleteLiteratureCommand,
     renameLiteratureCommand,
     openMarkdownInEditorCommand,
+    openTreeFileInEditorCommand,
     openChatCommand,
     startBackendCommand,
     stopBackendCommand,
@@ -1093,6 +1150,7 @@ export function activate(context: vscode.ExtensionContext) {
     viewPidStatusCommand,
     viewJsonFileCommand,
     viewYamlFileCommand,
+    viewCsvFileCommand,
     openInExplorerCommand,
     copyFileNameCommand,
     copyFilePathCommand,

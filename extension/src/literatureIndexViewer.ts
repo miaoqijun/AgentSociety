@@ -307,11 +307,24 @@ export class LiteratureIndexViewer {
     }
 
     .toolbar {
-      display: grid;
-      grid-template-columns: minmax(240px, 1fr) auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
       gap: 12px;
-      align-items: center;
       margin-bottom: 14px;
+    }
+
+    .search-box {
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+
+    .toolbar-tools {
+      flex: 0 1 auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
     }
 
     .search-box input {
@@ -422,7 +435,9 @@ export class LiteratureIndexViewer {
     .filter-group {
       display: flex;
       gap: 10px;
-      margin-bottom: 15px;
+      margin-bottom: 0;
+      align-items: center;
+      flex-shrink: 0;
     }
 
     .filter-btn {
@@ -451,6 +466,9 @@ export class LiteratureIndexViewer {
       color: var(--vscode-input-foreground);
       border-radius: 4px;
       font-size: 12px;
+      min-width: 148px;
+      max-width: min(100%, 280px);
+      flex: 0 0 auto;
     }
 
     .entry-actions {
@@ -606,14 +624,15 @@ export class LiteratureIndexViewer {
     <div class="search-box">
       <input type="text" id="searchInput" placeholder="${isChinese ? '搜索标题、作者、摘要或关键词...' : 'Search title, authors, abstract, or keywords...'}" />
     </div>
-
-    <div class="filter-group">
-      <select id="sortSelect" class="sort-select">
-        <option value="default">${isChinese ? '默认排序' : 'Default Order'}</option>
-        <option value="year-desc">${isChinese ? '年份 (新→旧)' : 'Year (New→Old)'}</option>
-        <option value="year-asc">${isChinese ? '年份 (旧→新)' : 'Year (Old→New)'}</option>
-        <option value="title">${isChinese ? '标题 A-Z' : 'Title A-Z'}</option>
-      </select>
+    <div class="toolbar-tools">
+      <div class="filter-group">
+        <select id="sortSelect" class="sort-select">
+          <option value="default">${isChinese ? '默认排序' : 'Default Order'}</option>
+          <option value="year-desc">${isChinese ? '年份 (新→旧)' : 'Year (New→Old)'}</option>
+          <option value="year-asc">${isChinese ? '年份 (旧→新)' : 'Year (Old→New)'}</option>
+          <option value="title">${isChinese ? '标题 A-Z' : 'Title A-Z'}</option>
+        </select>
+      </div>
     </div>
   </div>
   <div id="resultLine" class="result-line"></div>
@@ -639,7 +658,9 @@ export class LiteratureIndexViewer {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/'/g, '&#39;')
+        .replace(/\`/g, '&#96;')
+        .replace(/\\u0024\\u007b/g, '&#36;{');
     }
 
     function normalizeList(value) {
