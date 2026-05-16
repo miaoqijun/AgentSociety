@@ -11,12 +11,12 @@ msgstr ""
 "POT-Creation-Date: 2026-05-09 12:39+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
 "Last-Translator: AgentSociety Team\n"
-"Language: en\n"
 "Language-Team: en <LL@li.org>\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "Generated-By: Babel 2.18.0\n"
 
 #: ../../development.rst:2
@@ -73,31 +73,33 @@ msgstr "Research Skills Module"
 
 #: ../../development.rst:91
 msgid "``skills/`` 模块提供 LLM 原生的研究工作流："
-msgstr ""
+msgstr "The ``skills/`` module provides LLM-native research workflow:"
 
 #: ../../development.rst:93
 msgid "**literature**: 学术文献搜索和管理"
-msgstr ""
+msgstr "**literature**: Academic literature search and management"
 
 #: ../../development.rst:94
 msgid "**experiment**: 实验配置和执行"
-msgstr ""
+msgstr "**experiment**: Experiment configuration and execution"
 
 #: ../../development.rst:95
 msgid "**hypothesis**: 假设生成和管理"
-msgstr ""
+msgstr "**hypothesis**: Hypothesis generation and management"
 
 #: ../../development.rst:96
 msgid "**paper**: 通过 paper-orchestrator skill 套件生成 Nature 风格学术论文（重写中）"
 msgstr ""
+"**paper**: Generate Nature-style academic papers through the paper-"
+"orchestrator skill suite (under rewriting)"
 
 #: ../../development.rst:97
 msgid "**analysis**: 数据分析和报告"
-msgstr ""
+msgstr "**analysis**: Data Analysis and Reporting"
 
 #: ../../development.rst:98
 msgid "**agent**: 智能体处理、选择、生成和过滤"
-msgstr ""
+msgstr "**agent**: Agent processing, selection, generation and filtering"
 
 #: ../../development.rst:101
 msgid "后端 API"
@@ -105,21 +107,24 @@ msgstr "Backend API"
 
 #: ../../development.rst:103
 msgid "``backend/`` 模块提供 FastAPI REST API："
-msgstr ""
+msgstr "The ``backend/`` module provides the FastAPI REST API:"
 
 #: ../../development.rst:105
 msgid ""
-"**Routers**: * ``/api/v1/experiments`` - 实验管理 * ``/api/v1/modules`` - "
-"模块管理 * ``/api/v1/replay`` - 回放数据访问 * ``/api/v1/custom`` - 自定义模块注册"
+"**Routers**: * ``/api/v1/experiments`` - 实验管理 * ``/api/v1/modules`` - 模块管理 *"
+" ``/api/v1/replay`` - 回放数据访问 * ``/api/v1/custom`` - 自定义模块注册"
 msgstr ""
+"**Routers**: * ``/api/v1/experiments`` - Experiment management * "
+"``/api/v1/modules`` - Module management * ``/api/v1/replay`` - Playback data"
+" access * ``/api/v1/custom`` - Custom module registration"
 
 #: ../../development.rst:111
 msgid "**Service Layer**: 业务逻辑层"
-msgstr ""
+msgstr "**Service Layer**: Business logic layer"
 
 #: ../../development.rst:113
 msgid "启动后端："
-msgstr ""
+msgstr "Start the backend:"
 
 #: ../../development.rst:122
 msgid "日志系统"
@@ -127,19 +132,19 @@ msgstr "Logging System"
 
 #: ../../development.rst:124
 msgid "增强的日志系统支持："
-msgstr ""
+msgstr "Enhanced logging system support:"
 
 #: ../../development.rst:126
 msgid "**彩色控制台输出**: 按日志级别着色"
-msgstr ""
+msgstr "**彩色控制台输出**: Colored by log level"
 
 #: ../../development.rst:127
 msgid "**文件日志**: 使用 ``add_file_handler()`` 写入日志文件"
-msgstr ""
+msgstr "**文件日志**: Use ``add_file_handler()`` to write to the log file"
 
 #: ../../development.rst:128
 msgid "**LiteLLM 集成**: 自定义回调日志记录 LLM 调用"
-msgstr ""
+msgstr "**LiteLLM 集成**: Custom callback logging for LLM calls"
 
 #: ../../development.rst:144
 msgid "贡献"
@@ -197,4 +202,3 @@ msgstr "GitHub Actions will build and publish to PyPI"
 
 #~ msgid "**paper**: 使用 EasyPaper 生成学术论文"
 #~ msgstr ""
-

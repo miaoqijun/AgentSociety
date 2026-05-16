@@ -10,12 +10,12 @@ msgstr ""
 "POT-Creation-Date: 2026-05-16 10:48+0800\n"
 "PO-Revision-Date: 2026-03-20 00:00+0800\n"
 "Last-Translator: AgentSociety Team\n"
-"Language: en\n"
 "Language-Team: en <LL@li.org>\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "Generated-By: Babel 2.18.0\n"
 
 #: ../../cli.rst:2
@@ -25,8 +25,8 @@ msgstr "Command Line Interface"
 #: ../../cli.rst:4
 msgid "AgentSociety 2 提供了一个强大的命令行界面（CLI）用于运行实验。"
 msgstr ""
-"AgentSociety 2 provides a powerful command line interface (CLI) for "
-"running experiments."
+"AgentSociety 2 provides a powerful command line interface (CLI) for running "
+"experiments."
 
 #: ../../cli.rst:7
 msgid "概述"
@@ -34,7 +34,8 @@ msgstr "Overview"
 
 #: ../../cli.rst:9
 msgid "CLI 是运行 AgentSociety 2 实验的主要方式。它提供："
-msgstr "The CLI is the primary way to run AgentSociety 2 experiments. It provides:"
+msgstr ""
+"The CLI is the primary way to run AgentSociety 2 experiments. It provides:"
 
 #: ../../cli.rst:11
 msgid "实验配置加载和验证"
@@ -71,11 +72,11 @@ msgstr "Required Arguments"
 
 #: ../../cli.rst:31 ../../cli.rst:45 ../../cli.rst:170
 msgid "说明"
-msgstr ""
+msgstr "illustrate"
 
 #: ../../cli.rst:32
 msgid "``--config`` <PATH>"
-msgstr ""
+msgstr "``--config`` <PATH>"
 
 #: ../../cli.rst:33
 #, fuzzy
@@ -84,7 +85,7 @@ msgstr "init_config.json"
 
 #: ../../cli.rst:34
 msgid "``--steps`` <PATH>"
-msgstr ""
+msgstr "``--steps`` <PATH>"
 
 #: ../../cli.rst:35
 #, fuzzy
@@ -97,51 +98,51 @@ msgstr "Optional Arguments"
 
 #: ../../cli.rst:44
 msgid "默认值"
-msgstr ""
+msgstr "default value"
 
 #: ../../cli.rst:46
 msgid "``--run-dir`` <PATH>"
-msgstr ""
+msgstr "``--run-dir`` <PATH>"
 
 #: ../../cli.rst:47
 msgid "当前目录"
-msgstr ""
+msgstr "current directory"
 
 #: ../../cli.rst:48
 msgid "运行输出目录路径"
-msgstr ""
+msgstr "Run output directory path"
 
 #: ../../cli.rst:49
 msgid "``--experiment-id`` <TEXT>"
-msgstr ""
+msgstr "``--experiment-id`` <TEXT>"
 
 #: ../../cli.rst:50 ../../cli.rst:56
 msgid "无"
-msgstr ""
+msgstr "none"
 
 #: ../../cli.rst:51
 msgid "实验标识符"
-msgstr ""
+msgstr "experiment identifier"
 
 #: ../../cli.rst:52
 msgid "``--log-level``"
-msgstr ""
+msgstr "``--log-level``"
 
 #: ../../cli.rst:53
 msgid "INFO"
-msgstr ""
+msgstr "INFO"
 
 #: ../../cli.rst:54
 msgid "日志级别：DEBUG, INFO, WARNING, ERROR, CRITICAL"
-msgstr ""
+msgstr "Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL"
 
 #: ../../cli.rst:55
 msgid "``--log-file`` <PATH>"
-msgstr ""
+msgstr "``--log-file`` <PATH>"
 
 #: ../../cli.rst:57
 msgid "日志文件路径（**后台运行必需**）"
-msgstr ""
+msgstr "Log file path (**后台运行必需**)"
 
 #: ../../cli.rst:60
 msgid "运行实验"
@@ -153,7 +154,7 @@ msgstr "Foreground Execution (Debug Mode)"
 
 #: ../../cli.rst:73
 msgid "日志输出到控制台。"
-msgstr ""
+msgstr "Log output to the console."
 
 #: ../../cli.rst:76
 msgid "后台运行（生产模式）"
@@ -162,8 +163,8 @@ msgstr "Background Execution (Production Mode)"
 #: ../../cli.rst:78
 msgid "**重要**: 后台运行时必须指定 ``--log-file`` 以捕获日志。"
 msgstr ""
-"**Important**: When running in background, you must specify ``--log-"
-"file`` to capture logs."
+"**Important**: When running in background, you must specify ``--log-file`` "
+"to capture logs."
 
 #: ../../cli.rst:91
 msgid "检查实验状态"
@@ -184,6 +185,8 @@ msgstr "init_config.json"
 #: ../../cli.rst:118
 msgid "初始化配置文件定义实验的基本设置："
 msgstr ""
+"The initialization configuration file defines the basic settings of the "
+"experiment:"
 
 #: ../../cli.rst:145
 msgid "steps.yaml"
@@ -192,6 +195,7 @@ msgstr "steps.yaml"
 #: ../../cli.rst:147
 msgid "步骤配置文件定义实验的执行步骤："
 msgstr ""
+"The step configuration file defines the execution steps of the experiment:"
 
 #: ../../cli.rst:164
 msgid "步骤类型"
@@ -204,27 +208,27 @@ msgstr "Step Types"
 
 #: ../../cli.rst:171
 msgid "``ask``"
-msgstr ""
+msgstr "``ask``"
 
 #: ../../cli.rst:172
 msgid "只读查询，不修改环境"
-msgstr ""
+msgstr "Read-only query, do not modify the environment"
 
 #: ../../cli.rst:173
 msgid "``intervene``"
-msgstr ""
+msgstr "``intervene``"
 
 #: ../../cli.rst:174
 msgid "读写操作，可以修改环境"
-msgstr ""
+msgstr "Read and write operations can modify the environment"
 
 #: ../../cli.rst:175
 msgid "``step``"
-msgstr ""
+msgstr "``step``"
 
 #: ../../cli.rst:176
 msgid "执行一个模拟步骤（指定 tick 时长）"
-msgstr ""
+msgstr "Execute a simulation step (specify tick duration)"
 
 #: ../../cli.rst:179
 msgid "输出文件"
@@ -254,47 +258,47 @@ msgstr "Log Levels"
 
 #: ../../cli.rst:219
 msgid "用途"
-msgstr ""
+msgstr "use"
 
 #: ../../cli.rst:220
 msgid "``DEBUG``"
-msgstr ""
+msgstr "``DEBUG``"
 
 #: ../../cli.rst:221
 msgid "详细的调试信息，包括 LLM 调用"
-msgstr ""
+msgstr "Detailed debugging information, including LLM calls"
 
 #: ../../cli.rst:222
 msgid "``INFO``"
-msgstr ""
+msgstr "``INFO``"
 
 #: ../../cli.rst:223
 msgid "常规运行信息（默认）"
-msgstr ""
+msgstr "General operating information (default)"
 
 #: ../../cli.rst:224
 msgid "``WARNING``"
-msgstr ""
+msgstr "``WARNING``"
 
 #: ../../cli.rst:225
 msgid "警告信息"
-msgstr ""
+msgstr "warning message"
 
 #: ../../cli.rst:226
 msgid "``ERROR``"
-msgstr ""
+msgstr "``ERROR``"
 
 #: ../../cli.rst:227
 msgid "错误信息"
-msgstr ""
+msgstr "error message"
 
 #: ../../cli.rst:228
 msgid "``CRITICAL``"
-msgstr ""
+msgstr "``CRITICAL``"
 
 #: ../../cli.rst:229
 msgid "严重错误"
-msgstr ""
+msgstr "serious error"
 
 #: ../../cli.rst:232
 msgid "示例：完整工作流"

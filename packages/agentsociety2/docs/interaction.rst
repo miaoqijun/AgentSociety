@@ -122,8 +122,8 @@ intervene() 方法 - 读写修改
        state = await society.ask("What's happening?")
        print(f"Step {step_num}: {state}")
 
-       # Execute step (tick = duration in seconds)
-       await society.step(tick=3600, t=datetime.now())
+       # 执行一步（tick 为本步时长，秒）；当前仿真时间由编排器内部维护
+       await society.step(tick=3600)
 
        # Intervene based on conditions
        if "emergency" in state.lower():

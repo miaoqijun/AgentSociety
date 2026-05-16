@@ -28,6 +28,12 @@ msgid ""
 "LLM "
 "智能体模拟为计算社会科学提供了一种新的研究范式：研究者可以把个体、群体、制度与环境机制放入可运行的模拟系统中，观察微观行为如何汇聚为宏观社会现象。它让许多过去只能停留在理论讨论或小规模问卷中的问题，变成可以迭代、对照和复盘的实验对象。"
 msgstr ""
+"LLM agent simulation offers a new research paradigm for computational "
+"social science: researchers place individuals, groups, institutions, and "
+"environmental mechanisms in runnable systems and observe how micro-level "
+"behavior aggregates into macro-level phenomena. Questions that once "
+"stayed in theory or small surveys become iterable, comparable, "
+"replayable experiments."
 
 #: ../../agents.rst:6
 msgid ""
@@ -35,6 +41,12 @@ msgid ""
 "画像、行为逻辑、环境工具、实验步骤、运行配置和分析产物。这个过程依赖较强的编程能力，也要求研究者理解仿真基础设施、状态持久化、LLM "
 "调用和结果回放等工程细节。因此，很多有价值的研究问题很难快速落地为可运行实验。"
 msgstr ""
+"In practice the barrier remains high. A full experiment usually requires "
+"turning high-level social-science ideas into executable code: agent "
+"profiles, behavior logic, environment tools, step definitions, run "
+"configuration, and analysis artifacts. That demands solid programming "
+"and familiarity with simulation infrastructure, persistence, LLM calls, "
+"and replay—so many worthwhile questions never become runnable quickly."
 
 #: ../../agents.rst:8
 msgid ""
@@ -42,34 +54,46 @@ msgid ""
 "试图在研究想法与可执行仿真之间提供一个交互式编排层。研究者可以更多关注研究问题、理论机制和实验逻辑；系统则辅助完成实验结构化、配置生成、运行管理和结果分析。``PersonAgent``"
 " 就是这个流程中面向“人”的默认智能体抽象：它把人物画像、行为能力、工作记忆和环境互动组织成可检查、可替换、可复盘的运行单元。"
 msgstr ""
+"In AgentSociety 2, the **AI Social Scientist** layer bridges research "
+"ideas and runnable simulations. Researchers focus on questions, theory, "
+"and experimental logic while the system helps structure experiments, "
+"generate configuration, run jobs, and analyze results. ``PersonAgent`` is "
+"the default human-facing abstraction: profile, capabilities, working "
+"memory, and environment interaction in inspectable, swappable, "
+"replayable units."
 
 #: ../../agents.rst:10
 msgid "本部分先从研究者如何理解 ``PersonAgent`` 开始，再介绍需要调参、扩展或调试时会用到的工程细节。"
 msgstr ""
+"This section starts from how researchers should think about "
+"``PersonAgent``, then covers engineering details for tuning, extension, "
+"and debugging."
 
 #: ../../agents.rst:14
 msgid "从研究想法到人物智能体"
-msgstr ""
+msgstr "From research ideas to person agents"
 
 #: ../../agents.rst:16
 msgid "在社会科学实验中，研究者通常不会一开始就想“我要写一个 Python 类”。更自然的起点是："
 msgstr ""
+"In social-science experiments, researchers rarely start with \"I need a "
+"Python class.\" A more natural starting point is:"
 
 #: ../../agents.rst:18
 msgid "谁是研究对象？他们有什么身份、偏好、资源和约束？"
-msgstr ""
+msgstr "Who is being studied—identity, preferences, resources, constraints?"
 
 #: ../../agents.rst:19
 msgid "他们会观察到什么环境信息？"
-msgstr ""
+msgstr "What environmental information do they perceive?"
 
 #: ../../agents.rst:20
 msgid "他们如何形成情绪、意图、计划或社会判断？"
-msgstr ""
+msgstr "How do they form emotions, intentions, plans, or social judgments?"
 
 #: ../../agents.rst:21
 msgid "哪些事件值得记住，哪些行为需要被记录和比较？"
-msgstr ""
+msgstr "Which events should be remembered and which behaviors recorded and compared?"
 
 #: ../../agents.rst:23
 msgid ""
@@ -77,6 +101,11 @@ msgid ""
 "对应的正是这组问题。它不要求研究者把人的全部行为写成一个巨大函数，而是把人物拆成三个可理解的层次：``profile`` "
 "描述相对稳定的身份与背景，``workspace`` 保存仿真过程中逐步变化的状态，``skills`` 表达这个人物可以调用的行为能力。"
 msgstr ""
+"``PersonAgent`` maps to these questions. Instead of one giant function for "
+"all human behavior, it splits a person into three layers: ``profile`` "
+"for relatively stable identity and background, ``workspace`` for state "
+"that evolves during simulation, and ``skills`` for invocable "
+"capabilities."
 
 #: ../../agents.rst:25
 msgid ""
@@ -84,20 +113,29 @@ msgid ""
 "skills、环境模块和 replay 逐步检查：agent "
 "是否看到了正确的信息，是否形成了合理意图，是否按预期行动，以及这些微观行动是否支持或挑战原始假设。"
 msgstr ""
+"Modeling behavior becomes an iterative research process rather than a "
+"one-shot coding task. Researchers express hypotheses in natural language "
+"and configuration, then use skills, environment modules, and replay to "
+"check whether agents saw the right information, formed reasonable "
+"intentions, acted as expected, and whether micro-level actions support or "
+"challenge the hypothesis."
 
 #: ../../agents.rst:28
 msgid "类继承层次"
-msgstr ""
+msgstr "Class hierarchy"
 
 #: ../../agents.rst:30
 msgid "当前智能体体系的类继承关系："
-msgstr ""
+msgstr "Inheritance in the current agent stack:"
 
 #: ../../agents.rst:37
 msgid ""
 "AgentSociety 2 同时在 ``contrib/agent/`` 下提供若干实验性 Agent（如博弈论场景），但核心框架只依赖 "
 "``AgentBase`` 和 ``PersonAgent``。"
 msgstr ""
+"AgentSociety 2 also ships experimental agents under ``contrib/agent/`` "
+"(e.g. game-theory scenarios), but the core framework relies on "
+"``AgentBase`` and ``PersonAgent`` only."
 
 #: ../../agents.rst:41
 msgid "创建智能体"

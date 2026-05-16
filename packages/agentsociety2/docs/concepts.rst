@@ -1,7 +1,7 @@
 核心概念
 =============
 
-本部分解释 AgentSociety 2 的核心概念。
+本部分说明 AgentSociety 2 的系统结构与术语；首页 :doc:`index` 中的「研究背景与平台定位」从范式与协作角度概括了平台动机，此处侧重实现层面的组件关系。
 
 架构概述
 ---------------------
@@ -100,8 +100,6 @@ AgentSociety 2 围绕三个主要组件构建：
        AgentN -> Router;
 
        Society -> LLM;
-       Agent1 -> Memory;
-       Agent2 -> Memory;
    }
 
 智能体-环境接口
@@ -210,9 +208,9 @@ CodeGenRouter 通过以下方式将智能体连接到环境模块：
        Readonly [label="readonly=True", shape=diamond];
        Readwrite [label="readonly=False", shape=diamond];
 
-       Observe [label="kind='observe'", shape=box];
-       Statistics [label="kind='statistics'", shape=box];
-       Regular [label="kind=None", shape=box];
+       Observe [label="观察工具（kind=observe）\n单参数 agent_id"];
+       Statistics [label="统计工具（kind=statistics）\n除 self 外无参数"];
+       Regular [label="常规工具（readonly=False）\n任意签名"];
 
        Root -> Readonly;
        Root -> Readwrite;
@@ -220,10 +218,6 @@ CodeGenRouter 通过以下方式将智能体连接到环境模块：
        Readonly -> Observe;
        Readonly -> Statistics;
        Readwrite -> Regular;
-
-       Observe [label="观察工具\n单参数(agent_id)"];
-       Statistics [label="统计工具\n无参数"];
-       Regular [label="常规工具\n任意签名"];
    }
 
 智能体-环境交互流程

@@ -96,6 +96,15 @@ html_context = {
 
 html_theme = "furo"
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
+
+# 品牌主色：rgb(0, 0, 136)
+_BRAND = "rgb(0, 0, 136)"
+_BRAND_CONTENT = "rgb(0, 0, 136)"
+_BRAND_VISITED = "rgb(72, 38, 131)"
+_BRAND_DARK_PRIMARY = "#b0b0e8"
+_BRAND_DARK_CONTENT = "#c4c4f0"
+_BRAND_DARK_VISITED = "#d4a8ff"
 
 html_theme_options = {
     "sidebar_hide_name": False,
@@ -118,15 +127,24 @@ html_theme_options = {
     ],
     "light_css_variables": {
         "font-stack": 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        "color-brand-primary": _BRAND,
+        "color-brand-content": _BRAND_CONTENT,
+        "color-brand-visited": _BRAND_VISITED,
+    },
+    "dark_css_variables": {
+        "color-brand-primary": _BRAND_DARK_PRIMARY,
+        "color-brand-content": _BRAND_DARK_CONTENT,
+        "color-brand-visited": _BRAND_DARK_VISITED,
     },
 }
 
-html_title = f"AgentSociety 2 {version}"
+# 浏览器标签：首页为站点名；内页为「页面标题 - 站点名」（见 Furo base.html htmltitle）
+html_title = "AgentSociety 2 文档"
 html_short_title = "AgentSociety 2"
 
-# Add logo and favicon
+# Add logo and favicon（favicon.svg → static/agentsociety_icon.svg）
 html_logo = "_static/logo/1.png"
-html_favicon = "_static/logo/square.png"
+html_favicon = "_static/logo/favicon.svg"
 
 # -- Options for intersphinx -------------------------------------------------
 

@@ -145,6 +145,9 @@ msgid ""
 "**结合 ReplayWriter**: 用环境 replay dataset 做实验分析；agent 本地调试则查看 "
 "``run/agents/agent_xxxx/`` 下的 workspace 文件"
 msgstr ""
+"**Use ReplayWriter**: analyze experiments with environment replay "
+"datasets; for local agent debugging, inspect workspace files under "
+"``run/agents/agent_xxxx/``"
 
 #: ../../interaction.rst:268
 msgid "**查询特定智能体**: 向特定智能体提问以获得有针对性的响应"
