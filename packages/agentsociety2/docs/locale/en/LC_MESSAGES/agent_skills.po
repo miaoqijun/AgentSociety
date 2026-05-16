@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.2.0\n"
+"Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-09 12:39+0800\n"
+"POT-Creation-Date: 2026-05-16 11:06+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -31,104 +31,110 @@ msgstr ""
 #: ../../agent_skills.rst:7
 msgid ""
 "Agent Skills 是 ``PersonAgent`` "
-"的能力插件系统。它解决的问题很直接：一个人物智能体不应该把所有行为都写死在一个巨大类里，而应该把“会观察”“会形成意图”“会执行计划”“会记住重要事件”等能力拆成可读、可替换、可调试的模块。"
+"的能力组织方式。它解决的问题不只是“如何写插件”，而是如何把社会科学中的行为机制拆成可以检查的仿真环节：一个人看到了什么，如何解释这个情境，形成了什么意图，采取了什么行动，又把哪些经历带到后续决策中。"
 msgstr ""
 
 #: ../../agent_skills.rst:9
+msgid ""
+"对于研究者来说，这种拆分比把所有行为写进一个巨大类更自然。理论假设往往关心的是机制链条：信息暴露如何影响情绪，社会规范如何改变意图，资源约束如何改变计划，重复互动如何沉淀为记忆。Agent"
+" Skills 把这些环节拆成可读、可替换、可调试的模块，使研究者可以逐步修改某个机制，而不是重写整个 agent。"
+msgstr ""
+
+#: ../../agent_skills.rst:11
 msgid ""
 "内置技能包括 ``observation``、``cognition``、``plan``、``memory``。用户也可以在 workspace"
 " 中添加自定义技能，让不同实验拥有不同的行为能力。"
 msgstr ""
 
-#: ../../agent_skills.rst:11
+#: ../../agent_skills.rst:13
 msgid "当前实现采用两条核心原则："
 msgstr ""
 
-#: ../../agent_skills.rst:13
+#: ../../agent_skills.rst:15
 msgid "**Metadata-first**：选择阶段只暴露 ``name`` + ``description``，不加载完整正文。"
 msgstr ""
 
-#: ../../agent_skills.rst:14
+#: ../../agent_skills.rst:16
 msgid ""
 "**按需执行**：每步由模型在工具循环里 ``activate_skill`` / ``read_skill`` / "
 "``execute_skill``，没有固定的全局流水线。"
 msgstr ""
 
-#: ../../agent_skills.rst:16
+#: ../../agent_skills.rst:18
 msgid "这意味着：技能是否执行由当前上下文、环境约束和模型选择共同决定。简单场景不会被迫走完整流程；复杂场景也可以按需读取技能说明、工作区文件和环境反馈。"
 msgstr ""
 
-#: ../../agent_skills.rst:20
+#: ../../agent_skills.rst:22
 msgid "设计目标"
 msgstr ""
 
-#: ../../agent_skills.rst:22
+#: ../../agent_skills.rst:24
 msgid "**按需加载**：降低每步不必要的上下文占用与执行开销。"
 msgstr ""
 
-#: ../../agent_skills.rst:23
+#: ../../agent_skills.rst:25
 msgid "**可解释选择**：选择依据来自 catalog 中的简短描述，便于调试和复盘。"
 msgstr ""
 
-#: ../../agent_skills.rst:24
+#: ../../agent_skills.rst:26
 msgid "**热更新友好**：支持运行时扫描、导入、启用/禁用与重载。"
 msgstr ""
 
-#: ../../agent_skills.rst:25
+#: ../../agent_skills.rst:27
 msgid "**文件约定解耦**：技能通过 workspace 文件交换状态，而不是互相直接调用。"
 msgstr ""
 
-#: ../../agent_skills.rst:26
+#: ../../agent_skills.rst:28
 msgid "**理论可追溯**：内置技能把心理学和认知科学中的常见模型转成可检查的状态文件，而不是让 LLM 凭空发挥。"
 msgstr ""
 
-#: ../../agent_skills.rst:30
+#: ../../agent_skills.rst:32
 msgid "Skill 目录结构"
 msgstr ""
 
-#: ../../agent_skills.rst:32
+#: ../../agent_skills.rst:34
 msgid "内置技能位于包内目录，自定义技能位于工作区目录，环境模块技能由环境提供："
 msgstr ""
 
-#: ../../agent_skills.rst:69
+#: ../../agent_skills.rst:71
 msgid "技能发现优先级"
 msgstr ""
 
-#: ../../agent_skills.rst:71
+#: ../../agent_skills.rst:73
 msgid "同名技能的覆盖规则（优先级从高到低）："
 msgstr ""
 
-#: ../../agent_skills.rst:73
+#: ../../agent_skills.rst:75
 msgid "**builtin** — ``agent/skills/`` 目录下的内置技能，**不可被覆盖或禁用**。"
 msgstr ""
 
-#: ../../agent_skills.rst:74
+#: ../../agent_skills.rst:76
 msgid "**custom** — ``<workspace>/custom/skills/`` 下的自定义技能。"
 msgstr ""
 
-#: ../../agent_skills.rst:75
+#: ../../agent_skills.rst:77
 msgid "**env** — 环境模块通过 ``get_agent_skills_dirs()`` 提供的技能。"
 msgstr ""
 
-#: ../../agent_skills.rst:77
+#: ../../agent_skills.rst:79
 msgid "自定义技能和环境技能可以互相覆盖，但都不能覆盖内置技能。"
 msgstr ""
 
-#: ../../agent_skills.rst:81
+#: ../../agent_skills.rst:83
 msgid "Skill 的两种模式"
 msgstr ""
 
-#: ../../agent_skills.rst:83
+#: ../../agent_skills.rst:85
 msgid "Skill 与 PersonAgent skills-first 设计一致，支持两种运行模式："
 msgstr ""
 
-#: ../../agent_skills.rst:85
+#: ../../agent_skills.rst:87
 msgid ""
 "**Prompt-only（推荐）**：不声明 ``script``。当模型选择并 activate skill 后，SKILL.md "
 "作为行为指南注入上下文，模型使用内置原子工具（``bash`` / ``codegen`` / ``workspace_*`` 等）完成任务。"
 msgstr ""
 
-#: ../../agent_skills.rst:87
+#: ../../agent_skills.rst:89
 msgid ""
 "**Subprocess script（确定性计算/解析用）**：在 frontmatter 中声明 ``script: "
 "scripts/xxx.py``，或在 ``scripts/`` 目录下提供 ``<skill_name>.py`` "
@@ -136,1014 +142,1224 @@ msgid ""
 "workspace（``AGENT_WORK_DIR``）。"
 msgstr ""
 
-#: ../../agent_skills.rst:89
+#: ../../agent_skills.rst:91
 msgid "子进程执行的环境受到严格限制："
 msgstr ""
 
-#: ../../agent_skills.rst:91
+#: ../../agent_skills.rst:93
 msgid ""
 "环境变量使用白名单机制（ ``ALLOWED_ENV_VARS`` ），只传递 PATH、HOME 等必要变量和 ``SKILL_NAME`` 、"
 " ``SKILL_DIR`` 、 ``AGENT_WORK_DIR`` 。"
 msgstr ""
 
-#: ../../agent_skills.rst:92
+#: ../../agent_skills.rst:94
 msgid "所有 agent 共享全局 ``asyncio.Semaphore`` （默认 16 workers），防止子进程资源争用。"
 msgstr ""
 
-#: ../../agent_skills.rst:93
+#: ../../agent_skills.rst:95
 msgid "脚本执行有超时保护（默认 30 秒）。"
 msgstr ""
 
-#: ../../agent_skills.rst:94
+#: ../../agent_skills.rst:96
 msgid "执行前后会 diff 工作区文件，自动检测新产生的产物文件（artifacts）。"
 msgstr ""
 
-#: ../../agent_skills.rst:98
+#: ../../agent_skills.rst:100
 msgid "SKILL.md 格式"
 msgstr ""
 
-#: ../../agent_skills.rst:100
+#: ../../agent_skills.rst:102
 msgid "每个 skill 目录必须包含 ``SKILL.md``。文件头部使用 YAML frontmatter 描述元数据："
 msgstr ""
 
-#: ../../agent_skills.rst:113
+#: ../../agent_skills.rst:115
 msgid "字段说明："
 msgstr ""
 
-#: ../../agent_skills.rst:119
+#: ../../agent_skills.rst:121
 msgid "字段"
 msgstr ""
 
-#: ../../agent_skills.rst:120 ../../agent_skills.rst:307
-#: ../../agent_skills.rst:323 ../../agent_skills.rst:341
-#: ../../agent_skills.rst:355 ../../agent_skills.rst:367
-#: ../../agent_skills.rst:409 ../../agent_skills.rst:435
-#: ../../agent_skills.rst:457 ../../agent_skills.rst:479
+#: ../../agent_skills.rst:122 ../../agent_skills.rst:377
+#: ../../agent_skills.rst:393 ../../agent_skills.rst:411
+#: ../../agent_skills.rst:425 ../../agent_skills.rst:437
+#: ../../agent_skills.rst:479 ../../agent_skills.rst:505
+#: ../../agent_skills.rst:527 ../../agent_skills.rst:549
 msgid "说明"
 msgstr ""
 
-#: ../../agent_skills.rst:121
+#: ../../agent_skills.rst:123
 msgid "``name``"
 msgstr ""
 
-#: ../../agent_skills.rst:122
+#: ../../agent_skills.rst:124
 msgid "Skill 名称（唯一标识）。未指定时使用目录名。"
 msgstr ""
 
-#: ../../agent_skills.rst:123
+#: ../../agent_skills.rst:125
 msgid "``description``"
 msgstr ""
 
-#: ../../agent_skills.rst:124
+#: ../../agent_skills.rst:126
 msgid "给模型选择器看的功能描述，尽量具体、可判别。这是模型决定是否激活该技能的关键依据。"
 msgstr ""
 
-#: ../../agent_skills.rst:125
+#: ../../agent_skills.rst:127
 msgid "``script``"
 msgstr ""
 
-#: ../../agent_skills.rst:126
+#: ../../agent_skills.rst:128
 msgid ""
 "可选。子进程脚本相对路径（如 ``scripts/update_cognition.py``）。未声明时会尝试自动检测 "
 "``scripts/<skill_name>.py``。"
 msgstr ""
 
-#: ../../agent_skills.rst:128
+#: ../../agent_skills.rst:130
 msgid "脚本路径必须位于 skill 目录内；运行时仍会做路径越界检查。"
 msgstr ""
 
-#: ../../agent_skills.rst:132
+#: ../../agent_skills.rst:134
 msgid "SKILL.md 高级特性"
 msgstr ""
 
-#: ../../agent_skills.rst:134
+#: ../../agent_skills.rst:136
 msgid "激活技能时，SKILL.md 正文支持以下动态注入："
 msgstr ""
 
-#: ../../agent_skills.rst:137
+#: ../../agent_skills.rst:139
 msgid "占位符替换"
 msgstr ""
 
-#: ../../agent_skills.rst:139
+#: ../../agent_skills.rst:141
 msgid "``$ARGUMENTS`` — 替换为 ``activate_skill`` 时传入的 ``arguments`` 字符串。"
 msgstr ""
 
-#: ../../agent_skills.rst:140
+#: ../../agent_skills.rst:142
 msgid "``$1``, ``$2``, ... — 替换为按空格分割的各参数。"
 msgstr ""
 
-#: ../../agent_skills.rst:143
+#: ../../agent_skills.rst:145
 msgid "命令输出注入"
 msgstr ""
 
-#: ../../agent_skills.rst:145
+#: ../../agent_skills.rst:147
 msgid "正文中使用以 ``!`` 开头的反引号命令语法，运行时会执行命令并将输出替换到对应位置。例如："
 msgstr ""
 
-#: ../../agent_skills.rst:157
+#: ../../agent_skills.rst:159
 msgid "每步执行流程"
 msgstr ""
 
-#: ../../agent_skills.rst:159
+#: ../../agent_skills.rst:161
 msgid "PersonAgent.step() 的工具循环流程如下："
 msgstr ""
 
-#: ../../agent_skills.rst:161
+#: ../../agent_skills.rst:163
 msgid "**上下文构建**：预读 workspace 文件，准备 system prompt（静态段可缓存 + 动态段）。"
 msgstr ""
 
-#: ../../agent_skills.rst:162
+#: ../../agent_skills.rst:164
 msgid "**注入技能 catalog**：仅 ``name`` + ``description`` + 工作区状态 + 最近工具历史。"
 msgstr ""
 
-#: ../../agent_skills.rst:163
+#: ../../agent_skills.rst:165
 msgid ""
 "**LLM 决策**：每轮由 ``acompletion_with_pydantic_validation(ToolDecision)`` "
 "获取工具选择。"
 msgstr ""
 
-#: ../../agent_skills.rst:164
+#: ../../agent_skills.rst:166
 msgid "**分发执行**：运行时按需加载完整 SKILL.md，执行具体工具。"
 msgstr ""
 
-#: ../../agent_skills.rst:165
+#: ../../agent_skills.rst:167
 msgid "**结果回写**：工具结果写入 thread（内存窗口 + 磁盘 JSONL）。"
 msgstr ""
 
-#: ../../agent_skills.rst:166
+#: ../../agent_skills.rst:168
 msgid "**循环/结束**：达到 ``done`` 或轮次上限后结束本 step，并持久化最小会话状态与工具历史。"
 msgstr ""
 
-#: ../../agent_skills.rst:168
+#: ../../agent_skills.rst:170
 msgid "关键点："
 msgstr ""
 
-#: ../../agent_skills.rst:170
+#: ../../agent_skills.rst:172
 msgid "**技能** 由能力目录、行为规范与可选子进程脚本组成，而不是框架内固定顺序的 pipeline。"
 msgstr ""
 
-#: ../../agent_skills.rst:171
+#: ../../agent_skills.rst:173
 msgid "**渐进披露**：先暴露 catalog，激活后再注入全文，用于减少上下文负担。"
 msgstr ""
 
-#: ../../agent_skills.rst:175
+#: ../../agent_skills.rst:177
 msgid "内置技能详解"
 msgstr ""
 
-#: ../../agent_skills.rst:177
+#: ../../agent_skills.rst:179
 msgid ""
 "当前包内置四个面向 ``PersonAgent`` 的基础技能。它们共享同一个 "
 "workspace，并通过文件约定解耦：一个技能只承诺读写哪些文件，不要求其它技能在同一 step 内必然先运行。"
 msgstr ""
 
+#: ../../agent_skills.rst:181
+msgid "这四个技能不是随意拆分的工程模块，而是把一个社会行动者的基本行为链条拆成四个可观察环节："
+msgstr ""
+
 #: ../../agent_skills.rst:183
-msgid "Skill"
+msgid "**感知情境**：行动者首先需要知道当前环境发生了什么。"
 msgstr ""
 
 #: ../../agent_skills.rst:184
-msgid "主要输入"
+msgid "**解释情境**：同一事实对不同身份、目标和情绪状态的人意义不同。"
 msgstr ""
 
 #: ../../agent_skills.rst:185
-msgid "主要输出"
+msgid "**形成并执行行动**：意图需要被转化为具体可执行的环境动作。"
 msgstr ""
 
 #: ../../agent_skills.rst:186
-msgid "适用场景"
-msgstr ""
-
-#: ../../agent_skills.rst:187 ../../agent_skills.rst:205
-msgid "``observation``"
+msgid "**保留经验**：行动结果和社会互动会影响后续判断，而不是每个 tick 从零开始。"
 msgstr ""
 
 #: ../../agent_skills.rst:188
-msgid "环境路由器、Agent Identity"
-msgstr ""
-
-#: ../../agent_skills.rst:189
-msgid "``state/observation.txt``、``state/observation_ctx.json``"
-msgstr ""
-
-#: ../../agent_skills.rst:190
-msgid "需要当前 tick 的新环境事实。"
-msgstr ""
-
-#: ../../agent_skills.rst:191 ../../agent_skills.rst:214
-msgid "``cognition``"
-msgstr ""
-
-#: ../../agent_skills.rst:192
-msgid "observation、memory、plan、profile"
-msgstr ""
-
-#: ../../agent_skills.rst:193
-msgid "``state/emotion.json``、``state/intention.json``"
+msgid ""
+"在真实社会科学研究中，研究者往往关心的正是这些环节之间的机制关系：信息暴露如何改变判断，规范压力如何影响意图，资源约束如何改变计划，重复互动如何积累信任或怨恨。把这些能力拆成独立"
+" skill，可以让实验者单独检查和替换某个机制，而不是把所有行为都压进一段不可分解的 LLM prompt。"
 msgstr ""
 
 #: ../../agent_skills.rst:194
-msgid "需要把事实转成情绪、需求压力和下一目标。"
+msgid "Skill"
 msgstr ""
 
-#: ../../agent_skills.rst:195 ../../agent_skills.rst:232
-msgid "``plan``"
+#: ../../agent_skills.rst:195
+msgid "主要输入"
 msgstr ""
 
 #: ../../agent_skills.rst:196
-msgid "``state/intention.json``、observation、已有 plan"
+msgid "主要输出"
 msgstr ""
 
 #: ../../agent_skills.rst:197
-msgid "``state/plan_state.json``，以及一次 ``codegen`` 环境行动"
+msgid "适用场景"
 msgstr ""
 
-#: ../../agent_skills.rst:198
-msgid "需要把意图落实为环境动作或多步计划。"
+#: ../../agent_skills.rst:198 ../../agent_skills.rst:216
+msgid "``observation``"
 msgstr ""
 
-#: ../../agent_skills.rst:199 ../../agent_skills.rst:244
-msgid "``memory``"
+#: ../../agent_skills.rst:199
+msgid "环境路由器、Agent Identity"
 msgstr ""
 
 #: ../../agent_skills.rst:200
-msgid "observation、emotion、intention、plan、工具结果"
+msgid "``state/observation.txt``、``state/observation_ctx.json``"
 msgstr ""
 
 #: ../../agent_skills.rst:201
-msgid "``state/memory.jsonl``"
+msgid "需要当前 tick 的新环境事实。"
 msgstr ""
 
-#: ../../agent_skills.rst:202
-msgid "需要保留值得跨 tick 检索的事件、关系、承诺或结果。"
+#: ../../agent_skills.rst:202 ../../agent_skills.rst:225
+msgid "``cognition``"
+msgstr ""
+
+#: ../../agent_skills.rst:203
+msgid "observation、memory、plan、profile"
+msgstr ""
+
+#: ../../agent_skills.rst:204
+msgid "``state/emotion.json``、``state/intention.json``"
+msgstr ""
+
+#: ../../agent_skills.rst:205
+msgid "需要把事实转成情绪、需求压力和下一目标。"
+msgstr ""
+
+#: ../../agent_skills.rst:206 ../../agent_skills.rst:243
+msgid "``plan``"
 msgstr ""
 
 #: ../../agent_skills.rst:207
+msgid "``state/intention.json``、observation、已有 plan"
+msgstr ""
+
+#: ../../agent_skills.rst:208
+msgid "``state/plan_state.json``，以及一次 ``codegen`` 环境行动"
+msgstr ""
+
+#: ../../agent_skills.rst:209
+msgid "需要把意图落实为环境动作或多步计划。"
+msgstr ""
+
+#: ../../agent_skills.rst:210 ../../agent_skills.rst:255
+msgid "``memory``"
+msgstr ""
+
+#: ../../agent_skills.rst:211
+msgid "observation、emotion、intention、plan、工具结果"
+msgstr ""
+
+#: ../../agent_skills.rst:212
+msgid "``state/memory.jsonl``"
+msgstr ""
+
+#: ../../agent_skills.rst:213
+msgid "需要保留值得跨 tick 检索的事件、关系、承诺或结果。"
+msgstr ""
+
+#: ../../agent_skills.rst:218
 msgid ""
 "``observation`` 是环境感知层。它提示模型调用 ``codegen``，使用 ``instruction: "
 "\"<observe>\"`` 和当前 agent id 从环境获取最新观察，然后把自然语言观察写入 "
 "``state/observation.txt``，把结构化上下文写入 ``state/observation_ctx.json``。"
 msgstr ""
 
-#: ../../agent_skills.rst:209
+#: ../../agent_skills.rst:220
 msgid ""
 "它的设计约束是“一步内不要反复观察”。环境行动成功或进入 ``in_progress`` 后应结束本 step，在下一个 tick "
 "再观察。这能避免工具循环退化成观察-行动-观察的长链，也让 replay 中每个 tick 的状态边界更清楚。"
 msgstr ""
 
-#: ../../agent_skills.rst:211
+#: ../../agent_skills.rst:222
 msgid ""
 "理论上，它对应具身智能体中的 sense-act 闭环：语言模型不能只依赖 profile 和旧记忆作答，必须定期从环境取回外部事实。它也和 "
 "ReAct 一类语言智能体方法相通：推理需要通过外部行动获得新证据，再用新证据校正后续决策。"
 msgstr ""
 
-#: ../../agent_skills.rst:216
+#: ../../agent_skills.rst:227
 msgid ""
 "``cognition`` 负责把当前上下文转换为内在状态。其脚本 ``scripts/update_cognition.py`` 提供确定性 "
 "baseline：读取已有 workspace 文件，计算 appraisal 变量，生成有连续性约束的情绪强度、mood 层，以及一个基于 "
 "TPB 评分的意图。"
 msgstr ""
 
-#: ../../agent_skills.rst:218
+#: ../../agent_skills.rst:229
 msgid "核心输出："
 msgstr ""
 
-#: ../../agent_skills.rst:220
+#: ../../agent_skills.rst:231
 msgid ""
 "``state/emotion.json``：包含 "
 "``primary``、``mood``、六维强度（``joy``、``sadness``、``fear``、``disgust``、``anger``、``surprise``）、``valence``、``arousal``"
 " 等字段。"
 msgstr ""
 
-#: ../../agent_skills.rst:221
+#: ../../agent_skills.rst:232
 msgid ""
 "``state/intention.json``：当前最高优先级目标，包含 "
 "``attitude``、``subjective_norm``、``perceived_control`` 等 Theory of "
 "Planned Behavior 字段。"
 msgstr ""
 
-#: ../../agent_skills.rst:223
+#: ../../agent_skills.rst:234
 msgid "它的理论映射有三层："
 msgstr ""
 
-#: ../../agent_skills.rst:225
+#: ../../agent_skills.rst:236
 msgid ""
 "**Appraisal / CPM**：用 novelty、pleasantness、goal "
 "conduciveness、urgency、control、norm pressure 等评价变量解释情绪如何从事件意义中产生。"
 msgstr ""
 
-#: ../../agent_skills.rst:226
+#: ../../agent_skills.rst:237
 msgid "**OCC/离散情绪标签**：用固定 label 集合给主导情绪命名，方便实验分析和 replay 比较。"
 msgstr ""
 
-#: ../../agent_skills.rst:227
+#: ../../agent_skills.rst:238
 msgid "**TPB 意图选择**：把态度、主观规范和感知控制作为候选目标评分的核心项，再让当前情绪影响行动倾向和控制感。"
 msgstr ""
 
-#: ../../agent_skills.rst:229
+#: ../../agent_skills.rst:240
 msgid ""
 "实现上采用保守更新：每个 tick 的情绪强度变化有上限，mood 慢速漂移，profile 中的 personality "
 "可调节反应幅度。这适合仿真，因为它避免 LLM 在相邻 tick 间产生不连续的人格和情绪跳变。"
 msgstr ""
 
-#: ../../agent_skills.rst:234
+#: ../../agent_skills.rst:245
 msgid ""
 "``plan`` 把 ``state/intention.json`` 中的目标变成环境动作。简单、熟悉、低风险的目标可以直接用一次 "
 "``codegen`` 执行；复杂或不确定的目标会写入 ``state/plan_state.json``，记录 "
 "goal、steps、current_step、status、decision_mode 等字段。"
 msgstr ""
 
-#: ../../agent_skills.rst:236
+#: ../../agent_skills.rst:247
 msgid "该技能采用双系统决策的工程化近似："
 msgstr ""
 
-#: ../../agent_skills.rst:238
+#: ../../agent_skills.rst:249
 msgid "**System 1**：熟悉、重复、低风险或时间紧迫时，直接产生单步行动，不额外维护 plan。"
 msgstr ""
 
-#: ../../agent_skills.rst:239
+#: ../../agent_skills.rst:250
 msgid "**System 2**：新目标、多步骤、高不确定性或目标冲突时，显式维护 ``plan_state.json``。"
 msgstr ""
 
-#: ../../agent_skills.rst:241
+#: ../../agent_skills.rst:252
 msgid ""
 "它还会根据 workspace 中可能出现的低饱腹、低精力、低安全等信号中断计划。中断计划不会简单丢弃，而是可写成 ``status: "
 "\"interrupted\"``、``resumable`` 和 ``resume_conditions``，让后续 tick 可以恢复。"
 msgstr ""
 
-#: ../../agent_skills.rst:246
+#: ../../agent_skills.rst:257
 msgid ""
 "``memory`` 是经验记忆写入与维护技能。LLM 先判断本 tick 是否有值得记住的内容，再追加一行 JSON 到 "
 "``state/memory.jsonl``。维护脚本 ``scripts/memory_maintenance.py`` "
 "可周期性清理和强化记忆。"
 msgstr ""
 
-#: ../../agent_skills.rst:248
+#: ../../agent_skills.rst:259
 msgid ""
 "推荐写入的内容包括：重要互动、新地点/新人物、强情绪事件、计划完成/失败、显著需求变化、承诺、发现和决策。重复观察、无事件 idle tick "
 "和已被最近记忆覆盖的信息应跳过。"
 msgstr ""
 
-#: ../../agent_skills.rst:250
+#: ../../agent_skills.rst:261
 msgid "记忆维护结合两个可解释模型："
 msgstr ""
 
-#: ../../agent_skills.rst:252
+#: ../../agent_skills.rst:263
 msgid "**Ebbinghaus-style retention**：按时间衰减，重要性越高衰减越慢。"
 msgstr ""
 
-#: ../../agent_skills.rst:253
+#: ../../agent_skills.rst:264
 msgid "**ACT-R base-level activation**：重复呈现或检索会提高激活值，让反复出现的人、地点、规则和承诺更容易保留下来。"
 msgstr ""
 
-#: ../../agent_skills.rst:255
+#: ../../agent_skills.rst:266
 msgid "这个设计不声称精确复刻人脑记忆，而是在大规模仿真中提供稳定、可调参、可审计的长期记忆近似。"
 msgstr ""
 
-#: ../../agent_skills.rst:259
+#: ../../agent_skills.rst:270
 msgid "理论依据"
 msgstr ""
 
-#: ../../agent_skills.rst:261
-msgid "这些技能的理论依据被转化为可执行的工程约定："
+#: ../../agent_skills.rst:272
+msgid ""
+"内置技能的理论依据被转化为可执行的工程约定。这里的目标不是声称 agent "
+"精确复刻人类心理，而是让仿真中的行为变化有稳定结构、可解释状态和可复盘证据。"
 msgstr ""
 
-#: ../../agent_skills.rst:267
+#: ../../agent_skills.rst:275
+msgid "为什么是这四个基础技能"
+msgstr ""
+
+#: ../../agent_skills.rst:277
+msgid "``observation``、``cognition``、``plan``、``memory`` 对应的是一个最小但完整的行动闭环："
+msgstr ""
+
+#: ../../agent_skills.rst:283
+msgid "环节"
+msgstr ""
+
+#: ../../agent_skills.rst:284
+msgid "研究含义"
+msgstr ""
+
+#: ../../agent_skills.rst:285
+msgid "设计理由"
+msgstr ""
+
+#: ../../agent_skills.rst:286
+msgid "感知"
+msgstr ""
+
+#: ../../agent_skills.rst:287
+msgid "个体处在特定制度、空间、网络和互动场景中，行为不能只由静态画像决定。"
+msgstr ""
+
+#: ../../agent_skills.rst:288
+msgid "通过 ``observation`` 把环境事实显式写入 workspace，避免 LLM 凭空补全情境。"
+msgstr ""
+
+#: ../../agent_skills.rst:289
+msgid "解释"
+msgstr ""
+
+#: ../../agent_skills.rst:290
+msgid "社会行动不是对刺激的机械反应，而是经过情绪、价值、目标、规范和控制感的解释。"
+msgstr ""
+
+#: ../../agent_skills.rst:291
+msgid "通过 ``cognition`` 维护情绪和意图状态，让同一环境事实可以因 profile 与历史不同而产生不同意义。"
+msgstr ""
+
+#: ../../agent_skills.rst:292
+msgid "行动"
+msgstr ""
+
+#: ../../agent_skills.rst:293
+msgid "意图需要落实为可执行行为；复杂目标还需要计划、暂停、恢复和修正。"
+msgstr ""
+
+#: ../../agent_skills.rst:294
+msgid "通过 ``plan`` 把目标转成环境工具调用或多步计划，并把计划状态写成可检查文件。"
+msgstr ""
+
+#: ../../agent_skills.rst:295
+msgid "经验"
+msgstr ""
+
+#: ../../agent_skills.rst:296
+msgid "社会互动具有路径依赖。关系、承诺、失败和成功会改变后续行动。"
+msgstr ""
+
+#: ../../agent_skills.rst:297
+msgid "通过 ``memory`` 保存值得跨 tick 使用的经验，使 agent 的行为具有历史连续性。"
+msgstr ""
+
+#: ../../agent_skills.rst:299
+msgid ""
+"这种拆分也方便实验干预。研究者可以只改变信息暴露而不改认知规则，只改变记忆保持策略而不改环境模块，或者对比“无记忆 / 有记忆”“固定计划 / "
+"可中断计划”等处理组。"
+msgstr ""
+
+#: ../../agent_skills.rst:302
+msgid "各技能的理论落点"
+msgstr ""
+
+#: ../../agent_skills.rst:308
 msgid "理论/模型"
 msgstr ""
 
-#: ../../agent_skills.rst:268
+#: ../../agent_skills.rst:309
 msgid "文献中的核心思想"
 msgstr ""
 
-#: ../../agent_skills.rst:269
+#: ../../agent_skills.rst:310
 msgid "在 AgentSociety 2 中的落点"
 msgstr ""
 
-#: ../../agent_skills.rst:270
+#: ../../agent_skills.rst:311
 msgid "ReAct / 语言智能体工具循环"
 msgstr ""
 
-#: ../../agent_skills.rst:271
+#: ../../agent_skills.rst:312
 msgid "推理与外部行动交替，行动用于查询环境、更新事实、处理异常。"
 msgstr ""
 
-#: ../../agent_skills.rst:272
+#: ../../agent_skills.rst:313
 msgid ""
 "``PersonAgent`` 的 ``ToolDecision`` 循环，以及 ``observation`` / ``plan`` 对 "
 "``codegen`` 的调用。"
 msgstr ""
 
-#: ../../agent_skills.rst:273
+#: ../../agent_skills.rst:314
+msgid "Situated cognition / Embodied cognition"
+msgstr ""
+
+#: ../../agent_skills.rst:315
+msgid "个体认知嵌入具体环境与行动机会中；环境不是背景，而是认知过程的一部分。"
+msgstr ""
+
+#: ../../agent_skills.rst:316
+msgid "``observation`` 每个 tick 从环境取回事实，并把自然语言观察和结构化上下文落盘。"
+msgstr ""
+
+#: ../../agent_skills.rst:317
+msgid "BDI agent model"
+msgstr ""
+
+#: ../../agent_skills.rst:318
+msgid "行为可理解为 beliefs、desires、intentions 之间的动态关系。"
+msgstr ""
+
+#: ../../agent_skills.rst:319
+msgid ""
+"``observation`` 更新近似 beliefs，``cognition`` 生成 intention，``plan`` 将 "
+"intention 转成 action。"
+msgstr ""
+
+#: ../../agent_skills.rst:320
 msgid "Component Process Model"
 msgstr ""
 
-#: ../../agent_skills.rst:274
+#: ../../agent_skills.rst:321
 msgid "情绪来自对事件的连续 appraisal，包括新颖性、愉悦性、目标相关性、控制感和规范意义。"
 msgstr ""
 
-#: ../../agent_skills.rst:275
+#: ../../agent_skills.rst:322
 msgid "``cognition`` 的 appraisal 变量和情绪强度更新。"
 msgstr ""
 
-#: ../../agent_skills.rst:276
+#: ../../agent_skills.rst:323
+msgid "OCC / 离散情绪建模"
+msgstr ""
+
+#: ../../agent_skills.rst:324
+msgid "情绪标签可由事件、行动者和对象之间的评价关系产生，便于把情绪作为可分析状态。"
+msgstr ""
+
+#: ../../agent_skills.rst:325
+msgid "``state/emotion.json`` 同时保存离散主情绪、强度、valence 和 arousal，便于跨实验比较。"
+msgstr ""
+
+#: ../../agent_skills.rst:326
 msgid "Theory of Planned Behavior"
 msgstr ""
 
-#: ../../agent_skills.rst:277
+#: ../../agent_skills.rst:327
 msgid "意图由 attitude、subjective norm、perceived behavioral control 共同预测。"
 msgstr ""
 
-#: ../../agent_skills.rst:278
+#: ../../agent_skills.rst:328
 msgid "``state/intention.json`` 的候选目标评分字段。"
 msgstr ""
 
-#: ../../agent_skills.rst:279
+#: ../../agent_skills.rst:329
+msgid "Bounded rationality"
+msgstr ""
+
+#: ../../agent_skills.rst:330
+msgid "个体通常在有限信息、有限时间和有限计算能力下做出足够可行的决策，而不是全局最优决策。"
+msgstr ""
+
+#: ../../agent_skills.rst:331
+msgid "``plan`` 支持单步行动、有限轮工具循环和可中断计划，使 agent 在局部上下文中行动。"
+msgstr ""
+
+#: ../../agent_skills.rst:332
 msgid "Dual-process decision making"
 msgstr ""
 
-#: ../../agent_skills.rst:280
+#: ../../agent_skills.rst:333
 msgid "快速自动加工适合熟悉/低风险情境，慢速审慎加工适合新颖/复杂/冲突情境。"
 msgstr ""
 
-#: ../../agent_skills.rst:281
+#: ../../agent_skills.rst:334
 msgid "``plan`` 在单步行动与 ``plan_state.json`` 多步计划之间切换。"
 msgstr ""
 
-#: ../../agent_skills.rst:282
+#: ../../agent_skills.rst:335
+msgid "Prospective memory / Goal management"
+msgstr ""
+
+#: ../../agent_skills.rst:336
+msgid "人会保留未来要完成的目标，并在条件满足时恢复或调整计划。"
+msgstr ""
+
+#: ../../agent_skills.rst:337
+msgid "``plan_state.json`` 记录 ``status``、``resumable``、``resume_conditions`` 等字段。"
+msgstr ""
+
+#: ../../agent_skills.rst:338
 msgid "Ebbinghaus forgetting curve"
 msgstr ""
 
-#: ../../agent_skills.rst:283
+#: ../../agent_skills.rst:339
 msgid "记忆保留随时间下降，早期遗忘快，后期变慢；指数形式是简单可控的 baseline。"
 msgstr ""
 
-#: ../../agent_skills.rst:284
+#: ../../agent_skills.rst:340
 msgid "``memory_maintenance.py`` 的 retention 衰减。"
 msgstr ""
 
-#: ../../agent_skills.rst:285
+#: ../../agent_skills.rst:341
 msgid "ACT-R base-level learning"
 msgstr ""
 
-#: ../../agent_skills.rst:286
+#: ../../agent_skills.rst:342
 msgid "记忆可得性与频率、近因和呈现间隔有关，重复呈现按幂律项叠加。"
 msgstr ""
 
-#: ../../agent_skills.rst:287
+#: ../../agent_skills.rst:343
 msgid ""
 "``memory`` 的 ``_presentations``、``_access_count``、activation 与 retrieval "
 "probability。"
 msgstr ""
 
-#: ../../agent_skills.rst:291
+#: ../../agent_skills.rst:344
+msgid "Episodic memory / Autobiographical memory"
+msgstr ""
+
+#: ../../agent_skills.rst:345
+msgid "个体会把重要经历、关系、地点和承诺组织为可回忆片段，这些片段影响后续身份与判断。"
+msgstr ""
+
+#: ../../agent_skills.rst:346
+msgid "``state/memory.jsonl`` 保存带时间、重要性和内容的经验记录，区别于框架级 thread 摘要。"
+msgstr ""
+
+#: ../../agent_skills.rst:349
+msgid "为什么不是固定流水线"
+msgstr ""
+
+#: ../../agent_skills.rst:351
+msgid "虽然这四个技能构成了完整行动闭环，``PersonAgent`` 并不强制每个 tick 都按固定顺序执行它们。原因有三点："
+msgstr ""
+
+#: ../../agent_skills.rst:353
+msgid ""
+"**社会行动具有情境性**：有些 tick 只需要观察，有些 tick 需要立即执行计划，有些 tick "
+"只是维护记忆。固定流水线会制造不必要的上下文和行动。"
+msgstr ""
+
+#: ../../agent_skills.rst:354
+msgid ""
+"**LLM 上下文是稀缺资源**：metadata-first 的选择机制先暴露技能名称和描述，只有被选中时才加载完整 "
+"SKILL.md，避免每步塞入所有机制说明。"
+msgstr ""
+
+#: ../../agent_skills.rst:355
+msgid "**实验需要可干预性**：研究者可以在某个处理组中禁用自定义技能、替换某个脚本或改变技能描述，用来测试某个机制是否影响结果。"
+msgstr ""
+
+#: ../../agent_skills.rst:357
+msgid ""
+"因此，内置技能提供的是一组理论上可解释的基础能力，而不是一个僵硬的人类心理流水线。运行时的工具循环负责在具体情境中选择哪些能力真正参与当前 "
+"step。"
+msgstr ""
+
+#: ../../agent_skills.rst:361
 msgid ""
 "这些理论在框架中是“可解释启发式”，不是心理学参数估计器。它们的作用是让仿真行为有连续性、可调性和可复盘性，同时把 LLM "
 "的自由生成限制在可检查的状态文件与工具结果中。"
 msgstr ""
 
-#: ../../agent_skills.rst:295
+#: ../../agent_skills.rst:365
 msgid "SkillRegistry API"
 msgstr ""
 
-#: ../../agent_skills.rst:297
+#: ../../agent_skills.rst:367
 msgid "``SkillRegistry`` 是技能的发现、管理与执行中心。每个 ``PersonAgent`` 实例持有独立的 registry 副本。"
 msgstr ""
 
-#: ../../agent_skills.rst:300
+#: ../../agent_skills.rst:370
 msgid "发现与扫描"
 msgstr ""
 
-#: ../../agent_skills.rst:306 ../../agent_skills.rst:322
-#: ../../agent_skills.rst:340 ../../agent_skills.rst:354
-#: ../../agent_skills.rst:366 ../../agent_skills.rst:408
-#: ../../agent_skills.rst:434 ../../agent_skills.rst:456
-#: ../../agent_skills.rst:478
+#: ../../agent_skills.rst:376 ../../agent_skills.rst:392
+#: ../../agent_skills.rst:410 ../../agent_skills.rst:424
+#: ../../agent_skills.rst:436 ../../agent_skills.rst:478
+#: ../../agent_skills.rst:504 ../../agent_skills.rst:526
+#: ../../agent_skills.rst:548
 msgid "方法"
 msgstr ""
 
-#: ../../agent_skills.rst:308
+#: ../../agent_skills.rst:378
 msgid "``scan_builtin()``"
 msgstr ""
 
-#: ../../agent_skills.rst:309
+#: ../../agent_skills.rst:379
 msgid "扫描内置技能（仅执行一次）。"
 msgstr ""
 
-#: ../../agent_skills.rst:310
+#: ../../agent_skills.rst:380
 msgid "``scan_custom(workspace_path)``"
 msgstr ""
 
-#: ../../agent_skills.rst:311
+#: ../../agent_skills.rst:381
 msgid "扫描自定义技能（``<workspace>/custom/skills/``）。"
 msgstr ""
 
-#: ../../agent_skills.rst:312
+#: ../../agent_skills.rst:382
 msgid "``scan_env_skills(skills_dir, env_name)``"
 msgstr ""
 
-#: ../../agent_skills.rst:313
+#: ../../agent_skills.rst:383
 msgid "扫描环境模块提供的技能。"
 msgstr ""
 
-#: ../../agent_skills.rst:316
+#: ../../agent_skills.rst:386
 msgid "列出与查询"
 msgstr ""
 
-#: ../../agent_skills.rst:324
+#: ../../agent_skills.rst:394
 msgid "``list_all()``"
 msgstr ""
 
-#: ../../agent_skills.rst:325
+#: ../../agent_skills.rst:395
 msgid "返回所有已注册技能（按名称排序）。"
 msgstr ""
 
-#: ../../agent_skills.rst:326
+#: ../../agent_skills.rst:396
 msgid "``list_enabled()``"
 msgstr ""
 
-#: ../../agent_skills.rst:327
+#: ../../agent_skills.rst:397
 msgid "返回所有已启用的技能。"
 msgstr ""
 
-#: ../../agent_skills.rst:328
+#: ../../agent_skills.rst:398
 msgid "``list_selection_metadata(names=None)``"
 msgstr ""
 
-#: ../../agent_skills.rst:329
+#: ../../agent_skills.rst:399
 msgid "返回 catalog 条目（仅 name + description），供模型选择。"
 msgstr ""
 
-#: ../../agent_skills.rst:330
+#: ../../agent_skills.rst:400
 msgid "``get_skill_info(name, load_content=True)``"
 msgstr ""
 
-#: ../../agent_skills.rst:331
+#: ../../agent_skills.rst:401
 msgid "获取指定技能的完整信息。"
 msgstr ""
 
-#: ../../agent_skills.rst:334
+#: ../../agent_skills.rst:404
 msgid "激活与读取"
 msgstr ""
 
-#: ../../agent_skills.rst:342
+#: ../../agent_skills.rst:412
 msgid "``activate(name) -> str``"
 msgstr ""
 
-#: ../../agent_skills.rst:343
+#: ../../agent_skills.rst:413
 msgid "加载并返回 SKILL.md 完整内容（含占位符替换和命令注入）。"
 msgstr ""
 
-#: ../../agent_skills.rst:344
+#: ../../agent_skills.rst:414
 msgid "``read(name, relative_path) -> str``"
 msgstr ""
 
-#: ../../agent_skills.rst:345
+#: ../../agent_skills.rst:415
 msgid "读取技能目录内的文件（含路径越界保护）。"
 msgstr ""
 
-#: ../../agent_skills.rst:348
+#: ../../agent_skills.rst:418
 msgid "执行"
 msgstr ""
 
-#: ../../agent_skills.rst:356
+#: ../../agent_skills.rst:426
 msgid "``execute(skill_name, args, agent_work_dir, timeout_sec=30)``"
 msgstr ""
 
-#: ../../agent_skills.rst:357
+#: ../../agent_skills.rst:427
 msgid ""
 "执行技能脚本。有 script 则子进程执行；无 script 返回空成功。返回包含 "
 "``ok``、``exit_code``、``stdout``、``stderr``、``artifacts`` 等字段的字典。"
 msgstr ""
 
-#: ../../agent_skills.rst:360
+#: ../../agent_skills.rst:430
 msgid "状态管理"
 msgstr ""
 
-#: ../../agent_skills.rst:368
+#: ../../agent_skills.rst:438
 msgid "``enable(name)``"
 msgstr ""
 
-#: ../../agent_skills.rst:369
+#: ../../agent_skills.rst:439
 msgid "启用技能。"
 msgstr ""
 
-#: ../../agent_skills.rst:370
+#: ../../agent_skills.rst:440
 msgid "``disable(name)``"
 msgstr ""
 
-#: ../../agent_skills.rst:371
+#: ../../agent_skills.rst:441
 msgid "禁用技能（内置技能不可禁用）。"
 msgstr ""
 
-#: ../../agent_skills.rst:372
+#: ../../agent_skills.rst:442
 msgid "``reload_skill(name)``"
 msgstr ""
 
-#: ../../agent_skills.rst:373
+#: ../../agent_skills.rst:443
 msgid "热重载技能元数据，清除缓存的 SKILL.md 内容。"
 msgstr ""
 
-#: ../../agent_skills.rst:374
+#: ../../agent_skills.rst:444
 msgid "``remove_custom(name)``"
 msgstr ""
 
-#: ../../agent_skills.rst:375
+#: ../../agent_skills.rst:445
 msgid "从注册表移除自定义技能（不删除磁盘文件）。"
 msgstr ""
 
-#: ../../agent_skills.rst:376
+#: ../../agent_skills.rst:446
 msgid "``sync_enabled_from(source)``"
 msgstr ""
 
-#: ../../agent_skills.rst:377
+#: ../../agent_skills.rst:447
 msgid "从另一个 registry 同步启用状态。"
 msgstr ""
 
-#: ../../agent_skills.rst:380
+#: ../../agent_skills.rst:450
 msgid "SkillInfo 数据类"
 msgstr ""
 
-#: ../../agent_skills.rst:397
+#: ../../agent_skills.rst:467
 msgid "AgentSkillRuntime"
 msgstr ""
 
-#: ../../agent_skills.rst:399
+#: ../../agent_skills.rst:469
 msgid ""
 "``AgentSkillRuntime`` 是将 workspace 管理、skill 执行、日志记录集中在一起的组件。PersonAgent "
 "通过组合使用，避免 agent 主体过度膨胀。"
 msgstr ""
 
-#: ../../agent_skills.rst:402
+#: ../../agent_skills.rst:472
 msgid "Workspace 管理"
 msgstr ""
 
-#: ../../agent_skills.rst:410
+#: ../../agent_skills.rst:480
 msgid "``ensure_agent_work_dir(env_obj)``"
 msgstr ""
 
-#: ../../agent_skills.rst:411
+#: ../../agent_skills.rst:481
 msgid "确保工作目录存在（形如 ``<run_dir>/agents/agent_0001``）。"
 msgstr ""
 
-#: ../../agent_skills.rst:412
+#: ../../agent_skills.rst:482
 msgid "``ensure_standard_workspace_dirs()``"
 msgstr ""
 
-#: ../../agent_skills.rst:413
+#: ../../agent_skills.rst:483
 msgid "创建标准目录结构（state/、memory/、input/、custom/skills/、.runtime/logs/）。"
 msgstr ""
 
-#: ../../agent_skills.rst:414
+#: ../../agent_skills.rst:484
 msgid "``workspace_root()``"
 msgstr ""
 
-#: ../../agent_skills.rst:415
+#: ../../agent_skills.rst:485
 msgid "返回工作区根路径。"
 msgstr ""
 
-#: ../../agent_skills.rst:416
+#: ../../agent_skills.rst:486
 msgid "``workspace_read(relative_path)``"
 msgstr ""
 
-#: ../../agent_skills.rst:417
+#: ../../agent_skills.rst:487
 msgid "读取工作区文件（含越界保护）。"
 msgstr ""
 
-#: ../../agent_skills.rst:418
+#: ../../agent_skills.rst:488
 msgid "``workspace_write(relative_path, content)``"
 msgstr ""
 
-#: ../../agent_skills.rst:419
+#: ../../agent_skills.rst:489
 msgid "写入工作区文件。"
 msgstr ""
 
-#: ../../agent_skills.rst:420
+#: ../../agent_skills.rst:490
 msgid "``workspace_exists(relative_path)``"
 msgstr ""
 
-#: ../../agent_skills.rst:421
+#: ../../agent_skills.rst:491
 msgid "检查文件是否存在。"
 msgstr ""
 
-#: ../../agent_skills.rst:422
+#: ../../agent_skills.rst:492
 msgid "``workspace_delete(relative_path)``"
 msgstr ""
 
-#: ../../agent_skills.rst:423
+#: ../../agent_skills.rst:493
 msgid "删除文件。"
 msgstr ""
 
-#: ../../agent_skills.rst:424
+#: ../../agent_skills.rst:494
 msgid "``workspace_list(relative_path=\".\")``"
 msgstr ""
 
-#: ../../agent_skills.rst:425
+#: ../../agent_skills.rst:495
 msgid "列出目录下所有文件。"
 msgstr ""
 
-#: ../../agent_skills.rst:428
+#: ../../agent_skills.rst:498
 msgid "日志与持久化"
 msgstr ""
 
-#: ../../agent_skills.rst:436
+#: ../../agent_skills.rst:506
 msgid "``append_thread_message(role, content, tick, t)``"
 msgstr ""
 
-#: ../../agent_skills.rst:437
+#: ../../agent_skills.rst:507
 msgid "追加 thread 消息（磁盘 JSONL + 内存窗口）。"
 msgstr ""
 
-#: ../../agent_skills.rst:438
+#: ../../agent_skills.rst:508
 msgid "``read_recent_thread_messages(limit=40)``"
 msgstr ""
 
-#: ../../agent_skills.rst:439
+#: ../../agent_skills.rst:509
 msgid "读取最近 N 条 thread 消息。"
 msgstr ""
 
-#: ../../agent_skills.rst:440
+#: ../../agent_skills.rst:510
 msgid "``append_tool_log(entry)``"
 msgstr ""
 
-#: ../../agent_skills.rst:441
+#: ../../agent_skills.rst:511
 msgid "追加工具调用日志。"
 msgstr ""
 
-#: ../../agent_skills.rst:442
+#: ../../agent_skills.rst:512
 msgid "``read_recent_tool_logs(limit=20)``"
 msgstr ""
 
-#: ../../agent_skills.rst:443
+#: ../../agent_skills.rst:513
 msgid "读取最近 N 条工具日志。"
 msgstr ""
 
-#: ../../agent_skills.rst:444
+#: ../../agent_skills.rst:514
 msgid "``persist_session_state(tick, t, selected_skills, activated_skills)``"
 msgstr ""
 
-#: ../../agent_skills.rst:445
+#: ../../agent_skills.rst:515
 msgid "持久化会话状态。"
 msgstr ""
 
-#: ../../agent_skills.rst:446
+#: ../../agent_skills.rst:516
 msgid ""
 "``append_step_replay(tick, t, selected_skills, tool_history, "
 "step_end_reason)``"
 msgstr ""
 
-#: ../../agent_skills.rst:447
+#: ../../agent_skills.rst:517
 msgid "追加步骤回放记录。"
 msgstr ""
 
-#: ../../agent_skills.rst:450
+#: ../../agent_skills.rst:520
 msgid "上下文维护"
 msgstr ""
 
-#: ../../agent_skills.rst:458
+#: ../../agent_skills.rst:528
 msgid "``refresh_workspace_documents()``"
 msgstr ""
 
-#: ../../agent_skills.rst:459
+#: ../../agent_skills.rst:529
 msgid "刷新 AGENT.md 和 AGENT_FILES.md。"
 msgstr ""
 
-#: ../../agent_skills.rst:460
+#: ../../agent_skills.rst:530
 msgid "``sync_state_to_context()``"
 msgstr ""
 
-#: ../../agent_skills.rst:461
+#: ../../agent_skills.rst:531
 msgid "将 ``state/*.json`` 同步到 AGENT.md。"
 msgstr ""
 
-#: ../../agent_skills.rst:462
+#: ../../agent_skills.rst:532
 msgid "``build_workspace_summary()``"
 msgstr ""
 
-#: ../../agent_skills.rst:463
+#: ../../agent_skills.rst:533
 msgid "构建 workspace 摘要。"
 msgstr ""
 
-#: ../../agent_skills.rst:464
+#: ../../agent_skills.rst:534
 msgid "``auto_update_agent_context(skill_name, tool_result, args)``"
 msgstr ""
 
-#: ../../agent_skills.rst:465
+#: ../../agent_skills.rst:535
 msgid "根据工具执行结果自动更新上下文。"
 msgstr ""
 
-#: ../../agent_skills.rst:466
+#: ../../agent_skills.rst:536
 msgid "``build_file_manifest()``"
 msgstr ""
 
-#: ../../agent_skills.rst:467
+#: ../../agent_skills.rst:537
 msgid "构建文件清单。"
 msgstr ""
 
-#: ../../agent_skills.rst:468
+#: ../../agent_skills.rst:538
 msgid "``write_file_manifest()``"
 msgstr ""
 
-#: ../../agent_skills.rst:469
+#: ../../agent_skills.rst:539
 msgid "将文件清单写入 AGENT_FILES.md。"
 msgstr ""
 
-#: ../../agent_skills.rst:472
+#: ../../agent_skills.rst:542
 msgid "行为追踪"
 msgstr ""
 
-#: ../../agent_skills.rst:480
+#: ../../agent_skills.rst:550
 msgid "``emit_behavior_event(event_type, data, tick, trace_id, span_id, ...)``"
 msgstr ""
 
-#: ../../agent_skills.rst:481
+#: ../../agent_skills.rst:551
 msgid "发送行为追踪事件（step_start、tool_call 等）。"
 msgstr ""
 
-#: ../../agent_skills.rst:482
+#: ../../agent_skills.rst:552
 msgid "``get_behavior_summary(limit=100)``"
 msgstr ""
 
-#: ../../agent_skills.rst:483
+#: ../../agent_skills.rst:553
 msgid "获取行为事件统计摘要。"
 msgstr ""
 
-#: ../../agent_skills.rst:487
+#: ../../agent_skills.rst:557
 msgid "Memory 语义"
 msgstr ""
 
-#: ../../agent_skills.rst:489
+#: ../../agent_skills.rst:559
 msgid "``PersonAgent`` 中有两类容易混淆的记忆："
 msgstr ""
 
-#: ../../agent_skills.rst:491
+#: ../../agent_skills.rst:561
 msgid "``AGENT_MEMORY.md`` 是运行时维护的会话摘要，保存当前任务、已完成动作和错误等信息，主要服务长线程压缩与恢复。"
 msgstr ""
 
-#: ../../agent_skills.rst:492
+#: ../../agent_skills.rst:562
 msgid ""
 "``state/memory.jsonl`` 是 ``memory`` 技能维护的经验记忆，保存人物在仿真中值得跨 tick "
 "检索的事件、关系、地点、承诺和计划结果。"
 msgstr ""
 
-#: ../../agent_skills.rst:494
+#: ../../agent_skills.rst:564
 msgid ""
 "``memory`` 技能不是每步固定执行的收尾层。是否写入 "
 "``state/memory.jsonl``，由工具循环根据当前事件是否值得保留来决定。这样可以减少重复记忆，也让长期记忆更像“重要经验”而不是完整日志。"
 msgstr ""
 
-#: ../../agent_skills.rst:498
+#: ../../agent_skills.rst:568
 msgid "运行时管理 API"
 msgstr ""
 
-#: ../../agent_skills.rst:500
+#: ../../agent_skills.rst:570
 msgid "后端提供 Agent Skills 管理接口（前缀 ``/api/v1/agent-skills``）："
 msgstr ""
 
-#: ../../agent_skills.rst:502
+#: ../../agent_skills.rst:572
 msgid "``GET /list``：列出技能（builtin + custom）"
 msgstr ""
 
-#: ../../agent_skills.rst:503
+#: ../../agent_skills.rst:573
 msgid "``POST /enable``：启用指定技能（内置技能始终启用）"
 msgstr ""
 
-#: ../../agent_skills.rst:504
+#: ../../agent_skills.rst:574
 msgid "``POST /disable``：禁用指定自定义/环境技能（内置技能不可禁用）"
 msgstr ""
 
-#: ../../agent_skills.rst:505
+#: ../../agent_skills.rst:575
 #, python-brace-format
 msgid "``POST /scan``：扫描 ``{workspace}/custom/skills``"
 msgstr ""
 
-#: ../../agent_skills.rst:506
+#: ../../agent_skills.rst:576
 msgid "``POST /import``：从外部目录导入技能"
 msgstr ""
 
-#: ../../agent_skills.rst:507
+#: ../../agent_skills.rst:577
 msgid "``POST /create``：在线创建新技能（``SKILL.md`` + 可选脚本）"
 msgstr ""
 
-#: ../../agent_skills.rst:508
+#: ../../agent_skills.rst:578
 msgid "``POST /upload``：上传 zip 包导入技能"
 msgstr ""
 
-#: ../../agent_skills.rst:509
+#: ../../agent_skills.rst:579
 msgid "``POST /reload``：热重载单个技能"
 msgstr ""
 
-#: ../../agent_skills.rst:510
+#: ../../agent_skills.rst:580
 msgid "``POST /remove``：删除自定义技能"
 msgstr ""
 
-#: ../../agent_skills.rst:511
+#: ../../agent_skills.rst:581
 #, python-brace-format
 msgid "``GET /{name}/info``：查看技能详细信息（含 SKILL.md 内容）"
 msgstr ""
 
-#: ../../agent_skills.rst:513
+#: ../../agent_skills.rst:583
 msgid "这些接口同时被 VS Code 扩展与手动调试流程使用。"
 msgstr ""
 
-#: ../../agent_skills.rst:517
+#: ../../agent_skills.rst:587
 msgid "自定义 Skill 最小示例"
 msgstr ""
 
-#: ../../agent_skills.rst:519
+#: ../../agent_skills.rst:589
 msgid "目录："
 msgstr ""
 
-#: ../../agent_skills.rst:528
+#: ../../agent_skills.rst:598
 msgid "``SKILL.md``："
 msgstr ""
 
-#: ../../agent_skills.rst:541
+#: ../../agent_skills.rst:611
 msgid "``scripts/hello_skill.py``："
 msgstr ""
 
-#: ../../agent_skills.rst:562
+#: ../../agent_skills.rst:632
 msgid "导入并启用后，主 LLM 会在合适上下文中选择它执行。"
 msgstr ""
 
-#: ../../agent_skills.rst:566
+#: ../../agent_skills.rst:636
 msgid "最佳实践"
 msgstr ""
 
-#: ../../agent_skills.rst:568
+#: ../../agent_skills.rst:638
 msgid "``description`` 写成\"触发条件 + 输出结果\"，便于模型选择器判断。"
 msgstr ""
 
-#: ../../agent_skills.rst:569
+#: ../../agent_skills.rst:639
 msgid "若依赖其它 skill，在正文写清并引导先 ``activate_skill``。"
 msgstr ""
 
-#: ../../agent_skills.rst:570
+#: ../../agent_skills.rst:640
 msgid "Skill 代码尽量幂等，避免重复执行造成状态污染。"
 msgstr ""
 
-#: ../../agent_skills.rst:571
+#: ../../agent_skills.rst:641
 msgid "对关键技能保留清晰日志，便于复盘每步选择与执行。"
 msgstr ""
 
-#: ../../agent_skills.rst:572
+#: ../../agent_skills.rst:642
 msgid "优先使用 Prompt-only 模式，只在需要确定性计算时才用 Subprocess script。"
 msgstr ""
 
-#: ../../agent_skills.rst:573
+#: ../../agent_skills.rst:643
 msgid "脚本中通过 ``--args-json`` 接收参数，输出以 JSON 打印到 stdout，产物写入 ``AGENT_WORK_DIR``。"
 msgstr ""
 
-#: ../../agent_skills.rst:577
+#: ../../agent_skills.rst:647
 msgid "参考"
 msgstr ""
 
-#: ../../agent_skills.rst:579
+#: ../../agent_skills.rst:649
 msgid ":doc:`agents` - PersonAgent 使用说明"
 msgstr ""
 
-#: ../../agent_skills.rst:580
+#: ../../agent_skills.rst:650
 msgid ":doc:`api/skills` - SkillRegistry API"
 msgstr ""
 
-#: ../../agent_skills.rst:581
+#: ../../agent_skills.rst:651
 msgid ":doc:`development` - 开发指南"
 msgstr ""
 
-#: ../../agent_skills.rst:583
+#: ../../agent_skills.rst:653
 msgid "外部理论参考："
 msgstr ""
 
-#: ../../agent_skills.rst:585
+#: ../../agent_skills.rst:655
 msgid ""
 "ReAct: Synergizing Reasoning and Acting in Language Models, Yao et al. "
 "(2022): https://arxiv.org/abs/2210.03629"
 msgstr ""
 
-#: ../../agent_skills.rst:586
+#: ../../agent_skills.rst:656
 msgid ""
 "Ajzen, I. (1991). The Theory of Planned Behavior: "
 "https://doi.org/10.1016/0749-5978(91)90020-T"
 msgstr ""
 
-#: ../../agent_skills.rst:587
+#: ../../agent_skills.rst:657
 msgid ""
 "Scherer, K. R. (2001). Appraisal considered as a process of multilevel "
 "sequential checking. In *Appraisal Processes in Emotion*."
 msgstr ""
 
-#: ../../agent_skills.rst:588
+#: ../../agent_skills.rst:658
 msgid ""
 "Murre, J. M. J. and Dros, J. (2015). Replication and Analysis of "
 "Ebbinghaus' Forgetting Curve: "
 "https://doi.org/10.1371/journal.pone.0120644"
 msgstr ""
 
-#: ../../agent_skills.rst:589
+#: ../../agent_skills.rst:659
 msgid ""
 "Anderson, J. R. and Schooler, L. J. (1991). Reflections of the "
 "Environment in Memory: https://doi.org/10.1111/j.1467-9280.1991.tb00174.x"
 msgstr ""
 
-#: ../../agent_skills.rst:590
+#: ../../agent_skills.rst:660
 msgid ""
 "Evans, J. S. B. T. (2008). Dual-processing accounts of reasoning, "
 "judgment, and social cognition: "
@@ -1245,5 +1461,13 @@ msgstr ""
 #~ msgstr ""
 
 #~ msgid "``description`` 写成”触发条件 + 输出结果”，便于选择器判断。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Agent Skills 是 ``PersonAgent`` "
+#~ "的能力插件系统。它解决的问题很直接：一个人物智能体不应该把所有行为都写死在一个巨大类里，而应该把“会观察”“会形成意图”“会执行计划”“会记住重要事件”等能力拆成可读、可替换、可调试的模块。"
+#~ msgstr ""
+
+#~ msgid "这些技能的理论依据被转化为可执行的工程约定："
 #~ msgstr ""
 

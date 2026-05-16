@@ -124,9 +124,9 @@ class Config:
     Environment variable: AGENTSOCIETY_LLM_API_BASE
     Default: "https://api.openai.com/v1"
 
-    This should point to the API endpoint that supports OpenAI-compatible API calls.
-    The URL should include the protocol (https://) and the base path, but not the
-    specific model endpoint (e.g., /chat/completions).
+    This should point to the API endpoint expected by the selected LiteLLM provider.
+    For OpenAI-compatible gateways, include the protocol (https://) and base path,
+    but not the specific model endpoint (e.g., /chat/completions).
     """
 
     LLM_MODEL: str = os.getenv("AGENTSOCIETY_LLM_MODEL", "gpt-5.5")
@@ -137,7 +137,8 @@ class Config:
     Default: "gpt-5.5"
 
     This model is used for most language understanding and generation tasks that don't
-    require specialized models. The model name should match what your API provider expects.
+    require specialized models. The model name should match the LiteLLM provider/model id
+    used by your API provider; "gpt-5.5" is only the default OpenAI example.
     """
 
     # Coder LLM settings

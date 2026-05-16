@@ -6,9 +6,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.2.0\n"
+"Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 22:32+0800\n"
+"POT-Creation-Date: 2026-05-16 11:12+0800\n"
 "PO-Revision-Date: 2026-03-05 23:50+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -121,58 +121,71 @@ msgstr ""
 msgid "``AGENT_*``: Agent 行为配置，如上下文窗口大小、工具循环轮数等"
 msgstr ""
 
-#: ../../installation.rst:143
-msgid "**遥测设置**"
-msgstr "**Telemetry Settings**"
-
-#: ../../installation.rst:145
-msgid "AgentSociety 2 会自动禁用所有遥测服务以防止外部连接："
-msgstr ""
-"AgentSociety 2 automatically disables all telemetry services to prevent "
-"external connections:"
-
-#: ../../installation.rst:153
-msgid "这些设置禁用了 mem0 和 ChromaDB 的遥测功能，防止连接到 Posthog/Facebook 等外部服务。"
-msgstr ""
-"These settings disable telemetry for mem0 and ChromaDB, preventing "
-"connections to external services like Posthog/Facebook."
-
-#: ../../installation.rst:156
+#: ../../installation.rst:144
 msgid "支持的 LLM 提供商"
 msgstr "Supported LLM Providers"
 
-#: ../../installation.rst:158
-msgid "AgentSociety 2 使用 `litellm`_，支持许多 LLM 提供商："
-msgstr "AgentSociety 2 uses `litellm`_ which supports many LLM providers:"
-
-#: ../../installation.rst:160
-msgid "OpenAI 及兼容网关（模型 id 以供应商文档为准）"
+#: ../../installation.rst:146
+msgid ""
+"AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用 OpenAI endpoint 与 "
+"``gpt-5.5``，这只是示例配置："
 msgstr ""
 
-#: ../../installation.rst:161
-msgid "Anthropic (Claude)"
-msgstr "Anthropic (Claude)"
+#: ../../installation.rst:148
+msgid "``AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1``"
+msgstr ""
 
-#: ../../installation.rst:162
-msgid "Azure OpenAI"
-msgstr "Azure OpenAI"
+#: ../../installation.rst:149
+msgid "``AGENTSOCIETY_LLM_MODEL=gpt-5.5``"
+msgstr ""
 
-#: ../../installation.rst:163
-msgid "Google (Gemini)"
-msgstr "Google (Gemini)"
-
-#: ../../installation.rst:164
-msgid "Cohere"
-msgstr "Cohere"
-
-#: ../../installation.rst:165
-msgid "以及更多..."
-msgstr "And many more..."
-
-#: ../../installation.rst:167
-msgid "查看 `litellm 文档`_ 获取完整列表。"
-msgstr "See `litellm 文档`_ for a complete list."
+#: ../../installation.rst:151
+msgid ""
+"如果你使用 Anthropic 或其它 LiteLLM 支持的 provider，请保持同样的环境变量结构，并把 "
+"``AGENTSOCIETY_LLM_API_BASE`` 与模型名替换为对应 provider/网关提供的值；具体 model id 以你的 "
+"provider 和 LiteLLM 配置为准。"
+msgstr ""
 
 #~ msgid "OpenAI (GPT-4, GPT-3.5)"
 #~ msgstr "OpenAI (GPT-4, GPT-3.5)"
 
+#~ msgid "AgentSociety 2 使用 `litellm`_，支持许多 LLM 提供商："
+#~ msgstr "AgentSociety 2 uses `litellm`_ which supports many LLM providers:"
+
+#~ msgid "OpenAI 及兼容网关（模型 id 以供应商文档为准）"
+#~ msgstr ""
+
+#~ msgid "Anthropic (Claude)"
+#~ msgstr "Anthropic (Claude)"
+
+#~ msgid "Azure OpenAI"
+#~ msgstr "Azure OpenAI"
+
+#~ msgid "Google (Gemini)"
+#~ msgstr "Google (Gemini)"
+
+#~ msgid "Cohere"
+#~ msgstr "Cohere"
+
+#~ msgid "以及更多..."
+#~ msgstr "And many more..."
+
+#~ msgid "查看 `litellm 文档`_ 获取完整列表。"
+#~ msgstr "See `litellm 文档`_ for a complete list."
+
+#~ msgid "底层仍由 `litellm`_ 路由模型调用。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用"
+#~ " OpenAI 兼容的 Chat Completions 接口："
+#~ msgstr ""
+
+#~ msgid ""
+#~ "如果你使用其它 LiteLLM 支持的 OpenAI "
+#~ "兼容网关，请保持同样的环境变量结构，并把 ``AGENTSOCIETY_LLM_API_BASE`` "
+#~ "与模型名替换为该网关提供的值。"
+#~ msgstr ""
+
+#~ msgid "因此，OpenAI 是推荐示例，不是唯一可用后端。"
+#~ msgstr ""

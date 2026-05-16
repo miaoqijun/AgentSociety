@@ -7,9 +7,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.2.0\n"
+"Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-09 12:39+0800\n"
+"POT-Creation-Date: 2026-05-16 11:12+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -36,8 +36,686 @@ msgstr ""
 msgid "AgentBase"
 msgstr ""
 
+#: agentsociety2.agent.base.AgentBase:1 of
+msgid "智能体抽象基类。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:3 of
+msgid "所有智能体实现都应继承此类。提供基础功能："
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:5 of
+msgid ""
+"LLM 交互：基类在初始化时通过 ``get_llm_router_and_model(\"nano\")`` 绑定 **nano** "
+"角色路由（高频/轻量调用）"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:6 of
+msgid ""
+"环境交互（通过 :class:`~agentsociety2.env.router_base.RouterBase`，由 :meth:`init`"
+" 注入）"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:7 of
+msgid "Token 使用统计"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:9 of
+msgid "子类必须实现以下抽象方法："
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:11 of
+msgid ":meth:`ask` — 处理问题并返回响应"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:12 of
+msgid ":meth:`step` — 执行一个模拟步骤"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:13 of
+msgid ":meth:`dump` — 序列化智能体状态"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:14 of
+msgid ":meth:`load` — 从字典恢复智能体状态"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase:17
+#: agentsociety2.agent.base.AgentBase.set_skill_state:9 of
+msgid "示例"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.__init__:1 of
+msgid "初始化 Agent 实例。"
+msgstr ""
+
+#: ../../api/agent.rst ../../api/backend.rst ../../api/config.rst
+#: ../../api/env.rst ../../api/registry.rst ../../api/skills.rst
+#: ../../api/society.rst ../../api/storage.rst
+#: agentsociety2.agent.base.AgentBase.set_skill_state of
+msgid "参数"
+msgstr ""
+
+#: agentsociety2.agent.AgentBase.id:1
+#: agentsociety2.agent.base.AgentBase.__init__:3 of
+msgid "智能体唯一标识符。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.__init__:4 of
+msgid "智能体画像对象（dict 或任意可解析类型）。子类应负责把 profile 解析为自身状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.__init__:5 of
+#, python-brace-format
+msgid "可选显示名称；为空时按 ``profile[\"name\"]`` 或 ``Agent_{id}`` 推导。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.mcp_description:1 of
+msgid "返回用于 MCP 候选列表展示的描述文本（Markdown）。"
+msgstr ""
+
+#: ../../api/agent.rst ../../api/backend.rst ../../api/config.rst
+#: ../../api/env.rst ../../api/registry.rst ../../api/skills.rst
+#: ../../api/society.rst ../../api/storage.rst
+msgid "返回"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.mcp_description:3 of
+msgid "Markdown 文本，通常包含类简介、初始化参数说明与示例配置。"
+msgstr ""
+
+#: ../../api/agent.rst ../../api/config.rst ../../api/env.rst
+#: ../../api/registry.rst ../../api/skills.rst ../../api/society.rst
+#: ../../api/storage.rst
+msgid "返回类型"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.mcp_description:6 of
+msgid "该返回值的目标受众是“工具/模块发现界面”，因此采用 Markdown 而非 reST。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.env_codegen_ctx_overlay:1 of
+msgid "生成 CodeGenRouter.ask 的上下文覆盖。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.env_codegen_ctx_overlay:3 of
+msgid "返回稳定的身份键（id, agent_id, person_id），由框架提供， 与具体 skill 无关。后合并时覆盖模型误传。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.env_codegen_ctx_overlay:6 of
+msgid "包含 id, agent_id, person_id 的字典。"
+msgstr ""
+
+#: agentsociety2.agent.AgentBase.logger:1 of
+msgid "智能体专属 logger 实例。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_llm_interaction_history:1 of
+msgid "获取所有 LLM 交互历史记录的副本。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_llm_interaction_history:3 of
+msgid "LLM 交互历史记录列表的浅拷贝。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.clear_llm_interaction_history:1 of
+msgid "清除所有 LLM 交互历史记录。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_token_usages:1 of
+msgid "获取 Token 使用统计的副本。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_token_usages:3 of
+msgid "按模型名索引的 Token 使用统计字典。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.reset_token_usages:1 of
+msgid "重置所有 Token 使用统计。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.set_skill_state:1 of
+msgid "设置某个 skill 的状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.set_skill_state:3 of
+msgid "由 skill 的 run() 函数调用，用于注册或更新自己的状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.clear_skill_state:3
+#: agentsociety2.agent.base.AgentBase.get_skill_state:3
+#: agentsociety2.agent.base.AgentBase.has_skill_state:3
+#: agentsociety2.agent.base.AgentBase.set_skill_state:5 of
+msgid "skill 名称。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.set_skill_state:6 of
+msgid "该 skill 的状态对象（可以是任意类型）。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.set_skill_state:10 of
+msgid "技能实现中（无论是 prompt-only 还是 subprocess），都可以通过 Agent 对象维护自己的状态::"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_skill_state:1 of
+msgid "获取某个 skill 的状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_skill_state:4 of
+msgid "该 skill 的状态对象，如果不存在则返回 ``None``。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.has_skill_state:1 of
+msgid "检查某个 skill 是否有状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.has_skill_state:4 of
+msgid "是否存在该 skill 的状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.clear_skill_state:1 of
+msgid "清除某个 skill 的状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.clear_skill_state:4 of
+msgid "是否成功清除（如果不存在则返回 ``False``）。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_all_skill_states:1 of
+msgid "获取所有 skill 状态的副本。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_all_skill_states:3 of
+msgid "所有 skill 状态的字典副本。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.answer_external_question:1 of
+msgid "基于 agent 内部状态回答外部问题，不经过环境路由。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion:1 of
+msgid "向 LLM 发送补全请求。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion:3
+#: agentsociety2.agent.base.AgentBase.acompletion_with_system_prompt:5 of
+msgid "消息列表，包含角色和内容。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion:4 of
+msgid "是否启用流式响应。默认 ``False``。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion:5 of
+msgid "``ModelResponse`` 或 ``CustomStreamWrapper``，取决于 ``stream`` 参数。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_system_prompt:1 of
+msgid "向 LLM 发送带系统提示的补全请求。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_system_prompt:3 of
+msgid "自动在消息前添加系统提示，包含智能体身份、仿真时间上下文等信息。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:13
+#: agentsociety2.agent.base.AgentBase.acompletion_with_system_prompt:6
+#: agentsociety2.agent.base.AgentBase.step:3 of
+msgid "当前仿真步的时间尺度（秒）。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:14
+#: agentsociety2.agent.base.AgentBase.acompletion_with_system_prompt:7
+#: agentsociety2.agent.base.AgentBase.step:4
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt:7
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt_segmented:6
+#: agentsociety2.agent.person.PersonAgent.step:11
+#: agentsociety2.society.AgentSociety.current_time:1 of
+msgid "当前仿真时间。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_system_prompt:8
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_system_prompt:5 of
+msgid "LLM 响应对象。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_system_prompt:1 of
+msgid "获取智能体的系统提示词。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_system_prompt:3 of
+msgid "生成的提示词将预置到 LLM 消息中，使 LLM 理解自身作为 AgentSociety 仿真环境中模拟真实人类行为的智能体角色。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_system_prompt:6 of
+msgid "当前仿真步的时间尺度（秒）。范围从 60 秒（1分钟）到约一个月。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_system_prompt:7 of
+msgid "当前仿真步结束后的时间。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_system_prompt:8 of
+msgid "完整的系统提示词字符串，包含时间上下文、仿真环境说明和行为指南。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask_env:1 of
+msgid "向环境路由器发送请求。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask_env:3 of
+msgid "封装了与仿真环境的交互，支持模板模式和上下文变量替换。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask_env:5 of
+msgid "上下文字典，可包含 ``variables`` 键用于模板模式。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask_env:6 of
+msgid "请求消息。在模板模式下作为模板指令处理。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask:4
+#: agentsociety2.agent.base.AgentBase.ask_env:7 of
+msgid "是否只读模式。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask_env:8 of
+#, python-brace-format
+msgid ""
+"是否启用模板模式。启用时，``message`` 中的 ``{variable_name}`` 变量将从 ``ctx['variables']``"
+" 中替换。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask_env:10 of
+msgid "元组 ``(ctx, answer)``：更新后的上下文与环境响应。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.init:1 of
+msgid "初始化智能体。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.init:3 of
+msgid "子类应在调用父类 init 后执行额外的初始化逻辑。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.init:5
+#: agentsociety2.agent.person.PersonAgent.init:13 of
+msgid "环境路由器实例。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.dump:1 of
+msgid "序列化智能体状态为字典。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.dump:3 of
+msgid "可序列化的字典，包含智能体完整状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.load:1 of
+msgid "从字典反序列化智能体状态。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.load:3 of
+msgid "包含智能体状态的字典。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask:1 of
+msgid "处理来自环境的问题。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask:3 of
+msgid "问题消息。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.ask:5 of
+msgid "智能体的回答字符串。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.step:1 of
+msgid "执行一个仿真步。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.step:5 of
+msgid "步执行结果的描述字符串。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.close:1 of
+msgid "关闭智能体并释放资源。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.close:3 of
+msgid "子类可重写此方法以执行额外的清理逻辑。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_profile:1 of
+msgid "获取智能体画像。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.get_profile:3 of
+msgid "包含智能体画像数据的字典。子类可重写以返回结构化数据。"
+msgstr ""
+
+#: agentsociety2.agent.AgentBase.name:1 of
+msgid "智能体显示名称。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:1 of
+msgid "发送补全请求并验证响应是否符合 Pydantic 模型。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:3 of
+msgid "支持多轮对话以向 LLM 提供错误反馈并进行修正。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:5 of
+msgid ""
+"该方法会先向 LLM 发送请求，再从响应中提取 JSON 片段（``extract_json``）， 当整段内容本身就以 ``{`` 或 "
+"``[`` 开头时回退使用全文，并统一交给 ``json_repair.loads`` 解析。随后会使用目标 Pydantic 模型进行验证； "
+"如果验证失败，则立即把错误反馈给 LLM 并重试；如果遇到 429（速率限制） 错误，则改为使用二进制指数退避。最终返回验证通过的模型实例。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:11
+#: of
+msgid "用于验证的 Pydantic 模型类型。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:12
+#: of
+msgid "发送给 LLM 的消息列表。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:15
+#: of
+msgid "最大重试次数（默认 10）。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:16
+#: of
+msgid "429 错误发生时指数退避的基准延迟秒数（默认 1.0）。 仅用于 429 速率限制错误。其他错误立即重试。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:18
+#: of
+msgid "指数退避的最大延迟秒数（默认 60.0）。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:19
+#: of
+#, python-brace-format
+msgid "可选的自定义错误反馈提示模板。 如为 None，将使用默认提示模板。模板应包含 ``{error_message}`` 占位符。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:21
+#: of
+msgid "传给 litellm 的单次 HTTP 超时（秒）；``None`` 表示不设置。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:23
+#: of
+msgid "验证通过的 Pydantic 模型实例。"
+msgstr ""
+
+#: ../../api/agent.rst ../../api/config.rst ../../api/env.rst
+msgid "抛出"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:24
+#: of
+msgid "响应无法解析，或在所有重试后仍验证失败。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:25
+#: of
+msgid "LLM 未初始化。"
+msgstr ""
+
+#: agentsociety2.agent.base.AgentBase.acompletion_with_pydantic_validation:28
+#: of
+msgid "二进制指数退避仅在检测到 429（速率限制）错误时应用。 对于验证错误和其他非速率限制错误，函数立即重试以向 LLM 提供更快的反馈。"
+msgstr ""
+
 #: ../../api/agent.rst:18
 msgid "PersonAgent"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent:1 of
+msgid "Person 场景下的 skills-first 工具代理。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent:3 of
+msgid "设计目标是让每个 Person 拥有独立线程、独立工作区和独立技能可见性， 在每个 step 内通过工具循环完成“观察-推理-行动”。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.mcp_description:1 of
+msgid "返回 MCP 候选列表中的简短描述。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:1 of
+msgid "初始化 PersonAgent。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:3 of
+msgid "Agent 唯一标识。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:4 of
+msgid "画像对象（dict 或可序列化对象）。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:5 of
+msgid "可选显示名。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:6 of
+msgid "可选初始状态（会写入 workspace，默认不覆盖已存在文件）。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:7 of
+msgid ""
+"传入 :meth:`AgentConfig.from_kwargs` 的扁平参数（节选）：  - "
+"``max_tool_rounds``：单步最大工具轮数（默认 24） - "
+"``preload_workspace_paths``：预读文件列表（注入 system prompt 的 workspace 快照） - "
+"``thread_key_state_paths``：thread 压缩时附带的 KEY_STATE_JSON 文件路径列表 - "
+"``system_prompt_max_identity_chars``：Agent Identity JSON 总长度上限（默认 10000） "
+"- ``workspace_read_chunk_chars``：``workspace_read`` / ``read_skill`` "
+"单段最大字符数（默认 32000，允许 1024–96000） - ``tool_result_thread_budget_chars``：单条 "
+"TOOL_RESULT_JSON 序列化预算（默认 65536） - ``profile_max_chars`` / "
+"``profile_truncate_chars``：profile 写入 Identity 前的截断上限（默认 4000） - "
+"``bash_retries`` / ``bash_timeout_retries``：bash 超时后的额外重试次数（写入 "
+"``LoopConfig.bash_retries``，默认 1，即共 2 次执行） - "
+"``llm_transient_retries``：thread 压缩等直连 ``acompletion`` 遇瞬时错误时的最大重试次数（默认 "
+"2） - ``tool_decision_max_retries``：传给 "
+"``acompletion_with_pydantic_validation`` 的 max_retries（默认 10） - ``model``"
+" / ``llm_model``：LiteLLM 路由模型名（用于 token_counter 与 tiktoken 回退） - "
+"``tiktoken_encoding``：强制指定 tiktoken 编码名（默认 ``cl100k_base``）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:7 of
+msgid "传入 :meth:`AgentConfig.from_kwargs` 的扁平参数（节选）："
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:9 of
+msgid "``max_tool_rounds``：单步最大工具轮数（默认 24）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:10 of
+msgid "``preload_workspace_paths``：预读文件列表（注入 system prompt 的 workspace 快照）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:11 of
+msgid "``thread_key_state_paths``：thread 压缩时附带的 KEY_STATE_JSON 文件路径列表"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:12 of
+msgid "``system_prompt_max_identity_chars``：Agent Identity JSON 总长度上限（默认 10000）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:13 of
+msgid ""
+"``workspace_read_chunk_chars``：``workspace_read`` / ``read_skill`` "
+"单段最大字符数（默认 32000，允许 1024–96000）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:14 of
+msgid "``tool_result_thread_budget_chars``：单条 TOOL_RESULT_JSON 序列化预算（默认 65536）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:15 of
+msgid ""
+"``profile_max_chars`` / ``profile_truncate_chars``：profile 写入 Identity "
+"前的截断上限（默认 4000）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:16 of
+msgid ""
+"``bash_retries`` / ``bash_timeout_retries``：bash 超时后的额外重试次数（写入 "
+"``LoopConfig.bash_retries``，默认 1，即共 2 次执行）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:17 of
+msgid "``llm_transient_retries``：thread 压缩等直连 ``acompletion`` 遇瞬时错误时的最大重试次数（默认 2）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:18 of
+msgid ""
+"``tool_decision_max_retries``：传给 ``acompletion_with_pydantic_validation``"
+" 的 max_retries（默认 10）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:19 of
+msgid "``model`` / ``llm_model``：LiteLLM 路由模型名（用于 token_counter 与 tiktoken 回退）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.__init__:20 of
+msgid "``tiktoken_encoding``：强制指定 tiktoken 编码名（默认 ``cl100k_base``）"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt:1 of
+msgid "构建本步 system prompt。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt:3 of
+msgid ""
+"注入 world description、agent identity、工具协议、skill catalog、已激活技能列表。 "
+"使用分段缓存机制优化 Token 消耗。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt:6
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt_segmented:5
+#: agentsociety2.agent.person.PersonAgent.step:10 of
+msgid "当前仿真步时间跨度（秒）。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt:8
+#: agentsociety2.env.router_base.RouterBase.get_system_prompt:3 of
+msgid "system prompt 文本。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt_segmented:1 of
+msgid "分段构建 system prompt，支持 Prompt Caching。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt_segmented:3 of
+msgid "返回静态段和动态段，静态段可添加 cache_control 实现 Token 缓存。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.get_system_prompt_segmented:7 of
+msgid "(静态段, 动态段) 元组。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.init:1 of
+msgid "初始化运行时目录，加载持久配置并扫描 custom/env skills。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.init:3 of
+msgid ""
+"流程： 1. 调用父类 init 2. 确保 agent 工作目录存在 3. 从 init_state 初始化 workspace 4. "
+"加载持久化的 agent_config.json 5. 扫描环境模块提供的 skills 6. 刷新可见技能列表 7. 激活环境模块声明的默认技能"
+" 8. 获取世界描述"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.clear_session:1 of
+msgid "重置会话（清空 thread、工具状态与可选 checkpoint）。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.clear_session:3 of
+msgid "是否保留持久化记忆。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.handoff_to_memory:1 of
+msgid "将当前状态写入持久化记忆。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.execute:1 of
+msgid "执行技能（转发到 runtime/registry）。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.execute:3
+#: agentsociety2.agent.skills.SkillRegistry.execute:5 of
+msgid "技能名称。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.execute:4 of
+msgid "技能参数。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.execute:5 of
+msgid "执行结果字典。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.step:1 of
+msgid "执行一个仿真步并持久化会话状态与回放记录。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.step:3 of
+msgid ""
+"流程： 1. 步数递增，重置技能作用域 2. 刷新可见技能列表 3. 构建上下文快照（预读取文件） 4. 执行工具循环（带超时保护） 5. "
+"持久化会话状态和回放记录"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.step:12 of
+msgid ""
+"对外可展示的一步结论（``finish``/``done`` 的 summary）；内部工具轨迹写入回放， 不再整串拼接进返回值。无有效发言时为 "
+"``[no verbal reply]`` 等占位。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.ask:1 of
+msgid "通过环境路由器问答（须已 :meth:`init`）。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.ask:3
+#: agentsociety2.society.society.AgentSociety.ask:3 of
+msgid "问题文本。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.ask:4
+#: agentsociety2.env.router_base.RouterBase.ask:5 of
+msgid "是否只读（只读时应避免改变环境状态）。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.ask:5 of
+msgid "环境/系统返回的答案文本。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.ask:6 of
+msgid "未初始化环境时抛出。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.dump:1 of
+msgid "导出最小运行状态快照（用于外部持久化/调试）。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.dump:3 of
+msgid "可序列化字典。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.load:1 of
+msgid "从 :meth:`dump` 结果恢复轻量运行状态。"
+msgstr ""
+
+#: agentsociety2.agent.person.PersonAgent.load:3 of
+msgid "dump 数据。"
 msgstr ""
 
 #: ../../api/agent.rst:27
@@ -69,12 +747,170 @@ msgstr ""
 msgid "FastAPI 应用"
 msgstr ""
 
+#: agentsociety2.backend.app:1 of
+msgid "FastAPI backend service for AI Social Scientist VSCode extension"
+msgstr ""
+
+#: agentsociety2.backend.app:3 of
+msgid ""
+"关联文件： - @packages/agentsociety2/agentsociety2/backend/run.py - 服务启动脚本 - "
+"@extension/src/services/backendManager.ts - VSCode插件后端进程管理 - "
+"@extension/src/apiClient.ts - VSCode插件API客户端"
+msgstr ""
+
+#: agentsociety2.backend.app:8 of
+msgid ""
+"路由注册： - "
+"@packages/agentsociety2/agentsociety2/backend/routers/prefill_params.py -"
+" /api/v1/prefill-params - "
+"@packages/agentsociety2/agentsociety2/backend/routers/experiments.py - "
+"/api/v1/experiments - "
+"@packages/agentsociety2/agentsociety2/backend/routers/replay.py - "
+"/api/v1/replay - "
+"@packages/agentsociety2/agentsociety2/backend/routers/custom.py - "
+"/api/v1/custom - "
+"@packages/agentsociety2/agentsociety2/backend/routers/modules.py - "
+"/api/v1/modules - "
+"@packages/agentsociety2/agentsociety2/backend/routers/agent_skills.py - "
+"/api/v1/agent-skills"
+msgstr ""
+
+#: agentsociety2.backend.app.lifespan:1 of
+msgid "FastAPI 应用生命周期管理（启动/关闭钩子）。"
+msgstr ""
+
+#: agentsociety2.backend.app.root:1 of
+msgid "后端服务基本信息与 endpoints 列表。"
+msgstr ""
+
+#: agentsociety2.backend.app.health_check:1 of
+msgid "健康状态。"
+msgstr ""
+
+#: agentsociety2.backend.app.global_exception_handler:1 of
+msgid "全局异常处理器。"
+msgstr ""
+
+#: agentsociety2.backend.app.global_exception_handler:3 of
+msgid "FastAPI 请求对象（用于扩展日志上下文）。"
+msgstr ""
+
+#: agentsociety2.backend.app.global_exception_handler:4 of
+msgid "未捕获异常。"
+msgstr ""
+
+#: agentsociety2.backend.app.global_exception_handler:5 of
+msgid "标准化的 500 JSON 响应。"
+msgstr ""
+
 #: ../../api/backend.rst:14
 msgid "路由模块"
 msgstr ""
 
 #: ../../api/backend.rst:17
 msgid "Agent Skills 路由"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills:1 of
+msgid "Agent Skills API 路由"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills:3 of
+msgid "提供 agent skill 的列表、启用/禁用、扫描自定义 skill、导入/创建/上传 skill 的 API 端点。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills:5 of
+msgid ""
+"关联文件： - @packages/agentsociety2/agentsociety2/agent/skills/__init__.py - "
+"Skill 注册表 - @extension/src/apiClient.ts - VSCode 扩展 API 客户端 - "
+"@frontend/src/pages/Skills/index.tsx - Web 前端 Skill 管理页"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills:10 of
+#, python-brace-format
+msgid ""
+"API 端点： - GET  /api/v1/agent-skills/list       — 列出所有 agent skill - POST "
+"/api/v1/agent-skills/enable     — 启用 skill（进入可选目录） - POST /api/v1/agent-"
+"skills/disable    — 禁用 skill - POST /api/v1/agent-skills/scan       — 扫描 "
+"workspace/custom/skills/ 下的自定义 skill - POST /api/v1/agent-skills/import"
+"     — 从路径导入 skill 目录 - POST /api/v1/agent-skills/create     — 在线创建新 "
+"skill（SKILL.md + 可选脚本） - POST /api/v1/agent-skills/upload     — 上传 zip "
+"包导入 skill - POST /api/v1/agent-skills/reload     — 热重载指定 skill - GET  "
+"/api/v1/agent-skills/{name}/info — 获取 SKILL.md 内容 - POST /api/v1/agent-"
+"skills/remove     — 移除自定义 skill"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.CreateRequest.model_config:1
+#: agentsociety2.backend.routers.agent_skills.ImportRequest.model_config:1
+#: agentsociety2.backend.routers.agent_skills.ImportResponse.model_config:1
+#: agentsociety2.backend.routers.agent_skills.ListResponse.model_config:1
+#: agentsociety2.backend.routers.agent_skills.NameRequest.model_config:1
+#: agentsociety2.backend.routers.agent_skills.ScanRequest.model_config:1
+#: agentsociety2.backend.routers.agent_skills.ScanResponse.model_config:1
+#: agentsociety2.backend.routers.agent_skills.SimpleResponse.model_config:1
+#: agentsociety2.backend.routers.agent_skills.SkillItem.model_config:1
+#: agentsociety2.registry.AgentInitConfig.model_config:1
+#: agentsociety2.registry.AskRequest.model_config:1
+#: agentsociety2.registry.CreateInstanceRequest.model_config:1
+#: agentsociety2.registry.EnvModuleInitConfig.model_config:1
+#: agentsociety2.registry.InterventionRequest.model_config:1
+#: agentsociety2.society.helper.PlanStep.model_config:1
+#: agentsociety2.storage.models.AgentDialog.model_config:1
+#: agentsociety2.storage.models.AgentProfile.model_config:1
+#: agentsociety2.storage.models.AgentStatus.model_config:1 of
+msgid ""
+"Configuration for the model, should be a dictionary conforming to "
+"[`ConfigDict`][pydantic.config.ConfigDict]."
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.list_skills:1 of
+msgid "列出所有已发现的 Agent Skill（builtin + custom + env）。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.enable_skill:1 of
+msgid "启用指定 skill（全局注册表；PersonAgent 在下一仿真步会与全局对齐）。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.disable_skill:1 of
+msgid "禁用指定 skill（内置技能不可关闭）。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.scan_custom_skills:1 of
+#, python-brace-format
+msgid "扫描工作区的自定义 Agent Skill（{workspace}/custom/skills/）。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.import_skill:1 of
+msgid "从外部路径导入 Agent Skill（复制到 custom/skills/）。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.create_skill:1 of
+msgid "在线创建新的自定义 Skill。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.create_skill:3 of
+#, python-brace-format
+msgid "在 custom/skills/{name}/ 下生成 SKILL.md（+ 可选脚本文件）。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.upload_skill:1 of
+msgid "上传 zip 包导入 Skill。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.upload_skill:3 of
+msgid "zip 包应包含一个顶层目录，内含 SKILL.md。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.reload_skill:1 of
+msgid "热重载指定 Skill 的 SKILL.md 元数据。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.get_skill_info:1 of
+msgid "获取 Skill 的详细信息（含 SKILL.md 内容）。"
+msgstr ""
+
+#: agentsociety2.backend.routers.agent_skills.remove_custom_skill:1 of
+msgid "移除自定义 Skill（删除目录 + 注册表记录）。仅限 source=custom。"
 msgstr ""
 
 #: ../../api/backend.rst:24 ../../api/registry.rst:39
@@ -101,12 +937,430 @@ msgstr ""
 msgid "LLM Router"
 msgstr ""
 
+#: agentsociety2.config.config.get_llm_router:1 of
+msgid "获取（并缓存）指定用途的 LLM Router。"
+msgstr ""
+
+#: agentsociety2.config.config.Config.get_router:3
+#: agentsociety2.config.config.get_llm_router:3
+#: agentsociety2.config.config.get_llm_router_and_model:3 of
+msgid "``default`` / ``coder`` / ``nano`` / ``analysis``。"
+msgstr ""
+
+#: agentsociety2.config.config.get_llm_router:4 of
+msgid "LiteLLM :class:`litellm.router.Router` 实例（进程内单例缓存）。"
+msgstr ""
+
+#: agentsociety2.config.config.get_llm_router_and_model:1 of
+msgid "同时获取 Router 与模型名（Router 使用缓存）。"
+msgstr ""
+
+#: agentsociety2.config.config.get_llm_router_and_model:4 of
+msgid "``(router, model_name)``。"
+msgstr ""
+
 #: ../../api/config.rst:14
 msgid "Config 类"
 msgstr ""
 
+#: agentsociety2.config.config.Config:1 of
+msgid "AgentSociety2 配置（环境变量来源）。"
+msgstr ""
+
+#: agentsociety2.config.config.Config:3 of
+msgid "该类以“类属性”的形式暴露配置项，便于在不实例化的情况下读取。"
+msgstr ""
+
+#: agentsociety2.config.config.Config:5 of
+msgid "主要环境变量（节选）："
+msgstr ""
+
+#: agentsociety2.config.config.Config:7 of
+msgid "``AGENTSOCIETY_HOME_DIR``：数据目录"
+msgstr ""
+
+#: agentsociety2.config.config.Config:8 of
+msgid ""
+"``AGENTSOCIETY_LLM_API_KEY`` / ``AGENTSOCIETY_LLM_API_BASE`` / "
+"``AGENTSOCIETY_LLM_MODEL``：默认模型配置"
+msgstr ""
+
+#: agentsociety2.config.config.Config:9 of
+msgid "``AGENTSOCIETY_CODER_LLM_*``：代码生成模型配置"
+msgstr ""
+
+#: agentsociety2.config.config.Config:10 of
+msgid "``AGENTSOCIETY_NANO_LLM_*``：高频/低延迟模型配置"
+msgstr ""
+
+#: agentsociety2.config.config.Config:11 of
+msgid "``AGENTSOCIETY_ANALYSIS_LLM_*``：分析写作模型配置"
+msgstr ""
+
+#: agentsociety2.config.config.Config:12 of
+msgid "``AGENTSOCIETY_EMBEDDING_*``：embedding 配置"
+msgstr ""
+
+#: agentsociety2.config.Config.HOME_DIR:1 of
+msgid ""
+"Base directory path for storing agent data, memories, and persistent "
+"files."
+msgstr ""
+
+#: agentsociety2.config.Config.HOME_DIR:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_HOME_DIR Default: "
+"\"./agentsociety_data\""
+msgstr ""
+
+#: agentsociety2.config.Config.HOME_DIR:6 of
+msgid ""
+"This directory will contain subdirectories for memories, agent states, "
+"and other persistent data. The path can be absolute or relative to the "
+"current working directory."
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_API_KEY:1 of
+msgid "API key for authenticating with the default LLM service."
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_API_KEY:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_LLM_API_KEY Default: None (must be set"
+" for the system to function)"
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_API_KEY:6 of
+msgid ""
+"This is the primary API key used for most LLM operations. If not set, the"
+" system will raise an error when attempting to create LLM routers. Other "
+"specialized LLM configurations (coder, nano, embedding) will fall back to"
+" this key if their specific keys are not provided."
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_API_BASE:1 of
+msgid "Base URL endpoint for the default LLM API service."
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_API_BASE:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_LLM_API_BASE Default: "
+"\"https://api.openai.com/v1\""
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_API_BASE:6 of
+msgid ""
+"This should point to the API endpoint expected by the selected LiteLLM "
+"provider. For OpenAI-compatible gateways, include the protocol (https://)"
+" and base path, but not the specific model endpoint (e.g., "
+"/chat/completions)."
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_MODEL:1 of
+msgid "Model identifier for the default LLM used in general operations."
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_MODEL:3 of
+msgid "Environment variable: AGENTSOCIETY_LLM_MODEL Default: \"gpt-5.5\""
+msgstr ""
+
+#: agentsociety2.config.Config.LLM_MODEL:6 of
+msgid ""
+"This model is used for most language understanding and generation tasks "
+"that don't require specialized models. The model name should match the "
+"LiteLLM provider/model id used by your API provider; \"gpt-5.5\" is only "
+"the default OpenAI example."
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_API_KEY:1 of
+msgid "API key for the code generation LLM service."
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_API_KEY:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_CODER_LLM_API_KEY Default: Falls back "
+"to LLM_API_KEY if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_API_KEY:6 of
+msgid ""
+"This key is used specifically for code-related operations. If not "
+"provided, the system will use the default LLM_API_KEY. Setting a separate"
+" key allows you to use a different API provider or account for code "
+"generation tasks, which may have different rate limits or pricing "
+"structures."
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_API_BASE:1 of
+msgid "Base URL endpoint for the code generation LLM API."
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_API_BASE:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_CODER_LLM_API_BASE Default: Falls back"
+" to LLM_API_BASE if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_API_BASE:6 of
+msgid ""
+"Allows you to use a different API endpoint specifically for code "
+"generation tasks. This is useful if you want to route code generation "
+"requests to a different service or region for better performance or cost "
+"optimization."
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_MODEL:1 of
+msgid "Model identifier for code generation and programming tasks."
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_MODEL:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_CODER_LLM_MODEL Default: Falls back to"
+" LLM_MODEL if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.CODER_LLM_MODEL:6 of
+msgid ""
+"This model is specifically used for code generation, code analysis, and "
+"other programming-related operations. Choose a model that is optimized "
+"for code understanding and generation, such as models trained on "
+"codebases."
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_API_KEY:1 of
+msgid "API key for the nano LLM service used in high-frequency operations."
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_API_KEY:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_NANO_LLM_API_KEY Default: Falls back "
+"to LLM_API_KEY if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_API_KEY:6 of
+msgid ""
+"The nano LLM is used for operations that require frequent, fast responses"
+" such as memory operations, quick decision-making, and low-latency tasks."
+" Setting a separate key allows you to use a faster or cheaper model for "
+"these high-frequency operations."
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_API_BASE:1 of
+msgid "Base URL endpoint for the nano LLM API."
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_API_BASE:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_NANO_LLM_API_BASE Default: Falls back "
+"to LLM_API_BASE if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_API_BASE:6 of
+msgid ""
+"Allows routing high-frequency operations to a different endpoint, which "
+"may be optimized for low latency or located in a different geographic "
+"region for better response times."
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_MODEL:1 of
+msgid "Model identifier for high-frequency, low-latency operations."
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_MODEL:3 of
+msgid "Environment variable: AGENTSOCIETY_NANO_LLM_MODEL Default: \"gpt-5.5\""
+msgstr ""
+
+#: agentsociety2.config.Config.NANO_LLM_MODEL:6 of
+msgid ""
+"This model is used for operations that require fast responses, such as "
+"memory retrieval, quick reasoning, and other tasks where latency is "
+"critical. Typically, you might choose a smaller or faster model for these"
+" operations to reduce response time."
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_API_KEY:1 of
+msgid "API key for the analysis LLM service."
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_API_KEY:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_ANALYSIS_LLM_API_KEY Default: Falls "
+"back to LLM_API_KEY if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_API_KEY:6 of
+msgid ""
+"This key is used specifically for data analysis, insight generation, and "
+"report writing tasks. Setting a separate key allows you to use a more "
+"capable model for these complex reasoning tasks."
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_API_BASE:1 of
+msgid "Base URL endpoint for the analysis LLM API."
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_API_BASE:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_ANALYSIS_LLM_API_BASE Default: Falls "
+"back to LLM_API_BASE if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_API_BASE:6 of
+msgid ""
+"Allows you to use a different API endpoint specifically for analysis "
+"tasks. This is useful if you want to route analysis requests to a more "
+"capable model or a different service."
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_MODEL:1 of
+msgid "Model identifier for data analysis and report generation tasks."
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_MODEL:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_ANALYSIS_LLM_MODEL Default: Falls back"
+" to LLM_MODEL if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.ANALYSIS_LLM_MODEL:6 of
+msgid ""
+"This model is specifically used for data analysis, insight generation, "
+"visualization planning, and report writing. Choose a model with strong "
+"reasoning and writing capabilities for best results."
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_API_KEY:1 of
+msgid "API key for the embedding model service."
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_API_KEY:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_EMBEDDING_API_KEY Default: Falls back "
+"to LLM_API_KEY if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_API_KEY:6 of
+msgid ""
+"This key is used specifically for embedding operations, which convert "
+"text into high-dimensional vectors for semantic search, similarity "
+"matching, and memory operations. Some providers offer separate embedding "
+"services with different pricing."
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_API_BASE:1 of
+msgid "Base URL endpoint for the embedding API service."
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_API_BASE:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_EMBEDDING_API_BASE Default: Falls back"
+" to LLM_API_BASE if not set"
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_API_BASE:6 of
+msgid ""
+"Allows you to use a different API endpoint specifically for embedding "
+"operations. Some providers have dedicated embedding endpoints that may "
+"offer better performance or different pricing models for embedding tasks."
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_MODEL:1 of
+msgid "Model identifier for text embedding generation."
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_MODEL:3 of
+msgid ""
+"Environment variable: AGENTSOCIETY_EMBEDDING_MODEL Default: \"text-"
+"embedding-3-large\""
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_MODEL:6 of
+msgid ""
+"This model is used to convert text into dense vector representations "
+"(embeddings). The embeddings are used for semantic search, similarity "
+"matching, and storing memories in vector databases. Choose a model that "
+"produces high-quality embeddings for your use case and language."
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_DIMS:1 of
+msgid "Dimensionality of the embedding vectors produced by the embedding model."
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_DIMS:3 of
+msgid "Environment variable: AGENTSOCIETY_EMBEDDING_DIMS Default: 1024"
+msgstr ""
+
+#: agentsociety2.config.Config.EMBEDDING_DIMS:6 of
+msgid ""
+"This specifies the size of the vector space for embeddings. Higher "
+"dimensions can capture more nuanced semantic information but require more"
+" storage and computation. The value must match the actual output "
+"dimensionality of the selected embedding model. Common values are 384, "
+"512, 768, 1024, or 1536 depending on the model."
+msgstr ""
+
+#: agentsociety2.config.Config.LITERATURE_SEARCH_API_URL:1 of
+msgid "Base URL for the literature search service."
+msgstr ""
+
+#: agentsociety2.config.Config.LITERATURE_SEARCH_API_URL:3 of
+msgid ""
+"Environment variable: LITERATURE_SEARCH_API_URL Default: "
+"\"http://localhost:8008/api/search\""
+msgstr ""
+
+#: agentsociety2.config.Config.LITERATURE_SEARCH_API_KEY:1 of
+msgid "API key for the literature search service authentication."
+msgstr ""
+
+#: agentsociety2.config.Config.LITERATURE_SEARCH_API_KEY:3 of
+msgid ""
+"Environment variable: LITERATURE_SEARCH_API_KEY Default: \"\" (empty, "
+"must be set for authenticated requests)"
+msgstr ""
+
+#: agentsociety2.config.config.Config.get_router:1 of
+msgid "获取指定用途的 LLM Router（不做全局缓存）。"
+msgstr ""
+
+#: agentsociety2.config.config.Config.get_router:4 of
+msgid "LiteLLM :class:`litellm.router.Router` 实例。"
+msgstr ""
+
+#: agentsociety2.config.config.Config.get_router:5 of
+msgid "当所需 API key 未配置时抛出。"
+msgstr ""
+
+#: agentsociety2.config.config.Config.get_literature_search_api_url:1 of
+msgid "Get literature search API URL, preferring the latest environment value."
+msgstr ""
+
+#: agentsociety2.config.config.Config.get_literature_search_api_key:1 of
+msgid "Get literature search API key, preferring the latest environment value."
+msgstr ""
+
+#: agentsociety2.config.config.Config.get_default_router:1 of
+msgid "默认用途的 LLM Router。"
+msgstr ""
+
 #: ../../api/config.rst:21 ../../api/registry.rst:15 ../../api/skills.rst:22
 msgid "工具函数"
+msgstr ""
+
+#: agentsociety2.config.config.extract_json:1 of
+msgid "从文本中尽量稳健地提取 JSON 字符串片段。"
+msgstr ""
+
+#: agentsociety2.config.config.extract_json:3 of
+msgid "该函数只做“截取”，不负责修复不合法 JSON；若需要修复，请配合 ``json_repair`` 等工具。"
+msgstr ""
+
+#: agentsociety2.config.config.extract_json:5 of
+msgid "可能包含 JSON 的文本（例如 LLM 输出，可能夹杂 Markdown code fences）。"
+msgstr ""
+
+#: agentsociety2.config.config.extract_json:6 of
+msgid "提取出的 JSON 文本；若未找到则返回 ``None``。"
 msgstr ""
 
 #: ../../api/env.rst:2
@@ -121,8 +1375,586 @@ msgstr ""
 msgid "RouterBase"
 msgstr ""
 
+#: agentsociety2.env.router_base.RouterBase:1 of
+msgid "环境路由器抽象基类。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase:3 of
+msgid "Router 用于协调 agent 与环境模块（:class:`~agentsociety2.env.base.EnvBase`）的交互，职责包括："
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase:5 of
+msgid "聚合并过滤环境工具（函数调用 schema）"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase:6 of
+msgid "维护仿真时钟（``self.t``）"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase:7 of
+msgid "提供统一 LLM 调用封装（重试与 token 统计）"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase:8 of
+msgid "生成 world description（可选，用于 PersonAgent 的提示词）"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.__init__:1
+#: agentsociety2.env.router_codegen.CodeGenRouter.__init__:1
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.__init__:1
+#: agentsociety2.env.router_react.ReActRouter.__init__:1 of
+msgid "创建路由器实例。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.__init__:3
+#: agentsociety2.env.router_codegen.CodeGenRouter.__init__:3
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.__init__:3
+#: agentsociety2.env.router_react.ReActRouter.__init__:3 of
+msgid "环境模块列表。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.__init__:4
+#: agentsociety2.env.router_codegen.CodeGenRouter.__init__:4
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.__init__:4
+#: agentsociety2.env.router_react.ReActRouter.__init__:4 of
+msgid "最大执行步数（由具体 router 实现解释）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.__init__:5
+#: agentsociety2.env.router_codegen.CodeGenRouter.__init__:5
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.__init__:5
+#: agentsociety2.env.router_react.ReActRouter.__init__:5 of
+msgid "LLM 调用最大重试次数下限（至少为 1）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.__init__:6
+#: agentsociety2.env.router_codegen.CodeGenRouter.__init__:6
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.__init__:6
+#: agentsociety2.env.router_react.ReActRouter.__init__:6 of
+msgid "可选回放写入器；若提供会自动注入到各 env module。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.sync_simulation_clock:1 of
+msgid "与编排器当前仿真时刻对齐。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.sync_simulation_clock:3 of
+msgid ""
+"``ask``/codegen 的 InitStage 用 ``self.t`` 写入 ``ctx['current_time']``。 若仅在 "
+"``env_router.step`` 末尾才更新 ``self.t``，而 agent 先执行，则整步内时钟落后一步。 任何复制 "
+"``AgentSociety.step`` 顺序（先 agent 后 env.step）的代码都应在 agent 开始前调用本方法。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.ask:1 of
+msgid "与环境交互的统一入口（由子类实现具体路由策略）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.ask:3 of
+#, python-brace-format
+msgid "上下文字典。模板模式下可包含 ``variables``，用于 ``{var}`` 替换。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.ask:4 of
+msgid "指令文本。模板模式下会进行变量替换后再执行。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.ask:6 of
+msgid "是否启用模板模式。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.ask:7 of
+msgid "``(ctx, answer)``，其中 ctx 可能被环境更新。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.init:1 of
+msgid "初始化路由器与环境模块。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.init:3
+#: agentsociety2.env.router_base.RouterBase.init:3 of
+msgid "仿真起始时间。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.step:1
+#: agentsociety2.env.router_base.RouterBase.step:1 of
+msgid "推进环境模块一个仿真步。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.step:3
+#: agentsociety2.env.router_base.RouterBase.step:3
+#: agentsociety2.society.society.AgentSociety.step:3 of
+msgid "本步时间跨度（秒）。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.step:4
+#: agentsociety2.env.router_base.RouterBase.step:4 of
+msgid "本步结束后的仿真时间。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.close:1 of
+msgid "关闭路由器（关闭所有环境模块）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_tool_call_history:1 of
+msgid "汇总所有环境模块的工具调用历史（按时间排序）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_tool_call_history:3 of
+msgid "调用记录列表（按 ``timestamp`` 升序）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.reset_tool_call_history:1 of
+msgid "清空所有环境模块的工具调用历史。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.set_replay_writer:1 of
+msgid "为所有环境模块设置回放写入器。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.set_replay_writer:3
+#: agentsociety2.env.router_base.RouterBase.set_replay_writer:3 of
+msgid ":class:`~agentsociety2.storage.ReplayWriter` 实例。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_system_prompt:1 of
+msgid "构建 router 侧的通用 system prompt（不含具体任务指令）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:1 of
+msgid "封装 LiteLLM Router 的 acompletion（含重试与 token 统计）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:3
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:3
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_system_prompt:3 of
+msgid "``coder`` 或 ``summary``。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:4 of
+msgid "消息列表（不自动追加 system prompt；若需要请用 :meth:`acompletion_with_system_prompt`）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:5 of
+msgid "是否流式返回。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:6 of
+msgid "可选。最大重试次数；为空则使用 ``self.max_llm_call_retry``。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:7 of
+msgid "429 类错误的指数退避基准延迟。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:8
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:8
+#: of
+msgid "指数退避最大延迟。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:9 of
+msgid "LLM 响应对象（stream=False 时为 :class:`litellm.types.utils.ModelResponse`）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion:10 of
+msgid "超过重试次数仍失败时抛出。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_system_prompt:1 of
+msgid "发送补全请求并自动在最前追加 router system prompt。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_system_prompt:4 of
+msgid "消息列表。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:1
+#: of
+msgid "发送补全并校验为指定 Pydantic 模型（失败时自动反馈并重试）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:4
+#: of
+msgid "用于校验的 Pydantic 模型类型。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:5
+#: of
+msgid "消息列表（会自动追加 system prompt）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:6
+#: of
+msgid "最大重试次数（不含首次尝试）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:7
+#: of
+msgid "429 类错误指数退避基准延迟。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:9
+#: of
+#, python-brace-format
+msgid "可选。自定义错误反馈模板（需包含 ``{error_message}`` 与 ``{model_schema}`` 占位符）。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:10
+#: of
+msgid "校验通过的 Pydantic 实例。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.acompletion_with_pydantic_validation:11
+#: of
+msgid "解析/校验在重试后仍失败时抛出。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.dump:1 of
+msgid ""
+"Dump router state to a serializable dict. Subclasses should override this"
+" to include router-specific state."
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.load:1 of
+msgid ""
+"Load router state from a dict produced by dump(). Subclasses should "
+"override this to restore router-specific state."
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_status_descriptions:1 of
+msgid "Get standard status descriptions."
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_status_descriptions:3 of
+msgid ""
+"The status indicates whether the user's instruction has been effectively "
+"completed in the environment modules, or needs to wait for some time "
+"before the user actively checks completion."
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_status_descriptions:7 of
+msgid ""
+"Dictionary mapping status values to their descriptions: - success: The "
+"task has been completed successfully. All required operations finished "
+"without errors. - in_progress: The task is still being executed or more "
+"steps are needed. The agent need to check whether it is done in the next "
+"steps. - fail: The task could not be completed (e.g., unsupported "
+"instruction, missing data, invalid input). Include detailed reason in "
+"results. - error: An error occurred during code execution. Must include "
+"error details in results['error']. - unknown: Execution status unknown"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_world_description:1 of
+msgid "Get the world description."
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_world_description_from_tools:1
+#: of
+msgid "根据环境路由器的所有工具信息（包括可写和只读工具），使用LLM生成世界描述文本。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_world_description_from_tools:3
+#: of
+msgid ""
+"这个函数将工具信息转换为对PersonAgent有用的world_description，帮助agent理解： 1. 环境中可用的模块和工具 2."
+" 如何通过自然语言指令与router交互 3. 每个工具的功能和用途 4. 如何正确使用这些工具来实现目标"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_world_description_from_tools:9
+#: of
+msgid "str: 生成的世界描述文本，可直接作为PersonAgent的world_description参数"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_collected_pydantic_models:1 of
+msgid "获取已收集的所有 Pydantic BaseModel 类型及其源代码。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_collected_pydantic_models:3 of
+msgid "这些模型是在调用 _collect_tools_info() 时从工具函数的参数类型和返回值类型中收集的。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.get_collected_pydantic_models:5 of
+msgid "字典，key 是 BaseModel 类型，value 是其源代码"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:1 of
+msgid "根据用户输入和Router输出生成最终答案。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:3 of
+msgid ""
+"这个方法接收用户输入（ctx, instruction）和Router输出（results和过程文本）， "
+"使用LLM总结为一个answer，并确定执行状态。 使用JSON格式返回，通过Pydantic model验证。"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:7 of
+msgid "上下文字典，包含环境变量等信息"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:8 of
+msgid "用户的原始指令"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:9 of
+msgid "Router执行的结果字典"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:10 of
+msgid "过程文本（可选），描述执行过程的文本信息"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:11 of
+msgid "初步的执行状态（可能被LLM更新）"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:12 of
+msgid "错误信息（如果有）"
+msgstr ""
+
+#: agentsociety2.env.router_base.RouterBase.generate_final_answer:14 of
+msgid ""
+"Tuple[str, str]: (final_answer, determined_status) - final_answer: "
+"LLM生成的最终答案（summary文本） - determined_status: "
+"确定的执行状态（success/in_progress/fail/error）"
+msgstr ""
+
 #: ../../api/env.rst:15
 msgid "EnvBase"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:1 of
+msgid "环境模块基类。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:3 of
+msgid "环境模块定义 Agent 可执行的操作和可观察的状态。通过 ``@tool`` 装饰器 注册方法为可调用工具，供 Router 调用。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:6 of
+msgid "工具类型："
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:7 of
+msgid "**常规工具**: ``@tool(readonly=False)`` — 可修改环境状态"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:8 of
+msgid "**只读工具**: ``@tool(readonly=True)`` — 仅查询，不修改状态"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:9 of
+msgid "**观察工具**: ``@tool(readonly=True, kind=\"observe\")`` — 自动调用"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:10 of
+msgid "**统计工具**: ``@tool(readonly=True, kind=\"statistics\")`` — 统计信息"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:12 of
+msgid "子类应实现："
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:13 of
+msgid "使用 ``@tool`` 装饰器定义可执行操作"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase:14 of
+msgid "可选：实现 ``observe()`` 方法（默认收集 kind=\"observe\" 的工具）"
+msgstr ""
+
+#: agentsociety2.env.EnvBase.name:1 of
+msgid "Name of the environment module"
+msgstr ""
+
+#: agentsociety2.env.EnvBase.description:1 of
+msgid ""
+"Description of the environment module for router selection and function "
+"calling"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.mcp_description:1 of
+msgid ""
+"Return a description text for MCP environment module candidate list. This"
+" method should be overridden by subclasses to provide a description "
+"suitable for MCP server to list available environment modules."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.mcp_description:5 of
+msgid ""
+"A string description of the environment module for MCP registration. The "
+"description uses Markdown format and should include the class name, "
+"detailed description, initialization parameters when applicable, and an "
+"example config or JSON schema when applicable."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:1 of
+msgid ""
+"Return directories containing agent skills provided by this environment "
+"module."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:3 of
+msgid ""
+"This method enables environment modules to bundle specialized skills that"
+" agents should use when operating within that environment. Skills are "
+"discovered by scanning the returned directories for SKILL.md files."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:7 of
+msgid "**Default Discovery Convention:**"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:9 of
+msgid "The base implementation automatically discovers skills from:"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:11 of
+msgid ""
+"Package modules (e.g., ``mobility_space/__init__.py``): Scans "
+"``<module_dir>/agent_skills/`` directory."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:14 of
+msgid ""
+"Single-file modules (e.g., ``economy_space.py``): Scans "
+"``<module_dir>/<stem>_agent_skills/`` directory."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:17 of
+msgid "**Override for Custom Paths:**"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:19 of
+msgid "Subclasses can override this method to specify custom skill directories::"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:27 of
+msgid "**Skill Directory Structure:**"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:29 of
+msgid ""
+"Each skill directory should contain subdirectories with SKILL.md files, "
+"for example ``agent_skills/navigation/SKILL.md`` and optional "
+"``agent_skills/navigation/scripts/``."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_agent_skills_dirs:33 of
+msgid ""
+"List of Path objects pointing to directories containing skill "
+"subdirectories. Empty list if no skills are provided."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:1 of
+msgid ""
+"Return the default skill that should be auto-activated for agents in this"
+" environment."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:3 of
+msgid ""
+"When PersonAgent initializes within an environment, it automatically "
+"activates the specified skill. This allows environments to override the "
+"default observation-memory-cognition-plan decision flow with specialized "
+"behavior."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:7 of
+msgid "**Use Cases:**"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:9 of
+msgid "Game/experiment environments requiring specific decision protocols"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:10 of
+msgid "Domain-specific environments with specialized reasoning patterns"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:11 of
+msgid "Tutorial or guided scenarios with constrained agent behavior"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:13 of
+msgid "**Example:**"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:15 of
+msgid ""
+"Override to return a skill name, e.g. ``return \"public-goods-"
+"experiment\"`` to auto-activate that skill."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:18 of
+msgid ""
+"**Note:** The skill must be available (either built-in or discovered via "
+":meth:`get_agent_skills_dirs`). If the skill is not found, a warning is "
+"logged and the agent uses the default skill set."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_default_skill:22 of
+msgid "Skill name to auto-activate, or None for default behavior."
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.person_step_constraints:1 of
+msgid "可选：返回本步对 PersonAgent 的通用约束（隐藏技能、钉住 allowed-tools 等）。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.person_step_constraints:3 of
+msgid ""
+"默认无约束。需要「专用默认 skill 独占一步」类行为的环境应返回 :class:`PersonStepConstraints`， 由 "
+"PersonAgent 与具体实验/玩法解耦。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.person_step_constraints:7 of
+msgid "PersonStepConstraints | None"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.init:1 of
+msgid "初始化环境模块。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.step:5 of
+msgid "基类不提供默认实现。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.close:1 of
+msgid "关闭环境模块并释放资源（可选重写）。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.dump:1 of
+msgid "序列化环境模块状态。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.dump:3 of
+msgid "可序列化字典，包含 ``name``、``t`` 与 ``state``。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.load:1 of
+msgid "从 :meth:`dump` 的输出恢复环境模块状态。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.load:3
+#: agentsociety2.society.society.AgentSociety.load:3 of
+msgid "由 :meth:`dump` 产生的字典。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_tool_call_history:1 of
+msgid "获取工具调用历史（浅拷贝）。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.get_tool_call_history:3 of
+msgid ""
+"调用记录列表。每条包含 ``function_name``、``kwargs``、``return_value``、 "
+"``exception_occurred``、``exception_info``、``timestamp``。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.reset_tool_call_history:1 of
+msgid "清空工具调用历史。"
+msgstr ""
+
+#: agentsociety2.env.base.EnvBase.set_replay_writer:1 of
+msgid "设置回放写入器（用于自动建表与写入状态）。"
 msgstr ""
 
 #: ../../api/env.rst:23
@@ -133,12 +1965,140 @@ msgstr ""
 msgid "ReActRouter"
 msgstr ""
 
+#: agentsociety2.env.router_react.ReActRouter:1 of
+msgid "ReAct模式Router：通过Reasoning-Acting循环，使用function calling直接调用所有模块的所有函数。"
+msgstr ""
+
+#: agentsociety2.env.router_react.ReActRouter:3 of
+msgid ""
+"工作流程： 1. 收集所有环境模块的工具信息 2. 使用LLM的function calling能力选择并调用工具 3. 执行工具调用，获取结果 "
+"4. 将结果反馈给LLM，继续下一轮Reasoning-Acting循环 5. 直到LLM判断任务完成或达到最大步数"
+msgstr ""
+
+#: agentsociety2.env.router_react.ReActRouter.ask:1 of
+msgid "使用ReAct模式处理指令。"
+msgstr ""
+
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.ask:3
+#: agentsociety2.env.router_react.ReActRouter.ask:3 of
+msgid "上下文字典"
+msgstr ""
+
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.ask:4
+#: agentsociety2.env.router_react.ReActRouter.ask:4 of
+msgid "指令字符串"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.ask:5
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.ask:5
+#: agentsociety2.env.router_react.ReActRouter.ask:5 of
+msgid "是否只读模式"
+msgstr ""
+
+#: agentsociety2.env.router_react.ReActRouter.ask:6 of
+msgid "模板模式（ReActRouter 不使用，仅为签名兼容）"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.ask:8
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.ask:8
+#: agentsociety2.env.router_react.ReActRouter.ask:8 of
+msgid "(ctx, answer) 元组"
+msgstr ""
+
 #: ../../api/env.rst:34
 msgid "PlanExecuteRouter"
 msgstr ""
 
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter:1 of
+msgid "Plan-and-Execute模式Router：先制定计划，然后执行计划中的步骤。"
+msgstr ""
+
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter:3 of
+msgid ""
+"工作流程： 1. 收集所有环境模块的工具信息 2. 第一阶段：使用LLM制定执行计划（不调用工具） 3. 第二阶段：按照计划逐步执行工具调用 4."
+" 根据执行结果生成最终答案"
+msgstr ""
+
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.ask:1 of
+msgid "使用Plan-and-Execute模式处理指令。"
+msgstr ""
+
+#: agentsociety2.env.router_plan_execute.PlanExecuteRouter.ask:6 of
+msgid "模板模式（PlanExecuteRouter 不使用，仅为签名兼容）"
+msgstr ""
+
 #: ../../api/env.rst:42
 msgid "CodeGenRouter"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter:1 of
+msgid "代码生成式Router：通过生成Python代码的方式调用环境模块中的@tool标记的接口。"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter:3 of
+msgid ""
+"工作流程： 1. 收集所有环境模块的工具信息 2. 使用类似 pyi 文件的 Python 代码格式向 LLM 提供环境模块描述和工具信息（含 "
+"pydantic BaseModel 与模块类定义） 3. LLM 生成 Python 代码来调用工具 4. 使用 AST 解析检查代码安全性 "
+"5. 通过 compile 和 exec 执行代码，捕获打印输出 6. 根据执行结果和打印输出生成最终响应"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.ask:1 of
+msgid "使用代码生成方式处理指令。通过管道-过滤器架构执行。"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.ask:3 of
+msgid "上下文字典（在template模式下，应包含'variables'键）"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.ask:4 of
+#, python-brace-format
+msgid "指令字符串（在template模式下，为模板指令，包含{variable_name}占位符）"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.ask:6 of
+msgid "是否启用模板模式（启用后使用缓存机制）"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.init:1 of
+msgid ""
+"Initialize the router with the start datetime and generate code using "
+"LLM. 从本地缓存数据库加载当前 env 类型的缓存集，构建 FAISS 索引。"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.step:1 of
+msgid ""
+"Run forward one step for all simulation modules, then output cache "
+"statistics. 每步结束后将本步的统计指标以 JSONL 形式追加写入缓存目录，便于分析缓存带来的性能提升。"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.dump:1 of
+msgid ""
+"Dump router state to a serializable dict, including instruction logs and "
+"cache stats."
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.load:1 of
+msgid "Load router state from a dict produced by dump()."
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.get_cache_stats:1 of
+msgid "获取缓存统计信息。"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.get_cache_stats:3 of
+msgid "CacheStats对象，包含所有缓存统计信息"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.get_cache_stats_summary:1 of
+msgid "获取缓存统计信息的摘要字符串。"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.get_cache_stats_summary:3 of
+msgid "格式化的统计信息字符串"
+msgstr ""
+
+#: agentsociety2.env.router_codegen.CodeGenRouter.clear_cache:1 of
+msgid "清空当前 env 的缓存（内存 + 持久化 DB）"
 msgstr ""
 
 #: ../../api/index.rst:2
@@ -165,8 +2125,231 @@ msgstr ""
 msgid "ModuleRegistry"
 msgstr ""
 
+#: agentsociety2.registry.base.ModuleRegistry:1 of
+msgid "agent 与环境模块的集中注册中心（单例）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry:3 of
+msgid "支持两类来源："
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry:5 of
+msgid "内置模块：来自 ``agentsociety2.contrib`` 与内置 agent（例如 PersonAgent）"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry:6 of
+msgid "自定义模块：来自 workspace 的 ``custom/`` 目录"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry:8 of
+msgid "默认启用惰性加载：只有在第一次访问 registry 内容时才触发发现与注册。"
+msgstr ""
+
+#: agentsociety2.registry.ModuleRegistry.env_modules:1 of
+msgid "已注册环境模块映射（访问会触发惰性加载）。"
+msgstr ""
+
+#: agentsociety2.registry.ModuleRegistry.agent_modules
+#: agentsociety2.registry.ModuleRegistry.env_modules
+#: agentsociety2.society.AgentSociety.current_time
+#: agentsociety2.society.AgentSociety.step_count of
+msgid "type"
+msgstr ""
+
+#: agentsociety2.registry.ModuleRegistry.agent_modules:3
+#: agentsociety2.registry.ModuleRegistry.env_modules:3
+#: agentsociety2.society.AgentSociety.current_time:3
+#: agentsociety2.society.AgentSociety.step_count:3 of
+msgid "returns"
+msgstr ""
+
+#: agentsociety2.registry.ModuleRegistry.agent_modules:1 of
+msgid "已注册 agent 映射（访问会触发惰性加载）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.register_env_module:1 of
+msgid "注册环境模块。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.register_env_module:3 of
+msgid "type identifier（例如 ``simple_social_space``）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.register_env_module:4 of
+msgid "环境模块类。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.register_env_module:5 of
+msgid "是否为自定义模块。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.register_agent_module:1 of
+msgid "注册 agent。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.register_agent_module:3 of
+msgid "type identifier（例如 ``person_agent``）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.register_agent_module:4 of
+msgid "agent 类。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.register_agent_module:5 of
+msgid "是否为自定义 agent。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.get_env_module:1 of
+msgid "按 type 获取环境模块类（会触发惰性加载）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.get_agent_module:3
+#: agentsociety2.registry.base.ModuleRegistry.get_env_module:3
+#: agentsociety2.registry.base.ModuleRegistry.get_module_info:3
+#: agentsociety2.registry.modules.get_agent_module_class:3
+#: agentsociety2.registry.modules.get_env_module_class:3 of
+msgid "type identifier。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.get_env_module:4 of
+msgid "环境模块类；未找到返回 ``None``。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.get_agent_module:1 of
+msgid "按 type 获取 agent 类（会触发惰性加载）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.get_agent_module:4 of
+msgid "agent 类；未找到返回 ``None``。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.list_env_modules:1 of
+msgid "已注册环境模块列表（会触发惰性加载）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.list_agent_modules:1 of
+msgid "已注册 agent 列表（会触发惰性加载）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.set_workspace:1 of
+msgid "设置 workspace 路径（用于 custom 模块发现）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.set_workspace:3 of
+msgid "workspace 目录。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.load_builtin_modules:1 of
+msgid "主动加载内置模块（禁用惰性等待）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.load_custom_modules:1 of
+msgid "主动加载自定义模块（禁用惰性等待）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.load_all_modules:1 of
+msgid "主动加载全部模块（内置 + 自定义）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.clear_custom_modules:1 of
+msgid "清除 registry 中所有 custom 模块。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.get_module_info:1 of
+msgid "获取模块信息（会触发惰性加载）。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.get_module_info:4 of
+msgid "``env_module`` 或 ``agent``。"
+msgstr ""
+
+#: agentsociety2.registry.base.ModuleRegistry.get_module_info:5 of
+msgid "模块信息字典（含参数签名、描述、是否 custom 等）。"
+msgstr ""
+
+#: agentsociety2.registry.base.get_registry:1 of
+msgid "全局 :class:`~agentsociety2.registry.base.ModuleRegistry` 单例。"
+msgstr ""
+
 #: ../../api/registry.rst:20
 msgid "注册函数"
+msgstr ""
+
+#: agentsociety2.registry.modules.get_registered_env_modules:1 of
+msgid "已注册环境模块列表 ``[(module_type, module_class), ...]``。"
+msgstr ""
+
+#: agentsociety2.registry.modules.get_registered_agent_modules:1 of
+msgid "已注册 agent 列表 ``[(agent_type, agent_class), ...]``。"
+msgstr ""
+
+#: agentsociety2.registry.modules.get_env_module_class:1 of
+msgid "按 type 获取环境模块类。"
+msgstr ""
+
+#: agentsociety2.registry.modules.get_env_module_class:4 of
+msgid "环境模块 class；未找到返回 ``None``。"
+msgstr ""
+
+#: agentsociety2.registry.modules.get_agent_module_class:1 of
+msgid "按 type 获取 agent 类。"
+msgstr ""
+
+#: agentsociety2.registry.modules.get_agent_module_class:4 of
+msgid "agent class；未找到返回 ``None``。"
+msgstr ""
+
+#: agentsociety2.registry.modules.list_all_modules:1 of
+msgid "列出所有已注册模块（含描述与是否 custom 标记）。"
+msgstr ""
+
+#: agentsociety2.registry.modules.reload_modules:1 of
+msgid "清空并重新发现模块（按需加载）。"
+msgstr ""
+
+#: agentsociety2.registry.modules.reload_modules:3 of
+msgid "可选 workspace 路径（用于 custom 模块）。"
+msgstr ""
+
+#: agentsociety2.registry.modules.scan_and_register_custom_modules:1 of
+msgid "扫描并注册 custom/ 下的自定义模块。"
+msgstr ""
+
+#: agentsociety2.registry.modules.scan_and_register_custom_modules:3 of
+msgid "workspace 路径。"
+msgstr ""
+
+#: agentsociety2.registry.modules.discover_and_register_builtin_modules:3
+#: agentsociety2.registry.modules.scan_and_register_custom_modules:4 of
+msgid "可选注册中心；为空则使用全局 registry。"
+msgstr ""
+
+#: agentsociety2.registry.modules.scan_and_register_custom_modules:5 of
+msgid "scan 结果（包含 envs/agents/errors）。"
+msgstr ""
+
+#: agentsociety2.registry.modules.discover_and_register_builtin_modules:1 of
+msgid "发现并注册所有内置模块（contrib + 内置 agent）。"
+msgstr ""
+
+#: agentsociety2.registry.models.EnvModuleInitConfig:1 of
+msgid "环境模块初始化配置。"
+msgstr ""
+
+#: agentsociety2.registry.models.AgentInitConfig:1 of
+msgid "agent 初始化配置。"
+msgstr ""
+
+#: agentsociety2.registry.models.CreateInstanceRequest:1 of
+msgid "创建 AgentSociety 实例的请求体。"
+msgstr ""
+
+#: agentsociety2.registry.models.AskRequest:1 of
+msgid "对实例进行 ask 的请求体。"
+msgstr ""
+
+#: agentsociety2.registry.models.InterventionRequest:1 of
+msgid "对实例进行 intervene 的请求体。"
 msgstr ""
 
 #: ../../api/skills.rst:2
@@ -181,8 +2364,161 @@ msgstr ""
 msgid "SkillRegistry"
 msgstr ""
 
+#: agentsociety2.agent.skills.SkillRegistry:1 of
+msgid "Registry for skill discovery, management, and execution."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry:3 of
+msgid ""
+"The SkillRegistry provides: - Discovery: Scan skills from builtin, "
+"custom, and environment directories - Listing: List skills with metadata "
+"for model selection - Activation: Load and activate skill content on "
+"demand - Execution: Run skill scripts with argument passing"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry:9 of
+msgid "Example usage::"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.__init__:1 of
+msgid "Initialize a skill registry with built-in skills loaded."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.copy_from:1 of
+msgid "从另一个 registry 复制所有技能。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.copy_from:3 of
+msgid "源 registry。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_builtin:1 of
+msgid "Scan built-in skills from the agent/skills directory."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_builtin:3 of
+msgid ""
+"Built-in skills are always available and cannot be overridden by custom "
+"or environment skills with the same name."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_custom:1 of
+msgid "Scan custom skills from a workspace directory."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_custom:3 of
+msgid ""
+"Looks for skills in `<workspace_path>/custom/skills/`. Custom skills can "
+"override environment skills but not built-in skills."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_custom:6 of
+msgid "Root path containing ``custom/skills/`` directory."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_custom:7
+#: agentsociety2.agent.skills.SkillRegistry.scan_env_skills:11 of
+msgid "List of skill names that were added."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_env_skills:1 of
+msgid "Scan skills from an environment module's skill directory."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_env_skills:3 of
+msgid ""
+"Environment modules can bundle specialized skills via "
+"`get_agent_skills_dirs()`. These skills are automatically discovered when"
+" PersonAgent initializes."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_env_skills:6 of
+msgid ""
+"Environment skills can override other environment skills and custom "
+"skills, but not built-in skills."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_env_skills:9 of
+msgid "Directory containing skill subdirectories with ``SKILL.md`` files."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_env_skills:10 of
+msgid "Name of the environment module (for source tracking)."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.scan_env_skills:14 of
+msgid ":meth:`agentsociety2.env.base.EnvBase.get_agent_skills_dirs`"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.list_selection_metadata:1 of
+msgid "Return minimal catalog entries for model selection."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.list_selection_metadata:3 of
+msgid ""
+"Only enabled skills; name and description only; full SKILL.md loads on "
+"activation."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.sync_enabled_from:1 of
+msgid "将 ``source`` 中同名技能的 ``enabled`` 同步到本注册表。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.sync_enabled_from:3 of
+msgid "仅更新双方均存在的技能；用于 PersonAgent 每步与进程内全局注册表对齐（API 启停技能）。 内置技能始终启用，不同步为关闭。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.remove_custom:1 of
+msgid "Remove a custom skill from registry only."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.remove_custom:3 of
+msgid ""
+"NOTE: This does not delete files on disk. Callers (e.g. API layer) should"
+" handle filesystem removal, then call this method to drop it from memory."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.reload_skill:1 of
+msgid "Hot-reload a skill's metadata and clear cached SKILL.md content."
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.reload_skill:3 of
+msgid ""
+"This is designed for the current skills-first architecture: - skills are "
+"discovered from SKILL.md frontmatter (+ optional script path) - "
+"activation lazily loads full SKILL.md into memory"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.execute:1 of
+msgid "执行指定技能。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.execute:3 of
+msgid "有 ``script`` 则子进程执行；否则返回空成功。环境交互用 ``codegen`` 工具，不经本方法。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.execute:6 of
+msgid "传递给技能的参数。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.execute:7 of
+msgid "Agent 工作目录。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.execute:8 of
+msgid "执行超时秒数。"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillRegistry.execute:9 of
+msgid "执行结果字典，包含 ok、exit_code、stdout、stderr、artifacts 等字段。"
+msgstr ""
+
 #: ../../api/skills.rst:15
 msgid "SkillInfo"
+msgstr ""
+
+#: agentsociety2.agent.skills.SkillInfo:1 of
+msgid "Skill metadata from SKILL.md (name + description) plus runtime fields."
 msgstr ""
 
 #: ../../api/skills.rst:27
@@ -212,12 +2548,155 @@ msgstr ""
 msgid "AgentSociety"
 msgstr ""
 
+#: agentsociety2.society.society.AgentSociety:1 of
+msgid "仿真社会编排器，协调智能体和环境模块的仿真运行。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety:3 of
+msgid "AgentSociety 是框架的核心类，负责管理仿真生命周期："
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety:5 of
+msgid "初始化智能体和环境模块"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety:6 of
+msgid "推进仿真时间（先并发调用各 agent 的 ``step``，再 ``env_router.step``，最后前进时钟）"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety:7 of
+msgid "处理外部问答和干预请求"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety:8 of
+msgid ""
+"可选回放：写入 agent profile 快照并把同一 :class:`~agentsociety2.storage.ReplayWriter`"
+" 交给环境模块"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety:10 of
+msgid "Example::"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.__init__:1 of
+msgid "创建仿真编排器。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.__init__:3 of
+msgid "智能体列表。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.__init__:4 of
+msgid "环境路由器。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.__init__:5 of
+msgid "仿真开始时间。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.__init__:6 of
+msgid "可选。运行目录（用于落地回放 sqlite 等）。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.__init__:7 of
+msgid "是否启用回放记录。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.__init__:8 of
+msgid ""
+"可选。外部传入的回放写入器；若提供则 :meth:`init` 不再新建数据库文件。 编排器会用它持久化 agent profile 等表，并调用"
+" ``env_router.set_replay_writer`` 供环境模块写入各自回放数据。"
+msgstr ""
+
+#: agentsociety2.society.AgentSociety.step_count:1 of
+msgid "已执行的仿真步数。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.step:1 of
+msgid "推进一次仿真步（先 agents 后 env）。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.run:1 of
+msgid "运行多步仿真。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.run:3 of
+msgid "运行步数上限。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.run:4 of
+msgid "每步时间跨度（秒）。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.ask:1 of
+msgid "向仿真系统提问（由 helper 协调 agents/env 作答）。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.ask:4 of
+msgid "答案文本。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.intervene:1 of
+msgid "对仿真进行干预（由 helper 协调执行）。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.intervene:3 of
+msgid "干预指令文本。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.intervene:4 of
+msgid "执行结果/反馈文本。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.run_questionnaire:1 of
+msgid "向目标 agents 发放问卷并返回结构化结果。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.dump:1 of
+msgid "导出可序列化的仿真状态。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.dump:3 of
+msgid "包含 ``society``、``env_router``、``agents`` 的字典。"
+msgstr ""
+
+#: agentsociety2.society.society.AgentSociety.load:1 of
+msgid "从 :meth:`dump` 的输出恢复仿真状态。"
+msgstr ""
+
 #: ../../api/society.rst:15
 msgid "AgentSocietyHelper"
 msgstr ""
 
+#: agentsociety2.society.helper.AgentSocietyHelper:1 of
+msgid ""
+"Plan-and-Execute helper that answers external questions or executes "
+"interventions by first creating a plan, then executing steps, with "
+"support for dynamic replanning."
+msgstr ""
+
 #: ../../api/society.rst:23
 msgid "PlanStep"
+msgstr ""
+
+#: agentsociety2.society.helper.PlanStep:1 of
+msgid "A single step in the execution plan."
+msgstr ""
+
+#: agentsociety2.society.helper.PlanStep.description:1 of
+msgid "Clear description of what this step does."
+msgstr ""
+
+#: agentsociety2.society.helper.PlanStep.tool:1 of
+msgid "The name of the tool to use."
+msgstr ""
+
+#: agentsociety2.society.helper.PlanStep.args:1 of
+msgid "Arguments to pass to the tool."
+msgstr ""
+
+#: agentsociety2.society.helper.PlanStep.expected_output:1 of
+msgid "What information or result this step should produce."
 msgstr ""
 
 #: ../../api/storage.rst:2
@@ -232,16 +2711,155 @@ msgstr ""
 msgid "ReplayWriter"
 msgstr ""
 
+#: agentsociety2.storage.replay_writer.ReplayWriter:1 of
+msgid "Thread-safe async SQLite writer for replay data."
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter:3 of
+msgid ""
+"This class handles writing simulation state data to SQLite database for "
+"later replay and analysis. It uses SQLAlchemy/SQLModel for ORM support."
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.__init__:1 of
+msgid "创建回放写入器。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.__init__:3 of
+msgid "SQLite 数据库文件路径。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.init:1 of
+msgid "初始化数据库连接并创建 replay catalog 表。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.close:1 of
+msgid "关闭数据库连接并释放资源。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.register_dataset:1 of
+msgid "Register replay dataset and column metadata."
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.register_table:1 of
+msgid "动态注册并创建新表（用于环境模块自定义回放表）。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.register_table:3 of
+msgid "表结构定义。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.write:1 of
+msgid "向指定表写入一行（通用写入，支持动态表）。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.write:3
+#: agentsociety2.storage.table_schema.TableSchema:3 of
+msgid "表名。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.write:4 of
+msgid "列名到值的映射。"
+msgstr ""
+
+#: agentsociety2.storage.replay_writer.ReplayWriter.write_batch:1 of
+msgid "批量写入多行（单事务）。"
+msgstr ""
+
 #: ../../api/storage.rst:15
 msgid "ReplayDatasetSpec"
+msgstr ""
+
+#: agentsociety2.storage.replay_metadata.ReplayDatasetSpec:1 of
+msgid "Semantic metadata for a replay dataset backed by a SQLite table."
 msgstr ""
 
 #: ../../api/storage.rst:22
 msgid "ColumnDef"
 msgstr ""
 
+#: agentsociety2.storage.table_schema.ColumnDef:1 of
+msgid "表列定义（SQLite）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:3 of
+msgid "列名。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:4 of
+msgid "SQLite 列类型字符串（``ColumnType``）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:5 of
+msgid "是否允许 NULL。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:6 of
+msgid "默认值表达式（例如 ``CURRENT_TIMESTAMP``）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:7 of
+msgid "可选，人类可读的列标题。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:8 of
+msgid "可选，语义描述（供回放/导出/分析使用）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:9 of
+msgid "可选，逻辑类型（例如 ``geo.lng``、``money``）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:10 of
+msgid "可选，分析角色（例如 ``measure``）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:11 of
+msgid "可选，单位字符串（供分析/报告使用）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:12 of
+msgid "可选，离散列的枚举值列表。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:13 of
+msgid "可选，示例值。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef:14 of
+msgid "可选，自由标签列表。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.ColumnDef.to_sql:1 of
+msgid "列定义的 SQL 片段。"
+msgstr ""
+
 #: ../../api/storage.rst:29
 msgid "TableSchema"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.TableSchema:1 of
+msgid "数据库表结构定义（用于动态建表）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.TableSchema:4 of
+msgid "列定义列表。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.TableSchema:5 of
+msgid "主键列名列表。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.TableSchema:6 of
+msgid "索引定义列表（每项为列名列表）。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.TableSchema.to_create_sql:1 of
+msgid "``CREATE TABLE`` SQL 语句。"
+msgstr ""
+
+#: agentsociety2.storage.table_schema.TableSchema.to_index_sql:1 of
+msgid "``CREATE INDEX`` SQL 语句列表。"
 msgstr ""
 
 #: ../../api/storage.rst:36
@@ -256,12 +2874,40 @@ msgstr ""
 msgid "AgentProfile"
 msgstr ""
 
+#: agentsociety2.storage.models.AgentProfile:1 of
+msgid "agent 档案信息（框架表）。"
+msgstr ""
+
+#: of sqlalchemy.orm.instrumentation.__init__:1
+msgid ""
+"Create a new model by parsing and validating input data from keyword "
+"arguments."
+msgstr ""
+
+#: of sqlalchemy.orm.instrumentation.__init__:3
+msgid ""
+"Raises [`ValidationError`][pydantic_core.ValidationError] if the input "
+"data cannot be validated to form a valid model."
+msgstr ""
+
+#: of sqlalchemy.orm.instrumentation.__init__:6
+msgid "`self` is explicitly positional-only to allow `self` as a field name."
+msgstr ""
+
 #: ../../api/storage.rst:48
 msgid "AgentStatus"
 msgstr ""
 
+#: agentsociety2.storage.models.AgentStatus:1 of
+msgid "agent 在某一步的状态快照（框架表）。"
+msgstr ""
+
 #: ../../api/storage.rst:55
 msgid "AgentDialog"
+msgstr ""
+
+#: agentsociety2.storage.models.AgentDialog:1 of
+msgid "agent 对话记录（框架表）。"
 msgstr ""
 
 #~ msgid ""
@@ -1053,7 +3699,7 @@ msgstr ""
 #~ msgid "Model identifier for the default LLM used in general operations."
 #~ msgstr ""
 
-#~ msgid "Environment variable: AGENTSOCIETY_LLM_MODEL Default: \"gpt-5.4\""
+#~ msgid "Environment variable: AGENTSOCIETY_LLM_MODEL Default: \"gpt-5.5\""
 #~ msgstr ""
 
 #~ msgid ""
@@ -1162,9 +3808,7 @@ msgstr ""
 #~ msgid "Model identifier for high-frequency, low-latency operations."
 #~ msgstr ""
 
-#~ msgid ""
-#~ "Environment variable: AGENTSOCIETY_NANO_LLM_MODEL "
-#~ "Default: \"gpt-5.4-nano\""
+#~ msgid "Environment variable: AGENTSOCIETY_NANO_LLM_MODEL Default: \"gpt-5.5\""
 #~ msgstr ""
 
 #~ msgid ""
@@ -2575,5 +5219,37 @@ msgstr ""
 #~ msgstr ""
 
 #~ msgid "agent 对话记录（框架表）。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "传入 :meth:`AgentConfig.from_kwargs` 的扁平参数（节选）：  - "
+#~ "``max_tool_rounds``：单步最大工具轮数（默认 24） - "
+#~ "``preload_workspace_paths``：预读文件列表（注入 system prompt "
+#~ "的 workspace 快照） - "
+#~ "``thread_key_state_paths``：thread 压缩时附带的 KEY_STATE_JSON"
+#~ " 文件路径列表 - ``system_prompt_max_identity_chars``：Agent"
+#~ " Identity JSON 总长度上限（默认 10000） - "
+#~ "``workspace_read_chunk_chars``：``workspace_read`` / "
+#~ "``read_skill`` 单段最大字符数（默认 32000，允许 1024–96000） "
+#~ "- ``tool_result_thread_budget_chars``：单条 TOOL_RESULT_JSON"
+#~ " 序列化预算（默认 65536） - ``profile_max_chars`` /"
+#~ " ``profile_truncate_chars``：profile 写入 Identity "
+#~ "前的截断上限（默认 4000） - ``bash_retries`` / "
+#~ "``bash_timeout_retries``：bash 超时后的额外重试次数（写入 "
+#~ ":attr:`LoopConfig.bash_retries`，默认 1，即共 2 次执行） "
+#~ "- ``llm_transient_retries``：thread 压缩等直连 "
+#~ "``acompletion`` 遇瞬时错误时的最大重试次数（默认 2） - "
+#~ "``tool_decision_max_retries``：传给 "
+#~ "``acompletion_with_pydantic_validation`` 的 max_retries（默认"
+#~ " 10） - ``model`` / ``llm_model``：LiteLLM"
+#~ " 路由模型名（用于 token_counter 与 tiktoken 回退） "
+#~ "- ``tiktoken_encoding``：强制指定 tiktoken 编码名（默认 "
+#~ "``cl100k_base``）"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "``bash_retries`` / ``bash_timeout_retries``：bash "
+#~ "超时后的额外重试次数（写入 :attr:`LoopConfig.bash_retries`，默认 1，即共 "
+#~ "2 次执行）"
 #~ msgstr ""
 

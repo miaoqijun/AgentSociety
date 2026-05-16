@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.2.0\n"
+"Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-03-05 23:36+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
@@ -220,8 +220,13 @@ msgid "文档标准"
 msgstr "Documentation Standards"
 
 #: ../../contributing.rst:118
-msgid "文档字符串应遵循 Google 风格："
-msgstr "Docstrings should follow Google style:"
+msgid ""
+"Python 文档字符串统一采用 Sphinx/reST 写法（``:param:``、``:returns:``、``:raises:``、``:ivar:`` "
+"等），与 autodoc 生成的 API 参考保持一致；新增或修改代码时请沿用同一约定。"
+msgstr ""
+"Python docstrings use Sphinx/reST consistently (``:param:``, ``:returns:``, "
+"``:raises:``, ``:ivar:``, etc.) so autodoc API reference stays aligned; "
+"follow the same convention when adding or changing code."
 
 #: ../../contributing.rst:140
 msgid "社区指南"

@@ -115,7 +115,7 @@ PR 指南
 文档标准
 ------------------------
 
-文档字符串应遵循 Google 风格：
+Python 文档字符串统一采用 Sphinx/reST 写法（``:param:``、``:returns:``、``:raises:``、``:ivar:`` 等），与 autodoc 生成的 API 参考保持一致；新增或修改代码时请沿用同一约定。
 
 .. code-block:: python
 
@@ -124,15 +124,10 @@ PR 指南
 
        Longer description with more details.
 
-       Args:
-           param1: Description of param1
-           param2: Description of param2
-
-       Returns:
-           Description of return value
-
-       Raises:
-           ValueError: If something goes wrong
+       :param param1: Description of param1.
+       :param param2: Description of param2.
+       :returns: Description of return value.
+       :raises ValueError: If something goes wrong.
        """
        pass
 

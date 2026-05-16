@@ -68,7 +68,7 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    # Default LLM (Required - for most operations)
    export AGENTSOCIETY_LLM_API_KEY="your-api-key"
    export AGENTSOCIETY_LLM_API_BASE="https://api.openai.com/v1"
-   export AGENTSOCIETY_LLM_MODEL="gpt-5.4"
+   export AGENTSOCIETY_LLM_MODEL="gpt-5.5"
 
 **可选配置**
 
@@ -81,13 +81,13 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    # Falls back to: AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE
    export AGENTSOCIETY_CODER_LLM_API_KEY="your-coder-api-key"      # Optional
    export AGENTSOCIETY_CODER_LLM_API_BASE="https://api.openai.com/v1"  # Optional
-   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.4"                    # Optional
+   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.5"                    # Optional
 
    # Nano LLM (for high-frequency, low-latency operations)
    # Falls back to: AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE
    export AGENTSOCIETY_NANO_LLM_API_KEY="your-nano-api-key"        # Optional
    export AGENTSOCIETY_NANO_LLM_API_BASE="https://api.openai.com/v1"  # Optional
-   export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.4-nano"                # Optional
+   export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.5"                     # Optional
 
    # Embedding model (for text embedding and semantic search)
    # Falls back to: AGENTSOCIETY_LLM_API_KEY, AGENTSOCIETY_LLM_API_BASE
@@ -119,16 +119,16 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    # Required - LLM API Configuration
    AGENTSOCIETY_LLM_API_KEY=your-api-key
    AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1
-   AGENTSOCIETY_LLM_MODEL=gpt-5.4
+   AGENTSOCIETY_LLM_MODEL=gpt-5.5
 
    # Optional - Agent Behavior Configuration
-   AGENT_MODEL=gpt-5.4              # Override model for agents
+   AGENT_MODEL=gpt-5.5                  # Override model for agents
    AGENT_CONTEXT_WINDOW=200000          # Model context window
    AGENT_MAX_TOOL_ROUNDS=24             # Max tool loop rounds
 
    # Optional - Specialized LLM instances (fallback to default)
-   AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.4
-   AGENTSOCIETY_NANO_LLM_MODEL=gpt-5.4-nano
+   AGENTSOCIETY_CODER_LLM_MODEL=gpt-5.5
+   AGENTSOCIETY_NANO_LLM_MODEL=gpt-5.5
    AGENTSOCIETY_EMBEDDING_MODEL=text-embedding-3-large
    AGENTSOCIETY_EMBEDDING_DIMS=1024
    AGENTSOCIETY_HOME_DIR=./agentsociety_data
@@ -140,31 +140,15 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    - ``AGENTSOCIETY_LLM_*``: 全局 LLM API 配置，用于模型调用
    - ``AGENT_*``: Agent 行为配置，如上下文窗口大小、工具循环轮数等
 
-**遥测设置**
-
-AgentSociety 2 会自动禁用所有遥测服务以防止外部连接：
-
-.. code-block:: bash
-
-   # 以下设置由框架自动配置，无需手动设置
-   MEM0_TELEMETRY=False
-   ANONYMIZED_TELEMETRY=False
-
-这些设置禁用了 mem0 和 ChromaDB 的遥测功能，防止连接到 Posthog/Facebook 等外部服务。
-
 支持的 LLM 提供商
 ------------------------
 
-AgentSociety 2 使用 `litellm`_，支持许多 LLM 提供商：
+AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用 OpenAI 兼容的 Chat Completions 接口：
 
-- OpenAI 及兼容网关（模型 id 以供应商文档为准）
-- Anthropic (Claude)
-- Azure OpenAI
-- Google (Gemini)
-- Cohere
-- 以及更多...
+- ``AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1``
+- ``AGENTSOCIETY_LLM_MODEL=gpt-5.5``
 
-查看 `litellm 文档`_ 获取完整列表。
+如果你使用其它 LiteLLM 支持的 OpenAI 兼容网关，请保持同样的环境变量结构，并把 ``AGENTSOCIETY_LLM_API_BASE`` 与模型名替换为该网关提供的值。
 
 .. _litellm: https://github.com/BerriAI/litellm
 .. _litellm 文档: https://docs.litellm.ai/

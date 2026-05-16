@@ -19,6 +19,7 @@ Claude Code Skills
 --------------------
 
 研究工作流主要通过 Claude Code 的“skills-first”方式提供：
+
 - AgentSociety 内置研究 skills：随 VSCode 插件打包，可在插件树视图中浏览（只读）。
 - Agent(Person) 扩展 skills：由后端 `/api/v1/agent-skills/*` 管理，支持扫描/导入/热重载。
 
@@ -27,7 +28,126 @@ Claude Code Skills
 * **agentsociety-experiment-config** - 实验配置生成与验证
 * **agentsociety-run-experiment** - 实验执行与监控
 * **agentsociety-analysis** - 数据分析与跨实验综合
+* **agentsociety-create-agent** - 自定义 Agent 生成与校验
 * **agentsociety-paper-orchestrator** - Nature/Science 级论文生成（6-skill 状态机）
+
+create-agent 技能
+~~~~~~~~~~~~~~~~~~~
+
+``agentsociety-create-agent`` 用于创建或修订工作区里的自定义 Agent 类型。它不是 PersonAgent 内置认知技能，而是研究工作流中的开发辅助 skill：当实验需要一个当前不存在的 Agent class 时，通常由 ``agentsociety-experiment-config`` 分支调用。
+
+**文件位置与扫描规则**:
+
+- 新 Agent 模块应放在 ``custom/agents/`` 下，例如 ``custom/agents/research/lab_agent.py``。
+- 扫描器会读取该目录下的 ``*.py``，但跳过路径片段包含 ``examples/`` 的文件。
+- 推荐一个文件一个主要 Agent class；一个文件中存在多个 ``AgentBase`` 子类时，扫描器也能发现。
+
+**基类选择**:
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - 基类
+     - 适用场景
+   * - ``AgentBase``
+     - 简单实验、博弈/基准场景，开发者自行管理状态。
+   * - ``PersonAgent``
+     - 需要 skills-first 工具循环、workspace、checkpoint/WAL 与持久化记忆。
+
+**本地校验**:
+
+.. code-block:: bash
+
+   PYTHON_PATH=$(grep "^PYTHON_PATH=" .env | cut -d'=' -f2)
+   PYTHON_PATH=${PYTHON_PATH:-.venv/bin/python}
+   $PYTHON_PATH .agentsociety/bin/ags.py create-agent --file custom/agents/my_agent.py
+   $PYTHON_PATH .agentsociety/bin/ags.py create-agent --file custom/agents/my_agent.py --json
+
+校验器会检查：目标文件为 Python 文件、至少有一个直接继承 ``AgentBase`` 或 ``PersonAgent`` 的类、``ask`` / ``step`` / ``dump`` / ``load`` 均为 ``async def``、模块可动态导入、目标类不是 abstract class。创建完成后，在 VS Code 扩展中执行 **Scan Custom Modules** 让后端重新发现模块。
+
+
+实验工作流
+~~~~~~~~~~~~
+
+研究 pipeline 的主干是：
+
+``literature-search → hypothesis → experiment-config → run-experiment → analysis → paper-orchestrator``
+
+实验相关的两个核心 skill 是：
+
+.. list-table::
+   :widths: 30 35 35
+   :header-rows: 1
+
+   * - Skill
+     - 主要输入
+     - 主要输出
+   * - ``agentsociety-experiment-config``
+     - ``SIM_SETTINGS.json``、已有 Agent/Env/Dataset 信息
+     - ``init_config.json``、``steps.yaml``、``config_params.py``
+   * - ``agentsociety-run-experiment``
+     - ``init_config.json`` + ``steps.yaml``
+     - ``run/sqlite.db``、日志、artifacts、``pid.json``
+
+推荐流程：
+
+1. 使用 ``research-pipeline where-am-i --json`` 确认当前阶段。
+2. 在 ``experiment-config`` 阶段先扫描模块；如果缺少 Agent 或 Env，再分支到 ``create-agent`` 或 ``create-env-module``。
+3. 运行 ``experiment-config check`` 或等价校验，确认配置和步骤文件可用。
+4. 启动实验时使用 ``run-experiment``；后台执行必须指定日志文件，避免丢失 verbose 输出。
+5. 实验完成后检查 ``run/sqlite.db``、日志与 artifacts，再进入分析阶段。
+
+
+分析工作流
+~~~~~~~~~~~~
+
+``agentsociety-analysis`` 面向已完成实验的数据解释、图表和报告生成。它要求目标 run 目录中已经存在 ``sqlite.db``；如果数据库不存在，应回到 ``run-experiment`` 或配置修复阶段。
+
+推荐流程：
+
+1. **加载上下文**：读取 hypothesis、experiment config、steps 和 run 元数据。
+2. **确认问题**：明确本次分析是验证假设、解释异常、比较组间差异，还是生成报告。
+3. **探索数据**：列出 SQLite 表，查看 schema、行数、关键字段和缺失情况。
+4. **提出发现**：先给出可检验发现，再决定需要哪些图表。
+5. **生成图表**：单实验默认最多 5 张图；每张图在报告中必须有一句说明。
+6. **写报告**：单实验输出到 ``presentation/hypothesis_{id}/``，跨实验综合输出到 ``synthesis/``。
+
+常用命令：
+
+.. code-block:: bash
+
+   $PYTHON_PATH .agentsociety/bin/ags.py analysis load-context --workspace . --hypothesis-id 1 --experiment-id 1
+   $PYTHON_PATH .agentsociety/bin/ags.py analysis list-tables --db-path hypothesis_1/experiment_1/run/sqlite.db
+   $PYTHON_PATH .agentsociety/bin/ags.py analysis data-summary --db-path hypothesis_1/experiment_1/run/sqlite.db
+   $PYTHON_PATH .agentsociety/bin/ags.py analysis query-data --db-path hypothesis_1/experiment_1/run/sqlite.db --sql "SELECT * FROM agent_profile LIMIT 5"
+
+
+文献检索服务
+~~~~~~~~~~~~~~
+
+``agentsociety-literature-search`` 通过统一的远程检索服务收集学术文献，并把结果保存到工作区 ``papers/`` 目录。默认检索所有已配置数据源：``local``、``arxiv``、``crossref``、``openalex``。
+
+配置项：
+
+.. code-block:: bash
+
+   LITERATURE_SEARCH_API_URL=http://localhost:8008/api/search
+   LITERATURE_SEARCH_API_KEY=lit-your-api-key-here
+
+搜索命令示例：
+
+.. code-block:: bash
+
+   $PYTHON_PATH .agentsociety/bin/ags.py literature-search "agent-based modeling social networks" --limit 10
+   $PYTHON_PATH .agentsociety/bin/ags.py literature-search "urban mobility simulation LLM agents" --year-from 2020 --year-to 2026 --multi-query
+
+输出约定：
+
+- ``papers/literature_index.json`` 是稳定索引，记录标题、作者、年份、来源、query、分数和本地 ``file_path``。
+- 每篇文献保存为 ``papers/<title>_<timestamp>.md``，这是后续 hypothesis、analysis 和 paper 技能引用的主要本地笔记。
+- 原文 PDF 如需下载，应放在 ``papers/full_texts/``，并记录到 ``extra_fields.full_text.file_path``；不要把索引中的 ``file_path`` 从 Markdown 笔记替换成 PDF。
+- 文献检索不会自动绕过出版商权限。PDF 下载只处理开放获取或用户授权的文件；没有开放 PDF 时，可以用 web research 补充 Markdown 笔记并记录来源。
 
 Python API
 --------------------
@@ -215,7 +335,7 @@ skeptical-review → revision-router → release-gate``
 - ``state/`` — ``paper_state.yaml``、``research_pack.json``、``human_gates.yaml``
 - ``artifacts/`` — ``storyline_map.json``、``claim_ledger.json``、
   ``evidence_backlog.json``、``figure_argument_map.json``、
-  ``manuscript/``（abstract.md, main.md, results/*, discussion.md）
+  ``manuscript/``（``abstract.md``、``main.md``、``results/``、``discussion.md``）
 - ``reviews/`` — ``review_round_NNN.yaml``
 - ``runs/<TS>/compose/out/paper.pdf`` — 最终交付物
 
@@ -248,13 +368,13 @@ review, compile, run-loop, status。别名 ``paper``、``generate-paper``、
 .. code-block:: bash
 
    # 默认 LLM
-   export AGENTSOCIETY_LLM_MODEL="gpt-5.4"
+   export AGENTSOCIETY_LLM_MODEL="gpt-5.5"
 
    # 代码生成（实验设计、分析）
-   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.4"
+   export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.5"
 
    # 高频操作（智能体生成）
-   export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.4-nano"
+   export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.5"
 
 Agent Skills
 --------------------
