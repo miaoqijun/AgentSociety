@@ -1,11 +1,13 @@
-# AgentSociety 文档指南
+# AgentSociety 2 文档指南
 
-本文档使用 Sphinx 和国际化（i18n）框架构建，支持中英双语。
+AgentSociety 2 的 ReadTheDocs 站点使用 **Sphinx + Furo + MyST** 构建，默认语言为中文，并通过 Sphinx i18n 维护英文翻译。它不是 Google Docs 风格的文档站；视觉和导航均以 Sphinx/Furo 主题为准。
+
+本仓库有多套 ReadTheDocs 站点。仓库根目录的 `.readthedocs.yaml` 保留给 `docs_v1/` 旧版文档；AgentSociety 2 的独立配置放在 `packages/agentsociety2/.readthedocs.yaml`，构建入口为 `packages/agentsociety2/docs/conf.py`。在 ReadTheDocs 的 AgentSociety 2 项目设置中，应把 config file 指向这份包内配置，避免影响旧站点。
 
 ## 文档结构
 
-```
-docs/
+```text
+packages/agentsociety2/docs/
 ├── conf.py              # Sphinx 配置文件
 ├── index.rst            # 主文档入口（中文，默认语言）
 ├── locale/              # 国际化翻译文件
@@ -17,11 +19,11 @@ docs/
 ├── _templates/          # Sphinx 模板
 ├── _build/              # 构建输出目录
 ├── requirements.txt     # Python 依赖
-├── 01-quick-start/      # 各章节文档
-├── 02-version-1.5/
-├── 03-configurations/
-├── ...
-└── README.md           # 本文件
+├── agents.rst           # Agent / PersonAgent / create-agent 技能说明
+├── agent_skills.rst     # PersonAgent skills-first 架构
+├── skills.rst           # 研究技能、实验/分析/文献检索工作流
+├── api/                 # API 参考
+└── ...
 ```
 
 ## 支持的语言
@@ -36,8 +38,8 @@ docs/
 所有新文档应该用中文编写，使用 reStructuredText (.rst) 或 Markdown (.md) 格式：
 
 ```bash
-# 在相应目录下创建新文档
-docs/01-quick-start/04-new-feature.rst
+# 在 v2 文档目录下创建新文档
+packages/agentsociety2/docs/new-feature.rst
 ```
 
 ### 2. 提取翻译文本
@@ -45,22 +47,23 @@ docs/01-quick-start/04-new-feature.rst
 在编写或修改文档后，运行以下命令提取需要翻译的文本：
 
 ```bash
-# 在项目根目录执行
+# 推荐在 v2 文档目录执行
+cd packages/agentsociety2/docs
 make gettext
 ```
 
-这会在 `docs/_build/gettext/` 目录下生成 `.pot` 文件。
+这会在 `packages/agentsociety2/docs/_build/gettext/` 目录下生成 `.pot` 文件。
 
 ### 3. 更新翻译文件
 
 更新或创建翻译文件：
 
 ```bash
-# 更新所有语言的翻译文件
+cd packages/agentsociety2/docs
 make update-po
 ```
 
-这会在 `docs/locale/en/LC_MESSAGES/` 目录下创建或更新 `.po` 文件。
+这会在 `packages/agentsociety2/docs/locale/en/LC_MESSAGES/` 目录下创建或更新 `.po` 文件。
 
 ### 4. 翻译文档
 
@@ -68,7 +71,7 @@ make update-po
 
 ```bash
 # 编辑英文翻译
-vim docs/locale/en/LC_MESSAGES/index.po
+vim packages/agentsociety2/docs/locale/en/LC_MESSAGES/index.po
 ```
 
 示例 `.po` 文件内容：
@@ -77,18 +80,18 @@ vim docs/locale/en/LC_MESSAGES/index.po
 # Chinese translations for AgentSociety project.
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 1.5\n"
+"Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #: ../../index.rst:4
-msgid "AgentSociety"
-msgstr "AgentSociety"
+msgid "AgentSociety 2"
+msgstr "AgentSociety 2"
 
 #: ../../index.rst:6
-msgid "**AgentSociety** 是一个基于社会学第一原理构建的社会模拟引擎..."
-msgstr "**AgentSociety** is a social simulation engine and toolkit for social science research..."
+msgid "**AgentSociety 2** 是一个现代化的、LLM 原生的智能体模拟平台..."
+msgstr "**AgentSociety 2** is a modern, LLM-native agent simulation platform..."
 ```
 
 ### 5. 构建文档
@@ -96,6 +99,8 @@ msgstr "**AgentSociety** is a social simulation engine and toolkit for social sc
 构建不同语言版本的文档：
 
 ```bash
+cd packages/agentsociety2/docs
+
 # 构建中文文档（默认）
 make html
 # 或
@@ -109,8 +114,8 @@ make html-all
 ```
 
 构建的文档将保存在：
-- 中文版本：`docs/_build/html/zh/`
-- 英文版本：`docs/_build/html/en/`
+- 中文版本：`packages/agentsociety2/docs/_build/html/zh/`
+- 英文版本：`packages/agentsociety2/docs/_build/html/en/`
 
 ## Makefile 命令说明
 
@@ -128,10 +133,25 @@ make html-all
 
 ## ReadTheDocs 配置
 
-项目已配置为在 ReadTheDocs 上自动构建多语言文档：
+项目已配置为在 ReadTheDocs 上构建 AgentSociety 2 文档：
 
-1. **主项目**：中文文档（默认）
-2. **英文翻译**：需要在 ReadTheDocs 上设置为翻译项目
+1. **主项目**：`agentsociety2.readthedocs.io`，中文文档（默认）
+2. **英文翻译**：如需英文站点，可在 ReadTheDocs 上设置 translation 项目
+
+`packages/agentsociety2/.readthedocs.yaml` 的关键配置：
+
+```yaml
+python:
+  install:
+    - requirements: docs/requirements.txt
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
+
+sphinx:
+  configuration: docs/conf.py
+```
 
 ### ReadTheDocs 多语言设置步骤
 
@@ -141,8 +161,8 @@ make html-all
    - 选择 "翻译" 或 "Translations"
    - 添加英文翻译项目
 3. ReadTheDocs 会自动为每种语言创建单独的子域名：
-   - 中文：`https://agentsociety.readthedocs.io/zh/latest/`
-   - 英文：`https://agentsociety.readthedocs.io/en/latest/`
+   - 中文：`https://agentsociety2.readthedocs.io/zh/latest/`
+   - 英文：`https://agentsociety2.readthedocs.io/en/latest/`
 
 ## 文档编写规范
 
@@ -150,11 +170,11 @@ make html-all
 
 - 使用小写字母和连字符
 - 中文文档直接使用描述性名称
-- 例：`01-quick-start.rst`, `configuration-guide.rst`
+- 例：`quickstart.rst`, `configuration-guide.rst`
 
 ### 2. 图片和静态资源
 
-- 所有图片放在 `docs/_static/` 目录下
+- 所有图片放在 `packages/agentsociety2/docs/_static/` 目录下
 - 使用相对路径引用：`_static/image.png`
 - 提供替代文本（alt text）
 

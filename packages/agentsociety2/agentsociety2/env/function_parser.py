@@ -53,11 +53,9 @@ class FunctionParser:
         """
         Parse a function and extract its parts.
 
-        Args:
-            func: The function to parse (can be original or wrapped function)
+        :param func: The function to parse (can be original or wrapped function)
 
-        Returns:
-            FunctionParts object containing parsed parts, or None if parsing fails
+        :returns: FunctionParts object containing parsed parts, or None if parsing fails
         """
         # Get function source code
         # For bound methods, we need to get the unbound function
@@ -79,12 +77,10 @@ class FunctionParser:
         """
         Parse function source code string and extract parts.
 
-        Args:
-            source_code: The source code string of the function
-            function_name: Optional function name (for validation)
+        :param source_code: The source code string of the function
+        :param function_name: Optional function name (for validation)
 
-        Returns:
-            FunctionParts object containing parsed parts, or None if parsing fails
+        :returns: FunctionParts object containing parsed parts, or None if parsing fails
         """
         try:
             # Parse the source code into AST
@@ -127,12 +123,10 @@ class FunctionParser:
         """
         Extract decorators from function node.
 
-        Args:
-            func_node: The function AST node
-            source_code: Original source code
+        :param func_node: The function AST node
+        :param source_code: Original source code
 
-        Returns:
-            List of decorator strings
+        :returns: List of decorator strings
         """
         decorators = []
         if not func_node.decorator_list:
@@ -157,12 +151,10 @@ class FunctionParser:
         """
         Extract function signature from AST node.
 
-        Args:
-            func_node: The function AST node
-            source_code: Original source code
+        :param func_node: The function AST node
+        :param source_code: Original source code
 
-        Returns:
-            Function signature string
+        :returns: Function signature string
         """
         lines = source_code.split("\n")
 
@@ -198,11 +190,9 @@ class FunctionParser:
         """
         Extract docstring from function node.
 
-        Args:
-            func_node: The function AST node
+        :param func_node: The function AST node
 
-        Returns:
-            Docstring string, or None if not present
+        :returns: Docstring string, or None if not present
         """
         if (
             func_node.body
@@ -228,12 +218,10 @@ class FunctionParser:
         """
         Extract function body code (excluding signature and docstring).
 
-        Args:
-            func_node: The function AST node
-            source_code: Original source code
+        :param func_node: The function AST node
+        :param source_code: Original source code
 
-        Returns:
-            List of body code lines
+        :returns: List of body code lines
         """
         lines = source_code.split("\n")
 
@@ -290,12 +278,10 @@ class FunctionParser:
         """
         Extract a method from class source code.
 
-        Args:
-            class_source: The source code of the class
-            method_name: The name of the method to extract
+        :param class_source: The source code of the class
+        :param method_name: The name of the method to extract
 
-        Returns:
-            FunctionParts object, or None if not found
+        :returns: FunctionParts object, or None if not found
         """
         try:
             tree = ast.parse(class_source)

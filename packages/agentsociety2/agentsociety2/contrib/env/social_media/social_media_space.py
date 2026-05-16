@@ -149,13 +149,12 @@ class SocialMediaSpace(EnvBase):
         """
         初始化社交媒体空间环境。
 
-        Args:
-            persons: 初始用户，key=person_id, value=SocialMediaPerson 可序列化 dict。
-            posts: 初始帖子，key=post_id, value=Post 可序列化 dict。
-            comments: 初始评论，key=post_id, value=该帖下的 Comment dict 列表。
-            follows: 关注关系，key=person_id, value=被关注者 person_id 列表。
-            likes: 点赞关系，key=person_id, value=被点赞的 post_id 列表。
-            agent_id_name_pairs: 可选。显式 agent–用户映射 [(agent_id, name), ...]。
+        :param persons: 初始用户，key=person_id, value=SocialMediaPerson 可序列化 dict。
+        :param posts: 初始帖子，key=post_id, value=Post 可序列化 dict。
+        :param comments: 初始评论，key=post_id, value=该帖下的 Comment dict 列表。
+        :param follows: 关注关系，key=person_id, value=被关注者 person_id 列表。
+        :param likes: 点赞关系，key=person_id, value=被点赞的 post_id 列表。
+        :param agent_id_name_pairs: 可选。显式 agent–用户映射 [(agent_id, name), ...]。
             **kwargs: feed_source, polarization_mode 等实验参数。
         """
         super().__init__()
@@ -604,9 +603,8 @@ Use the available tools based on the agent's request."""
         """
         Run forward one step
 
-        Args:
-            tick: Number of ticks of this simulation step
-            t: Current datetime after this step
+        :param tick: Number of ticks of this simulation step
+        :param t: Current datetime after this step
         """
         self.t = t
 
@@ -886,11 +884,9 @@ Use the available tools based on the agent's request."""
 
         用于 <observe> 指令，返回用户可见的社交媒体环境信息。
 
-        Args:
-            person_id: 用户ID
+        :param person_id: 用户ID
 
-        Returns:
-            ObserveUserResponse 响应模型，包含用户状态和可用行为
+        :returns: ObserveUserResponse 响应模型，包含用户状态和可用行为
         """
         user_id = person_id
         self._ensure_person_exists(user_id)
@@ -946,13 +942,11 @@ Use the available tools based on the agent's request."""
         """
         Create a new original post (支持话题标签)
 
-        Args:
-            author_id: ID of the author
-            content: Content of the post
-            tags: 话题标签列表，例如 ["guncontrol", "politics"]
+        :param author_id: ID of the author
+        :param content: Content of the post
+        :param tags: 话题标签列表，例如 ["guncontrol", "politics"]
 
-        Returns:
-            CreatePostResponse with post details
+        :returns: CreatePostResponse with post details
         """
         if tags is None:
             tags = []
@@ -996,12 +990,10 @@ Use the available tools based on the agent's request."""
         """
         Like a post
 
-        Args:
-            user_id: ID of the user who likes
-            post_id: ID of the post to like
+        :param user_id: ID of the user who likes
+        :param post_id: ID of the post to like
 
-        Returns:
-            LikePostResponse with like details
+        :returns: LikePostResponse with like details
         """
         async with self._lock:
             self._ensure_person_exists(user_id)
@@ -1034,12 +1026,10 @@ Use the available tools based on the agent's request."""
         """
         Unlike a post
 
-        Args:
-            user_id: ID of the user who unlikes
-            post_id: ID of the post to unlike
+        :param user_id: ID of the user who unlikes
+        :param post_id: ID of the post to unlike
 
-        Returns:
-            UnlikePostResponse with unlike details
+        :returns: UnlikePostResponse with unlike details
         """
         async with self._lock:
             self._ensure_person_exists(user_id)
@@ -1074,12 +1064,10 @@ Use the available tools based on the agent's request."""
         """
         Follow a user
 
-        Args:
-            follower_id: ID of the follower
-            followee_id: ID of the user to follow
+        :param follower_id: ID of the follower
+        :param followee_id: ID of the user to follow
 
-        Returns:
-            FollowUserResponse with follow details
+        :returns: FollowUserResponse with follow details
         """
         async with self._lock:
             self._ensure_person_exists(follower_id)
@@ -1117,12 +1105,10 @@ Use the available tools based on the agent's request."""
         """
         Unfollow a user
 
-        Args:
-            follower_id: ID of the follower
-            followee_id: ID of the user to unfollow
+        :param follower_id: ID of the follower
+        :param followee_id: ID of the user to unfollow
 
-        Returns:
-            UnfollowUserResponse with unfollow details
+        :returns: UnfollowUserResponse with unfollow details
         """
         async with self._lock:
             self._ensure_person_exists(follower_id)
@@ -1155,12 +1141,10 @@ Use the available tools based on the agent's request."""
         """
         View a post (increments view count)
 
-        Args:
-            user_id: ID of the user viewing
-            post_id: ID of the post to view
+        :param user_id: ID of the user viewing
+        :param post_id: ID of the post to view
 
-        Returns:
-            ViewPostResponse with post details
+        :returns: ViewPostResponse with post details
         """
         async with self._lock:
             self._ensure_person_exists(user_id)
@@ -1194,13 +1178,11 @@ Use the available tools based on the agent's request."""
         """
         Comment on a post
 
-        Args:
-            user_id: ID of the commenter
-            post_id: ID of the post to comment on
-            content: Comment content
+        :param user_id: ID of the commenter
+        :param post_id: ID of the post to comment on
+        :param content: Comment content
 
-        Returns:
-            CommentOnPostResponse with comment details
+        :returns: CommentOnPostResponse with comment details
         """
         async with self._lock:
             self._ensure_person_exists(user_id)
@@ -1244,13 +1226,11 @@ Use the available tools based on the agent's request."""
         """
         Repost a post (with optional comment)
 
-        Args:
-            user_id: ID of the user reposting
-            post_id: ID of the post to repost
-            comment: Optional comment on the repost
+        :param user_id: ID of the user reposting
+        :param post_id: ID of the post to repost
+        :param comment: Optional comment on the repost
 
-        Returns:
-            RepostResponse with repost details
+        :returns: RepostResponse with repost details
         """
         async with self._lock:
             self._ensure_person_exists(user_id)
@@ -1304,18 +1284,11 @@ Use the available tools based on the agent's request."""
         - 贴文推荐: 社交媒体的动态内容流(如Twitter/微博Timeline)
         - 物品推荐: 电商/电影等静态物品推荐(应使用独立的API)
 
-        Args:
-            user_id: 用户ID
-            algorithm: 贴文推荐算法
-                - "chronological": 时间倒序
-                - "reddit_hot": Reddit热度排序
-                - "twitter_ranking": Twitter综合排序(考虑社交关系)
-                - "random": 随机推荐
-                - "mf" / "model": 预训练推荐模型（需在构造时传入 recommendation_model_path）
-            limit: 返回贴文数量
+        :param user_id: 用户ID
+        :param algorithm: 贴文推荐算法 - "chronological": 时间倒序 - "reddit_hot": Reddit热度排序 - "twitter_ranking": Twitter综合排序(考虑社交关系) - "random": 随机推荐 - "mf" / "model": 预训练推荐模型（需在构造时传入 recommendation_model_path）
+        :param limit: 返回贴文数量
 
-        Returns:
-            (context_dict, answer_string) 元组
+        :returns: (context_dict, answer_string) 元组
         """
         self._ensure_person_exists(user_id)
 
@@ -1430,17 +1403,12 @@ Use the available tools based on the agent's request."""
         """
         搜索贴文
 
-        Args:
-            keyword: 关键词（在content和tags中搜索）
-            tags: 指定话题标签过滤
-            limit: 返回数量
-            sort_by: 排序方式
-                - "time": 时间倒序（默认）
-                - "relevance": 相关度（关键词出现次数）
-                - "popularity": 热度（likes + comments + reposts）
+        :param keyword: 关键词（在content和tags中搜索）
+        :param tags: 指定话题标签过滤
+        :param limit: 返回数量
+        :param sort_by: 排序方式 - "time": 时间倒序（默认） - "relevance": 相关度（关键词出现次数） - "popularity": 热度（likes + comments + reposts）
 
-        Returns:
-            匹配的贴文列表
+        :returns: 匹配的贴文列表
         """
         if tags is None:
             tags = []

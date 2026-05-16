@@ -24,8 +24,7 @@ class SASRecRecommender(RecommenderAlgorithm):
         """
         初始化SASRec推荐器
 
-        Args:
-            config: SASRec算法配置
+        :param config: SASRec算法配置
         """
         self.config = config
         self.model: Optional[SASRec] = None
@@ -57,8 +56,7 @@ class SASRecRecommender(RecommenderAlgorithm):
         3. 训练Transformer模型
         4. 计算热门物品（冷启动用）
 
-        Args:
-            data: 评分矩阵（需要包含时间戳信息）
+        :param data: 评分矩阵（需要包含时间戳信息）
         """
         get_logger().info(
             f"开始训练 SASRec 模型: {data.get_user_count()} 用户, "
@@ -148,12 +146,10 @@ class SASRecRecommender(RecommenderAlgorithm):
 
         使用用户的历史序列编码 + 目标物品嵌入计算匹配分数
 
-        Args:
-            user_id: 用户ID（原始ID）
-            item_id: 物品ID（原始ID）
+        :param user_id: 用户ID（原始ID）
+        :param item_id: 物品ID（原始ID）
 
-        Returns:
-            预测评分 (1.0-5.0)
+        :returns: 预测评分 (1.0-5.0)
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")
@@ -197,13 +193,11 @@ class SASRecRecommender(RecommenderAlgorithm):
 
         使用predict_all()计算所有物品的分数，返回Top-N
 
-        Args:
-            user_id: 用户ID（原始ID）
-            n: 推荐数量
-            exclude_ids: 要排除的物品ID集合
+        :param user_id: 用户ID（原始ID）
+        :param n: 推荐数量
+        :param exclude_ids: 要排除的物品ID集合
 
-        Returns:
-            [(item_id, score), ...] 按 score 降序排列
+        :returns: [(item_id, score), ...] 按 score 降序排列
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")
@@ -250,8 +244,7 @@ class SASRecRecommender(RecommenderAlgorithm):
         """
         保存模型到文件
 
-        Args:
-            path: 模型保存路径
+        :param path: 模型保存路径
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,无法保存")
@@ -274,8 +267,7 @@ class SASRecRecommender(RecommenderAlgorithm):
         """
         从文件加载模型
 
-        Args:
-            path: 模型文件路径
+        :param path: 模型文件路径
         """
         with open(path, 'rb') as f:
             checkpoint = pickle.load(f)
@@ -299,8 +291,7 @@ class SASRecRecommender(RecommenderAlgorithm):
 
         假设data按时间戳排序，相同用户的交互已经按顺序排列
 
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         user_sequences = defaultdict(list)
 
@@ -326,11 +317,9 @@ class SASRecRecommender(RecommenderAlgorithm):
         """
         获取用户的行为序列（padding到maxlen）
 
-        Args:
-            user_id: 用户ID（原始ID）
+        :param user_id: 用户ID（原始ID）
 
-        Returns:
-            填充后的序列 [maxlen]
+        :returns: 填充后的序列 [maxlen]
         """
         if user_id not in self._user_sequences:
             return [0] * self.config.maxlen
@@ -355,8 +344,7 @@ class SASRecRecommender(RecommenderAlgorithm):
         - 正样本：实际下一个物品
         - 负样本：随机采样物品
 
-        Returns:
-            [(seqs, targets, labels), ...] 的批次列表
+        :returns: [(seqs, targets, labels), ...] 的批次列表
         """
         train_data = []
 
@@ -402,8 +390,7 @@ class SASRecRecommender(RecommenderAlgorithm):
 
         基于 平均评分 × log(评分数+1) 计算热门度
 
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         item_ratings: Dict[int, List[float]] = defaultdict(list)
 

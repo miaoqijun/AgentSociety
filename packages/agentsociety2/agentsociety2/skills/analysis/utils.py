@@ -325,15 +325,11 @@ def _parse_xml_to_root(xml_str: str) -> ET.Element:
 def parse_llm_xml_response(content: str, root_tag: str = "result") -> Dict[str, Any]:
     """解析 LLM 返回的 XML 为字典。
 
-    Args:
-        content: LLM 返回的原始内容（可包含 ```xml 代码块）
-        root_tag: 根标签名，用于提取顶层 dict
+    :param content: LLM 返回的原始内容（可包含 ```xml 代码块）
+    :param root_tag: 根标签名，用于提取顶层 dict
 
-    Returns:
-        解析后的字典
-
-    Raises:
-        XmlParseError: XML 解析失败
+    :returns: 解析后的字典
+    :raises XmlParseError: XML 解析失败
     """
     xml_str = _extract_xml_from_content(content)
     if not xml_str:

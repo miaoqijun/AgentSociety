@@ -71,9 +71,8 @@ class ColoredFormatter(logging.Formatter):
     def __init__(self, fmt: str | None = None, datefmt: str | None = None):
         """初始化 ColoredFormatter
 
-        Args:
-            fmt: 日志格式，默认为 "[%(asctime)s] %(levelname)-7s %(message)s"
-            datefmt: 时间格式，默认为 "%Y-%m-%d %H:%M:%S"
+        :param fmt: 日志格式，默认为 "[%(asctime)s] %(levelname)-7s %(message)s"
+        :param datefmt: 时间格式，默认为 "%Y-%m-%d %H:%M:%S"
         """
         super().__init__(fmt=fmt or "[%(asctime)s] %(levelname)-7s %(message)s", datefmt=datefmt or "%Y-%m-%d %H:%M:%S")
 

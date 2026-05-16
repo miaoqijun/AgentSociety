@@ -18,10 +18,9 @@ class TrainerConfig:
     """
     训练器配置
 
-    Args:
-        retrain_threshold_ratings: 触发重训练的新评分数量阈值
-        retrain_threshold_time: 触发重训练的时间阈值 (秒)
-        enable_auto_retrain: 是否启用自动重训练
+    :param retrain_threshold_ratings: 触发重训练的新评分数量阈值
+    :param retrain_threshold_time: 触发重训练的时间阈值 (秒)
+    :param enable_auto_retrain: 是否启用自动重训练
     """
     retrain_threshold_ratings: int = 100
     retrain_threshold_time: int = 300
@@ -41,9 +40,8 @@ class IncrementalTrainer:
         """
         初始化增量训练器
 
-        Args:
-            service: 推荐服务实例
-            config: 训练器配置
+        :param service: 推荐服务实例
+        :param config: 训练器配置
         """
         self._service = service
         self._config = config
@@ -68,8 +66,7 @@ class IncrementalTrainer:
         """
         加载初始数据并训练
 
-        Args:
-            ratings: 初始评分列表
+        :param ratings: 初始评分列表
         """
         if not ratings:
             raise ValueError("初始评分列表不能为空")
@@ -92,8 +89,7 @@ class IncrementalTrainer:
         """
         添加新评分
 
-        Args:
-            new_ratings: 新评分列表
+        :param new_ratings: 新评分列表
         """
         if not new_ratings:
             return
@@ -137,8 +133,7 @@ class IncrementalTrainer:
         """
         获取训练器状态信息
 
-        Returns:
-            训练器信息字典
+        :returns: 训练器信息字典
         """
         return {
             'is_training': self._is_training,
@@ -156,8 +151,7 @@ class IncrementalTrainer:
         """
         判断是否需要重训练
 
-        Returns:
-            True 如果满足重训练条件
+        :returns: True 如果满足重训练条件
         """
         # 如果正在训练,不触发新的训练
         if self._is_training:

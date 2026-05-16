@@ -41,10 +41,9 @@ class VolunteerDilemmaEnv(EnvBase):
     ):
         """Initialize environment
         
-        Args:
-            num_agents: Number of agents (default: 4)
-            benefit_b: Benefit for everyone if someone volunteers (default: 100)
-            cost_c: Cost for a volunteer (default: 40)
+        :param num_agents: Number of agents (default: 4)
+        :param benefit_b: Benefit for everyone if someone volunteers (default: 100)
+        :param cost_c: Cost for a volunteer (default: 40)
         """
         super().__init__()
 
@@ -128,12 +127,10 @@ class VolunteerDilemmaEnv(EnvBase):
         """
         Submit choice decision for an agent.
 
-        Args:
-            agent_name: The agent's name
-            choice: The choice ("Volunteer" or "Stand by")
+        :param agent_name: The agent's name
+        :param choice: The choice ("Volunteer" or "Stand by")
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Validate choice
@@ -159,11 +156,9 @@ class VolunteerDilemmaEnv(EnvBase):
         """
         Get round history.
 
-        Args:
-            round_num: Optional round number. If None, returns all rounds.
+        :param round_num: Optional round number. If None, returns all rounds.
 
-        Returns:
-            List of round summaries.
+        :returns: List of round summaries.
         """
         async with self._lock:
             if round_num is not None:
@@ -186,9 +181,8 @@ class VolunteerDilemmaEnv(EnvBase):
         
         Executes a round if all agents have submitted their choices.
         
-        Args:
-            tick: The number of ticks of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.t = t

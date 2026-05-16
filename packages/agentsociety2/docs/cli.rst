@@ -206,16 +206,6 @@ pid.json 格式
        }
    }
 
-遥测配置
-------------
-
-AgentSociety 2 自动禁用所有遥测服务以防止外部连接：
-
-* ``MEM0_TELEMETRY=False`` - 禁用 mem0 遥测
-* ``ANONYMIZED_TELEMETRY=False`` - 禁用 ChromaDB/Posthog 遥测
-
-这些设置在 CLI 启动时强制执行，无需手动配置。
-
 日志级别
 ------------
 

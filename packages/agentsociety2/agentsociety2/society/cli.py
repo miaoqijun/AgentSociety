@@ -1,5 +1,8 @@
+"""命令行入口：按 ``steps.yaml`` 驱动 :class:`~agentsociety2.society.society.AgentSociety` 实验。
 
-"""命令行接口，用于快速启动AgentSociety2模拟实验"""
+启动前会校验 ``AGENTSOCIETY_LLM_API_KEY`` 以及可供 CodeGenRouter / AgentBase 使用的
+coder、nano 相关密钥（可与主密钥相同）。环境与模块发现见 :mod:`agentsociety2.registry`。
+"""
 
 import argparse
 import asyncio
@@ -346,10 +349,9 @@ class ExperimentRunner:
         """
         运行实验
 
-        Args:
-            config_path: 配置文件路径（init_config.json）
-            steps_path: steps.yaml 文件路径
-            experiment_id: 实验ID（可选）
+        :param config_path: 配置文件路径（init_config.json）
+        :param steps_path: steps.yaml 文件路径
+        :param experiment_id: 实验ID（可选）
         """
         try:
             # 验证环境变量（必须在任何操作之前）

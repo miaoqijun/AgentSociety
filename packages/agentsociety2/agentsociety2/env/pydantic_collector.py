@@ -31,8 +31,7 @@ class PydanticModelCollector:
         """
         Recursively collect all BaseModel classes from a type annotation.
         
-        Args:
-            annotation: The type annotation to process
+        :param annotation: The type annotation to process
         """
         if annotation is None or annotation == inspect.Signature.empty:
             return
@@ -60,8 +59,7 @@ class PydanticModelCollector:
         """
         Add a BaseModel class to the collection, including all its nested BaseModel fields.
         
-        Args:
-            model_class: The BaseModel class to add
+        :param model_class: The BaseModel class to add
         """
         if model_class in self.visited_models:
             return
@@ -91,8 +89,7 @@ class PydanticModelCollector:
         """
         Collect all BaseModel classes from a function's signature.
         
-        Args:
-            func: The function to analyze
+        :param func: The function to analyze
         """
         try:
             sig = inspect.signature(func)
@@ -111,8 +108,7 @@ class PydanticModelCollector:
         """
         Collect BaseModel classes from a list of functions.
         
-        Args:
-            functions: List of functions to analyze
+        :param functions: List of functions to analyze
         """
         for func in functions:
             self.collect_from_function(func)
@@ -121,8 +117,7 @@ class PydanticModelCollector:
         """
         Get all collected BaseModel classes with their source code.
         
-        Returns:
-            Dictionary mapping BaseModel classes to their source code strings
+        :returns: Dictionary mapping BaseModel classes to their source code strings
         """
         return self.models_dict.copy()
 

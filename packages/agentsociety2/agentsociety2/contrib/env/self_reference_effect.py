@@ -78,13 +78,9 @@ class SelfReferenceEffectEnv(EnvBase):
         """
         Initialize the Self-Reference Effect environment.
 
-        Args:
-            agent_ids: List of agent IDs participating in the experiment
-            encoding_traits: List of trait dictionaries for encoding phase
-                Each dict should have: {"trait": str, "identity": str, "valence": int}
-                If None, will use default trait list
-            recognition_traits: List of trait adjectives for recognition phase
-                If None, will use traits from encoding phase plus new traits
+        :param agent_ids: List of agent IDs participating in the experiment
+        :param encoding_traits: List of trait dictionaries for encoding phase Each dict should have: {"trait": str, "identity": str, "valence": int} If None, will use default trait list
+        :param recognition_traits: List of trait adjectives for recognition phase If None, will use traits from encoding phase plus new traits
         """
         super().__init__()
 
@@ -268,14 +264,12 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
         """
         Submit rating for a trait adjective in encoding phase.
 
-        Args:
-            agent_id: The agent's ID
-            trait: The trait adjective
-            identity: Identity type ("self", "friend", or "other")
-            rating: Rating score (1-5, integer)
+        :param agent_id: The agent's ID
+        :param trait: The trait adjective
+        :param identity: Identity type ("self", "friend", or "other")
+        :param rating: Rating score (1-5, integer)
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Validate agent_id
@@ -349,11 +343,9 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
         """
         Get encoding phase status for a specific agent.
 
-        Args:
-            agent_id: The agent's ID
+        :param agent_id: The agent's ID
 
-        Returns:
-            Response containing completed traits and remaining count.
+        :returns: Response containing completed traits and remaining count.
         """
         async with self._lock:
             if agent_id not in self.agent_ids:
@@ -375,14 +367,12 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
         """
         Submit recognition judgment for a trait adjective.
 
-        Args:
-            agent_id: The agent's ID
-            trait: The trait adjective
-            judge_type: Recognition judgment ("old" or "new")
-            rk_type: Remember/Know judgment ("remember" or "know", required if judge_type is "old")
+        :param agent_id: The agent's ID
+        :param trait: The trait adjective
+        :param judge_type: Recognition judgment ("old" or "new")
+        :param rk_type: Remember/Know judgment ("remember" or "know", required if judge_type is "old")
 
-        Returns:
-            Response containing judgment status and correctness.
+        :returns: Response containing judgment status and correctness.
         """
         async with self._lock:
             # Validate agent_id
@@ -471,12 +461,9 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
         """
         Get recognition phase status for a specific agent.
 
-        Args:
-            agent_id: The agent's ID
+        :param agent_id: The agent's ID
 
-        Returns:
-            Response containing completed judgments and remaining count.
-            Note: Only returns trait names and judge_type to avoid memory contamination.
+        :returns: Response containing completed judgments and remaining count. Note: Only returns trait names and judge_type to avoid memory contamination.
         """
         async with self._lock:
             if agent_id not in self.agent_ids:
@@ -504,8 +491,7 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
         """
         Get all results for all agents (statistics function).
 
-        Returns:
-            Dictionary containing encoding ratings and recognition judgments for all agents.
+        :returns: Dictionary containing encoding ratings and recognition judgments for all agents.
         """
         async with self._lock:
             return {
@@ -538,9 +524,8 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks (1 tick = 1 second) of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks (1 tick = 1 second) of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.current_datetime = t
@@ -571,8 +556,7 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
         """
         Get all results (synchronous method for result extraction).
 
-        Returns:
-            Dictionary containing encoding ratings and recognition judgments for all agents.
+        :returns: Dictionary containing encoding ratings and recognition judgments for all agents.
         """
         return {
             "encoding_ratings": {

@@ -6,9 +6,10 @@
 主要功能：
 
 - **仿真初始化**: 初始化智能体、环境路由器和回放写入器
-- **时间推进**: 通过 ``step()`` 和 ``run()`` 方法推进仿真时间
-- **交互接口**: 提供 ``ask()`` 和 ``intervene()`` 方法与仿真交互
-- **状态持久化**: 支持 ``dump()`` 和 ``load()`` 保存和恢复仿真状态
+- **时间推进**: 通过 ``step()`` 和 ``run()`` 推进仿真时间（``tick`` 为每步秒数）
+- **交互接口**: ``ask()`` / ``intervene()`` 经 :class:`~agentsociety2.society.helper.AgentSocietyHelper` 协调 agents 与环境
+- **问卷**: ``run_questionnaire()`` 对指定 agents 收集结构化作答
+- **状态持久化**: ``dump()`` / ``load()`` 导出与恢复编排器、环境路由与各 agent 状态
 
 Example::
 
@@ -75,9 +76,9 @@ class AgentSociety:
     AgentSociety 是框架的核心类，负责管理仿真生命周期：
 
     - 初始化智能体和环境模块
-    - 推进仿真时间
+    - 推进仿真时间（先并发调用各 agent 的 ``step``，再 ``env_router.step``，最后前进时钟）
     - 处理外部问答和干预请求
-    - 持久化仿真状态
+    - 可选回放：写入 agent profile 快照并把同一 :class:`~agentsociety2.storage.ReplayWriter` 交给环境模块
 
     Example::
 
@@ -112,8 +113,8 @@ class AgentSociety:
         :param start_t: 仿真开始时间。
         :param run_dir: 可选。运行目录（用于落地回放 sqlite 等）。
         :param enable_replay: 是否启用回放记录。
-        :param replay_writer: 可选。外部传入的回放写入器；若提供则不会在 :meth:`init` 内部创建。
-            该写入器仅用于环境模块回放。
+        :param replay_writer: 可选。外部传入的回放写入器；若提供则 :meth:`init` 不再新建数据库文件。
+            编排器会用它持久化 agent profile 等表，并调用 ``env_router.set_replay_writer`` 供环境模块写入各自回放数据。
         """
         self._env_router = env_router
         self._agents = agents

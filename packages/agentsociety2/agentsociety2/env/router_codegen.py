@@ -333,8 +333,7 @@ class TemplateCacheDB:
     ) -> Tuple[List[CacheEntry], Optional["faiss.Index"], List[int]]:
         """
         加载指定 env_class_type 的缓存条目并构建 FAISS 索引。
-        Returns:
-            (entries, faiss_index, faiss_entry_indices)
+        :returns: (entries, faiss_index, faiss_entry_indices)
         """
         data = self._load_data()
         raw = data.get("by_env", {}).get(env_class_type, [])
@@ -1628,14 +1627,12 @@ class CodeGenRouter(RouterBase):
         """
         使用代码生成方式处理指令。通过管道-过滤器架构执行。
 
-        Args:
-            ctx: 上下文字典（在template模式下，应包含'variables'键）
-            instruction: 指令字符串（在template模式下，为模板指令，包含{variable_name}占位符）
-            readonly: 是否只读模式
-            template_mode: 是否启用模板模式（启用后使用缓存机制）
+        :param ctx: 上下文字典（在template模式下，应包含'variables'键）
+        :param instruction: 指令字符串（在template模式下，为模板指令，包含{variable_name}占位符）
+        :param readonly: 是否只读模式
+        :param template_mode: 是否启用模板模式（启用后使用缓存机制）
 
-        Returns:
-            (ctx, answer) 元组
+        :returns: (ctx, answer) 元组
         """
         context = AskContext(
             ctx=ctx,
@@ -1914,8 +1911,7 @@ class CodeGenRouter(RouterBase):
         使用LLM生成统计代码，用于调用所有statistics类型的工具。
         使用与其他普通文本相同的代码生成逻辑，失败时通过多轮对话让LLM修正。
 
-        Returns:
-            生成的Python代码字符串，如果生成失败则返回空字符串
+        :returns: 生成的Python代码字符串，如果生成失败则返回空字符串
         """
         get_logger().debug(f"{_get_debug_info('开始生成statistics代码')}")
 
@@ -1948,8 +1944,7 @@ class CodeGenRouter(RouterBase):
         """
         获取缓存统计信息。
 
-        Returns:
-            CacheStats对象，包含所有缓存统计信息
+        :returns: CacheStats对象，包含所有缓存统计信息
         """
         # 同步方法无法用 async with，暂不加锁；step 中调用 get_cache_stats_summary 为最佳-effort
         return self._cache_stats
@@ -1958,8 +1953,7 @@ class CodeGenRouter(RouterBase):
         """
         获取缓存统计信息的摘要字符串。
 
-        Returns:
-            格式化的统计信息字符串
+        :returns: 格式化的统计信息字符串
         """
         stats = self._cache_stats
         return f"""Cache Statistics Summary:

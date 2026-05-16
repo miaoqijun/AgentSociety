@@ -102,8 +102,7 @@ class LightGCNRecommender(RecommenderAlgorithm):
         """
         初始化LightGCN推荐器
         
-        Args:
-            config: LightGCN算法配置
+        :param config: LightGCN算法配置
         """
         self.config = config
         self.model: Optional[LightGCNModel] = None
@@ -129,8 +128,7 @@ class LightGCNRecommender(RecommenderAlgorithm):
         """
         训练LightGCN模型
         
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         get_logger().info(
             f"开始训练 LightGCN 模型: {data.get_user_count()} 用户, "
@@ -271,12 +269,10 @@ class LightGCNRecommender(RecommenderAlgorithm):
         """
         预测用户对物品的评分
         
-        Args:
-            user_id: 用户ID
-            item_id: 物品ID
+        :param user_id: 用户ID
+        :param item_id: 物品ID
             
-        Returns:
-            预测评分 (1.0-5.0)
+        :returns: 预测评分 (1.0-5.0)
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")
@@ -310,13 +306,11 @@ class LightGCNRecommender(RecommenderAlgorithm):
         """
         为用户生成推荐列表
         
-        Args:
-            user_id: 用户ID
-            n: 推荐数量
-            exclude_ids: 要排除的物品ID集合
+        :param user_id: 用户ID
+        :param n: 推荐数量
+        :param exclude_ids: 要排除的物品ID集合
             
-        Returns:
-            [(item_id, score), ...] 按 score 降序排列
+        :returns: [(item_id, score), ...] 按 score 降序排列
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")

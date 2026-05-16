@@ -138,23 +138,11 @@ async def scan_custom_modules(request: ScanRequest):
     扫描工作区的 custom/agents/ 和 custom/envs/ 目录（跳过 examples/ 子目录），
     验证发现的模块并将其直接注册到内存中的 registry。
 
-    Args:
-        request: 扫描请求，包含：
-            - workspace_path: 工作区路径（可选，不提供则使用环境变量）
+    :param request: 扫描请求，包含： - workspace_path: 工作区路径（可选，不提供则使用环境变量）
 
-    Returns:
-        ScanResponse: 扫描结果，包含：
-            - success: 是否成功
-            - agents_found: 发现的Agent数量
-            - envs_found: 发现的环境模块数量
-            - agents_generated: 成功注册的Agent数量
-            - envs_generated: 成功注册的环境模块数量
-            - errors: 错误信息列表
-            - message: 结果消息
-
-    Raises:
-        HTTPException: 400 - 未提供工作区路径
-        HTTPException: 500 - 扫描失败
+    :returns: ScanResponse: 扫描结果，包含： - success: 是否成功 - agents_found: 发现的Agent数量 - envs_found: 发现的环境模块数量 - agents_generated: 成功注册的Agent数量 - envs_generated: 成功注册的环境模块数量 - errors: 错误信息列表 - message: 结果消息
+    :raises HTTPException: 400 - 未提供工作区路径
+    :raises HTTPException: 500 - 扫描失败
 
     Note:
         此接口不会生成JSON配置文件，模块仅注册到内存中。
@@ -223,19 +211,11 @@ async def clean_custom_modules(request: ScanRequest):
 
     删除所有标记为 is_custom=true 的JSON配置文件。
 
-    Args:
-        request: 清理请求，包含：
-            - workspace_path: 工作区路径（可选）
+    :param request: 清理请求，包含： - workspace_path: 工作区路径（可选）
 
-    Returns:
-        CleanResponse: 清理结果，包含：
-            - success: 是否成功
-            - removed_count: 删除的配置数量
-            - message: 结果消息
-
-    Raises:
-        HTTPException: 400 - 未提供工作区路径
-        HTTPException: 500 - 清理失败
+    :returns: CleanResponse: 清理结果，包含： - success: 是否成功 - removed_count: 删除的配置数量 - message: 结果消息
+    :raises HTTPException: 400 - 未提供工作区路径
+    :raises HTTPException: 500 - 清理失败
     """
     workspace_path = request.workspace_path or os.getenv("WORKSPACE_PATH")
     if not workspace_path:
@@ -265,26 +245,11 @@ async def test_custom_modules(request: TestRequest):
 
     扫描并测试自定义模块，验证其能否正常工作。可以测试所有模块或指定特定模块。
 
-    Args:
-        request: 测试请求，包含：
-            - workspace_path: 工作区路径（可选）
-            - module_kind: 模块类型 ('agent' 或 'env_module'，可选）
-            - module_class_name: 要测试的类名（与module_kind配合使用，可选）
+    :param request: 测试请求，包含： - workspace_path: 工作区路径（可选） - module_kind: 模块类型 ('agent' 或 'env_module'，可选） - module_class_name: 要测试的类名（与module_kind配合使用，可选）
 
-    Returns:
-        TestResponse: 测试结果，包含：
-            - success: 是否全部通过
-            - test_output: 测试输出内容
-            - error: 错误信息（如有）
-            - returncode: 测试进程返回码
-            - results: 各模块测试结果列表
-            - total_tests: 总测试数
-            - passed_tests: 通过数
-            - failed_tests: 失败数
-
-    Raises:
-        HTTPException: 400 - 未提供工作区路径
-        HTTPException: 500 - 测试失败
+    :returns: TestResponse: 测试结果，包含： - success: 是否全部通过 - test_output: 测试输出内容 - error: 错误信息（如有） - returncode: 测试进程返回码 - results: 各模块测试结果列表 - total_tests: 总测试数 - passed_tests: 通过数 - failed_tests: 失败数
+    :raises HTTPException: 400 - 未提供工作区路径
+    :raises HTTPException: 500 - 测试失败
 
     Note:
         如果不指定 module_kind 和 module_class_name，则测试所有发现的模块。
@@ -422,16 +387,8 @@ async def list_custom_modules():
 
     从内存注册表中读取所有标记为 is_custom=true 的模块信息。
 
-    Returns:
-        ListResponse: 模块列表，包含：
-            - success: 是否成功
-            - agents: 自定义Agent列表
-            - envs: 自定义环境模块列表
-            - total_agents: Agent总数
-            - total_envs: 环境模块总数
-
-    Raises:
-        HTTPException: 500 - 获取列表失败
+    :returns: ListResponse: 模块列表，包含： - success: 是否成功 - agents: 自定义Agent列表 - envs: 自定义环境模块列表 - total_agents: Agent总数 - total_envs: 环境模块总数
+    :raises HTTPException: 500 - 获取列表失败
     """
     try:
         registry = get_registry()
@@ -493,18 +450,8 @@ async def get_custom_modules_status():
 
     返回工作区自定义模块目录的状态信息。
 
-    Returns:
-        Dict[str, Any]: 状态信息，包含：
-            - custom_dir_exists: custom目录是否存在
-            - agents_dir_exists: agents子目录是否存在
-            - envs_dir_exists: envs子目录是否存在
-            - agent_files_count: Agent文件数量
-            - env_files_count: 环境模块文件数量
-            - registered_agents: 已注册的Agent数量
-            - registered_envs: 已注册的环境模块数量
-
-    Raises:
-        HTTPException: 400 - 未设置工作区路径
+    :returns: Dict[str, Any]: 状态信息，包含： - custom_dir_exists: custom目录是否存在 - agents_dir_exists: agents子目录是否存在 - envs_dir_exists: envs子目录是否存在 - agent_files_count: Agent文件数量 - env_files_count: 环境模块文件数量 - registered_agents: 已注册的Agent数量 - registered_envs: 已注册的环境模块数量
+    :raises HTTPException: 400 - 未设置工作区路径
     """
     workspace_path = os.getenv("WORKSPACE_PATH")
     if not workspace_path:
@@ -567,22 +514,11 @@ async def list_available_classes(
 
     返回所有可用的类，并标记哪些已配置预填充参数。
 
-    Args:
-        workspace_path: 工作区路径（必填）
-        include_custom: 是否包含自定义模块，默认True
+    :param workspace_path: 工作区路径（必填）
+    :param include_custom: 是否包含自定义模块，默认True
 
-    Returns:
-        Dict[str, Any]: 可用类列表，包含：
-            - success: 是否成功
-            - env_modules: 环境模块字典，每个模块包含：
-                - type, class_name, description, is_custom, has_prefill
-            - agents: Agent字典，每个Agent包含：
-                - type, class_name, description, is_custom, has_prefill
-            - env_module_count: 环境模块数量
-            - agent_count: Agent数量
-
-    Raises:
-        HTTPException: 500 - 获取类列表失败
+    :returns: Dict[str, Any]: 可用类列表，包含： - success: 是否成功 - env_modules: 环境模块字典，每个模块包含： - type, class_name, description, is_custom, has_prefill - agents: Agent字典，每个Agent包含： - type, class_name, description, is_custom, has_prefill - env_module_count: 环境模块数量 - agent_count: Agent数量
+    :raises HTTPException: 500 - 获取类列表失败
     """
     try:
         registry = get_registry()
@@ -674,17 +610,10 @@ async def rescan_custom_modules(
 
     清除内存中的旧模块并重新扫描工作区的自定义模块。
 
-    Args:
-        workspace_path: 工作区路径（必填）
+    :param workspace_path: 工作区路径（必填）
 
-    Returns:
-        Dict[str, Any]: 扫描结果，包含：
-            - success: 是否成功
-            - scan_result: 扫描详情
-            - message: 结果消息
-
-    Raises:
-        HTTPException: 500 - 重新扫描失败
+    :returns: Dict[str, Any]: 扫描结果，包含： - success: 是否成功 - scan_result: 扫描详情 - message: 结果消息
+    :raises HTTPException: 500 - 重新扫描失败
     """
     try:
         registry = get_registry()

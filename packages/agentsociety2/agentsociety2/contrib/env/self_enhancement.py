@@ -59,8 +59,7 @@ class SelfEnhancementEnv(EnvBase):
         """
         Initialize the Self-Enhancement environment.
 
-        Args:
-            agent_ids: List of agent IDs participating in the experiment
+        :param agent_ids: List of agent IDs participating in the experiment
         """
         super().__init__()
 
@@ -151,13 +150,11 @@ You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to
         """
         Submit percentile ranking for a dimension.
 
-        Args:
-            agent_id: The agent's ID
-            dimension: The dimension name (must be one of: INTELLIGENCE, COOPERATION, APPEARANCE, MORALITY, SOCIABILITY, HEALTH, HONESTY, GENEROSITY)
-            percentile: The percentile ranking (0-100, integer)
+        :param agent_id: The agent's ID
+        :param dimension: The dimension name (must be one of: INTELLIGENCE, COOPERATION, APPEARANCE, MORALITY, SOCIABILITY, HEALTH, HONESTY, GENEROSITY)
+        :param percentile: The percentile ranking (0-100, integer)
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Validate agent_id
@@ -212,11 +209,9 @@ You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to
         """
         Get rankings for a specific agent.
 
-        Args:
-            agent_id: The agent's ID
+        :param agent_id: The agent's ID
 
-        Returns:
-            Response containing current rankings, completed dimensions, and remaining dimensions.
+        :returns: Response containing current rankings, completed dimensions, and remaining dimensions.
         """
         async with self._lock:
             if agent_id not in self.agent_ids:
@@ -240,8 +235,7 @@ You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to
         """
         Get all rankings for all agents (statistics function).
 
-        Returns:
-            Dictionary mapping agent_id to their rankings dictionary.
+        :returns: Dictionary mapping agent_id to their rankings dictionary.
         """
         async with self._lock:
             return {
@@ -262,9 +256,8 @@ You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks (1 tick = 1 second) of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks (1 tick = 1 second) of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.current_datetime = t
@@ -288,8 +281,7 @@ You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to
         """
         Get all rankings results (synchronous method for result extraction).
 
-        Returns:
-            Dictionary mapping agent_id to their rankings dictionary.
+        :returns: Dictionary mapping agent_id to their rankings dictionary.
         """
         return {
             agent_id: rankings.copy()

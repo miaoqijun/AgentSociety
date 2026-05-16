@@ -4,7 +4,7 @@
 
 核心功能：
 
-- **LLM 交互**: 通过 litellm Router 实现与各种 LLM 的统一交互
+- **LLM 交互**: 基类默认使用 **nano** 角色的 litellm Router（见 :meth:`AgentBase.__init__`）
 - **环境交互**: 通过 :class:`~agentsociety2.env.RouterBase` 与仿真环境交互
 - **Token 统计**: 追踪 LLM 调用的 token 使用量
 - **Skill 状态管理**: 支持动态 skill 状态的注册与访问
@@ -100,8 +100,8 @@ class AgentBase(ABC):
 
     所有智能体实现都应继承此类。提供基础功能：
 
-    - LLM 交互（通过 litellm Router）
-    - 环境交互（通过 RouterBase）
+    - LLM 交互：基类在初始化时通过 ``get_llm_router_and_model("nano")`` 绑定 **nano** 角色路由（高频/轻量调用）
+    - 环境交互（通过 :class:`~agentsociety2.env.router_base.RouterBase`，由 :meth:`init` 注入）
     - Token 使用统计
 
     子类必须实现以下抽象方法：

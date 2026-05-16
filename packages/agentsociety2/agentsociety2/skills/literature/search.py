@@ -35,18 +35,16 @@ async def search_literature_and_save(
 ) -> Dict[str, Any]:
     """Search for literature and save results to workspace
 
-    Args:
-        query: Search query (supports Chinese, will be translated to English)
-        workspace_path: Path to workspace directory
-        router: Optional litellm router (will create if not provided)
-        limit: Number of articles to return (default: 10)
-        year_from: Filter by publication year (start)
-        year_to: Filter by publication year (end)
-        sources: Data sources to search (default: all sources)
-        enable_multi_query: Enable multi-query mode to split complex queries into subtopics
+    :param query: Search query (supports Chinese, will be translated to English)
+    :param workspace_path: Path to workspace directory
+    :param router: Optional litellm router (will create if not provided)
+    :param limit: Number of articles to return (default: 10)
+    :param year_from: Filter by publication year (start)
+    :param year_to: Filter by publication year (end)
+    :param sources: Data sources to search (default: all sources)
+    :param enable_multi_query: Enable multi-query mode to split complex queries into subtopics
 
-    Returns:
-        Dictionary with search results and saved file information
+    :returns: Dictionary with search results and saved file information
     """
     if router is None:
         router = get_llm_router("default")
@@ -112,14 +110,12 @@ async def generate_summary(
 ) -> str:
     """Generate a summary using LLM to guide users on next steps
 
-    Args:
-        query: Original search query
-        articles: List of found articles
-        total: Total number of articles found
-        router: LLM router
+    :param query: Original search query
+    :param articles: List of found articles
+    :param total: Total number of articles found
+    :param router: LLM router
 
-    Returns:
-        Generated summary text
+    :returns: Generated summary text
     """
     try:
         # Prepare article summaries for LLM context
@@ -203,12 +199,10 @@ async def _save_literature_to_workspace(
 ) -> List[str]:
     """Save literature search results to workspace papers directory
 
-    Args:
-        result: Literature search result dictionary
-        workspace_path: Path to workspace directory
+    :param result: Literature search result dictionary
+    :param workspace_path: Path to workspace directory
 
-    Returns:
-        List of saved file paths
+    :returns: List of saved file paths
     """
     if not workspace_path:
         logger.warning("Workspace path not set, cannot save literature files")
@@ -340,13 +334,11 @@ async def _save_literature_to_workspace(
 def format_search_results(articles: list, total: int, query: str) -> str:
     """Format search results for display
 
-    Args:
-        articles: List of article dictionaries
-        total: Total number of articles
-        query: Search query
+    :param articles: List of article dictionaries
+    :param total: Total number of articles
+    :param query: Search query
 
-    Returns:
-        Formatted string for display
+    :returns: Formatted string for display
     """
     if not articles:
         return f"No articles found related to '{query}'."
@@ -396,11 +388,9 @@ def format_search_results(articles: list, total: int, query: str) -> str:
 def load_literature_index(workspace_path: Path) -> Optional[LiteratureIndex]:
     """Load literature index from workspace
 
-    Args:
-        workspace_path: Path to workspace directory
+    :param workspace_path: Path to workspace directory
 
-    Returns:
-        LiteratureIndex object or None if file doesn't exist
+    :returns: LiteratureIndex object or None if file doesn't exist
     """
     json_filepath = workspace_path / "papers" / "literature_index.json"
     if not json_filepath.exists():

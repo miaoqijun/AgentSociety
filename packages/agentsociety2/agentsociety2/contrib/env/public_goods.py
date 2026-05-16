@@ -53,10 +53,9 @@ class PublicGoodsEnv(EnvBase):
     ):
         """Initialize environment
         
-        Args:
-            num_agents: Number of agents (default: 4)
-            initial_endowment: Initial coins per agent per round (default: 20)
-            public_pool_multiplier: Multiplier for public pool contributions (default: 1.6)
+        :param num_agents: Number of agents (default: 4)
+        :param initial_endowment: Initial coins per agent per round (default: 20)
+        :param public_pool_multiplier: Multiplier for public pool contributions (default: 1.6)
         """
         super().__init__()
 
@@ -146,12 +145,10 @@ Submissions are final - cannot change contribution after submitting.
         The total public fund is multiplied and divided equally among all players.
         Each agent's round gain = (coins not contributed) + (share of multiplied public fund).
 
-        Args:
-            agent_name: The agent's name (should be in format "Agent-{id}", e.g., "Agent-1")
-            contribution: The contribution amount (0 to initial_endowment)
+        :param agent_name: The agent's name (should be in format "Agent-{id}", e.g., "Agent-1")
+        :param contribution: The contribution amount (0 to initial_endowment)
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Validate contribution
@@ -185,15 +182,9 @@ Submissions are final - cannot change contribution after submitting.
         Each round summary contains: round number, total contribution, public pool gain, and payoffs for each agent.
         History helps agents understand past contributions and outcomes to make better decisions.
 
-        Args:
-            round_num: Optional round number. If None, returns all rounds.
+        :param round_num: Optional round number. If None, returns all rounds.
 
-        Returns:
-            List of round summaries. Each summary contains:
-            - round: Round number
-            - total_contribution: Total coins contributed by all agents
-            - public_pool_gain: Total public fund after multiplication
-            - payoffs: Dictionary mapping agent names to their round gains
+        :returns: List of round summaries. Each summary contains: - round: Round number - total_contribution: Total coins contributed by all agents - public_pool_gain: Total public fund after multiplication - payoffs: Dictionary mapping agent names to their round gains
         """
         async with self._lock:
             if round_num is not None:
@@ -220,9 +211,8 @@ Submissions are final - cannot change contribution after submitting.
         All submissions for the current round are processed and the round is executed here,
         ensuring atomicity and consistent state for the next round.
         
-        Args:
-            tick: The number of ticks of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.t = t

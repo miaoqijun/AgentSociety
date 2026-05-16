@@ -100,20 +100,20 @@ class PersonAgent(AgentBase):
         :param profile: 画像对象（dict 或可序列化对象）。
         :param name: 可选显示名。
         :param init_state: 可选初始状态（会写入 workspace，默认不覆盖已存在文件）。
-        :param capability_kwargs: 行为/能力参数（节选）：
+        :param capability_kwargs: 传入 :meth:`AgentConfig.from_kwargs` 的扁平参数（节选）：
 
             - ``max_tool_rounds``：单步最大工具轮数（默认 24）
             - ``preload_workspace_paths``：预读文件列表（注入 system prompt 的 workspace 快照）
             - ``thread_key_state_paths``：thread 压缩时附带的 KEY_STATE_JSON 文件路径列表
             - ``system_prompt_max_identity_chars``：Agent Identity JSON 总长度上限（默认 10000）
-            - ``workspace_read_chunk_chars``：``workspace_read`` / ``read_skill`` 单段最大字符数（默认 32768，上限 96000）
+            - ``workspace_read_chunk_chars``：``workspace_read`` / ``read_skill`` 单段最大字符数（默认 32000，允许 1024–96000）
             - ``tool_result_thread_budget_chars``：单条 TOOL_RESULT_JSON 序列化预算（默认 65536）
-            - ``profile_truncate_chars``：profile 超过该长度时截断再进 Identity（默认 8000）
-            - ``bash_timeout_retries``：bash 超时后的额外重试次数（默认 1，即最多 2 次执行）
+            - ``profile_max_chars`` / ``profile_truncate_chars``：profile 写入 Identity 前的截断上限（默认 4000）
+            - ``bash_retries`` / ``bash_timeout_retries``：bash 超时后的额外重试次数（写入 ``LoopConfig.bash_retries``，默认 1，即共 2 次执行）
             - ``llm_transient_retries``：thread 压缩等直连 ``acompletion`` 遇瞬时错误时的最大重试次数（默认 2）
             - ``tool_decision_max_retries``：传给 ``acompletion_with_pydantic_validation`` 的 max_retries（默认 10）
             - ``model`` / ``llm_model``：LiteLLM 路由模型名（用于 token_counter 与 tiktoken 回退）
-            - ``tiktoken_encoding``：强制指定 tiktoken 编码名（可选）
+            - ``tiktoken_encoding``：强制指定 tiktoken 编码名（默认 ``cl100k_base``）
         """
         super().__init__(id=id, profile=profile, name=name)
         self._agent_state: dict[str, Any] = self._coerce_llm_dict(init_state)

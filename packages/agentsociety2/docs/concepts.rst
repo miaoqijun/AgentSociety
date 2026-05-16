@@ -79,7 +79,6 @@ AgentSociety 2 围绕三个主要组件构建：
            style=filled;
            color=lavender;
            LLM [label="LLM Provider"];
-           Memory [label="mem0 (遥测已禁用)"];
        }
 
        CLI -> Society;

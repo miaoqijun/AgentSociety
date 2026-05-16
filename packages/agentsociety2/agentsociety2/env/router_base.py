@@ -14,18 +14,17 @@
 - :class:`~agentsociety2.env.ReActRouter` — ReAct 模式的路由器
 - :class:`~agentsociety2.env.PlanExecuteRouter` — 计划执行模式路由器
 - :class:`~agentsociety2.env.CodeGenRouter` — 代码生成模式路由器
+- :class:`~agentsociety2.env.TwoTierReActRouter` / :class:`~agentsociety2.env.TwoTierPlanExecuteRouter` — 两层路由
+- :class:`~agentsociety2.env.SearchToolRouter` — 带搜索工具的路由
 
 Example::
 
-    from agentsociety2.env import RouterBase, ReActRouter
+    from agentsociety2.env import ReActRouter
 
-    # 创建路由器
     router = ReActRouter(env_modules=[env1, env2])
-
-    # 初始化
     await router.init(start_datetime)
 
-    # 执行查询
+    ctx: dict = {}
     ctx, answer = await router.ask(ctx, "查询天气信息", readonly=True)
 """
 
@@ -723,13 +722,7 @@ Your corrected response:
         completed in the environment modules, or needs to wait for some time
         before the user actively checks completion.
 
-        Returns:
-            Dictionary mapping status values to their descriptions:
-            - success: The task has been completed successfully. All required operations finished without errors.
-            - in_progress: The task is still being executed or more steps are needed. The agent need to check whether it is done in the next steps.
-            - fail: The task could not be completed (e.g., unsupported instruction, missing data, invalid input). Include detailed reason in results.
-            - error: An error occurred during code execution. Must include error details in results['error'].
-            - unknown: Execution status unknown
+        :returns: Dictionary mapping status values to their descriptions: - success: The task has been completed successfully. All required operations finished without errors. - in_progress: The task is still being executed or more steps are needed. The agent need to check whether it is done in the next steps. - fail: The task could not be completed (e.g., unsupported instruction, missing data, invalid input). Include detailed reason in results. - error: An error occurred during code execution. Must include error details in results['error']. - unknown: Execution status unknown
         """
         return {
             "success": "The task has been completed successfully. All required operations finished without errors.",
@@ -761,8 +754,7 @@ Your corrected response:
         3. 每个工具的功能和用途
         4. 如何正确使用这些工具来实现目标
 
-        Returns:
-            str: 生成的世界描述文本，可直接作为PersonAgent的world_description参数
+        :returns: str: 生成的世界描述文本，可直接作为PersonAgent的world_description参数
         """
         logger = get_logger()
         logger.info("\n【生成世界描述】从环境工具信息生成world_description...")
@@ -919,8 +911,7 @@ Your generated world description:"""
         返回所有工具，不进行任何过滤。
         同时收集所有工具函数的参数类型和返回值类型中的 Pydantic BaseModel。
 
-        Returns:
-            按模块组织的工具信息字典，使用 Pydantic 模型定义
+        :returns: 按模块组织的工具信息字典，使用 Pydantic 模型定义
         """
         parser = FunctionParser()
         # 重置 collector，准备收集新的模型
@@ -986,13 +977,11 @@ Your generated world description:"""
         """
         根据 readonly 和 kind 过滤工具信息。
 
-        Args:
-            tools_info: 完整的工具信息字典
-            readonly: 是否只读模式（None 表示不过滤）
-            kind: 工具类型筛选（None 表示不过滤），如 "observe" 或 "statistics"
+        :param tools_info: 完整的工具信息字典
+        :param readonly: 是否只读模式（None 表示不过滤）
+        :param kind: 工具类型筛选（None 表示不过滤），如 "observe" 或 "statistics"
 
-        Returns:
-            过滤后的工具信息字典
+        :returns: 过滤后的工具信息字典
         """
         filtered_info: ToolsInfoDict = {}
 
@@ -1024,8 +1013,7 @@ Your generated world description:"""
 
         这些模型是在调用 _collect_tools_info() 时从工具函数的参数类型和返回值类型中收集的。
 
-        Returns:
-            字典，key 是 BaseModel 类型，value 是其源代码
+        :returns: 字典，key 是 BaseModel 类型，value 是其源代码
         """
         return self._pydantic_collector.get_collected_models()
 
@@ -1040,11 +1028,9 @@ Your generated world description:"""
         2. 下方：模块类的 class XXX 及其 docstring（描述变成 docstring）
         3. 在 class 中包含相关函数的签名和 docstring
 
-        Args:
-            modules_info: 按模块组织的工具信息字典（使用新的 Pydantic 模型）
+        :param modules_info: 按模块组织的工具信息字典（使用新的 Pydantic 模型）
 
-        Returns:
-            格式化的 Python 代码字符串（类似 pyi 文件）
+        :returns: 格式化的 Python 代码字符串（类似 pyi 文件）
         """
         # 收集所有相关的 pydantic BaseModel
         pydantic_models = self.get_collected_pydantic_models()
@@ -1129,18 +1115,14 @@ Your generated world description:"""
         使用LLM总结为一个answer，并确定执行状态。
         使用JSON格式返回，通过Pydantic model验证。
 
-        Args:
-            ctx: 上下文字典，包含环境变量等信息
-            instruction: 用户的原始指令
-            results: Router执行的结果字典
-            process_text: 过程文本（可选），描述执行过程的文本信息
-            status: 初步的执行状态（可能被LLM更新）
-            error: 错误信息（如果有）
+        :param ctx: 上下文字典，包含环境变量等信息
+        :param instruction: 用户的原始指令
+        :param results: Router执行的结果字典
+        :param process_text: 过程文本（可选），描述执行过程的文本信息
+        :param status: 初步的执行状态（可能被LLM更新）
+        :param error: 错误信息（如果有）
 
-        Returns:
-            Tuple[str, str]: (final_answer, determined_status)
-                - final_answer: LLM生成的最终答案（summary文本）
-                - determined_status: 确定的执行状态（success/in_progress/fail/error）
+        :returns: Tuple[str, str]: (final_answer, determined_status) - final_answer: LLM生成的最终答案（summary文本） - determined_status: 确定的执行状态（success/in_progress/fail/error）
         """
         # logger.debug(
         #     f"RouterBase: Generating final answer - instruction: {instruction[:100]}..., "

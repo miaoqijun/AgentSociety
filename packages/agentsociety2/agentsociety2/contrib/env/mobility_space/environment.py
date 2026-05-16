@@ -169,11 +169,10 @@ class MobilitySpace(EnvBase):
         """
         Initialize the Environment.
 
-        Args:
-            file_path: The path to the map file.
-            home_dir: The home directory of the environment.
-            persons: The persons to initialize the environment with. Can be a list of MobilityPersonInit objects or dicts.
-            poi_search_limit: The limit of POIs to search.
+        :param file_path: The path to the map file.
+        :param home_dir: The home directory of the environment.
+        :param persons: The persons to initialize the environment with. Can be a list of MobilityPersonInit objects or dicts.
+        :param poi_search_limit: The limit of POIs to search.
         """
         super().__init__()
 
@@ -285,8 +284,7 @@ class MobilitySpace(EnvBase):
         """
         Record the current position of a person to their trajectory.
 
-        Args:
-            person_id: The ID of the person
+        :param person_id: The ID of the person
         """
         if person_id not in self._persons:
             return
@@ -312,11 +310,9 @@ class MobilitySpace(EnvBase):
         """
         Get the recorded trajectory of a person.
 
-        Args:
-            person_id: The ID of the person
+        :param person_id: The ID of the person
 
-        Returns:
-            List of (x, y) coordinates
+        :returns: List of (x, y) coordinates
         """
         return self._person_trajectories.get(person_id, [])
 
@@ -324,11 +320,9 @@ class MobilitySpace(EnvBase):
         """
         Get the set of AOIs visited by a person.
 
-        Args:
-            person_id: The ID of the person
+        :param person_id: The ID of the person
 
-        Returns:
-            Set of AOI IDs
+        :returns: Set of AOI IDs
         """
         return self._person_visited_aois.get(person_id, set())
 
@@ -336,8 +330,7 @@ class MobilitySpace(EnvBase):
         """
         Get trajectories for all persons.
 
-        Returns:
-            Dict mapping person_id to list of (x, y) coordinates
+        :returns: Dict mapping person_id to list of (x, y) coordinates
         """
         return self._person_trajectories.copy()
 
@@ -345,8 +338,7 @@ class MobilitySpace(EnvBase):
         """
         Get visited AOIs for all persons.
 
-        Returns:
-            Dict mapping person_id to set of AOI IDs
+        :returns: Dict mapping person_id to set of AOI IDs
         """
         return {pid: aois.copy() for pid, aois in self._person_visited_aois.items()}
 
@@ -535,11 +527,9 @@ class MobilitySpace(EnvBase):
         """
         Get the current location and status of a person, including position, movement state, and trip progress.
 
-        Args:
-            person_id: The ID of the person to query
+        :param person_id: The ID of the person to query
 
-        Returns:
-            The context containing detailed location and movement information
+        :returns: The context containing detailed location and movement information
         """
         if person_id not in self._persons:
             raise ValueError(f"Person {person_id} not found")
@@ -571,13 +561,11 @@ class MobilitySpace(EnvBase):
         """
         Plan and start a trip for a person to move to a specific AOI or POI.
 
-        Args:
-            person_id: The ID of the person to move
-            aoi_id_or_poi_id: The target location ID (AOI ID or POI ID starting from 700000000)
-            mode: The travel mode (walking or driving)
+        :param person_id: The ID of the person to move
+        :param aoi_id_or_poi_id: The target location ID (AOI ID or POI ID starting from 700000000)
+        :param mode: The travel mode (walking or driving)
 
-        Returns:
-            Empty response indicating success
+        :returns: Empty response indicating success
         """
         if person_id not in self._persons:
             raise ValueError(f"Person {person_id} not found")
@@ -707,30 +695,12 @@ class MobilitySpace(EnvBase):
         """
         Discover Points of Interest (POIs) near a location, filtered by category and distance.
 
-        Args:
-            x: The longitude (x coordinate) of the search center
-            y: The latitude (y coordinate) of the search center
-            category: POI category filter - first-level (e.g., 'restaurant'), second-level (e.g., 'cafe'), or None for all categories.
-                Available first-level categories (with examples):
-                  - 'children_playground': playground, summer_camp, miniature_golf, dog_park
-                  - 'cultural_and_artistic': arts_centre, brothel, casino, cinema, community_centre
-                  - 'education_institution': college, dancing_school, driving_school, first_aid_school, kindergarten
-                  - 'financial_service': atm, payment_terminal, bank, bureau_de_change, money_transfer
-                  - 'indoor_entertainment': adult_gaming_centre, amusement_arcade, bowling_alley, disc_golf_course, escape_game
-                  - 'medical_care': baby_hatch, clinic, dentist, doctors, hospital
-                  - 'nature_and_wildlife_observation': bird_hide, nature_reserve, wildlife_hide, hunting_stand
-                  - 'other_special_purpose': animal_boarding, animal_breeding, animal_shelter, animal_training, baking_oven
-                  - 'outdoor_activity': bandstand, beach_resort, bird_hide, bleachers, firepit
-                  - 'public_service': bbq, bench, dog_toilet, dressing_room, drinking_water
-                  - 'restaurant': bar, biergarten, cafe, fast_food, food_court
-                  - 'sports_facility': horse_riding, ice_rink, marina, pitch, sports_centre
-                  - 'transportation_facility': bicycle_parking, bicycle_repair_station, bicycle_rental, bicycle_wash, boat_rental
-                  - 'water_activity': beach_resort, ice_rink, marina, slipway, swimming_area
-                You can also use any first-level category or second-level category directly (e.g., 'children_playground' 'cafe', 'park', 'hospital').
-            radius: Search radius in meters (e.g., 1000 for 1km)
+        :param x: The longitude (x coordinate) of the search center
+        :param y: The latitude (y coordinate) of the search center
+        :param category: POI category filter - first-level (e.g., 'restaurant'), second-level (e.g., 'cafe'), or None for all categories. Available first-level categories (with examples): - 'children_playground': playground, summer_camp, miniature_golf, dog_park - 'cultural_and_artistic': arts_centre, brothel, casino, cinema, community_centre - 'education_institution': college, dancing_school, driving_school, first_aid_school, kindergarten - 'financial_service': atm, payment_terminal, bank, bureau_de_change, money_transfer - 'indoor_entertainment': adult_gaming_centre, amusement_arcade, bowling_alley, disc_golf_course, escape_game - 'medical_care': baby_hatch, clinic, dentist, doctors, hospital - 'nature_and_wildlife_observation': bird_hide, nature_reserve, wildlife_hide, hunting_stand - 'other_special_purpose': animal_boarding, animal_breeding, animal_shelter, animal_training, baking_oven - 'outdoor_activity': bandstand, beach_resort, bird_hide, bleachers, firepit - 'public_service': bbq, bench, dog_toilet, dressing_room, drinking_water - 'restaurant': bar, biergarten, cafe, fast_food, food_court - 'sports_facility': horse_riding, ice_rink, marina, pitch, sports_centre - 'transportation_facility': bicycle_parking, bicycle_repair_station, bicycle_rental, bicycle_wash, boat_rental - 'water_activity': beach_resort, ice_rink, marina, slipway, swimming_area You can also use any first-level category or second-level category directly (e.g., 'children_playground' 'cafe', 'park', 'hospital').
+        :param radius: Search radius in meters (e.g., 1000 for 1km)
 
-        Returns:
-            Structured data containing POI list with IDs, names, categories, positions, and distances
+        :returns: Structured data containing POI list with IDs, names, categories, positions, and distances
         """
         pois = self._get_around_pois(
             center=(x, y),
@@ -756,11 +726,9 @@ class MobilitySpace(EnvBase):
         """
         Retrieve detailed information about a specific Point of Interest.
 
-        Args:
-            poi_id: The unique ID of the POI (starts from 700000000)
+        :param poi_id: The unique ID of the POI (starts from 700000000)
 
-        Returns:
-            Structured data containing POI details (ID, name, category, position)
+        :returns: Structured data containing POI details (ID, name, category, position)
         """
         poi = self._map.get_poi(poi_id)
         if poi is None:
@@ -793,9 +761,8 @@ class MobilitySpace(EnvBase):
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks (1 tick = 1 second) of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks (1 tick = 1 second) of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         # Update all moving persons
         for person in self._persons.values():
@@ -852,8 +819,7 @@ class MobilitySpace(EnvBase):
         """
         Dump the internal state of MobilitySpace for serialization.
 
-        Returns:
-            dict: A dictionary containing all necessary state information
+        :returns: dict: A dictionary containing all necessary state information
         """
         # Serialize persons
         persons_data = {}
@@ -876,8 +842,7 @@ class MobilitySpace(EnvBase):
         """
         Load the internal state of MobilitySpace from serialized data.
 
-        Args:
-            state: The state dictionary produced by _dump_state()
+        :param state: The state dictionary produced by _dump_state()
         """
         # Restore configuration parameters
         self._poi_search_limit = state.get("poi_search_limit", 10)

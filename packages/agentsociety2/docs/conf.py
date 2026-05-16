@@ -4,8 +4,16 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import tomllib
+import os
 from datetime import datetime
 from pathlib import Path
+
+# Autodoc imports modules at documentation build time. The runtime validates
+# LLM credentials on import, so provide harmless OpenAI-compatible placeholders
+# for ReadTheDocs/local docs builds when the user has not configured real keys.
+os.environ.setdefault("AGENTSOCIETY_LLM_API_KEY", "docs-build-placeholder")
+os.environ.setdefault("AGENTSOCIETY_LLM_API_BASE", "https://api.openai.com/v1")
+os.environ.setdefault("AGENTSOCIETY_LLM_MODEL", "gpt-5.5")
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information

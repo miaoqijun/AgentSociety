@@ -33,12 +33,10 @@ ALLOWED_ENV_VARS = frozenset(
 def _int(name: str, default: int) -> int:
     """将环境变量解析为有符号十进制整数。
 
-    Args:
-        name: 环境变量名。
-        default: 未设置或解析失败时的返回值。
+    :param name: 环境变量名。
+    :param default: 未设置或解析失败时的返回值。
 
-    Returns:
-        解析得到的整数，或 ``default``。
+    :returns: 解析得到的整数，或 ``default``。
     """
     try:
         return int(os.getenv(name, str(default)))
@@ -97,11 +95,9 @@ DEFAULT_MODEL_CONTEXT_WINDOW = 200_000
 def _litellm_max_input_tokens(model: str) -> Optional[int]:
     """调用 LiteLLM ``get_model_info`` 读取 ``max_input_tokens``。
 
-    Args:
-        model: LiteLLM 模型名（可含 ``provider/model`` 形式）。
+    :param model: LiteLLM 模型名（可含 ``provider/model`` 形式）。
 
-    Returns:
-        正整数表示输入侧上下文上限；未知模型或异常时为 ``None``。
+    :returns: 正整数表示输入侧上下文上限；未知模型或异常时为 ``None``。
     """
     name = (model or "").strip()
     if not name:
@@ -123,11 +119,9 @@ def input_token_budget(total_context_tokens: int) -> int:
 
     预留为 ``total`` 的 12%，并夹在 ``4096`` 与 ``72000`` 之间，再从 ``total`` 中扣除。
 
-    Args:
-        total_context_tokens: 模型声明的总上下文长度（tokens）。
+    :param total_context_tokens: 模型声明的总上下文长度（tokens）。
 
-    Returns:
-        输入预算（tokens），不低于 :data:`MIN_USABLE_CONTEXT_TOKENS`。
+    :returns: 输入预算（tokens），不低于 :data:`MIN_USABLE_CONTEXT_TOKENS`。
     """
     total = max(MIN_USABLE_CONTEXT_TOKENS, int(total_context_tokens))
     reserve = max(4_096, min(72_000, int(total * 0.12)))
@@ -153,8 +147,7 @@ class ModelConfig:
     def declared_context_window(self) -> int:
         """声明的总上下文 token 上限（含下限裁剪）。
 
-        Returns:
-            总上下文 tokens，至少为 :data:`MIN_USABLE_CONTEXT_TOKENS`。
+        :returns: 总上下文 tokens，至少为 :data:`MIN_USABLE_CONTEXT_TOKENS`。
         """
         if self.context_window is not None:
             return max(MIN_USABLE_CONTEXT_TOKENS, int(self.context_window))
@@ -169,8 +162,7 @@ class ModelConfig:
     def effective_window(self) -> int:
         """输入侧 token 预算（thread 压缩与利用率分母）。
 
-        Returns:
-            :func:`input_token_budget` 作用于 :meth:`declared_context_window` 的结果。
+        :returns: :func:`input_token_budget` 作用于 :meth:`declared_context_window` 的结果。
         """
         return input_token_budget(self.declared_context_window)
 
@@ -290,8 +282,7 @@ class StateConfig:
     def get_all_states(self) -> dict[str, tuple[str, str]]:
         """合并内置与扩展状态映射。
 
-        Returns:
-            状态名到 ``(json 文件名, 摘要字段名)`` 的浅拷贝。
+        :returns: 状态名到 ``(json 文件名, 摘要字段名)`` 的浅拷贝。
         """
         result = dict(self.builtin_states)
         result.update(self.extra_states)
@@ -326,8 +317,7 @@ class AgentConfig:
         ``AGENT_STEP_TIMEOUT``、``AGENT_LLM_REQUEST_TIMEOUT``（单次补全超时秒数，0/none 关闭）、
         ``AGENT_CHECKPOINT_INTERVAL``。
 
-        Returns:
-            新构建的 ``AgentConfig``。
+        :returns: 新构建的 ``AgentConfig``。
         """
         cw: Optional[int] = None
         if "AGENT_CONTEXT_WINDOW" in os.environ:
@@ -356,11 +346,11 @@ class AgentConfig:
     def from_kwargs(cls, kwargs: dict | None = None) -> "AgentConfig":
         """将约定字段名写入各子配置。
 
-        Args:
-            kwargs: 例如 ``model``、``context_window``、``max_tool_rounds``；``None`` 视为空映射。
+        :param kwargs: 例如 ``model``、``context_window``、``max_tool_rounds``、``llm_transient_retries``、
+            ``tool_decision_max_retries``、``bash_retries`` / ``bash_timeout_retries``、``tiktoken_encoding``；
+            ``None`` 视为空映射。
 
-        Returns:
-            新构建的 ``AgentConfig``。未识别的键忽略；数值字段会裁剪到允许范围。
+        :returns: 新构建的 ``AgentConfig``。未识别的键忽略；数值字段会裁剪到允许范围。
         """
         raw = kwargs or {}
         if not isinstance(raw, dict) or not raw:
@@ -414,6 +404,25 @@ class AgentConfig:
                     cfg.loop.llm_request_timeout = f if f > 0 else None
                 except (TypeError, ValueError):
                     pass
+
+        if "llm_transient_retries" in raw:
+            cfg.loop.llm_transient_retries = max(
+                0,
+                _as_int(
+                    raw.get("llm_transient_retries"), cfg.loop.llm_transient_retries
+                ),
+            )
+        if "tool_decision_max_retries" in raw:
+            cfg.loop.tool_decision_max_retries = max(
+                0,
+                _as_int(
+                    raw.get("tool_decision_max_retries"),
+                    cfg.loop.tool_decision_max_retries,
+                ),
+            )
+        if "bash_retries" in raw or "bash_timeout_retries" in raw:
+            v = raw.get("bash_retries", raw.get("bash_timeout_retries"))
+            cfg.loop.bash_retries = max(0, _as_int(v, cfg.loop.bash_retries))
 
         if "preload_workspace_paths" in raw:
             cfg.context.preload_workspace_paths = _as_list_str(
@@ -473,15 +482,18 @@ class AgentConfig:
             cw = _as_int(v, cfg.model.declared_context_window)
             cfg.model.context_window = max(MIN_USABLE_CONTEXT_TOKENS, cw)
 
+        if "tiktoken_encoding" in raw:
+            enc = str(raw.get("tiktoken_encoding") or "").strip()
+            if enc:
+                cfg.context.tiktoken_encoding = enc
+
         cfg._sync_context_window_budget()
         return cfg
 
     def to_dict(self) -> dict:
         """将子配置序列化为可 JSON 化的嵌套字典。
 
-        Returns:
-            含 ``model``、``loop``、``context``、``persistence``、``concurrency``、
-            ``loop_detection`` 键；不含 ``workspace_path`` 与 ``state``。
+        :returns: 含 ``model``、``loop``、``context``、``persistence``、``concurrency``、 ``loop_detection`` 键；不含 ``workspace_path`` 与 ``state``。
         """
         import dataclasses
 

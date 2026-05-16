@@ -28,14 +28,12 @@ def wait_for_port(host: str, port: int, timeout: float = 30.0, check_interval: f
     """
     Wait for a port to become available (listening).
     
-    Args:
-        host: The host to check (e.g., "localhost" or "127.0.0.1")
-        port: The port number to check
-        timeout: Maximum time to wait in seconds (default: 30.0)
-        check_interval: Time between checks in seconds (default: 0.5)
+    :param host: The host to check (e.g., "localhost" or "127.0.0.1")
+    :param port: The port number to check
+    :param timeout: Maximum time to wait in seconds (default: 30.0)
+    :param check_interval: Time between checks in seconds (default: 0.5)
     
-    Returns:
-        True if the port becomes available within the timeout, False otherwise
+    :returns: True if the port becomes available within the timeout, False otherwise
     """
     start_time = time.time()
     while time.time() - start_time < timeout:

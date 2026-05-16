@@ -202,9 +202,8 @@ class ImplicitAssociationTestEnv(EnvBase):
         """
         Initialize the Implicit Association Test environment.
 
-        Args:
-            agent_ids: List of agent IDs participating in the experiment
-            trials: Optional custom trial sequence. If None, uses STANDARD_TRIALS
+        :param agent_ids: List of agent IDs participating in the experiment
+        :param trials: Optional custom trial sequence. If None, uses STANDARD_TRIALS
         """
         super().__init__()
 
@@ -322,11 +321,9 @@ The IAT consists of 5 blocks with a total of {self.total_trials} trials:
         """
         Get the next trial information for an agent.
 
-        Args:
-            agent_id: The agent's ID
+        :param agent_id: The agent's ID
 
-        Returns:
-            TrialInfo containing trial details
+        :returns: TrialInfo containing trial details
         """
         async with self._lock:
             if agent_id not in self.agent_ids:
@@ -367,14 +364,12 @@ The IAT consists of 5 blocks with a total of {self.total_trials} trials:
         """
         Submit response for a trial.
 
-        Args:
-            agent_id: The agent's ID
-            trial_id: The trial ID (from get_next_trial)
-            key_press: The pressed key ("z" or "m")
-            rt: Response time in seconds
+        :param agent_id: The agent's ID
+        :param trial_id: The trial ID (from get_next_trial)
+        :param key_press: The pressed key ("z" or "m")
+        :param rt: Response time in seconds
 
-        Returns:
-            SubmitTrialResponse containing correctness and status
+        :returns: SubmitTrialResponse containing correctness and status
         """
         async with self._lock:
             # Validate agent_id
@@ -449,11 +444,9 @@ The IAT consists of 5 blocks with a total of {self.total_trials} trials:
         """
         Get progress for a specific agent.
 
-        Args:
-            agent_id: The agent's ID
+        :param agent_id: The agent's ID
 
-        Returns:
-            Dictionary containing progress information
+        :returns: Dictionary containing progress information
         """
         async with self._lock:
             if agent_id not in self.agent_ids:
@@ -487,8 +480,7 @@ The IAT consists of 5 blocks with a total of {self.total_trials} trials:
         """
         Get progress for all agents.
 
-        Returns:
-            Dictionary mapping agent_id to progress information
+        :returns: Dictionary mapping agent_id to progress information
         """
         async with self._lock:
             result = {}
@@ -528,9 +520,8 @@ The IAT consists of 5 blocks with a total of {self.total_trials} trials:
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks (1 tick = 1 second) of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks (1 tick = 1 second) of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.current_datetime = t
@@ -575,8 +566,7 @@ The IAT consists of 5 blocks with a total of {self.total_trials} trials:
         """
         Get all trial responses (synchronous method for result extraction).
 
-        Returns:
-            Dictionary mapping agent_id to list of response dictionaries
+        :returns: Dictionary mapping agent_id to list of response dictionaries
         """
         return {
             agent_id: [response.copy() for response in responses]

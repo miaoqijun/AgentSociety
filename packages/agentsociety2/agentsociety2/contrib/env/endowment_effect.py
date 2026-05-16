@@ -48,8 +48,7 @@ class EndowmentEffectEnv(EnvBase):
         """
         Initialize the Endowment Effect environment.
 
-        Args:
-            agent_ids: List of agent IDs participating in the experiment
+        :param agent_ids: List of agent IDs participating in the experiment
         """
         super().__init__()
 
@@ -134,14 +133,12 @@ You need to evaluate 4 items: pen, plate, glass, and doll. For each item, you ne
         """
         Submit WTA and WTP evaluation for an item.
 
-        Args:
-            agent_id: The agent's ID
-            item: The item name (must be one of: "pen", "plate", "glass", "doll")
-            wta: Willingness to Accept price (non-negative number)
-            wtp: Willingness to Pay price (non-negative number)
+        :param agent_id: The agent's ID
+        :param item: The item name (must be one of: "pen", "plate", "glass", "doll")
+        :param wta: Willingness to Accept price (non-negative number)
+        :param wtp: Willingness to Pay price (non-negative number)
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Validate agent_id
@@ -191,11 +188,9 @@ You need to evaluate 4 items: pen, plate, glass, and doll. For each item, you ne
         """
         Get evaluations submitted by a specific agent.
 
-        Args:
-            agent_id: The agent's ID
+        :param agent_id: The agent's ID
 
-        Returns:
-            Response containing current evaluations, completed items, and remaining items.
+        :returns: Response containing current evaluations, completed items, and remaining items.
         """
         async with self._lock:
             if agent_id not in self.agent_ids:
@@ -221,8 +216,7 @@ You need to evaluate 4 items: pen, plate, glass, and doll. For each item, you ne
         """
         Get all agents' evaluations.
 
-        Returns:
-            Dictionary of all evaluations: {agent_id: {item: {"wta": float, "wtp": float}}}
+        :returns: Dictionary of all evaluations: {agent_id: {item: {"wta": float, "wtp": float}}}
         """
         async with self._lock:
             # Return a deep copy to prevent external modifications
@@ -244,9 +238,8 @@ You need to evaluate 4 items: pen, plate, glass, and doll. For each item, you ne
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks (1 tick = 1 second) of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks (1 tick = 1 second) of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.current_datetime = t
@@ -273,8 +266,7 @@ You need to evaluate 4 items: pen, plate, glass, and doll. For each item, you ne
         """
         Get all evaluation results (synchronous method for result extraction).
 
-        Returns:
-            Dictionary of all evaluations: {agent_id: {item: {"wta": float, "wtp": float}}}
+        :returns: Dictionary of all evaluations: {agent_id: {item: {"wta": float, "wtp": float}}}
         """
         return {
             agent_id: {item: eval_data.copy() for item, eval_data in items.items()}

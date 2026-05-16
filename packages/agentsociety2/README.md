@@ -44,7 +44,7 @@ pip install agentsociety2
 ### Requirements
 
 - Python >= 3.11
-- An LLM API key (OpenAI, Anthropic, or any provider supported by litellm)
+- An LLM API key (OpenAI, Anthropic, or any provider supported by LiteLLM)
 
 ## Quick Start
 
@@ -270,7 +270,7 @@ Legacy SQLite tables like `agent_profile`, `agent_status`, and `agent_dialog` ar
 
 ## Configuration
 
-Set your LLM API credentials via environment variables:
+Set your LLM API credentials via environment variables. The examples below use the OpenAI API endpoint and `gpt-5.5`; other LiteLLM-supported providers can be used by changing the base URL and model id.
 
 **Required Configuration**
 
@@ -278,7 +278,7 @@ Set your LLM API credentials via environment variables:
 # Default LLM (required - used for most operations)
 export AGENTSOCIETY_LLM_API_KEY="your-api-key"
 export AGENTSOCIETY_LLM_API_BASE="https://api.openai.com/v1"
-export AGENTSOCIETY_LLM_MODEL="gpt-5.4"
+export AGENTSOCIETY_LLM_MODEL="gpt-5.5"
 ```
 
 **Optional Configuration**
@@ -290,13 +290,13 @@ For specialized tasks, you can configure separate LLM instances:
 # Falls back to default LLM if not set
 export AGENTSOCIETY_CODER_LLM_API_KEY="your-coder-api-key"
 export AGENTSOCIETY_CODER_LLM_API_BASE="https://api.openai.com/v1"
-export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.4"
+export AGENTSOCIETY_CODER_LLM_MODEL="gpt-5.5"
 
 # Nano LLM (for high-frequency, low-latency operations)
 # Falls back to default LLM if not set
 export AGENTSOCIETY_NANO_LLM_API_KEY="your-nano-api-key"
 export AGENTSOCIETY_NANO_LLM_API_BASE="https://api.openai.com/v1"
-export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.4-nano"
+export AGENTSOCIETY_NANO_LLM_MODEL="gpt-5.5"
 
 # Embedding Model (for text embeddings and semantic search)
 # Falls back to default LLM if not set
@@ -373,7 +373,6 @@ Apache License 2.0 - see [LICENSE](LICENSE) for details.
 AgentSociety 2 builds upon excellent open-source projects:
 
 - [litellm](https://github.com/BerriAI/litellm) - Unified LLM API
-- [mem0ai](https://github.com/mem0ai/mem0) - Memory management
 - [FastAPI](https://fastapi.tiangolo.com/) - Backend API framework
 - [Pydantic](https://docs.pydantic.dev/) - Data validation
 

@@ -78,8 +78,7 @@ Your task is to use the get and set functions with context paths to provide glob
         """
         Get the global information.
 
-        Returns:
-            The global information.
+        :returns: The global information.
         """
         async with self._lock:
             return GetGlobalInformationResponse(
@@ -91,11 +90,9 @@ Your task is to use the get and set functions with context paths to provide glob
         """
         Set the global information.
 
-        Args:
-            prompt: The global information.
+        :param prompt: The global information.
 
-        Returns:
-            The global information.
+        :returns: The global information.
         """
         async with self._lock:
             old_information = self._global_information
@@ -115,9 +112,8 @@ Your task is to use the get and set functions with context paths to provide glob
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.t = t

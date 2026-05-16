@@ -51,12 +51,10 @@ class SimpleAgent(AgentBase):
         """
         回答来自环境的问题
 
-        Args:
-            message: 问题内容
-            readonly: 是否只读
+        :param message: 问题内容
+        :param readonly: 是否只读
 
-        Returns:
-            答案内容
+        :returns: 答案内容
         """
         # 构建提示词
         prompt = f"""你是一个真实的人。你的个人资料：{self.get_profile()}
@@ -75,12 +73,10 @@ class SimpleAgent(AgentBase):
         """
         执行一个仿真步骤
 
-        Args:
-            tick: 时间刻度（秒）
-            t: 当前仿真时间
+        :param tick: 时间刻度（秒）
+        :param t: 当前仿真时间
 
-        Returns:
-            步骤描述
+        :returns: 步骤描述
         """
         # 查询环境状态
         try:
@@ -100,8 +96,7 @@ class SimpleAgent(AgentBase):
         """
         序列化 Agent 状态
 
-        Returns:
-            状态字典
+        :returns: 状态字典
         """
         return {
             "id": self._id,
@@ -113,8 +108,7 @@ class SimpleAgent(AgentBase):
         """
         从字典加载 Agent 状态
 
-        Args:
-            dump_data: 状态字典
+        :param dump_data: 状态字典
         """
         self._id = dump_data.get("id", self._id)
         profile = dump_data.get("profile")

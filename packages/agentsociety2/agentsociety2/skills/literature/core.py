@@ -23,11 +23,9 @@ def is_chinese_text(text: str) -> bool:
     """
     检测文本是否包含中文字符
 
-    Args:
-        text: 待检测的文本
+    :param text: 待检测的文本
 
-    Returns:
-        如果包含中文字符返回True，否则返回False
+    :returns: 如果包含中文字符返回True，否则返回False
     """
     for char in text:
         if "\u4e00" <= char <= "\u9fff":
@@ -39,12 +37,10 @@ async def translate_to_english(text: str, router: Router) -> str:
     """
     使用LLM将中文文本翻译成英文
 
-    Args:
-        text: 待翻译的中文文本
-        router: LLM router实例
+    :param text: 待翻译的中文文本
+    :param router: LLM router实例
 
-    Returns:
-        翻译后的英文文本
+    :returns: 翻译后的英文文本
     """
     try:
         prompt = f"""Translate the following Chinese text directly to English. Only output the English translation with shortest words and no additional text.
@@ -86,11 +82,9 @@ def _split_query_by_keywords(query: str) -> List[str]:
     基于关键词和连接词进行简单的查询拆分（备用方法）
     尽量保持原查询的短语结构
 
-    Args:
-        query: 原始查询文本
+    :param query: 原始查询文本
 
-    Returns:
-        拆分后的子主题列表
+    :returns: 拆分后的子主题列表
     """
     # 常见的连接词，按优先级排序
     # " and " 是最常见的，优先处理
@@ -135,12 +129,10 @@ async def split_query_into_subtopics(query: str, router: Router) -> List[str]:
     """
     使用LLM将复杂查询拆分为多个子主题，尽量按照查询的字面意思拆分，不扩展原意
 
-    Args:
-        query: 原始查询文本
-        router: LLM router实例
+    :param query: 原始查询文本
+    :param router: LLM router实例
 
-    Returns:
-        子主题列表，如果拆分失败或只有一个主题，返回包含原查询的列表
+    :returns: 子主题列表，如果拆分失败或只有一个主题，返回包含原查询的列表
     """
     # 首先尝试基于关键词的简单拆分（快速方法）
     keyword_split = _split_query_by_keywords(query)
@@ -249,12 +241,10 @@ def merge_literature_results(
     """
     合并多个文献搜索结果，去重并合并
 
-    Args:
-        results: 多个搜索结果列表
-        query: 原始查询
+    :param results: 多个搜索结果列表
+    :param query: 原始查询
 
-    Returns:
-        合并后的文献搜索结果字典
+    :returns: 合并后的文献搜索结果字典
     """
     if not results:
         return None
@@ -354,26 +344,24 @@ async def search_literature(
     """
     调用文献搜索API获取相关文献信息
 
-    Args:
-        query: 搜索查询词（如果是中文，会自动翻译成英文）
-        limit: 返回的文献数量
-        router: LLM router实例（用于翻译和查询拆分，如果为None则使用默认router）
-        year_from: 出版年份筛选（起始）
-        year_to: 出版年份筛选（结束）
-        sources: 指定数据源列表（默认为None，搜索全部数据源：local, arxiv, crossref, openalex）
-        similarity_threshold: 本地搜索相似度阈值 (0.0-1.0)
-        vector_similarity_weight: 向量权重 (0.0-1.0)
-        chunk_content_limit: chunk内容长度限制
-        relevant_content_limit: 相关内容长度限制
-        max_chunks_per_article: 每篇文献的最大chunk数量
-        return_chunks: 是否返回chunks
-        enable_multi_query: 是否启用多查询模式，将复杂查询拆分为多个子主题分别搜索
-        api_url: 文献搜索API的URL
-        api_key: 文献搜索API的认证Key
-        timeout: 请求超时时间（秒）
+    :param query: 搜索查询词（如果是中文，会自动翻译成英文）
+    :param limit: 返回的文献数量
+    :param router: LLM router实例（用于翻译和查询拆分，如果为None则使用默认router）
+    :param year_from: 出版年份筛选（起始）
+    :param year_to: 出版年份筛选（结束）
+    :param sources: 指定数据源列表（默认为None，搜索全部数据源：local, arxiv, crossref, openalex）
+    :param similarity_threshold: 本地搜索相似度阈值 (0.0-1.0)
+    :param vector_similarity_weight: 向量权重 (0.0-1.0)
+    :param chunk_content_limit: chunk内容长度限制
+    :param relevant_content_limit: 相关内容长度限制
+    :param max_chunks_per_article: 每篇文献的最大chunk数量
+    :param return_chunks: 是否返回chunks
+    :param enable_multi_query: 是否启用多查询模式，将复杂查询拆分为多个子主题分别搜索
+    :param api_url: 文献搜索API的URL
+    :param api_key: 文献搜索API的认证Key
+    :param timeout: 请求超时时间（秒）
 
-    Returns:
-        文献搜索结果字典，如果失败返回None
+    :returns: 文献搜索结果字典，如果失败返回None
     """
     # 如果router为None，使用默认router
     if router is None:
@@ -486,24 +474,22 @@ async def _search_literature_single(
     """
     执行单次文献搜索（内部函数）
 
-    Args:
-        query: 搜索查询词
-        limit: 返回的文献数量
-        year_from: 出版年份筛选（起始）
-        year_to: 出版年份筛选（结束）
-        sources: 指定数据源列表
-        similarity_threshold: 本地搜索相似度阈值
-        vector_similarity_weight: 向量权重
-        chunk_content_limit: chunk内容长度限制
-        relevant_content_limit: 相关内容长度限制
-        max_chunks_per_article: 每篇文献的最大chunk数量
-        return_chunks: 是否返回chunks
-        api_url: 文献搜索API的URL
-        api_key: 文献搜索API的认证Key
-        timeout: 请求超时时间（秒）
+    :param query: 搜索查询词
+    :param limit: 返回的文献数量
+    :param year_from: 出版年份筛选（起始）
+    :param year_to: 出版年份筛选（结束）
+    :param sources: 指定数据源列表
+    :param similarity_threshold: 本地搜索相似度阈值
+    :param vector_similarity_weight: 向量权重
+    :param chunk_content_limit: chunk内容长度限制
+    :param relevant_content_limit: 相关内容长度限制
+    :param max_chunks_per_article: 每篇文献的最大chunk数量
+    :param return_chunks: 是否返回chunks
+    :param api_url: 文献搜索API的URL
+    :param api_key: 文献搜索API的认证Key
+    :param timeout: 请求超时时间（秒）
 
-    Returns:
-        文献搜索结果字典，如果失败返回None
+    :returns: 文献搜索结果字典，如果失败返回None
     """
     try:
         async with aiohttp.ClientSession() as session:

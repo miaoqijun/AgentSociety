@@ -52,11 +52,10 @@ class PrisonersDilemmaEnv(EnvBase):
     ):
         """Initialize environment
         
-        Args:
-            payoff_cc: Payoff when both cooperate (default: 3)
-            payoff_cd: Payoff when cooperate but opponent defects (default: 0)
-            payoff_dc: Payoff when defect but opponent cooperates (default: 5)
-            payoff_dd: Payoff when both defect (default: 1)
+        :param payoff_cc: Payoff when both cooperate (default: 3)
+        :param payoff_cd: Payoff when cooperate but opponent defects (default: 0)
+        :param payoff_dc: Payoff when defect but opponent cooperates (default: 5)
+        :param payoff_dd: Payoff when both defect (default: 1)
         """
         super().__init__()
 
@@ -156,12 +155,10 @@ If you don't submit, the round execution is delayed.
         """
         Submit action decision for an agent.
 
-        Args:
-            agent_name: The agent's name ("Agent A" or "Agent B")
-            action: The action ("Yes" or "No")
+        :param agent_name: The agent's name ("Agent A" or "Agent B")
+        :param action: The action ("Yes" or "No")
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Normalize and validate action
@@ -182,8 +179,7 @@ If you don't submit, the round execution is delayed.
         """
         Get the payoff matrix.
 
-        Returns:
-            Response containing all payoff values.
+        :returns: Response containing all payoff values.
         """
         async with self._lock:
             return GetPayoffMatrixResponse(
@@ -198,11 +194,9 @@ If you don't submit, the round execution is delayed.
         """
         Get round history.
 
-        Args:
-            round_num: Optional round number. If None, returns all rounds.
+        :param round_num: Optional round number. If None, returns all rounds.
 
-        Returns:
-            List of round summaries.
+        :returns: List of round summaries.
         """
         async with self._lock:
             if round_num is not None:
@@ -226,9 +220,8 @@ If you don't submit, the round execution is delayed.
         Executes a round if at least one agent has submitted their action.
         If only one agent submitted, the other agent defaults to 'No' (defect).
         
-        Args:
-            tick: The number of ticks of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.t = t
