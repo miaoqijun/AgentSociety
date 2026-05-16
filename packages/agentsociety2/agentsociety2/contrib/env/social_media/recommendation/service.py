@@ -16,10 +16,9 @@ class ServiceConfig:
     """
     推荐服务配置
 
-    Args:
-        cache_ttl: 缓存过期时间 (秒),默认 300秒
-        max_batch_size: 最大批量推荐大小,默认 100
-        timeout: 请求超时时间 (秒),默认 10秒
+    :param cache_ttl: 缓存过期时间 (秒),默认 300秒
+    :param max_batch_size: 最大批量推荐大小,默认 100
+    :param timeout: 请求超时时间 (秒),默认 10秒
     """
     cache_ttl: int = 300
     max_batch_size: int = 100
@@ -39,9 +38,8 @@ class RecommendationService:
         """
         初始化推荐服务
 
-        Args:
-            algorithm: 推荐算法实例
-            config: 服务配置
+        :param algorithm: 推荐算法实例
+        :param config: 服务配置
         """
         self._algorithm = algorithm
         self._config = config
@@ -62,8 +60,7 @@ class RecommendationService:
         """
         训练模型 (异步包装)
 
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         get_logger().info(f"开始训练模型: {data}")
 
@@ -80,12 +77,10 @@ class RecommendationService:
         """
         预测评分 (异步包装)
 
-        Args:
-            user_id: 用户ID
-            item_id: 物品ID
+        :param user_id: 用户ID
+        :param item_id: 物品ID
 
-        Returns:
-            预测评分 (1.0-5.0)
+        :returns: 预测评分 (1.0-5.0)
         """
         return await asyncio.to_thread(
             self._algorithm.predict,
@@ -103,14 +98,12 @@ class RecommendationService:
         """
         生成推荐 (带缓存)
 
-        Args:
-            user_id: 用户ID
-            n: 推荐数量
-            exclude_rated: 是否排除已评分物品 (暂未实现,保留接口)
-            exclude_ids: 额外要排除的物品ID集合
+        :param user_id: 用户ID
+        :param n: 推荐数量
+        :param exclude_rated: 是否排除已评分物品 (暂未实现,保留接口)
+        :param exclude_ids: 额外要排除的物品ID集合
 
-        Returns:
-            [(item_id, score), ...] 按 score 降序排列
+        :returns: [(item_id, score), ...] 按 score 降序排列
         """
         # 检查缓存
         exclude_set = exclude_ids or set()
@@ -148,13 +141,11 @@ class RecommendationService:
         """
         批量生成推荐
 
-        Args:
-            user_ids: 用户ID列表
-            n: 每个用户的推荐数量
-            exclude_ids: 每个用户要排除的物品ID字典
+        :param user_ids: 用户ID列表
+        :param n: 每个用户的推荐数量
+        :param exclude_ids: 每个用户要排除的物品ID字典
 
-        Returns:
-            {user_id: [(item_id, score), ...], ...}
+        :returns: {user_id: [(item_id, score), ...], ...}
         """
         exclude_dict = exclude_ids or {}
 
@@ -179,8 +170,7 @@ class RecommendationService:
         """
         保存模型 (异步包装)
 
-        Args:
-            path: 模型保存路径
+        :param path: 模型保存路径
         """
         async with self._lock:
             await asyncio.to_thread(self._algorithm.save, path)
@@ -191,8 +181,7 @@ class RecommendationService:
         """
         加载模型 (异步包装)
 
-        Args:
-            path: 模型文件路径
+        :param path: 模型文件路径
         """
         async with self._lock:
             await asyncio.to_thread(self._algorithm.load, path)
@@ -206,8 +195,7 @@ class RecommendationService:
         """
         获取算法信息
 
-        Returns:
-            算法信息字典
+        :returns: 算法信息字典
         """
         return self._algorithm.get_algorithm_info()
 
@@ -220,8 +208,7 @@ class RecommendationService:
         """
         获取缓存统计
 
-        Returns:
-            缓存统计信息
+        :returns: 缓存统计信息
         """
         current_time = time.time()
         valid_entries = sum(

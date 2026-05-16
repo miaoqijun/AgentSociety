@@ -66,12 +66,10 @@ class EnhancedMFModel(nn.Module):
         """
         前向传播
 
-        Args:
-            users: 用户索引 [batch_size]
-            items: 物品索引 [batch_size]
+        :param users: 用户索引 [batch_size]
+        :param items: 物品索引 [batch_size]
 
-        Returns:
-            预测评分 [batch_size]
+        :returns: 预测评分 [batch_size]
         """
         # 因子向量
         user_emb = self.user_embedding(users)  # [batch_size, n_factors]
@@ -101,8 +99,7 @@ class EnhancedMFRecommender(RecommenderAlgorithm):
         """
         初始化增强版MF推荐器
 
-        Args:
-            config: 增强版MF配置
+        :param config: 增强版MF配置
         """
         self.config = config
         self.model: Optional[EnhancedMFModel] = None
@@ -132,8 +129,7 @@ class EnhancedMFRecommender(RecommenderAlgorithm):
         """
         训练增强版MF模型
 
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         get_logger().info(
             f"开始训练增强版MF模型: {data.get_user_count()} 用户, "
@@ -233,12 +229,10 @@ class EnhancedMFRecommender(RecommenderAlgorithm):
         """
         预测用户对物品的评分
 
-        Args:
-            user_id: 用户ID
-            item_id: 物品ID
+        :param user_id: 用户ID
+        :param item_id: 物品ID
 
-        Returns:
-            预测评分 (1.0-5.0)
+        :returns: 预测评分 (1.0-5.0)
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")
@@ -286,13 +280,11 @@ class EnhancedMFRecommender(RecommenderAlgorithm):
         """
         为用户生成推荐列表
 
-        Args:
-            user_id: 用户ID
-            n: 推荐数量
-            exclude_ids: 要排除的物品ID集合
+        :param user_id: 用户ID
+        :param n: 推荐数量
+        :param exclude_ids: 要排除的物品ID集合
 
-        Returns:
-            [(item_id, score), ...] 按 score 降序排列
+        :returns: [(item_id, score), ...] 按 score 降序排列
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")
@@ -417,8 +409,7 @@ class EnhancedMFRecommender(RecommenderAlgorithm):
         """
         获取最近一次训练的指标
 
-        Returns:
-            包含rmse和loss的字典
+        :returns: 包含rmse和loss的字典
         """
         return self._metrics.copy()
 

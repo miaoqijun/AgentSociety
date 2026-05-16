@@ -147,8 +147,6 @@ graph TB
 
     subgraph "External Services"
         LLM[LLM Provider<br/>OpenAI/Claude/etc]
-        Mem0[mem0 Memory<br/>Telemetry Disabled]
-        Chroma[ChromaDB<br/>Telemetry Disabled]
     end
 
     CLI --> Society
@@ -211,7 +209,6 @@ PersonAgent follows a **metadata-first, selected-only** model:
 - **Main entry point**: `python -m agentsociety2.society.cli`
 - **Arguments**: `--config`, `--steps`, `--run-dir`, `--experiment-id`, `--log-level`, `--log-file`
 - **Features**: Progress tracking with pid.json, automatic database creation, artifact generation
-- **Telemetry blocking**: Forces MEM0_TELEMETRY=False and ANONYMIZED_TELEMETRY=False
 
 #### Research Skills (`agentsociety2/skills/`)
 - **literature**: Academic literature search and management
@@ -270,10 +267,6 @@ Environment variables (see `.env.example`):
 - `AGENTSOCIETY_NANO_LLM_*` - High-frequency operations LLM
 - `AGENTSOCIETY_EMBEDDING_*` - Embedding model settings
 
-**Telemetry** (automatically set by framework):
-- `MEM0_TELEMETRY=False` - Required: Disable mem0 telemetry
-- `ANONYMIZED_TELEMETRY=False` - Required: Disable ChromaDB/Posthog telemetry
-
 **Other Settings:**
 - `AGENTSOCIETY_HOME_DIR` - Data directory (default: ./agentsociety_data)
 - `BACKEND_HOST`, `BACKEND_PORT` - Backend service configuration
@@ -290,8 +283,8 @@ LLM routing via `agentsociety2.config`:
    Current defaults (when the corresponding env vars are not set):
 
    - `AGENTSOCIETY_LLM_API_BASE`: `https://api.openai.com/v1`
-   - `AGENTSOCIETY_LLM_MODEL`: `gpt-5.4`
-   - `AGENTSOCIETY_NANO_LLM_MODEL`: `gpt-5.4-nano`
+   - `AGENTSOCIETY_LLM_MODEL`: `gpt-5.5`
+   - `AGENTSOCIETY_NANO_LLM_MODEL`: `gpt-5.5`
    - `AGENTSOCIETY_EMBEDDING_MODEL`: `text-embedding-3-large` (dims: `1024`)
 
 ### Frontend Architecture
@@ -488,10 +481,10 @@ graph TD
 ```
 
 ### Memory Architecture
-PersonAgent maintains three types of memory:
-- **Short-term memory**: Recent N interactions (configurable via `short_memory_window_size`)
-- **Long-term memory**: Persistent storage via mem0 (ChromaDB backend)
-- **Cognition memory**: Temporary buffer for cognitive processes, flushed to long-term memory on `close()`
+PersonAgent maintains local workspace-backed memory:
+- **Thread context**: Recent tool/LLM interactions, compacted when needed
+- **AgentMemory**: Persistent runtime summary in `AGENT_MEMORY.md`
+- **memory skill**: Optional event memory in `state/memory.jsonl`
 
 ### Agent-Environment Interaction
 - Agents call `await env_router.ask(question, readonly=False)`
@@ -508,7 +501,6 @@ PersonAgent maintains three types of memory:
 
 - **agentsociety2 is a Python package**: ALWAYS access `agentsociety2` via `import agentsociety2`, NEVER search for it in the file system (e.g., `packages/agentsociety2`). The package is installed in the Python environment and available for import.
 - **CLI --log-file is REQUIRED**: When running experiments in background, always specify `--log-file` to capture verbose logs.
-- **Telemetry is blocked**: The framework forcibly disables mem0 and ChromaDB telemetry to prevent external connections.
 - **HuggingFace connectivity**: The framework auto-switches to Chinese mirror (`hf-mirror.com`) if HuggingFace is unreachable.
 - **Version compatibility**: Use Python >= 3.11
 - **Dependencies**: Managed via uv workspace - run `uv sync` from root

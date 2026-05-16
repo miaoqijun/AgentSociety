@@ -25,10 +25,9 @@ class ExperimentConfigTool:
     ):
         """Initialize the experiment config tool
 
-        Args:
-            workspace_path: Path to workspace directory
-            progress_callback: Optional callback for progress updates
-            tool_id: Optional tool identifier
+        :param workspace_path: Path to workspace directory
+        :param progress_callback: Optional callback for progress updates
+        :param tool_id: Optional tool identifier
         """
         self.workspace_path = Path(workspace_path).resolve()
         self._progress_callback = progress_callback
@@ -66,11 +65,9 @@ class ExperimentConfigTool:
     async def execute(self, arguments: Dict[str, Any]) -> Any:
         """Execute the experiment configuration
 
-        Args:
-            arguments: Dictionary with hypothesis_id, experiment_id, and optional parameters
+        :param arguments: Dictionary with hypothesis_id, experiment_id, and optional parameters
 
-        Returns:
-            ToolResult-like object with success, content, error fields
+        :returns: ToolResult-like object with success, content, error fields
         """
         hypothesis_id = arguments.get("hypothesis_id")
         experiment_id = arguments.get("experiment_id")

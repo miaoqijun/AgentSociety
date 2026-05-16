@@ -30,12 +30,10 @@ def init_custom_modules(target_dir: Path, force: bool = False) -> dict:
     """
     初始化自定义模块目录，复制模板文件
 
-    Args:
-        target_dir: 目标工作区根目录
-        force: 是否强制覆盖已存在的文件
+    :param target_dir: 目标工作区根目录
+    :param force: 是否强制覆盖已存在的文件
 
-    Returns:
-        包含操作结果的字典
+    :returns: 包含操作结果的字典
     """
     result = {
         "success": False,
@@ -248,12 +246,10 @@ async def download_map_file(target_dir: Path, timeout: int = 300) -> dict:
     """
     下载地图文件到工作区
 
-    Args:
-        target_dir: 目标工作区根目录
-        timeout: 超时时间（秒）
+    :param target_dir: 目标工作区根目录
+    :param timeout: 超时时间（秒）
 
-    Returns:
-        包含操作结果的字典
+    :returns: 包含操作结果的字典
     """
     result = {
         "success": False,
@@ -293,11 +289,9 @@ def create_module_info_files(target_dir: Path) -> dict:
     """
     创建模块描述 JSON 文件到 .agentsociety/ 目录
 
-    Args:
-        target_dir: 目标工作区根目录
+    :param target_dir: 目标工作区根目录
 
-    Returns:
-        包含操作结果的字典
+    :returns: 包含操作结果的字典
     """
     result = {
         "success": False,
@@ -376,11 +370,9 @@ def create_path_md(target_dir: Path) -> dict:
     """
     创建 .agentsociety/path.md 工作区路径记忆文件
 
-    Args:
-        target_dir: 目标工作区根目录
+    :param target_dir: 目标工作区根目录
 
-    Returns:
-        包含操作结果的字典
+    :returns: 包含操作结果的字典
     """
     result = {
         "success": False,
@@ -442,12 +434,10 @@ def create_prefill_params(target_dir: Path, map_file_path: str) -> dict:
     """
     创建 .agentsociety/prefill_params.json 预填充参数文件
 
-    Args:
-        target_dir: 目标工作区根目录
-        map_file_path: 地图文件路径
+    :param target_dir: 目标工作区根目录
+    :param map_file_path: 地图文件路径
 
-    Returns:
-        包含操作结果的字典
+    :returns: 包含操作结果的字典
     """
     result = {
         "success": False,
@@ -485,14 +475,12 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
     """
     初始化工作区，创建所需的目录结构
 
-    Args:
-        target_dir: 目标工作区根目录
-        topic: 研究主题
-        components: 要创建的组件列表，可选值: "custom", "user_data", "papers", "agentsociety"
-        force: 是否强制覆盖已存在的文件
+    :param target_dir: 目标工作区根目录
+    :param topic: 研究主题
+    :param components: 要创建的组件列表，可选值: "custom", "user_data", "papers", "agentsociety"
+    :param force: 是否强制覆盖已存在的文件
 
-    Returns:
-        包含操作结果的字典
+    :returns: 包含操作结果的字典
     """
     if components is None:
         components = ["custom", "user_data", "papers", "agentsociety"]

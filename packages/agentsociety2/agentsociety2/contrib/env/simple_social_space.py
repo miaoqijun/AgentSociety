@@ -90,9 +90,7 @@ class SimpleSocialSpace(EnvBase):
         """
         Initialize the Social Space environment.
 
-        Args:
-            agent_id_name_pairs: List of (agent_id, name) tuples or list of [agent_id, name] lists.
-                                  Can be tuples or lists of length 2.
+        :param agent_id_name_pairs: List of (agent_id, name) tuples or list of [agent_id, name] lists. Can be tuples or lists of length 2.
         """
         super().__init__()
 
@@ -167,13 +165,11 @@ Your task is to use the available social functions to manage individual mailboxe
         """
         Send a message to an agent's mailbox.
 
-        Args:
-            sender_id: The ID of the sender agent
-            receiver_id: The ID of the receiver agent
-            content: The content of the message
+        :param sender_id: The ID of the sender agent
+        :param receiver_id: The ID of the receiver agent
+        :param content: The content of the message
 
-        Returns:
-            Context containing message details
+        :returns: Context containing message details
         """
         async with self._lock:
             # Create message
@@ -202,11 +198,9 @@ Your task is to use the available social functions to manage individual mailboxe
         Receive all messages from an agent's mailbox including personal messages and group messages.
         This is like an instant messaging app where all messages are received in one place.
 
-        Args:
-            agent_id: The ID of the agent
+        :param agent_id: The ID of the agent
 
-        Returns:
-            Context containing all messages
+        :returns: Context containing all messages
         """
         async with self._lock:
             # Collect all messages (personal and group)
@@ -253,13 +247,11 @@ Your task is to use the available social functions to manage individual mailboxe
         """
         Create a new group.
 
-        Args:
-            creator_id: The ID of the agent creating the group
-            name: The name of the group
-            init_members: The initial members of the group
+        :param creator_id: The ID of the agent creating the group
+        :param name: The name of the group
+        :param init_members: The initial members of the group
 
-        Returns:
-            Context containing group details
+        :returns: Context containing group details
         """
         async with self._lock:
             group_id = self._next_group_id
@@ -284,12 +276,10 @@ Your task is to use the available social functions to manage individual mailboxe
         """
         Join an agent to a group.
 
-        Args:
-            agent_id: The ID of the agent
-            group_id: The ID of the group
+        :param agent_id: The ID of the agent
+        :param group_id: The ID of the group
 
-        Returns:
-            Context containing group and agent details
+        :returns: Context containing group and agent details
         """
         async with self._lock:
             # Check if group exists
@@ -311,12 +301,10 @@ Your task is to use the available social functions to manage individual mailboxe
         """
         Remove an agent from a group.
 
-        Args:
-            agent_id: The ID of the agent
-            group_id: The ID of the group
+        :param agent_id: The ID of the agent
+        :param group_id: The ID of the group
 
-        Returns:
-            Context containing group and agent details
+        :returns: Context containing group and agent details
         """
         async with self._lock:
             # Check if group exists
@@ -344,13 +332,11 @@ Your task is to use the available social functions to manage individual mailboxe
         """
         Send a message to all members of a group. The message is forwarded to each member's mailbox.
 
-        Args:
-            sender_id: The ID of the sender agent
-            group_id: The ID of the group
-            content: The content of the message
+        :param sender_id: The ID of the sender agent
+        :param group_id: The ID of the group
+        :param content: The content of the message
 
-        Returns:
-            Context containing message details
+        :returns: Context containing message details
         """
         async with self._lock:
             # Check if group exists
@@ -401,9 +387,8 @@ Your task is to use the available social functions to manage individual mailboxe
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.t = t

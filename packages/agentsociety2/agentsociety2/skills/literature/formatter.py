@@ -13,11 +13,9 @@ from typing import Dict, Any
 def sanitize_filename(filename: str) -> str:
     """Clean filename by removing illegal characters
 
-    Args:
-        filename: Original filename
+    :param filename: Original filename
 
-    Returns:
-        Sanitized filename safe for filesystem
+    :returns: Sanitized filename safe for filesystem
     """
     # Remove or replace illegal characters
     sanitized = re.sub(r'[<>:"/\\|?*]', "_", filename)
@@ -29,12 +27,10 @@ def sanitize_filename(filename: str) -> str:
 def format_article_as_markdown(article: Dict[str, Any], query: str) -> str:
     """Format a single literature article as markdown
 
-    Args:
-        article: Article data dictionary
-        query: Search query used to find the article
+    :param article: Article data dictionary
+    :param query: Search query used to find the article
 
-    Returns:
-        Markdown formatted string
+    :returns: Markdown formatted string
     """
     lines = []
     lines.append(f"# {article.get('title', 'Untitled Article')}")

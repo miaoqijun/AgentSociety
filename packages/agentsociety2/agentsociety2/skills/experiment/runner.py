@@ -26,16 +26,14 @@ async def start_experiment(
 ) -> Dict[str, Any]:
     """Start an experiment
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID (e.g., '1', '2')
-        experiment_id: Experiment ID (e.g., '1', '2')
-        run_id: Run ID (default: 'run')
-        init_config_path: Optional path to init_config.json (default: init/init_config.json)
-        steps_path: Optional path to steps.yaml (default: init/steps.yaml)
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID (e.g., '1', '2')
+    :param experiment_id: Experiment ID (e.g., '1', '2')
+    :param run_id: Run ID (default: 'run')
+    :param init_config_path: Optional path to init_config.json (default: init/init_config.json)
+    :param steps_path: Optional path to steps.yaml (default: init/steps.yaml)
 
-    Returns:
-        Result dictionary with status and info
+    :returns: Result dictionary with status and info
     """
     from agentsociety2.skills.experiment.config import get_experiment_paths
 
@@ -100,14 +98,12 @@ async def stop_experiment(
 ) -> Dict[str, Any]:
     """Stop a running experiment
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID
-        experiment_id: Experiment ID
-        run_id: Run ID (default: 'run')
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID
+    :param experiment_id: Experiment ID
+    :param run_id: Run ID (default: 'run')
 
-    Returns:
-        Result dictionary with status
+    :returns: Result dictionary with status
     """
     from agentsociety2.skills.experiment.config import get_experiment_paths
 
@@ -152,14 +148,12 @@ async def get_experiment_status(
 ) -> ExperimentStatus:
     """Get experiment status
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID
-        experiment_id: Experiment ID
-        run_id: Run ID (default: 'run')
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID
+    :param experiment_id: Experiment ID
+    :param run_id: Run ID (default: 'run')
 
-    Returns:
-        ExperimentStatus object
+    :returns: ExperimentStatus object
     """
     from agentsociety2.skills.experiment.config import get_experiment_paths
 
@@ -244,13 +238,10 @@ async def list_experiments(
 ) -> List[ExperimentInfo]:
     """List experiments
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Optional hypothesis ID to filter by
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Optional hypothesis ID to filter by
 
-    Returns:
-        List of ExperimentInfo objects
-
+    :returns: List of ExperimentInfo objects
     Note:
         Uses simplified init structure: init/init_config.json, init/steps.yaml
     """

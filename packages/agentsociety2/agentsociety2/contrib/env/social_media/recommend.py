@@ -11,12 +11,10 @@ def _get_pretrained_algorithm(algorithm_name: str, model_path: Optional[str]):
     根据算法名和模型路径加载预训练推荐模型。
     预训练方式：使用 recommendation 子模块训练后 save(path)，此处 load(path) 即可接入。
 
-    Args:
-        algorithm_name: 如 "mf", "ncf", "lightgcn" 等，需与 recommendation.algorithms 中实现一致。
-        model_path: 预训练模型文件路径（如 .pkl 或 目录）。
+    :param algorithm_name: 如 "mf", "ncf", "lightgcn" 等，需与 recommendation.algorithms 中实现一致。
+    :param model_path: 预训练模型文件路径（如 .pkl 或 目录）。
 
-    Returns:
-        已 load 的 RecommenderAlgorithm 实例，若 model_path 为空则返回 None。
+    :returns: 已 load 的 RecommenderAlgorithm 实例，若 model_path 为空则返回 None。
     """
     if not model_path:
         return None
@@ -46,9 +44,8 @@ class RecommendationEngine:
         recommendation_algorithm: str = "mf",
     ):
         """
-        Args:
-            model_path: 预训练模型路径。非空时加载对应算法并可在 refresh_feed 中通过 algorithm="mf" 使用。
-            recommendation_algorithm: 算法名，如 "mf"。需与 recommendation.algorithms 中实现一致。
+        :param model_path: 预训练模型路径。非空时加载对应算法并可在 refresh_feed 中通过 algorithm="mf" 使用。
+        :param recommendation_algorithm: 算法名，如 "mf"。需与 recommendation.algorithms 中实现一致。
         """
         self._model_algorithm = _get_pretrained_algorithm(recommendation_algorithm, model_path)
         self._model_algorithm_name = recommendation_algorithm if self._model_algorithm else None
@@ -67,14 +64,12 @@ class RecommendationEngine:
         """
         使用预训练模型对候选帖子排序。未加载模型时回退为时间序。
 
-        Args:
-            posts: 候选帖子列表（item_id = post_id）
-            user_id: 用户 ID
-            limit: 返回条数
-            exclude_post_ids: 需要排除的 post_id 集合（如已读）
+        :param posts: 候选帖子列表（item_id = post_id）
+        :param user_id: 用户 ID
+        :param limit: 返回条数
+        :param exclude_post_ids: 需要排除的 post_id 集合（如已读）
 
-        Returns:
-            按模型打分排序的帖子列表
+        :returns: 按模型打分排序的帖子列表
         """
         if not posts:
             return []
@@ -116,13 +111,11 @@ class RecommendationEngine:
         """
         时间序列排序算法（基线）
         
-        Args:
-            posts: 所有候选帖子列表
-            user_id: 当前用户ID
-            limit: 返回帖子数量
+        :param posts: 所有候选帖子列表
+        :param user_id: 当前用户ID
+        :param limit: 返回帖子数量
             
-        Returns:
-            按时间倒序排列的帖子列表
+        :returns: 按时间倒序排列的帖子列表
         """
         # 按创建时间降序排序
         sorted_posts = sorted(posts, key=lambda p: p.created_at, reverse=True)
@@ -142,13 +135,11 @@ class RecommendationEngine:
         
         参考: https://medium.com/hacking-and-gonzo/how-reddit-ranking-algorithms-work-ef111e33d0d9
         
-        Args:
-            posts: 所有候选帖子列表
-            user_id: 当前用户ID
-            limit: 返回帖子数量
+        :param posts: 所有候选帖子列表
+        :param user_id: 当前用户ID
+        :param limit: 返回帖子数量
             
-        Returns:
-            按热度分数排序的帖子列表
+        :returns: 按热度分数排序的帖子列表
         """
         def calculate_hot_score(post: Post) -> float:
             """
@@ -205,16 +196,14 @@ class RecommendationEngine:
         - 新鲜度（时间）（recency_weight）
         - 互动率（engagement / views）（engagement_rate_weight）
         
-        Args:
-            posts: 所有候选帖子列表
-            user_id: 当前用户ID
-            limit: 返回帖子数量
-            follows: 关注关系 {follower_id: [followee_ids]}
-            likes: 点赞记录 {post_id: [user_ids]}
-            weights: 权重配置
+        :param posts: 所有候选帖子列表
+        :param user_id: 当前用户ID
+        :param limit: 返回帖子数量
+        :param follows: 关注关系 {follower_id: [followee_ids]}
+        :param likes: 点赞记录 {post_id: [user_ids]}
+        :param weights: 权重配置
             
-        Returns:
-            按综合分数排序的帖子列表
+        :returns: 按综合分数排序的帖子列表
         """
         # 默认权重
         default_weights = {
@@ -282,13 +271,11 @@ class RecommendationEngine:
         """
         随机推荐算法（基线/对照组）
         
-        Args:
-            posts: 所有候选帖子列表
-            user_id: 当前用户ID
-            limit: 返回帖子数量
+        :param posts: 所有候选帖子列表
+        :param user_id: 当前用户ID
+        :param limit: 返回帖子数量
             
-        Returns:
-            随机选择的帖子列表
+        :returns: 随机选择的帖子列表
         """
         if len(posts) <= limit:
             return list(posts)

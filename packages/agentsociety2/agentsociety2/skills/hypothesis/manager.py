@@ -33,11 +33,9 @@ def validate_hypothesis_with_modules(
     1. Schema validity (via Pydantic)
     2. Agent and environment module selection (at least one of each required)
 
-    Args:
-        hypothesis_data: Hypothesis data dictionary
+    :param hypothesis_data: Hypothesis data dictionary
 
-    Returns:
-        Tuple of (is_valid, error_message, validated_model, guidance_dict)
+    :returns: Tuple of (is_valid, error_message, validated_model, guidance_dict)
     """
     # First, validate schema
     schema_valid, schema_error, hypothesis_model = validate_hypothesis_schema(
@@ -81,11 +79,9 @@ def validate_hypothesis_with_modules(
 def find_existing_hypotheses(workspace_path: Path) -> List[Path]:
     """Find existing hypothesis directories
 
-    Args:
-        workspace_path: Path to workspace directory
+    :param workspace_path: Path to workspace directory
 
-    Returns:
-        Sorted list of hypothesis directory paths
+    :returns: Sorted list of hypothesis directory paths
     """
     hypothesis_dirs = []
     for item in workspace_path.iterdir():
@@ -97,11 +93,9 @@ def find_existing_hypotheses(workspace_path: Path) -> List[Path]:
 def get_next_hypothesis_id(workspace_path: Path) -> str:
     """Get the next hypothesis ID
 
-    Args:
-        workspace_path: Path to workspace directory
+    :param workspace_path: Path to workspace directory
 
-    Returns:
-        Next hypothesis ID as string
+    :returns: Next hypothesis ID as string
     """
     existing = find_existing_hypotheses(workspace_path)
     if not existing:
@@ -122,11 +116,9 @@ def validate_hypothesis_schema(
 ) -> Tuple[bool, Optional[str], Optional[HypothesisDataModel]]:
     """Validate hypothesis data against schema
 
-    Args:
-        hypothesis_data: Hypothesis data dictionary
+    :param hypothesis_data: Hypothesis data dictionary
 
-    Returns:
-        Tuple of (is_valid, error_message, validated_model)
+    :returns: Tuple of (is_valid, error_message, validated_model)
     """
     try:
         model = HypothesisDataModel(**hypothesis_data)
@@ -149,13 +141,11 @@ def create_hypothesis_structure(
 ) -> Path:
     """Create hypothesis directory structure
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID
-        hypothesis_model: Validated hypothesis data model
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID
+    :param hypothesis_model: Validated hypothesis data model
 
-    Returns:
-        Path to created hypothesis directory
+    :returns: Path to created hypothesis directory
     """
     hyp_dir = workspace_path / f"hypothesis_{hypothesis_id}"
     hyp_dir.mkdir(parents=True, exist_ok=True)
@@ -189,11 +179,9 @@ def create_hypothesis_structure(
 def generate_hypothesis_markdown(hypothesis_model: HypothesisDataModel) -> str:
     """Generate HYPOTHESIS.md content
 
-    Args:
-        hypothesis_model: Validated hypothesis data model
+    :param hypothesis_model: Validated hypothesis data model
 
-    Returns:
-        Markdown content for HYPOTHESIS.md
+    :returns: Markdown content for HYPOTHESIS.md
     """
     lines = []
     lines.append("# Hypothesis")
@@ -229,12 +217,10 @@ def generate_hypothesis_markdown(hypothesis_model: HypothesisDataModel) -> str:
 def generate_experiment_markdown(group: ExperimentGroupModel, exp_idx: int) -> str:
     """Generate EXPERIMENT.md content
 
-    Args:
-        group: Experiment group model
-        exp_idx: Experiment index
+    :param group: Experiment group model
+    :param exp_idx: Experiment index
 
-    Returns:
-        Markdown content for EXPERIMENT.md
+    :returns: Markdown content for EXPERIMENT.md
     """
     lines = []
     lines.append(f"# Experiment {exp_idx}")
@@ -263,11 +249,9 @@ def generate_experiment_markdown(group: ExperimentGroupModel, exp_idx: int) -> s
 def generate_sim_settings(hypothesis_model: HypothesisDataModel) -> Dict[str, Any]:
     """Generate SIM_SETTINGS.json content
 
-    Args:
-        hypothesis_model: Validated hypothesis data model
+    :param hypothesis_model: Validated hypothesis data model
 
-    Returns:
-        SIM_SETTINGS dictionary
+    :returns: SIM_SETTINGS dictionary
     """
     sim_settings = {}
 
@@ -291,12 +275,10 @@ def add_hypothesis(
 ) -> Dict[str, Any]:
     """Add a new hypothesis
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_data: Hypothesis data dictionary
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_data: Hypothesis data dictionary
 
-    Returns:
-        Result dictionary with success status and info
+    :returns: Result dictionary with success status and info
     """
     # Validate schema
     valid, error_msg, hypothesis_model = validate_hypothesis_schema(hypothesis_data)
@@ -341,14 +323,11 @@ def add_hypothesis_with_validation(
     1. Schema validity (via Pydantic)
     2. Agent and environment module selection (at least one of each required)
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_data: Hypothesis data dictionary
-        validate_modules: Whether to validate module selection (default: True)
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_data: Hypothesis data dictionary
+    :param validate_modules: Whether to validate module selection (default: True)
 
-    Returns:
-        Result dictionary with success status and info.
-        If module validation fails, includes guidance for module selection.
+    :returns: Result dictionary with success status and info. If module validation fails, includes guidance for module selection.
     """
     if validate_modules:
         valid, error_msg, hypothesis_model, guidance = validate_hypothesis_with_modules(
@@ -407,13 +386,11 @@ def get_hypothesis(
 ) -> Dict[str, Any]:
     """Get hypothesis details
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID (e.g., '1', '2')
-        hypothesis_path: Relative path to hypothesis folder
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID (e.g., '1', '2')
+    :param hypothesis_path: Relative path to hypothesis folder
 
-    Returns:
-        Result dictionary with hypothesis details
+    :returns: Result dictionary with hypothesis details
     """
     # Determine folder to get
     if hypothesis_path:
@@ -492,11 +469,9 @@ def get_hypothesis(
 def list_hypotheses(workspace_path: Path) -> Dict[str, Any]:
     """List all hypotheses
 
-    Args:
-        workspace_path: Path to workspace directory
+    :param workspace_path: Path to workspace directory
 
-    Returns:
-        Result dictionary with list of hypotheses
+    :returns: Result dictionary with list of hypotheses
     """
     hypothesis_dirs = find_existing_hypotheses(workspace_path)
 
@@ -559,13 +534,11 @@ def delete_hypothesis(
 ) -> Dict[str, Any]:
     """Delete a hypothesis folder
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID (e.g., '1', '2')
-        hypothesis_path: Relative path to hypothesis folder
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID (e.g., '1', '2')
+    :param hypothesis_path: Relative path to hypothesis folder
 
-    Returns:
-        Result dictionary with deletion status
+    :returns: Result dictionary with deletion status
     """
     # Determine folder to delete
     if hypothesis_path:

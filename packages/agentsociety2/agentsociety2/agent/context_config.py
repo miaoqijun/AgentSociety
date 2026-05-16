@@ -42,7 +42,6 @@ class ContextConfig:
     def effective_window(self) -> int:
         """输入侧 token 预算。
 
-        Returns:
-            对 ``model_context_window`` 调用 :func:`~agentsociety2.agent.config.input_token_budget` 的结果。
+        :returns: 对 ``model_context_window`` 调用 :func:`~agentsociety2.agent.config.input_token_budget` 的结果。
         """
         return input_token_budget(self.model_context_window)

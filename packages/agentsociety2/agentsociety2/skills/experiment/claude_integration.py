@@ -22,11 +22,9 @@ def suggest_modules_for_topic(topic: str) -> Dict[str, Any]:
     This function analyzes the research topic and suggests suitable
     agent types and environment modules based on keywords and common patterns.
 
-    Args:
-        topic: Research topic or description
+    :param topic: Research topic or description
 
-    Returns:
-        Dictionary with suggested modules and rationale
+    :returns: Dictionary with suggested modules and rationale
     """
     from agentsociety2.skills.experiment.module_discovery import (
         get_available_agent_modules,
@@ -118,16 +116,14 @@ def generate_hypothesis_config(
     This function creates a properly formatted hypothesis configuration
     that can be passed to add_hypothesis_with_validation().
 
-    Args:
-        topic: Research topic
-        description: Hypothesis description
-        rationale: Theoretical basis
-        groups: List of experiment groups
-        agent_classes: Agent types (optional, will suggest if not provided)
-        env_modules: Environment modules (optional, will suggest if not provided)
+    :param topic: Research topic
+    :param description: Hypothesis description
+    :param rationale: Theoretical basis
+    :param groups: List of experiment groups
+    :param agent_classes: Agent types (optional, will suggest if not provided)
+    :param env_modules: Environment modules (optional, will suggest if not provided)
 
-    Returns:
-        Complete hypothesis configuration dictionary
+    :returns: Complete hypothesis configuration dictionary
     """
     # Suggest modules if not provided
     if not agent_classes or not env_modules:
@@ -159,13 +155,11 @@ def validate_experiment_ready(
     This function validates that all necessary configuration is in place
     for an experiment to be executed.
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID
-        experiment_id: Experiment ID
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID
+    :param experiment_id: Experiment ID
 
-    Returns:
-        Tuple of (is_ready, missing_items, context)
+    :returns: Tuple of (is_ready, missing_items, context)
     """
     from agentsociety2.skills.experiment.config import (
         get_experiment_paths,
@@ -232,13 +226,11 @@ def get_experiment_template(
     This function provides a template structure that Claude Code can
     use to generate the full experiment configuration.
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID
-        experiment_id: Experiment ID
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID
+    :param experiment_id: Experiment ID
 
-    Returns:
-        Template dictionary with structure to fill in
+    :returns: Template dictionary with structure to fill in
     """
     from agentsociety2.skills.experiment.config import (
         get_experiment_paths,
@@ -282,11 +274,9 @@ def get_experiment_template(
 def format_module_suggestion_message(suggestions: Dict[str, Any]) -> str:
     """Format module suggestions into a helpful message
 
-    Args:
-        suggestions: Dictionary from suggest_modules_for_topic()
+    :param suggestions: Dictionary from suggest_modules_for_topic()
 
-    Returns:
-        Formatted message string
+    :returns: Formatted message string
     """
     lines = []
     lines.append("# Suggested Modules")

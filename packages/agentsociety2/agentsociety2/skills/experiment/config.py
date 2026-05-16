@@ -17,11 +17,9 @@ logger = get_logger()
 def read_hypothesis_info(hyp_dir: Path) -> Optional[str]:
     """Read hypothesis information from HYPOTHESIS.md
 
-    Args:
-        hyp_dir: Path to hypothesis directory
+    :param hyp_dir: Path to hypothesis directory
 
-    Returns:
-        Hypothesis markdown content or None if file doesn't exist
+    :returns: Hypothesis markdown content or None if file doesn't exist
     """
     hyp_md = hyp_dir / "HYPOTHESIS.md"
     if hyp_md.exists():
@@ -32,11 +30,9 @@ def read_hypothesis_info(hyp_dir: Path) -> Optional[str]:
 def read_experiment_info(exp_dir: Path) -> Optional[str]:
     """Read experiment information from EXPERIMENT.md
 
-    Args:
-        exp_dir: Path to experiment directory
+    :param exp_dir: Path to experiment directory
 
-    Returns:
-        Experiment markdown content or None if file doesn't exist
+    :returns: Experiment markdown content or None if file doesn't exist
     """
     exp_md = exp_dir / "EXPERIMENT.md"
     if exp_md.exists():
@@ -47,11 +43,9 @@ def read_experiment_info(exp_dir: Path) -> Optional[str]:
 def read_sim_settings(hyp_dir: Path) -> Dict[str, Any]:
     """Read SIM_SETTINGS.json
 
-    Args:
-        hyp_dir: Path to hypothesis directory
+    :param hyp_dir: Path to hypothesis directory
 
-    Returns:
-        SIM_SETTINGS dictionary or empty dict if file doesn't exist
+    :returns: SIM_SETTINGS dictionary or empty dict if file doesn't exist
     """
     sim_settings_file = hyp_dir / "SIM_SETTINGS.json"
     if sim_settings_file.exists():
@@ -65,11 +59,9 @@ def read_sim_settings(hyp_dir: Path) -> Dict[str, Any]:
 def read_init_config(exp_dir: Path) -> Optional[Dict[str, Any]]:
     """Read init_config.json from experiment init directory
 
-    Args:
-        exp_dir: Path to experiment directory
+    :param exp_dir: Path to experiment directory
 
-    Returns:
-        Init config dictionary or None if file doesn't exist
+    :returns: Init config dictionary or None if file doesn't exist
     """
     init_config_file = exp_dir / "init" / "init_config.json"
     if init_config_file.exists():
@@ -87,14 +79,11 @@ def get_experiment_paths(
 ) -> Dict[str, Path]:
     """Get all relevant paths for an experiment
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID (e.g., '1', '2')
-        experiment_id: Experiment ID (e.g., '1', '2')
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID (e.g., '1', '2')
+    :param experiment_id: Experiment ID (e.g., '1', '2')
 
-    Returns:
-        Dictionary with all relevant paths
-
+    :returns: Dictionary with all relevant paths
     Note:
         Simplified structure: init/ directory contains config files directly
         - init/config_params.py - Parameter generation script
@@ -131,13 +120,11 @@ def validate_experiment_exists(
 ) -> Dict[str, Any]:
     """Validate that an experiment directory structure exists
 
-    Args:
-        workspace_path: Path to workspace directory
-        hypothesis_id: Hypothesis ID (e.g., '1', '2')
-        experiment_id: Experiment ID (e.g., '1', '2')
+    :param workspace_path: Path to workspace directory
+    :param hypothesis_id: Hypothesis ID (e.g., '1', '2')
+    :param experiment_id: Experiment ID (e.g., '1', '2')
 
-    Returns:
-        Dictionary with validation result and error message if any
+    :returns: Dictionary with validation result and error message if any
     """
     paths = get_experiment_paths(workspace_path, hypothesis_id, experiment_id)
 

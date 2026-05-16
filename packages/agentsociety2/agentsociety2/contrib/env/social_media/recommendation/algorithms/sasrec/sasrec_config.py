@@ -74,11 +74,9 @@ class SASRecConfig:
         """
         从字典创建配置对象
 
-        Args:
-            config_dict: 配置字典
+        :param config_dict: 配置字典
 
-        Returns:
-            SASRecConfig实例
+        :returns: SASRecConfig实例
         """
         return cls(**{k: v for k, v in config_dict.items() if hasattr(cls, k)})
 
@@ -86,8 +84,7 @@ class SASRecConfig:
         """
         转换为字典
 
-        Returns:
-            配置字典
+        :returns: 配置字典
         """
         return {
             "hidden_units": self.hidden_units,

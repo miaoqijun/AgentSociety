@@ -23,12 +23,11 @@ class DeepFMModel(nn.Module):
         """
         初始化DeepFM模型
         
-        Args:
-            n_users: 用户数量
-            n_items: 物品数量
-            embedding_dim: 嵌入维度
-            deep_layers: 深度网络层神经元数量列表
-            drop_rate: Dropout率
+        :param n_users: 用户数量
+        :param n_items: 物品数量
+        :param embedding_dim: 嵌入维度
+        :param deep_layers: 深度网络层神经元数量列表
+        :param drop_rate: Dropout率
         """
         super(DeepFMModel, self).__init__()
         
@@ -90,12 +89,10 @@ class DeepFMModel(nn.Module):
         """
         前向传播
         
-        Args:
-            user_ids: 用户ID张量
-            item_ids: 物品ID张量
+        :param user_ids: 用户ID张量
+        :param item_ids: 物品ID张量
             
-        Returns:
-            预测评分
+        :returns: 预测评分
         """
         # 获取嵌入向量
         user_emb = self.user_embedding(user_ids)
@@ -132,8 +129,7 @@ class DeepFMRecommender(RecommenderAlgorithm):
         """
         初始化DeepFM推荐系统
         
-        Args:
-            config: DeepFM算法配置
+        :param config: DeepFM算法配置
         """
         self.config = config
         self.model: Optional[DeepFMModel] = None
@@ -161,8 +157,7 @@ class DeepFMRecommender(RecommenderAlgorithm):
         """
         训练DeepFM模型
         
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         get_logger().info(
             f"开始训练 DeepFM 模型: {data.get_user_count()} 用户, "
@@ -252,12 +247,10 @@ class DeepFMRecommender(RecommenderAlgorithm):
         """
         预测用户对物品的评分
         
-        Args:
-            user_id: 用户ID
-            item_id: 物品ID
+        :param user_id: 用户ID
+        :param item_id: 物品ID
             
-        Returns:
-            预测评分 (1.0-5.0)
+        :returns: 预测评分 (1.0-5.0)
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")
@@ -287,13 +280,11 @@ class DeepFMRecommender(RecommenderAlgorithm):
         """
         为用户生成推荐列表
         
-        Args:
-            user_id: 用户ID
-            n: 推荐数量
-            exclude_ids: 要排除的物品ID集合
+        :param user_id: 用户ID
+        :param n: 推荐数量
+        :param exclude_ids: 要排除的物品ID集合
             
-        Returns:
-            [(item_id, score), ...] 按 score 降序排列
+        :returns: [(item_id, score), ...] 按 score 降序排列
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")
@@ -330,8 +321,7 @@ class DeepFMRecommender(RecommenderAlgorithm):
         """
         保存模型到文件
         
-        Args:
-            path: 模型保存路径
+        :param path: 模型保存路径
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,无法保存")
@@ -357,8 +347,7 @@ class DeepFMRecommender(RecommenderAlgorithm):
         """
         从文件加载模型
         
-        Args:
-            path: 模型文件路径
+        :param path: 模型文件路径
         """
         with open(path, 'rb') as f:
             checkpoint = pickle.load(f)
@@ -392,8 +381,7 @@ class DeepFMRecommender(RecommenderAlgorithm):
         
         基于 平均评分 × log(评分数+1) 计算热门度
         
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         item_ratings: Dict[int, List[float]] = {}
         

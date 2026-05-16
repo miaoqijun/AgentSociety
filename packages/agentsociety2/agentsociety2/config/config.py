@@ -22,10 +22,9 @@ from litellm.router import Router
 
 from agentsociety2.logger import get_logger, setup_litellm_logging
 
-# 禁用遥测（避免连接 Posthog/Facebook 等外部服务）
-# mem0 telemetry has per-call Posthog client creation in current upstream version,
-# which may lead to excessive background threads in long simulations.
-# Keep override capability: users can still export MEM0_TELEMETRY=true explicitly.
+# 默认关闭 mem0 / Chroma 相关遥测开关（未设置环境变量时）
+# mem0 上游会在部分路径创建 Posthog client，长仿真可能拖出大量后台线程；
+# 下方对 capture_event 的无操作替换在导入本模块后始终生效，与 MEM0_TELEMETRY 取值无关。
 os.environ.setdefault("MEM0_TELEMETRY", "False")
 
 # ChromaDB 也使用 Posthog 进行遥测，必须禁用
@@ -45,6 +44,18 @@ __all__ = [
 logger = get_logger()
 
 
+def _disable_mem0_capture_event() -> None:
+    """将 mem0 的 capture_event 替换为无操作，避免默认路径下的遥测上报。"""
+
+    def _noop_capture_event(*args, **kwargs):
+        return None
+
+    _mem0_main.capture_event = _noop_capture_event
+
+
+_disable_mem0_capture_event()
+
+
 def _redact_router_config_for_log(obj: Any) -> Any:
     if isinstance(obj, dict):
         out: dict[str, Any] = {}
@@ -57,28 +68,6 @@ def _redact_router_config_for_log(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_redact_router_config_for_log(x) for x in obj]
     return obj
-
-
-def _is_truthy(value: str) -> bool:
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _disable_mem0_telemetry_if_needed() -> None:
-    """必要时强制禁用 mem0 遥测。
-
-    避免上游版本在每次调用时创建 Posthog client，导致长仿真中后台线程过多。
-    若用户显式设置 ``MEM0_TELEMETRY=true`` 则尊重用户配置，不做覆盖。
-    """
-    if _is_truthy(os.getenv("MEM0_TELEMETRY", "False")):
-        return
-
-    def _noop_capture_event(*args, **kwargs):
-        return None
-
-    _mem0_main.capture_event = _noop_capture_event
-
-
-_disable_mem0_telemetry_if_needed()
 
 # Initialize LiteLLM logging once
 _litellm_logging_initialized = False
@@ -140,12 +129,12 @@ class Config:
     specific model endpoint (e.g., /chat/completions).
     """
 
-    LLM_MODEL: str = os.getenv("AGENTSOCIETY_LLM_MODEL", "gpt-5.4")
+    LLM_MODEL: str = os.getenv("AGENTSOCIETY_LLM_MODEL", "gpt-5.5")
     """
     Model identifier for the default LLM used in general operations.
 
     Environment variable: AGENTSOCIETY_LLM_MODEL
-    Default: "gpt-5.4"
+    Default: "gpt-5.5"
 
     This model is used for most language understanding and generation tasks that don't
     require specialized models. The model name should match what your API provider expects.
@@ -224,12 +213,12 @@ class Config:
     response times.
     """
 
-    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or "gpt-5.4-nano"
+    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or "gpt-5.5"
     """
     Model identifier for high-frequency, low-latency operations.
 
     Environment variable: AGENTSOCIETY_NANO_LLM_MODEL
-    Default: "gpt-5.4-nano"
+    Default: "gpt-5.5"
 
     This model is used for operations that require fast responses, such as memory
     retrieval, quick reasoning, and other tasks where latency is critical. Typically,
@@ -639,29 +628,28 @@ class Config:
             "vector_store": {
                 "provider": "chroma",
                 "config": {
-                    "collection_name": f"memories_{id}_{random_suffix}",
-                    "path": os.path.join(
-                        cls.HOME_DIR, f"memories_{id}_{random_suffix}"
-                    ),
+                    "collection_name": f"agent_{id}_memory_{random_suffix}",
+                    "path": f"{cls.HOME_DIR}/memory/agent_{id}_{random_suffix}",
                 },
             },
-            "storage_config": {
-                "provider": "sqlite",
-                "path": os.path.join(cls.HOME_DIR, f"memories_{id}_{random_suffix}.db"),
-            },
             "llm": {
-                "provider": "openai",
+                "provider": "litellm",
                 "config": {
                     "model": cls.NANO_LLM_MODEL,
+                    "temperature": 0.0,
+                    "max_tokens": 2000,
                     "api_key": cls.NANO_LLM_API_KEY,
-                    "openai_base_url": cls.NANO_LLM_API_BASE,
+                    "litellm_params": {
+                        "api_base": cls.NANO_LLM_API_BASE,
+                        "api_key": cls.NANO_LLM_API_KEY,
+                    },
                 },
             },
             "embedder": {
                 "provider": "openai",
                 "config": {
-                    "model": cls.EMBEDDING_MODEL,
                     "api_key": cls.EMBEDDING_API_KEY,
+                    "model": cls.EMBEDDING_MODEL,
                     "openai_base_url": cls.EMBEDDING_API_BASE,
                     "embedding_dims": cls.EMBEDDING_DIMS,
                 },

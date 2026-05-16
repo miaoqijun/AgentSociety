@@ -21,8 +21,7 @@ logger = get_logger()
 def get_available_env_modules() -> Dict[str, str]:
     """Get available environment modules with their descriptions
 
-    Returns:
-        Dictionary mapping module_type to description
+    :returns: Dictionary mapping module_type to description
     """
     try:
         env_modules_info = {}
@@ -42,8 +41,7 @@ def get_available_env_modules() -> Dict[str, str]:
 def get_available_agent_modules() -> Dict[str, str]:
     """Get available agent modules with their descriptions
 
-    Returns:
-        Dictionary mapping agent_type to description
+    :returns: Dictionary mapping agent_type to description
     """
     try:
         agents_info = {}
@@ -63,8 +61,7 @@ def get_available_agent_modules() -> Dict[str, str]:
 def get_modules_summary() -> str:
     """Get a formatted summary of available modules for LLM prompts
 
-    Returns:
-        Formatted string with available modules
+    :returns: Formatted string with available modules
     """
     env_modules = get_available_env_modules()
     agent_modules = get_available_agent_modules()
@@ -95,12 +92,10 @@ def validate_module_selection(
 ) -> Tuple[bool, List[str]]:
     """Validate that at least one agent and one environment module are selected
 
-    Args:
-        agent_classes: List of agent class types
-        env_modules: List of environment module types
+    :param agent_classes: List of agent class types
+    :param env_modules: List of environment module types
 
-    Returns:
-        Tuple of (is_valid, list of error messages)
+    :returns: Tuple of (is_valid, list of error messages)
     """
     errors = []
 
@@ -135,13 +130,11 @@ def get_module_selection_guidance(
 ) -> str:
     """Generate guidance text for module selection
 
-    Args:
-        topic: Research topic for context
-        agent_classes: Currently selected agent classes
-        env_modules: Currently selected environment modules
+    :param topic: Research topic for context
+    :param agent_classes: Currently selected agent classes
+    :param env_modules: Currently selected environment modules
 
-    Returns:
-        Guidance text for helping with module selection
+    :returns: Guidance text for helping with module selection
     """
     available_agents = get_available_agent_modules()
     available_envs = get_available_env_modules()
@@ -188,11 +181,9 @@ def get_module_selection_guidance(
 def validate_hypothesis_modules(hypothesis_data: Dict[str, Any]) -> Tuple[bool, List[str], Optional[Dict[str, Any]]]:
     """Validate that a hypothesis has required modules
 
-    Args:
-        hypothesis_data: Hypothesis data dictionary
+    :param hypothesis_data: Hypothesis data dictionary
 
-    Returns:
-        Tuple of (is_valid, error_messages, guidance_dict)
+    :returns: Tuple of (is_valid, error_messages, guidance_dict)
     """
     errors = []
     guidance = {

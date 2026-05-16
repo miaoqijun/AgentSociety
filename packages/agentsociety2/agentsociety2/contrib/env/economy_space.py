@@ -103,8 +103,7 @@ class EconomySpace(EnvBase):
         """
         Initialize the Economy Space environment.
 
-        Args:
-            persons: List of persons to initialize the environment with. Can be EconomyPerson objects or dicts.
+        :param persons: List of persons to initialize the environment with. Can be EconomyPerson objects or dicts.
         """
         super().__init__()
 
@@ -185,11 +184,9 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Get the person by id.
 
-        Args:
-            id: The id of the person
+        :param id: The id of the person
 
-        Returns:
-            The person by id
+        :returns: The person by id
         """
         async with self._lock:
             if id not in self._persons:
@@ -201,11 +198,9 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Get the currency of a person.
 
-        Args:
-            id: The id of the person
+        :param id: The id of the person
 
-        Returns:
-            The context containing the currency of the person
+        :returns: The context containing the currency of the person
         """
         async with self._lock:
             if id not in self._persons:
@@ -218,12 +213,10 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Add the currency of a person.
 
-        Args:
-            id: The id of the person
-            delta: The delta of the currency
+        :param id: The id of the person
+        :param delta: The delta of the currency
 
-        Returns:
-            The context of the person
+        :returns: The context of the person
         """
         async with self._lock:
             if id not in self._persons:
@@ -244,11 +237,9 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Get the skill of a person.
 
-        Args:
-            id: The id of the person
+        :param id: The id of the person
 
-        Returns:
-            The context containing the skill of the person
+        :returns: The context containing the skill of the person
         """
         async with self._lock:
             if id not in self._persons:
@@ -261,11 +252,9 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Get the consumption of a person.
 
-        Args:
-            id: The id of the person
+        :param id: The id of the person
 
-        Returns:
-            The context containing the consumption of the person
+        :returns: The context containing the consumption of the person
         """
         async with self._lock:
             if id not in self._persons:
@@ -280,12 +269,10 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Set the consumption of a person.
 
-        Args:
-            id: The id of the person
-            consumption: The consumption of the person
+        :param id: The id of the person
+        :param consumption: The consumption of the person
 
-        Returns:
-            The context of the person
+        :returns: The context of the person
         """
         async with self._lock:
             if id not in self._persons:
@@ -305,11 +292,9 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Get the income of a person.
 
-        Args:
-            id: The id of the person
+        :param id: The id of the person
 
-        Returns:
-            The context containing the income of the person
+        :returns: The context containing the income of the person
         """
         async with self._lock:
             if id not in self._persons:
@@ -322,12 +307,10 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Set the income of a person.
 
-        Args:
-            id: The id of the person
-            income: The income of the person
+        :param id: The id of the person
+        :param income: The income of the person
 
-        Returns:
-            The context of the person
+        :returns: The context of the person
         """
         async with self._lock:
             if id not in self._persons:
@@ -351,9 +334,8 @@ Your task is to use the available economy functions to manage persons, their fin
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks (1 tick = 1 second) of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks (1 tick = 1 second) of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         new_run_datetime = self._last_run_datetime
         for _ in range(tick):

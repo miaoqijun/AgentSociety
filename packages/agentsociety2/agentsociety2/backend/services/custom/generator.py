@@ -16,8 +16,7 @@ class CustomModuleJsonGenerator:
         """
         初始化生成器
 
-        Args:
-            workspace_path: 工作区路径
+        :param workspace_path: 工作区路径
         """
         self.workspace_path = Path(workspace_path).resolve()
         self.agent_classes_dir = self.workspace_path / ".agentsociety/agent_classes"
@@ -27,11 +26,9 @@ class CustomModuleJsonGenerator:
         """
         生成所有发现的模块的 JSON 文件
 
-        Args:
-            scan_result: 扫描结果
+        :param scan_result: 扫描结果
 
-        Returns:
-            生成统计信息
+        :returns: 生成统计信息
         """
         counts = {"agents_generated": 0, "envs_generated": 0, "errors": 0}
 
@@ -59,11 +56,9 @@ class CustomModuleJsonGenerator:
         """
         生成单个 Agent 的 JSON 文件
 
-        Args:
-            agent_info: Agent 信息字典
+        :param agent_info: Agent 信息字典
 
-        Returns:
-            是否成功生成
+        :returns: 是否成功生成
         """
         try:
             file_path = self.agent_classes_dir / f"{agent_info['type'].lower()}.json"
@@ -96,11 +91,9 @@ class CustomModuleJsonGenerator:
         """
         生成单个环境模块的 JSON 文件
 
-        Args:
-            env_info: 环境模块信息字典
+        :param env_info: 环境模块信息字典
 
-        Returns:
-            是否成功生成
+        :returns: 是否成功生成
         """
         try:
             file_path = self.env_modules_dir / f"{env_info['type'].lower()}.json"
@@ -132,8 +125,7 @@ class CustomModuleJsonGenerator:
         """
         删除所有标记为自定义的 JSON 文件
 
-        Returns:
-            删除的文件数量
+        :returns: 删除的文件数量
         """
         count = 0
 

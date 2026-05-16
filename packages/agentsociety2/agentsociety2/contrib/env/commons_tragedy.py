@@ -59,10 +59,9 @@ class CommonsTragedyEnv(EnvBase):
     ):
         """Initialize environment
         
-        Args:
-            num_agents: Number of agents (default: 4)
-            initial_pool_resources: Initial resource pool size (default: 100)
-            max_extraction_per_agent: Maximum extraction per agent per round (default: 10)
+        :param num_agents: Number of agents (default: 4)
+        :param initial_pool_resources: Initial resource pool size (default: 100)
+        :param max_extraction_per_agent: Maximum extraction per agent per round (default: 10)
         """
         super().__init__()
 
@@ -153,8 +152,7 @@ If you don't submit, other agents' submissions will be delayed.
         in extracting resources from a shared pool over 10 rounds. Each unit you extract gives you 1 point. 
         The pool is depletable - if total extractions exceed available resources, allocations are proportional.
 
-        Returns:
-            Response containing current and initial pool resources.
+        :returns: Response containing current and initial pool resources.
         """
         async with self._lock:
             return GetPoolResourcesResponse(
@@ -174,12 +172,10 @@ If you don't submit, other agents' submissions will be delayed.
         The pool is depletable - if total extractions exceed available resources, allocations are proportional.
         Your goal is to maximize your personal resource extraction over all rounds.
 
-        Args:
-            agent_name: The agent's name (should be in format "Agent-{id}", e.g., "Agent-1")
-            requested_extraction: The requested extraction amount (1 to max_extraction_per_agent)
+        :param agent_name: The agent's name (should be in format "Agent-{id}", e.g., "Agent-1")
+        :param requested_extraction: The requested extraction amount (1 to max_extraction_per_agent)
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Validate extraction amount
@@ -266,11 +262,9 @@ If you don't submit, other agents' submissions will be delayed.
         The pool is depletable - if total extractions exceed available resources, allocations are proportional.
         Reviewing history helps you understand past behaviors and make better decisions.
 
-        Args:
-            round_num: Optional round number. If None, returns all rounds.
+        :param round_num: Optional round number. If None, returns all rounds.
 
-        Returns:
-            List of round summaries.
+        :returns: List of round summaries.
         """
         async with self._lock:
             if round_num is not None:
@@ -299,9 +293,8 @@ If you don't submit, other agents' submissions will be delayed.
         All submissions for the current round are processed and the round is executed here,
         ensuring atomicity and consistent state for the next round.
         
-        Args:
-            tick: The number of ticks of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.t = t

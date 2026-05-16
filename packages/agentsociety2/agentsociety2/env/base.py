@@ -228,12 +228,10 @@ def tool(
             """
             Convert args and kwargs to unified kwargs dict based on function signature.
 
-            Args:
-                args: Positional arguments (excluding self)
-                kwargs: Keyword arguments
+            :param args: Positional arguments (excluding self)
+            :param kwargs: Keyword arguments
 
-            Returns:
-                Dict of arguments with parameter names as keys
+            :returns: Dict of arguments with parameter names as keys
             """
             normalized_kwargs = {}
 
@@ -347,11 +345,9 @@ def _serialize_to_literal(value: Any) -> Any:
     """
     Serialize a value to a JSON-serializable literal representation.
 
-    Args:
-        value: The value to serialize
+    :param value: The value to serialize
 
-    Returns:
-        A JSON-serializable representation of the value
+    :returns: A JSON-serializable representation of the value
     """
     try:
         # Try to serialize directly
@@ -481,15 +477,7 @@ It contains no functions or methods.
         This method should be overridden by subclasses to provide a description
         suitable for MCP server to list available environment modules.
 
-        Returns:
-            A string description of the environment module for MCP registration.
-
-        Format:
-            The description uses Markdown format with the following structure:
-            - Class name and brief description
-            - Detailed description section
-            - Initialization parameters (if applicable)
-            - Example config or JSON schema (if applicable)
+        :returns: A string description of the environment module for MCP registration. The description uses Markdown format and should include the class name, detailed description, initialization parameters when applicable, and an example config or JSON schema when applicable.
         """
         # Check if this is the base class being called directly
         if cls is EnvBase:
@@ -544,9 +532,7 @@ It contains no functions or methods.
         for example ``agent_skills/navigation/SKILL.md`` and optional
         ``agent_skills/navigation/scripts/``.
 
-        Returns:
-            List of Path objects pointing to directories containing skill subdirectories.
-            Empty list if no skills are provided.
+        :returns: List of Path objects pointing to directories containing skill subdirectories. Empty list if no skills are provided.
         """
         import inspect
 
@@ -588,8 +574,7 @@ It contains no functions or methods.
         :meth:`get_agent_skills_dirs`). If the skill is not found, a warning is logged
         and the agent uses the default skill set.
 
-        Returns:
-            Skill name to auto-activate, or None for default behavior.
+        :returns: Skill name to auto-activate, or None for default behavior.
         """
         return None
 
@@ -600,8 +585,7 @@ It contains no functions or methods.
         :class:`PersonStepConstraints`，
         由 PersonAgent 与具体实验/玩法解耦。
 
-        Returns:
-            PersonStepConstraints | None
+        :returns: PersonStepConstraints | None
         """
         return None
 
@@ -834,10 +818,9 @@ It contains no functions or methods.
     ) -> None:
         """写入 per-agent 交互状态到 {prefix}_agent_state 表
 
-        Args:
-            agent_id: Agent ID
-            step: 当前步数
-            t: 当前模拟时间
+        :param agent_id: Agent ID
+        :param step: 当前步数
+        :param t: 当前模拟时间
             **data: 模块自定义字段（需与 _agent_state_columns 声明匹配）
         """
         if self._replay_writer is None:
@@ -854,10 +837,9 @@ It contains no functions or methods.
     ) -> None:
         """批量写入 per-agent 交互状态
 
-        Args:
-            step: 当前步数
-            t: 当前模拟时间
-            records: 记录列表，每条需包含 agent_id 和模块自定义字段
+        :param step: 当前步数
+        :param t: 当前模拟时间
+        :param records: 记录列表，每条需包含 agent_id 和模块自定义字段
         """
         if self._replay_writer is None or not records:
             return
@@ -870,9 +852,8 @@ It contains no functions or methods.
     async def _write_env_state(self, step: int, t: datetime, **data: Any) -> None:
         """写入环境全局状态到 {prefix}_env_state 表
 
-        Args:
-            step: 当前步数
-            t: 当前模拟时间
+        :param step: 当前步数
+        :param t: 当前模拟时间
             **data: 模块自定义字段（需与 _env_state_columns 声明匹配）
         """
         if self._replay_writer is None:

@@ -245,8 +245,7 @@ class EventSpace(EnvBase):
         """
         Initialize the EventSpace.
 
-        Args:
-            start_datetime: The simulation start time
+        :param start_datetime: The simulation start time
         """
         await super().init(start_datetime)
         self._agent_events.clear()
@@ -275,14 +274,12 @@ class EventSpace(EnvBase):
         """
         Internal helper to create and start an event.
 
-        Args:
-            person_id: The ID of the person
-            event_type: Type of event
-            event_name: Name or description of the event
-            expected_duration_seconds: Expected duration in seconds
+        :param person_id: The ID of the person
+        :param event_type: Type of event
+        :param event_name: Name or description of the event
+        :param expected_duration_seconds: Expected duration in seconds
 
-        Returns:
-            Response containing the started event information
+        :returns: Response containing the started event information
         """
         start_time = self.t
 
@@ -337,15 +334,12 @@ class EventSpace(EnvBase):
         """
         Start an event for a person.
 
-        Args:
-            person_id: The ID of the person
-            event_type: Type of event - one of: sleep, home activity, work, shopping, eating out, leisure and entertainment, other
-            event_name: Description or name of the specific activity
-            expected_duration_seconds: Expected duration in seconds
-                (e.g., 3600 for 1 hour, 28800 for 8 hours, 1800 for 30 minutes)
+        :param person_id: The ID of the person
+        :param event_type: Type of event - one of: sleep, home activity, work, shopping, eating out, leisure and entertainment, other
+        :param event_name: Description or name of the specific activity
+        :param expected_duration_seconds: Expected duration in seconds (e.g., 3600 for 1 hour, 28800 for 8 hours, 1800 for 30 minutes)
 
-        Returns:
-            Response containing the started event information
+        :returns: Response containing the started event information
         """
         # Validate event_type
         if event_type not in self._allowed_event_types:
@@ -365,11 +359,9 @@ class EventSpace(EnvBase):
         """
         Query current event information for a person.
 
-        Args:
-            person_id: The ID of the person
+        :param person_id: The ID of the person
 
-        Returns:
-            Response containing event details including type, status, timestamps, duration, and progress, or None if no active event
+        :returns: Response containing event details including type, status, timestamps, duration, and progress, or None if no active event
         """
         if person_id not in self._agent_events:
             return None
@@ -407,12 +399,10 @@ class EventSpace(EnvBase):
         """
         Stop (complete or cancel) the current event for a person.
 
-        Args:
-            person_id: The ID of the person
-            status: Event end status ("completed" or "cancelled")
+        :param person_id: The ID of the person
+        :param status: Event end status ("completed" or "cancelled")
 
-        Returns:
-            Response indicating success and status message
+        :returns: Response indicating success and status message
         """
         if person_id not in self._agent_events:
             return EndEventResponse(
@@ -440,9 +430,8 @@ class EventSpace(EnvBase):
         """
         Run forward one step (update event timestamps).
 
-        Args:
-            tick: The number of ticks (1 tick = 1 second)
-            t: The current datetime after this step
+        :param tick: The number of ticks (1 tick = 1 second)
+        :param t: The current datetime after this step
         """
         self.t = t
         active_events = self._serialize_active_events(t)
@@ -460,8 +449,7 @@ class EventSpace(EnvBase):
         """
         Dump the internal state of EventSpace for serialization.
 
-        Returns:
-            dict: A dictionary containing current events for all persons
+        :returns: dict: A dictionary containing current events for all persons
         """
         events_data = {}
         for person_id, event in self._agent_events.items():
@@ -488,8 +476,7 @@ class EventSpace(EnvBase):
         """
         Load the internal state of EventSpace from serialized data.
 
-        Args:
-            state: The state dictionary produced by _dump_state()
+        :param state: The state dictionary produced by _dump_state()
         """
         self._allowed_event_types = state.get(
             "allowed_event_types", DEFAULT_ALLOWED_EVENT_TYPES

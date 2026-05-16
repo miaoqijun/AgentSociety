@@ -64,11 +64,9 @@ class SimpleEnv(EnvBase):
         """
         获取当前计数值
 
-        Args:
-            agent_id: Agent ID
+        :param agent_id: Agent ID
 
-        Returns:
-            包含当前计数值的字典
+        :returns: 包含当前计数值的字典
         """
         return {
             "counter": self._counter,
@@ -81,12 +79,10 @@ class SimpleEnv(EnvBase):
         """
         增加计数值
 
-        Args:
-            agent_id: Agent ID
-            amount: 增加的数量，默认 1
+        :param agent_id: Agent ID
+        :param amount: 增加的数量，默认 1
 
-        Returns:
-            操作结果
+        :returns: 操作结果
         """
         old_value = self._counter
         self._counter = min(self._counter + amount, self._config.max_value)
@@ -104,12 +100,10 @@ class SimpleEnv(EnvBase):
         """
         减少计数值
 
-        Args:
-            agent_id: Agent ID
-            amount: 减少的数量，默认 1
+        :param agent_id: Agent ID
+        :param amount: 减少的数量，默认 1
 
-        Returns:
-            操作结果
+        :returns: 操作结果
         """
         old_value = self._counter
         self._counter = max(self._counter - amount, 0)
@@ -127,11 +121,9 @@ class SimpleEnv(EnvBase):
         """
         重置计数值为初始值
 
-        Args:
-            agent_id: Agent ID
+        :param agent_id: Agent ID
 
-        Returns:
-            操作结果
+        :returns: 操作结果
         """
         old_value = self._counter
         self._counter = self._config.initial_value
@@ -147,9 +139,8 @@ class SimpleEnv(EnvBase):
         """
         环境步骤
 
-        Args:
-            tick: 时间刻度
-            t: 当前时间
+        :param tick: 时间刻度
+        :param t: 当前时间
         """
         self.t = t
         # 可以在这里添加定期事件

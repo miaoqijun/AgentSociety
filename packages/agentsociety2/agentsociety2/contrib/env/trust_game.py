@@ -76,10 +76,9 @@ class TrustGameEnv(EnvBase):
     ):
         """Initialize environment
         
-        Args:
-            num_pairs: Number of Trustor-Trustee pairs (default: 4)
-            initial_funds: Initial coins per Trustor per round (default: 10)
-            multiplication_factor: Investment multiplication factor (default: 3)
+        :param num_pairs: Number of Trustor-Trustee pairs (default: 4)
+        :param initial_funds: Initial coins per Trustor per round (default: 10)
+        :param multiplication_factor: Investment multiplication factor (default: 3)
         """
         super().__init__()
 
@@ -194,8 +193,7 @@ class TrustGameEnv(EnvBase):
         Convention: Agent-{id}_Trustor_G{n} pairs with Agent-{id'}_Trustee_G{n}
         where both have the same game number G{n}.
 
-        Args:
-            agent_name: Optional agent name (not used, kept for compatibility)
+        :param agent_name: Optional agent name (not used, kept for compatibility)
         """
         if self.partner_mapping:
             return  # Already set up
@@ -221,13 +219,11 @@ class TrustGameEnv(EnvBase):
         """
         Submit investment decision for a trustor.
 
-        Args:
-            trustor_name: The trustor's full name (format: "Agent-{id}_Trustor_G{game_num}")
-                         Example: "Agent-1_Trustor_G1", "Agent-2_Trustor_G2"
-            investment: The investment amount (0 to initial_funds)
+        :param trustor_name: The trustor's full name (format: "Agent-{id}_Trustor_G{game_num}")
+        :param Example: "Agent-1_Trustor_G1", "Agent-2_Trustor_G2"
+        :param investment: The investment amount (0 to initial_funds)
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Auto-setup partner mapping if not set
@@ -284,14 +280,12 @@ class TrustGameEnv(EnvBase):
         """
         Submit return decision for a trustee.
 
-        Args:
-            trustee_name: The trustee's full name (format: "Agent-{id}_Trustee_G{game_num}")
-                         Example: "Agent-5_Trustee_G1", "Agent-6_Trustee_G2"
-                         IMPORTANT: Use the exact trustee name, NOT the agent ID number!
-            return_amount: The return amount (0 to received_amount)
+        :param trustee_name: The trustee's full name (format: "Agent-{id}_Trustee_G{game_num}")
+        :param Example: "Agent-5_Trustee_G1", "Agent-6_Trustee_G2"
+        :param IMPORTANT: Use the exact trustee name, NOT the agent ID number!
+        :param return_amount: The return amount (0 to received_amount)
 
-        Returns:
-            Response containing submission status.
+        :returns: Response containing submission status.
         """
         async with self._lock:
             # Auto-setup partner mapping if not set
@@ -348,12 +342,10 @@ class TrustGameEnv(EnvBase):
         """
         Get data for a specific trustor-trustee pair from the last round.
 
-        Args:
-            trustor_name: The trustor's full name (format: "Agent-{id}_Trustor_G{game_num}")
-                         Example: "Agent-1_Trustor_G1", "Agent-3_Trustor_G2"
+        :param trustor_name: The trustor's full name (format: "Agent-{id}_Trustor_G{game_num}")
+        :param Example: "Agent-1_Trustor_G1", "Agent-3_Trustor_G2"
 
-        Returns:
-            Response containing pair data from the last round.
+        :returns: Response containing pair data from the last round.
         """
         async with self._lock:
             if not self.round_history:
@@ -386,12 +378,10 @@ class TrustGameEnv(EnvBase):
         Get data for a specific trustee-trustor pair from the last round (trustee perspective).
         This is a convenience method for trustees who know their own name but need to find their partner's data.
 
-        Args:
-            trustee_name: The trustee's full name (format: "Agent-{id}_Trustee_G{game_num}")
-                         Example: "Agent-2_Trustee_G1", "Agent-4_Trustee_G2"
+        :param trustee_name: The trustee's full name (format: "Agent-{id}_Trustee_G{game_num}")
+        :param Example: "Agent-2_Trustee_G1", "Agent-4_Trustee_G2"
 
-        Returns:
-            Response containing pair data from the last round.
+        :returns: Response containing pair data from the last round.
         """
         async with self._lock:
             if not self.round_history:
@@ -424,11 +414,9 @@ class TrustGameEnv(EnvBase):
         """
         Get round history.
 
-        Args:
-            round_num: Optional round number. If None, returns all rounds.
+        :param round_num: Optional round number. If None, returns all rounds.
 
-        Returns:
-            List of round summaries.
+        :returns: List of round summaries.
         """
         async with self._lock:
             if round_num is not None:
@@ -443,11 +431,9 @@ class TrustGameEnv(EnvBase):
         Get pending investment for a trustor in the current round.
         This allows trustees to check if their partner trustor has submitted an investment.
 
-        Args:
-            trustor_name: The trustor's name
+        :param trustor_name: The trustor's name
 
-        Returns:
-            Response containing pending investment amount and calculated received amount.
+        :returns: Response containing pending investment amount and calculated received amount.
         """
         async with self._lock:
             investment = self._pending_investments.get(trustor_name)
@@ -468,9 +454,7 @@ class TrustGameEnv(EnvBase):
         Get general information about the trust game setup.
         This tool does not require agent_id and can be called anytime.
 
-        Returns:
-            A dictionary containing game setup info: num_pairs, initial_funds,
-            multiplication_factor, current_round, and all agent pairings.
+        :returns: A dictionary containing game setup info: num_pairs, initial_funds, multiplication_factor, current_round, and all agent pairings.
         """
         async with self._lock:
             # Auto-setup partner mapping if not set
@@ -511,11 +495,9 @@ class TrustGameEnv(EnvBase):
         Get the current trust game status for a specific agent.
         This is an observe tool that is automatically called during <observe>.
 
-        Args:
-            agent_id: The agent's ID
+        :param agent_id: The agent's ID
 
-        Returns:
-            A dictionary containing the agent's role, current round, partner info, and game history.
+        :returns: A dictionary containing the agent's role, current round, partner info, and game history.
         """
         async with self._lock:
             # Auto-setup partner mapping if not set
@@ -619,9 +601,8 @@ class TrustGameEnv(EnvBase):
         
         Executes a round if all trustors and trustees have submitted their decisions.
         
-        Args:
-            tick: The number of ticks of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.t = t

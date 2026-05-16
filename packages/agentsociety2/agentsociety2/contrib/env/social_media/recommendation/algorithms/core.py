@@ -37,11 +37,9 @@ class RatingMatrix:
         """
         从 Rating 列表构建 RatingMatrix
 
-        Args:
-            ratings: Rating 对象列表
+        :param ratings: Rating 对象列表
 
-        Returns:
-            RatingMatrix 实例
+        :returns: RatingMatrix 实例
         """
         if not ratings:
             raise ValueError("评分列表不能为空")
@@ -72,8 +70,7 @@ class RatingMatrix:
 
         用于 MF 等需要矩阵格式的算法
 
-        Returns:
-            DataFrame with users as rows, items as columns
+        :returns: DataFrame with users as rows, items as columns
         """
         df = pd.DataFrame({
             'userId': self.user_ids,
@@ -94,8 +91,7 @@ class RatingMatrix:
 
         用于协同过滤等需要稀疏表示的算法
 
-        Returns:
-            scipy.sparse.csr_matrix
+        :returns: scipy.sparse.csr_matrix
         """
         n_users = len(self.user_map)
         n_items = len(self.item_map)
@@ -143,8 +139,7 @@ class RecommenderAlgorithm(ABC):
         """
         训练模型
 
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         pass
 
@@ -153,12 +148,10 @@ class RecommenderAlgorithm(ABC):
         """
         预测单个用户对物品的评分
 
-        Args:
-            user_id: 用户ID (原始ID,不是索引)
-            item_id: 物品ID (原始ID,不是索引)
+        :param user_id: 用户ID (原始ID,不是索引)
+        :param item_id: 物品ID (原始ID,不是索引)
 
-        Returns:
-            预测评分 (1.0-5.0)
+        :returns: 预测评分 (1.0-5.0)
         """
         pass
 
@@ -172,13 +165,11 @@ class RecommenderAlgorithm(ABC):
         """
         为用户生成推荐列表
 
-        Args:
-            user_id: 用户ID (原始ID,不是索引)
-            n: 推荐数量
-            exclude_ids: 要排除的物品ID集合 (原始ID)
+        :param user_id: 用户ID (原始ID,不是索引)
+        :param n: 推荐数量
+        :param exclude_ids: 要排除的物品ID集合 (原始ID)
 
-        Returns:
-            [(item_id, score), ...] 按 score 降序排列
+        :returns: [(item_id, score), ...] 按 score 降序排列
         """
         pass
 
@@ -186,11 +177,9 @@ class RecommenderAlgorithm(ABC):
         """
         保存模型 (可选实现)
 
-        Args:
-            path: 模型保存路径
+        :param path: 模型保存路径
 
-        Raises:
-            NotImplementedError: 如果算法不支持模型保存
+        :raises NotImplementedError: 如果算法不支持模型保存
         """
         raise NotImplementedError(f"{self.__class__.__name__} 不支持模型保存")
 
@@ -198,11 +187,9 @@ class RecommenderAlgorithm(ABC):
         """
         加载模型 (可选实现)
 
-        Args:
-            path: 模型文件路径
+        :param path: 模型文件路径
 
-        Raises:
-            NotImplementedError: 如果算法不支持模型加载
+        :raises NotImplementedError: 如果算法不支持模型加载
         """
         raise NotImplementedError(f"{self.__class__.__name__} 不支持模型加载")
 
@@ -210,8 +197,7 @@ class RecommenderAlgorithm(ABC):
         """
         获取算法名称
 
-        Returns:
-            算法名称字符串
+        :returns: 算法名称字符串
         """
         return self.__class__.__name__
 
@@ -219,8 +205,7 @@ class RecommenderAlgorithm(ABC):
         """
         获取算法信息
 
-        Returns:
-            算法信息字典
+        :returns: 算法信息字典
         """
         return {
             'name': self.get_algorithm_name(),

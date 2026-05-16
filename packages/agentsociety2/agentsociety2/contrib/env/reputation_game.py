@@ -395,12 +395,9 @@ Your task is to use the available functions to manage agent reputations, payoffs
         IMPORTANT: The agent_id parameter must exactly match the ID requested in the instruction.
         Do NOT use a different agent_id than what was specified.
 
-        Args:
-            agent_id: The exact ID of the agent to query (must be an integer, e.g., 0, 1, 2, ...)
+        :param agent_id: The exact ID of the agent to query (must be an integer, e.g., 0, 1, 2, ...)
 
-        Returns:
-            Response containing agent_id and reputation.
-            The reputation will be either "good" or "bad".
+        :returns: Response containing agent_id and reputation. The reputation will be either "good" or "bad".
         """
         async with self._lock:
             self._validate_agent_id(agent_id)
@@ -417,12 +414,9 @@ Your task is to use the available functions to manage agent reputations, payoffs
         IMPORTANT: The agent_id parameter must exactly match the ID requested in the instruction.
         Do NOT use a different agent_id than what was specified.
 
-        Args:
-            agent_id: The exact ID of the agent to query (must be an integer, e.g., 0, 1, 2, ...)
+        :param agent_id: The exact ID of the agent to query (must be an integer, e.g., 0, 1, 2, ...)
 
-        Returns:
-            Response containing agent_id and payoff.
-            The payoff is a float representing the cumulative score.
+        :returns: Response containing agent_id and payoff. The payoff is a float representing the cumulative score.
         """
         async with self._lock:
             self._validate_agent_id(agent_id)
@@ -443,13 +437,11 @@ Your task is to use the available functions to manage agent reputations, payoffs
         This function settles payoffs based on the decision and updates the donor's reputation
         according to the current social norm.
 
-        Args:
-            donor_id: The exact ID of the donor agent (must be an integer, e.g., 0, 1, 2, ...)
-            recipient_id: The exact ID of the recipient agent (must be an integer, e.g., 0, 1, 2, ...)
-            action: "cooperate" or "defect" (must be exactly one of these two strings)
+        :param donor_id: The exact ID of the donor agent (must be an integer, e.g., 0, 1, 2, ...)
+        :param recipient_id: The exact ID of the recipient agent (must be an integer, e.g., 0, 1, 2, ...)
+        :param action: "cooperate" or "defect" (must be exactly one of these two strings)
 
-        Returns:
-            Response containing execution results including donor_id, recipient_id, action, cost, benefit, and donor_new_reputation.
+        :returns: Response containing execution results including donor_id, recipient_id, action, cost, benefit, and donor_new_reputation.
         """
         async with self._lock:
             # Validate IDs
@@ -519,11 +511,9 @@ Your task is to use the available functions to manage agent reputations, payoffs
 
         This function is used to support agent learning behavior.
 
-        Args:
-            top_k: Number of top agents to return, default 5
+        :param top_k: Number of top agents to return, default 5
 
-        Returns:
-            Response containing top_agents list and top_k.
+        :returns: Response containing top_agents list and top_k.
         """
         async with self._lock:
             # Sort by payoff
@@ -558,11 +548,9 @@ Your task is to use the available functions to manage agent reputations, payoffs
 
         Returns recent interaction records for agent reasoning.
 
-        Args:
-            limit: Number of recent records to return, default 20
+        :param limit: Number of recent records to return, default 20
 
-        Returns:
-            Response containing log list and limit.
+        :returns: Response containing log list and limit.
         """
         async with self._lock:
             recent_logs = (
@@ -583,8 +571,7 @@ Your task is to use the available functions to manage agent reputations, payoffs
 
         This function returns the total number of agents in the simulation.
 
-        Returns:
-            Response containing population_size (Z).
+        :returns: Response containing population_size (Z).
         """
         async with self._lock:
             Z = self._config.Z
@@ -601,12 +588,7 @@ Your task is to use the available functions to manage agent reputations, payoffs
         - Defection count
         - Cooperation rate (η = coop_count / total_interactions)
 
-        Returns:
-            Response containing:
-            - total_interactions: Total number of interactions
-            - cooperation_count: Number of cooperation actions
-            - defection_count: Number of defection actions
-            - cooperation_rate: Cooperation rate (0.0 to 1.0)
+        :returns: Response containing: - total_interactions: Total number of interactions - cooperation_count: Number of cooperation actions - defection_count: Number of defection actions - cooperation_rate: Cooperation rate (0.0 to 1.0)
         """
         async with self._lock:
             logs = self._action_log
@@ -634,11 +616,7 @@ Your task is to use the available functions to manage agent reputations, payoffs
         - Bad reputation count
         - Good reputation ratio
 
-        Returns:
-            Response containing:
-            - good_count: Number of agents with good reputation
-            - bad_count: Number of agents with bad reputation
-            - good_ratio: Ratio of good reputation (0.0 to 1.0)
+        :returns: Response containing: - good_count: Number of agents with good reputation - bad_count: Number of agents with bad reputation - good_ratio: Ratio of good reputation (0.0 to 1.0)
         """
         async with self._lock:
             good_count = sum(1 for r in self._reputations.values() if r == Reputation.GOOD)
@@ -660,14 +638,10 @@ Your task is to use the available functions to manage agent reputations, payoffs
 
         Returns the agent's recent interactions as either donor or recipient.
 
-        Args:
-            agent_id: The ID of the agent to query
-            limit: Maximum number of recent interactions to return, default 50
+        :param agent_id: The ID of the agent to query
+        :param limit: Maximum number of recent interactions to return, default 50
 
-        Returns:
-            Response containing:
-            - agent_id: The agent ID
-            - history: List of recent interaction records (as donor or recipient)
+        :returns: Response containing: - agent_id: The agent ID - history: List of recent interaction records (as donor or recipient)
         """
         async with self._lock:
             self._validate_agent_id(agent_id)
@@ -700,15 +674,9 @@ Your task is to use the available functions to manage agent reputations, payoffs
         - Convergence status (whether cooperation rate stabilizes)
         - Reputation distribution changes
 
-        Args:
-            num_periods: Number of time periods to divide the history into, default 3
+        :param num_periods: Number of time periods to divide the history into, default 3
 
-        Returns:
-            Response containing:
-            - periods: List of period statistics (cooperation_rate, interaction_count)
-            - trend: Trend direction ("increasing", "decreasing", "stable", "fluctuating")
-            - convergence_status: Whether convergence occurred ("converged", "not_converged", "insufficient_data")
-            - convergence_analysis: Textual analysis of convergence
+        :returns: Response containing: - periods: List of period statistics (cooperation_rate, interaction_count) - trend: Trend direction ("increasing", "decreasing", "stable", "fluctuating") - convergence_status: Whether convergence occurred ("converged", "not_converged", "insufficient_data") - convergence_analysis: Textual analysis of convergence
         """
         async with self._lock:
             logs = self._action_log
@@ -816,9 +784,8 @@ Your task is to use the available functions to manage agent reputations, payoffs
         """
         Run forward one step.
 
-        Args:
-            tick: The number of ticks of this simulation step.
-            t: The current datetime of the simulation after this step with the ticks.
+        :param tick: The number of ticks of this simulation step.
+        :param t: The current datetime of the simulation after this step with the ticks.
         """
         async with self._lock:
             self.t = t

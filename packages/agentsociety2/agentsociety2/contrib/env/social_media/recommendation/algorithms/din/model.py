@@ -225,12 +225,10 @@ class DINModel(nn.Module):
     
     def forward(self, user_ids: torch.Tensor, item_ids: torch.Tensor, histories: torch.Tensor):
         """
-        Args:
-            user_ids: [B]
-            item_ids: [B]
-            histories: [B, L]  历史物品 id 序列，0 为 padding
-        Returns:
-            probs: [B]，经过 sigmoid 的概率值（0-1之间）
+        :param user_ids: [B]
+        :param item_ids: [B]
+        :param histories: [B, L]  历史物品 id 序列，0 为 padding
+        :returns: probs: [B]，经过 sigmoid 的概率值（0-1之间）
         """
         # 基础 embedding
         user_emb = self.user_embedding(user_ids)  # [B, D]
@@ -302,8 +300,7 @@ class DINRecommender(RecommenderAlgorithm):
         """
         初始化DIN推荐器
         
-        Args:
-            config: DIN算法配置
+        :param config: DIN算法配置
         """
         self.config = config
         self.model: Optional[DINModel] = None
@@ -333,8 +330,7 @@ class DINRecommender(RecommenderAlgorithm):
         """
         训练DIN模型
         
-        Args:
-            data: 评分矩阵
+        :param data: 评分矩阵
         """
         get_logger().info(
             f"开始训练 DIN 模型: {data.get_user_count()} 用户, "
@@ -512,12 +508,10 @@ class DINRecommender(RecommenderAlgorithm):
         """
         预测用户对物品的评分
         
-        Args:
-            user_id: 用户ID
-            item_id: 物品ID
+        :param user_id: 用户ID
+        :param item_id: 物品ID
             
-        Returns:
-            预测评分 (1.0-5.0)
+        :returns: 预测评分 (1.0-5.0)
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")
@@ -553,13 +547,11 @@ class DINRecommender(RecommenderAlgorithm):
         """
         为用户生成推荐列表
         
-        Args:
-            user_id: 用户ID
-            n: 推荐数量
-            exclude_ids: 要排除的物品ID集合
+        :param user_id: 用户ID
+        :param n: 推荐数量
+        :param exclude_ids: 要排除的物品ID集合
             
-        Returns:
-            [(item_id, score), ...] 按 score 降序排列
+        :returns: [(item_id, score), ...] 按 score 降序排列
         """
         if self.model is None:
             raise RuntimeError("模型尚未训练,请先调用 fit()")

@@ -81,14 +81,12 @@ class PlanExecuteRouter(RouterBase):
         """
         使用Plan-and-Execute模式处理指令。
 
-        Args:
-            ctx: 上下文字典
-            instruction: 指令字符串
-            readonly: 是否只读模式
-            template_mode: 模板模式（PlanExecuteRouter 不使用，仅为签名兼容）
+        :param ctx: 上下文字典
+        :param instruction: 指令字符串
+        :param readonly: 是否只读模式
+        :param template_mode: 模板模式（PlanExecuteRouter 不使用，仅为签名兼容）
 
-        Returns:
-            (ctx, answer) 元组
+        :returns: (ctx, answer) 元组
         """
         # 添加当前时间信息到 ctx，以便工具调用可以访问
         self._add_current_time_to_ctx(ctx)

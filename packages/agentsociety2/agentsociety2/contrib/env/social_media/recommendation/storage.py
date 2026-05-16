@@ -18,8 +18,7 @@ class RecommendationStorageManager:
         """
         Initialize the Recommendation Storage Manager
         
-        Args:
-            data_dir: Base data directory (e.g., Path("data/social_media"))
+        :param data_dir: Base data directory (e.g., Path("data/social_media"))
         """
         self.data_dir = Path(data_dir) / "recommendation"
         self._lock = asyncio.Lock()

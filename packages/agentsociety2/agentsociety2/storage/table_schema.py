@@ -21,7 +21,7 @@ class ColumnDef:
     """表列定义（SQLite）。
 
     :param name: 列名。
-    :param type: SQLite 列类型（见 :data:`~agentsociety2.storage.table_schema.ColumnType`）。
+    :param type: SQLite 列类型字符串（``ColumnType``）。
     :param nullable: 是否允许 NULL。
     :param default: 默认值表达式（例如 ``CURRENT_TIMESTAMP``）。
     :param title: 可选，人类可读的列标题。

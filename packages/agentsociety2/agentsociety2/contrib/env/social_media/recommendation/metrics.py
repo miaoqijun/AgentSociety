@@ -43,12 +43,10 @@ class MetricsCalculator:
         """
         计算RMSE和MAE
 
-        Args:
-            predictions: 预测评分列表
-            ground_truth: 真实评分列表
+        :param predictions: 预测评分列表
+        :param ground_truth: 真实评分列表
 
-        Returns:
-            (rmse, mae)
+        :returns: (rmse, mae)
         """
         if not predictions or not ground_truth:
             return 0.0, 0.0
@@ -74,14 +72,12 @@ class MetricsCalculator:
         """
         计算User-wise NDCG@K
 
-        Args:
-            user_ids: 用户ID列表
-            predictions: 预测评分列表
-            labels: 真实标签列表（0或1）
-            k: NDCG@K的K值，默认10
+        :param user_ids: 用户ID列表
+        :param predictions: 预测评分列表
+        :param labels: 真实标签列表（0或1）
+        :param k: NDCG@K的K值，默认10
 
-        Returns:
-            (ndcg, computed_users): NDCG值和成功计算的用户数
+        :returns: (ndcg, computed_users): NDCG值和成功计算的用户数
         """
         if len(user_ids) == 0 or len(predictions) == 0 or len(labels) == 0:
             return 0.0, 0
@@ -156,12 +152,10 @@ class MetricsCalculator:
         """
         计算全局AUC
 
-        Args:
-            predictions: 预测评分列表
-            labels: 真实标签列表（0或1）
+        :param predictions: 预测评分列表
+        :param labels: 真实标签列表（0或1）
 
-        Returns:
-            全局AUC值
+        :returns: 全局AUC值
         """
         if len(predictions) == 0 or len(labels) == 0:
             return 0.0
@@ -185,13 +179,11 @@ class MetricsCalculator:
         """
         计算User-wise AUC
 
-        Args:
-            user_ids: 用户ID列表
-            predictions: 预测评分列表
-            labels: 真实标签列表（0或1）
+        :param user_ids: 用户ID列表
+        :param predictions: 预测评分列表
+        :param labels: 真实标签列表（0或1）
 
-        Returns:
-            (uauc, computed_users): UAUC值和成功计算的用户数
+        :returns: (uauc, computed_users): UAUC值和成功计算的用户数
         """
         if len(user_ids) == 0 or len(predictions) == 0 or len(labels) == 0:
             return 0.0, 0

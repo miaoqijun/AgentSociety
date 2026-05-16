@@ -501,24 +501,13 @@ async def get_experiment_info(
 
     返回指定实验的基本信息，包括状态、时间、Agent数量等。
 
-    Args:
-        hypothesis_id: 假设ID，用于定位实验所属的假设目录
-        experiment_id: 实验ID，用于定位具体的实验目录
-        workspace_path: 工作区根目录路径
+    :param hypothesis_id: 假设ID，用于定位实验所属的假设目录
+    :param experiment_id: 实验ID，用于定位具体的实验目录
+    :param workspace_path: 工作区根目录路径
 
-    Returns:
-        ExperimentInfo: 实验基本信息对象，包含：
-            - experiment_id: 实验ID
-            - hypothesis_id: 假设ID
-            - status: 实验状态 (not_started/running/completed/failed)
-            - start_time: 开始时间
-            - end_time: 结束时间
-            - agent_count: Agent数量
-            - step_count: 已执行步骤数
-
-    Raises:
-        HTTPException: 404 - 实验目录不存在
-        HTTPException: 500 - 数据库查询失败
+    :returns: ExperimentInfo: 实验基本信息对象，包含： - experiment_id: 实验ID - hypothesis_id: 假设ID - status: 实验状态 (not_started/running/completed/failed) - start_time: 开始时间 - end_time: 结束时间 - agent_count: Agent数量 - step_count: 已执行步骤数
+    :raises HTTPException: 404 - 实验目录不存在
+    :raises HTTPException: 500 - 数据库查询失败
     """
     workspace = Path(workspace_path)
     exp_path = _get_experiment_path(workspace, hypothesis_id, experiment_id)
@@ -597,16 +586,11 @@ async def list_artifacts(
 
     返回实验运行过程中生成的所有产出文件列表（如ask/intervene结果）。
 
-    Args:
-        hypothesis_id: 假设ID
-        experiment_id: 实验ID
-        workspace_path: 工作区根目录路径
+    :param hypothesis_id: 假设ID
+    :param experiment_id: 实验ID
+    :param workspace_path: 工作区根目录路径
 
-    Returns:
-        List[Dict[str, str]]: 产出文件列表，每个文件包含：
-            - name: 文件名
-            - path: 文件绝对路径
-            - type: 文件类型 (ask/intervene)
+    :returns: List[Dict[str, str]]: 产出文件列表，每个文件包含： - name: 文件名 - path: 文件绝对路径 - type: 文件类型 (ask/intervene)
     """
     workspace = Path(workspace_path)
     exp_path = _get_experiment_path(workspace, hypothesis_id, experiment_id)
@@ -640,19 +624,13 @@ async def get_artifact(
 
     返回指定产出文件的完整内容。
 
-    Args:
-        hypothesis_id: 假设ID
-        experiment_id: 实验ID
-        artifact_name: 产出文件名（如 ask_0.md, intervene_1.md）
-        workspace_path: 工作区根目录路径
+    :param hypothesis_id: 假设ID
+    :param experiment_id: 实验ID
+    :param artifact_name: 产出文件名（如 ask_0.md, intervene_1.md）
+    :param workspace_path: 工作区根目录路径
 
-    Returns:
-        Dict[str, str]: 文件内容，包含：
-            - name: 文件名
-            - content: 文件完整内容（Markdown格式）
-
-    Raises:
-        HTTPException: 404 - 文件不存在
+    :returns: Dict[str, str]: 文件内容，包含： - name: 文件名 - content: 文件完整内容（Markdown格式）
+    :raises HTTPException: 404 - 文件不存在
     """
     workspace = Path(workspace_path)
     exp_path = _get_experiment_path(workspace, hypothesis_id, experiment_id)

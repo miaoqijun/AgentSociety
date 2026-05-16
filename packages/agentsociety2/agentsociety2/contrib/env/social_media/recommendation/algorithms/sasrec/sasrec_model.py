@@ -14,9 +14,8 @@ class PointWiseFeedForward(nn.Module):
     用于Transformer块中的FFN层，使用两层1D卷积实现。
     结构：Conv1D -> Dropout -> ReLU -> Conv1D -> Dropout + 残差连接
 
-    Args:
-        hidden_units: 隐藏层维度
-        dropout_rate: Dropout概率
+    :param hidden_units: 隐藏层维度
+    :param dropout_rate: Dropout概率
     """
     def __init__(self, hidden_units, dropout_rate):
         super(PointWiseFeedForward, self).__init__()
@@ -39,15 +38,7 @@ class SASRec(nn.Module):
     """
     SASRec: Self-Attentive Sequential Recommendation
 
-    Args:
-        args: 配置对象，需包含以下字段：
-            - user_num (int): 用户数量
-            - item_num (int): 物品数量
-            - hidden_units (int): 隐藏层维度（嵌入维度）
-            - maxlen (int): 最大序列长度
-            - num_blocks (int): Transformer块数量
-            - num_heads (int): 注意力头数
-            - dropout_rate (float): Dropout概率
+    :param args: 配置对象，需包含以下字段： - user_num (int): 用户数量 - item_num (int): 物品数量 - hidden_units (int): 隐藏层维度（嵌入维度） - maxlen (int): 最大序列长度 - num_blocks (int): Transformer块数量 - num_heads (int): 注意力头数 - dropout_rate (float): Dropout概率
 
     输入：
         - seqs (Tensor): 用户行为序列 [batch_size, max_len]
@@ -122,11 +113,9 @@ class SASRec(nn.Module):
         5. 通过多个Transformer块（Self-Attention + FFN）
         6. 最终LayerNorm
 
-        Args:
-            log_seqs (Tensor): 用户行为序列 [batch_size, seq_len]
+        :param log_seqs: 用户行为序列 [batch_size, seq_len]
 
-        Returns:
-            log_feats (Tensor): 序列特征 [batch_size, seq_len, hidden_units]
+        :returns: log_feats (Tensor): 序列特征 [batch_size, seq_len, hidden_units]
         """
         # 1. 物品嵌入 + 缩放（类似Transformer论文中的sqrt(d_model)缩放）
         seqs = self.item_emb(log_seqs.to(self.dev))
@@ -171,13 +160,11 @@ class SASRec(nn.Module):
         """
         前向传播：计算序列-物品匹配分数
 
-        Args:
-            seqs (Tensor): 用户行为序列 [batch_size, seq_len]
-            target (Tensor): 目标物品ID [batch_size] 或 [batch_size, K]
-            target_posi (Tensor, optional): 目标位置索引 [N, 2]，格式为[batch_idx, seq_idx]
+        :param seqs: 用户行为序列 [batch_size, seq_len]
+        :param target: 目标物品ID [batch_size] 或 [batch_size, K]
+        :param target_posi: 目标位置索引 [N, 2]，格式为[batch_idx, seq_idx]
 
-        Returns:
-            scores (Tensor): 预测分数 [batch_size] 或 [N]
+        :returns: scores (Tensor): 预测分数 [batch_size] 或 [N]
         """
         self._device()
 
@@ -204,13 +191,11 @@ class SASRec(nn.Module):
         """
         评估时的前向传播（仅使用最后一个时间步）
 
-        Args:
-            user_ids (Tensor): 用户ID（未使用，保留接口兼容性）
-            target_item (Tensor): 目标物品ID [batch_size]
-            log_seqs (Tensor): 用户行为序列 [batch_size, seq_len]
+        :param user_ids: 用户ID（未使用，保留接口兼容性）
+        :param target_item: 目标物品ID [batch_size]
+        :param log_seqs: 用户行为序列 [batch_size, seq_len]
 
-        Returns:
-            scores (Tensor): 预测分数 [batch_size]
+        :returns: scores (Tensor): 预测分数 [batch_size]
         """
         self._device()
         log_feats = self.log2feats(log_seqs)
@@ -231,11 +216,9 @@ class SASRec(nn.Module):
         """
         序列编码器：将行为序列编码为用户表示
 
-        Args:
-            seqs (Tensor): 用户行为序列 [batch_size, seq_len]
+        :param seqs: 用户行为序列 [batch_size, seq_len]
 
-        Returns:
-            seq_emb (Tensor): 序列嵌入（最后时间步） [batch_size, hidden_units]
+        :returns: seq_emb (Tensor): 序列嵌入（最后时间步） [batch_size, hidden_units]
         """
         self._device()
         log_feats = self.log2feats(seqs)
@@ -246,12 +229,10 @@ class SASRec(nn.Module):
         """
         物品编码器：获取物品嵌入
 
-        Args:
-            target_item (Tensor): 目标物品ID
-            all_items: 未使用，保留接口兼容性
+        :param target_item: 目标物品ID
+        :param all_items: 未使用，保留接口兼容性
 
-        Returns:
-            target_embeds (Tensor): 物品嵌入
+        :returns: target_embeds (Tensor): 物品嵌入
         """
         self._device()
         target_embeds = self.item_emb(target_item)
@@ -261,13 +242,11 @@ class SASRec(nn.Module):
         """
         预测接口：为指定物品列表计算分数
 
-        Args:
-            user_ids: 用户ID（未使用）
-            log_seqs (Tensor): 用户行为序列 [batch_size, seq_len]
-            item_indices (Tensor): 物品ID列表 [num_items]
+        :param user_ids: 用户ID（未使用）
+        :param log_seqs: 用户行为序列 [batch_size, seq_len]
+        :param item_indices: 物品ID列表 [num_items]
 
-        Returns:
-            logits (Tensor): 预测logits [batch_size, num_items]
+        :returns: logits (Tensor): 预测logits [batch_size, num_items]
         """
         log_feats = self.log2feats(log_seqs)
 
@@ -283,12 +262,10 @@ class SASRec(nn.Module):
         """
         预测所有物品的分数
 
-        Args:
-            user_ids: 用户ID（未使用）
-            log_seqs (Tensor): 用户行为序列 [batch_size, seq_len]
+        :param user_ids: 用户ID（未使用）
+        :param log_seqs: 用户行为序列 [batch_size, seq_len]
 
-        Returns:
-            logits (Tensor): 所有物品的预测logits [batch_size, item_num]
+        :returns: logits (Tensor): 所有物品的预测logits [batch_size, item_num]
         """
         log_feats = self.log2feats(log_seqs)
 
@@ -305,13 +282,11 @@ class SASRec(nn.Module):
         """
         批量预测所有物品（与predict_all功能相同，保留接口兼容性）
 
-        Args:
-            user_ids: 用户ID（未使用）
-            log_seqs (Tensor): 用户行为序列 [batch_size, seq_len]
-            batch_size: 批大小（未使用）
+        :param user_ids: 用户ID（未使用）
+        :param log_seqs: 用户行为序列 [batch_size, seq_len]
+        :param batch_size: 批大小（未使用）
 
-        Returns:
-            logits (Tensor): 所有物品的预测logits [batch_size, item_num]
+        :returns: logits (Tensor): 所有物品的预测logits [batch_size, item_num]
         """
         log_feats = self.log2feats(log_seqs)
         final_feat = log_feats[:, -1, :]
@@ -323,12 +298,10 @@ class SASRec(nn.Module):
         """
         序列编码（支持嵌入替换）- 用于特殊场景
 
-        Args:
-            log_seqs: 用户行为序列（可包含负数ID）
-            emb_replace: 替换嵌入（用于负数ID位置）
+        :param log_seqs: 用户行为序列（可包含负数ID）
+        :param emb_replace: 替换嵌入（用于负数ID位置）
 
-        Returns:
-            log_feats: 序列特征
+        :returns: log_feats: 序列特征
         """
         log_seqs = log_seqs + 0
 
@@ -372,13 +345,11 @@ class SASRec(nn.Module):
         """
         预测指定位置的物品（用于特殊训练策略）
 
-        Args:
-            log_seqs: 用户行为序列
-            positions: 目标位置索引
-            emb_replace: 替换嵌入
+        :param log_seqs: 用户行为序列
+        :param positions: 目标位置索引
+        :param emb_replace: 替换嵌入
 
-        Returns:
-            logits: 预测logits
+        :returns: logits: 预测logits
         """
         log_feats = self.log2feats_v2(log_seqs, emb_replace=emb_replace)
 
