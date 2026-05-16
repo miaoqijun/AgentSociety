@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-16 11:12+0800\n"
+"POT-Creation-Date: 2026-05-16 13:22+0800\n"
 "PO-Revision-Date: 2026-03-05 23:50+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -111,15 +111,17 @@ msgstr "You can also create a ``.env`` file in your project directory:"
 
 #: ../../installation.rst:138
 msgid "**环境变量区分**："
-msgstr ""
+msgstr "**Environment variable namespaces**:"
 
 #: ../../installation.rst:140
 msgid "``AGENTSOCIETY_LLM_*``: 全局 LLM API 配置，用于模型调用"
-msgstr ""
+msgstr "``AGENTSOCIETY_LLM_*``: global LLM API settings for model calls"
 
 #: ../../installation.rst:141
 msgid "``AGENT_*``: Agent 行为配置，如上下文窗口大小、工具循环轮数等"
 msgstr ""
+"``AGENT_*``: agent behavior settings such as context window size and tool-"
+"loop limits"
 
 #: ../../installation.rst:144
 msgid "支持的 LLM 提供商"
@@ -127,24 +129,28 @@ msgstr "Supported LLM Providers"
 
 #: ../../installation.rst:146
 msgid ""
-"AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用 OpenAI endpoint 与 "
-"``gpt-5.5``，这只是示例配置："
+"AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用 OpenAI 兼容的 Chat Completions "
+"接口："
 msgstr ""
+"AgentSociety 2 routes model calls through LiteLLM. Default examples in the "
+"docs use an OpenAI-compatible Chat Completions API:"
 
 #: ../../installation.rst:148
 msgid "``AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1``"
-msgstr ""
+msgstr "``AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1``"
 
 #: ../../installation.rst:149
 msgid "``AGENTSOCIETY_LLM_MODEL=gpt-5.5``"
-msgstr ""
+msgstr "``AGENTSOCIETY_LLM_MODEL=gpt-5.5``"
 
 #: ../../installation.rst:151
 msgid ""
-"如果你使用 Anthropic 或其它 LiteLLM 支持的 provider，请保持同样的环境变量结构，并把 "
-"``AGENTSOCIETY_LLM_API_BASE`` 与模型名替换为对应 provider/网关提供的值；具体 model id 以你的 "
-"provider 和 LiteLLM 配置为准。"
+"如果你使用其它 LiteLLM 支持的 OpenAI 兼容网关，请保持同样的环境变量结构，并把 "
+"``AGENTSOCIETY_LLM_API_BASE`` 与模型名替换为该网关提供的值。"
 msgstr ""
+"If you use another LiteLLM-supported OpenAI-compatible gateway, keep the "
+"same variable names and set ``AGENTSOCIETY_LLM_API_BASE`` and the model "
+"name to values provided by that gateway."
 
 #~ msgid "OpenAI (GPT-4, GPT-3.5)"
 #~ msgstr "OpenAI (GPT-4, GPT-3.5)"
@@ -189,3 +195,16 @@ msgstr ""
 
 #~ msgid "因此，OpenAI 是推荐示例，不是唯一可用后端。"
 #~ msgstr ""
+
+#~ msgid ""
+#~ "AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用"
+#~ " OpenAI endpoint 与 ``gpt-5.5``，这只是示例配置："
+#~ msgstr ""
+
+#~ msgid ""
+#~ "如果你使用 Anthropic 或其它 LiteLLM 支持的 "
+#~ "provider，请保持同样的环境变量结构，并把 ``AGENTSOCIETY_LLM_API_BASE`` "
+#~ "与模型名替换为对应 provider/网关提供的值；具体 model id 以你的 "
+#~ "provider 和 LiteLLM 配置为准。"
+#~ msgstr ""
+

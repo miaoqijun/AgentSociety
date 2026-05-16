@@ -29,11 +29,14 @@ msgstr "This guide will help you get started with AgentSociety 2."
 
 #: ../../quickstart.rst:7
 msgid "前置条件"
-msgstr ""
+msgstr "Prerequisites"
 
 #: ../../quickstart.rst:9
 msgid "在运行示例前，请先配置 LLM 环境变量（见 :doc:`installation`），或在项目目录中准备好 ``.env`` 并在入口处尽早加载。"
 msgstr ""
+"Before running examples, configure LLM environment variables (see "
+":doc:`installation`), or prepare a ``.env`` file in the project directory "
+"and load it early at the entry point."
 
 #: ../../quickstart.rst:12
 msgid "您的第一个智能体"
@@ -62,7 +65,7 @@ msgstr "Running Experiments with CLI"
 
 #: ../../quickstart.rst:118
 msgid "AgentSociety 2 提供了一个强大的 CLI 用于运行实验。"
-msgstr ""
+msgstr "AgentSociety 2 provides a CLI for running experiments."
 
 #: ../../quickstart.rst:120
 msgid "**前台运行（调试）:**"
@@ -74,7 +77,7 @@ msgstr "**Background Execution (Production):**"
 
 #: ../../quickstart.rst:141
 msgid "**重要**: 后台运行时必须指定 ``--log-file`` 参数。"
-msgstr ""
+msgstr "**Important**: specify ``--log-file`` when running in the background."
 "**Important**: When running in background, you must specify the ``--log-"
 "file`` parameter."
 
@@ -97,6 +100,10 @@ msgid ""
 "和工具日志会落在 ``run/agents/agent_xxxx/`` 目录，而不是 SQLite 的 ``agent_status`` / "
 "``agent_profile`` 表。"
 msgstr ""
+"``ReplayWriter`` now records environment-side replay datasets only. "
+"``PersonAgent`` local state, threads, and tool logs live under "
+"``run/agents/agent_xxxx/``, not in SQLite ``agent_status`` / "
+"``agent_profile`` tables."
 
 #: ../../quickstart.rst:211
 msgid "下一步"
