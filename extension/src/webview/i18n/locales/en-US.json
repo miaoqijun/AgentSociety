@@ -575,5 +575,30 @@
     "saveToken": "Save Token",
     "tokenSaved": "GitHub Token saved",
     "sourcesList": "Marketplace Sources"
+  },
+  "claudeCodeConfig": {
+    "title": "Claude Code Configuration",
+    "subtitle": "Configure Claude Code CLI global settings",
+    "savePath": "Save path",
+    "apiConfig": "API Configuration",
+    "required": "Required",
+    "optional": "Optional",
+    "modelMapping": "Model Mapping",
+    "modelMappingTip": "Map your provider's models to Claude's role aliases (sonnet/opus/haiku)",
+    "defaultModel": "Default Model",
+    "sonnetModel": "Sonnet Model",
+    "opusModel": "Opus Model",
+    "haikuModel": "Haiku Model",
+    "selectOrManual": "Enter model name",
+    "leaveEmpty": "Leave empty to skip",
+    "save": "Save",
+    "resetDefaults": "Reset Defaults",
+    "saveSuccess": "Saved successfully",
+    "saveSuccessDesc": "Claude Code configuration written to settings.json",
+    "saveFailed": "Save failed",
+    "apiKeyRequired": "API Key is required",
+    "baseUrlRequired": "Base URL is required",
+    "cliDetected": "Claude Code CLI detected {{version}}",
+    "cliNotInstalled": "Claude Code CLI not installed"
   }
 }

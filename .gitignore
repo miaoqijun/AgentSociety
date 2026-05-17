@@ -180,6 +180,9 @@ profiles.json
 # Package lock files (using uv, not npm)
 package-lock.json
 
+# Custom
+paper_sources/
+
 # =========================================
 # Pattern Exceptions
 # =========================================

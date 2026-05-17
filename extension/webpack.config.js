@@ -9,6 +9,7 @@ const entries = {
   initConfig: './src/webview/initConfig/index.tsx',
   skillMarketplace: './src/webview/skillMarketplace/index.tsx',
   helpPage: './src/webview/helpPage/index.tsx',
+  claudeCodeConfig: './src/webview/claudeCodeConfig/index.tsx',
 };
 
 const isProd = process.env.NODE_ENV === 'production';
