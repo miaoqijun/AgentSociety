@@ -116,7 +116,7 @@ RUN NODE_VERSION="22.14.0" \
     && curl -fsSLO https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz \
     && tar -C /usr/local -xJf node-v*.tar.xz --strip-components=1 \
     && rm node-v*.tar.xz \
-    && npm install -g @anthropic-ai/claude-code \
+    && npm install -g @anthropic-ai/claude-code @openai/codex \
     && npm cache clean --force \
     && rm -rf ~/.npm
 

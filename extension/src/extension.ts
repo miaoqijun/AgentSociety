@@ -35,6 +35,7 @@ import { BackendManager } from './services/backendManager';
 import { WorkspaceExportManager } from './services/workspaceExportManager';
 import { filePathToAtReference } from './atReference';
 import { AIChatInvoker } from './aiChatInvoker';
+import { ClaudeCodeConfigProvider } from './claudeCodeConfigProvider';
 import { LiteratureIndexViewer } from './literatureIndexViewer';
 import { StepsViewer } from './stepsViewer';
 
@@ -364,6 +365,14 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  // Select AI Chat provider command
+  const selectAiChatCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.selectAiChat',
+    async () => {
+      await aiChatInvoker.pickProvider();
+    }
+  );
+
   // Register custom editor for SIM_SETTINGS.json
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(
@@ -625,6 +634,13 @@ export function activate(context: vscode.ExtensionContext) {
     'aiSocialScientist.openConfigPage',
     () => {
       ConfigPageViewProvider.createOrShow(context, vscode.ViewColumn.Beside);
+    }
+  );
+
+  const openClaudeCodeConfigCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.openClaudeCodeConfig',
+    () => {
+      ClaudeCodeConfigProvider.createOrShow(context, vscode.ViewColumn.Beside);
     }
   );
 
@@ -1119,6 +1135,7 @@ export function activate(context: vscode.ExtensionContext) {
     openMarkdownInEditorCommand,
     openTreeFileInEditorCommand,
     openChatCommand,
+    selectAiChatCommand,
     startBackendCommand,
     stopBackendCommand,
     restartBackendCommand,
@@ -1130,6 +1147,7 @@ export function activate(context: vscode.ExtensionContext) {
     openBackendInBrowserCommand,
     openApiDocsCommand,
     openConfigPageCommand,
+    openClaudeCodeConfigCommand,
     openHelpPageCommand,
     openWalkthroughCommand,
     openSkillMarketplaceCommand,

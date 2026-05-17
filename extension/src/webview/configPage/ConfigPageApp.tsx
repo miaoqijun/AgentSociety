@@ -15,7 +15,7 @@ import {
   Tooltip,
   Tag,
 } from 'antd';
-import { SaveOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined, QuestionCircleOutlined, ReloadOutlined, SettingOutlined, CloudServerOutlined, LinkOutlined, StopOutlined } from '@ant-design/icons';
+import { SaveOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined, QuestionCircleOutlined, ReloadOutlined, SettingOutlined, CloudServerOutlined, LinkOutlined, StopOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { VSCodeAPI, ConfigValues, WorkspaceInfo, BackendStatus } from './types';
 import { useVscodeTheme } from '../theme';
@@ -580,6 +580,30 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               {statPill('LLM 配置', stats.hasLlmKey ? '已配置' : '未配置', <KeyOutlined />, stats.hasLlmKey ? palette.successForeground : palette.errorForeground)}
               {/* Python 环境 */}
               {statPill('Python 环境', stats.hasPython ? '已配置' : '默认', <CloudServerOutlined />)}
+              {/* Claude Code 配置入口 */}
+              <div
+                style={{
+                  flex: '1 1 100px',
+                  minWidth: 90,
+                  padding: '12px 16px',
+                  borderRadius: 10,
+                  border: `1px solid ${palette.linkForeground}40`,
+                  background: isDark
+                    ? 'rgba(37, 37, 38, 0.6)'
+                    : 'rgba(255, 255, 255, 0.55)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => vscode.postMessage({ command: 'openClaudeCodeConfig' })}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <span style={{ color: palette.linkForeground }}><ThunderboltOutlined /></span>
+                  <span style={{ fontSize: 11, color: palette.descriptionForeground, fontWeight: 500 }}>Claude Code</span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: palette.linkForeground, lineHeight: 1 }}>
+                  配置
+                </div>
+              </div>
             </div>
           </div>
 

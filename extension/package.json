@@ -21,6 +21,7 @@
     "onCustomEditor:aiSocialScientist.initConfig",
     "onCommand:aiSocialScientist.initProject",
     "onCommand:aiSocialScientist.openChat",
+    "onCommand:aiSocialScientist.selectAiChat",
     "onCommand:aiSocialScientist.deleteLiterature",
     "onCommand:aiSocialScientist.renameLiterature",
     "onCommand:aiSocialScientist.openMarkdownInEditor",
@@ -34,6 +35,7 @@
     "onCommand:aiSocialScientist.showBackendStatus",
     "onCommand:aiSocialScientist.openConfigPage",
     "onCommand:aiSocialScientist.openHelpPage",
+    "onCommand:aiSocialScientist.openClaudeCodeConfig",
     "onCommand:aiSocialScientist.openWalkthrough",
     "onCommand:aiSocialScientist.openSkillMarketplace",
     "onCommand:aiSocialScientist.openSkillSourcesSettings",
@@ -191,6 +193,11 @@
         "icon": "$(comment-discussion)"
       },
       {
+        "command": "aiSocialScientist.selectAiChat",
+        "title": "AI Social Scientist: 选择 AI Chat 提供商",
+        "icon": "$(comment-discussion)"
+      },
+      {
         "command": "aiSocialScientist.deleteLiterature",
         "title": "AI Social Scientist: 删除文献",
         "icon": "$(trash)"
@@ -254,6 +261,11 @@
         "command": "aiSocialScientist.openHelpPage",
         "title": "AI Social Scientist: 使用指南",
         "icon": "$(book)"
+      },
+      {
+        "command": "aiSocialScientist.openClaudeCodeConfig",
+        "title": "AI Social Scientist: Claude Code 配置",
+        "icon": "$(key)"
       },
       {
         "command": "aiSocialScientist.openWalkthrough",
@@ -504,6 +516,19 @@
           "default": false,
           "description": "是否在插件启动时自动启动本地后端服务",
           "markdownDescription": "如果启用，插件启动时会自动启动本地后端服务。建议经常使用插件时开启，以便 Agent 技能管理、模块探测、预填参数、回放 API 与 API 文档随时可用。即使后端暂未启动，配置文件编辑、本地文件查看和通过 CLI/Claude Code 运行实验也不会被阻断。"
+        },
+        "aiSocialScientist.preferredAiChat": {
+          "type": "string",
+          "default": "",
+          "enum": ["", "claude-code", "codex", "cursor", "vscode-chat"],
+          "enumDescriptions": [
+            "未设置（自动检测或每次选择）",
+            "Claude Code (anthropic.claude-code)",
+            "Codex (openai.chatgpt)",
+            "Cursor Chat",
+            "VSCode 内置 Chat"
+          ],
+          "description": "默认 AI Chat 提供商。留空时自动检测；检测到多个时弹出选择。"
         },
         "aiSocialScientist.chat.viewColumn": {
           "type": "string",

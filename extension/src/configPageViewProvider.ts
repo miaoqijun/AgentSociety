@@ -107,6 +107,9 @@ export class ConfigPageViewProvider {
           case 'openFolder':
             await vscode.commands.executeCommand('workbench.action.files.openFolder');
             break;
+          case 'openClaudeCodeConfig':
+            await vscode.commands.executeCommand('aiSocialScientist.openClaudeCodeConfig');
+            break;
           case 'openUrl':
             if (message.url) {
               await vscode.env.openExternal(vscode.Uri.parse(message.url));

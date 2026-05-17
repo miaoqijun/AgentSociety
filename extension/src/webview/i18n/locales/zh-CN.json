@@ -575,5 +575,30 @@
     "saveToken": "保存 Token",
     "tokenSaved": "GitHub Token 已保存",
     "sourcesList": "市场源列表"
+  },
+  "claudeCodeConfig": {
+    "title": "Claude Code 配置",
+    "subtitle": "配置 Claude Code CLI 的全局设置",
+    "savePath": "保存路径",
+    "apiConfig": "API 配置",
+    "required": "必填",
+    "optional": "可选",
+    "modelMapping": "模型映射",
+    "modelMappingTip": "将模型提供商的模型映射到 Claude 的角色别名（sonnet/opus/haiku）",
+    "defaultModel": "默认模型",
+    "sonnetModel": "Sonnet 对应模型",
+    "opusModel": "Opus 对应模型",
+    "haikuModel": "Haiku 对应模型",
+    "selectOrManual": "输入模型名称",
+    "leaveEmpty": "留空则不设置",
+    "save": "保存",
+    "resetDefaults": "重置默认值",
+    "saveSuccess": "保存成功",
+    "saveSuccessDesc": "Claude Code 配置已写入 settings.json",
+    "saveFailed": "保存失败",
+    "apiKeyRequired": "请填写 API Key",
+    "baseUrlRequired": "请填写 Base URL",
+    "cliDetected": "已检测到 Claude Code CLI {{version}}",
+    "cliNotInstalled": "Claude Code CLI 未安装"
   }
 }
