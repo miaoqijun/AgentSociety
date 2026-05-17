@@ -1,6 +1,8 @@
 """Tests for configuration module."""
 
+from importlib import import_module
 import os
+from typing import Any
 
 from agentsociety2.config.config import extract_json, Config
 
@@ -162,3 +164,15 @@ class TestConfigGetters:
         router = Config.get_default_router()
         assert router is not None
         assert isinstance(router, Router)
+
+    def test_get_mem0_config_uses_supported_llm_config(self):
+        """Test mem0 config can instantiate the configured LLM backend."""
+        memory_config = Config.get_mem0_config("demo")
+
+        assert memory_config.llm.provider == "openai"
+        assert memory_config.llm.config["openai_base_url"] == Config.NANO_LLM_API_BASE
+        assert memory_config.history_db_path.endswith(".db")
+
+        llm_factory: Any = import_module("mem0.utils.factory").LlmFactory
+        llm = llm_factory.create(memory_config.llm.provider, memory_config.llm.config)
+        assert llm is not None

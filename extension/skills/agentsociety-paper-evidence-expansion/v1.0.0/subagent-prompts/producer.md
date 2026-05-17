@@ -78,11 +78,12 @@ Return a single JSON envelope:
   "recommended_next_step": "dispatch evidence-skeptic",
   "severity": "info",
   "evidence_backlog": {
-    "gaps": [
+    "items": [
       {
         "gap_id": "G1",
         "claim_id": "C3",
         "gap_type": "missing_analysis",
+        "category": "analysis",
         "description": "<what is missing>",
         "priority": "high|medium|low",
         "auto_executable": true,

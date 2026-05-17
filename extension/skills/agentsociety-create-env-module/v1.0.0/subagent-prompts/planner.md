@@ -12,6 +12,7 @@ The orchestrator will provide:
 - **User requirements**: Environment goal, target scenario, tools needed
 - **Hypothesis context**: The research hypothesis and experiment description (if available)
 - **Agent context**: What agents will interact with this environment and how
+- **Simulation scale budget**: Target agent count or range, step budget, runtime budget, preferred complexity tier
 
 ## Files to Read
 
@@ -25,6 +26,16 @@ If the orchestrator provides paths to HYPOTHESIS.md or EXPERIMENT.md, read them 
 ## Design Decisions
 
 Work through these decisions in order. Each decision must have a clear rationale tied to the user requirements or hypothesis.
+
+### 0. Scale / Runtime Fit
+
+Capture the scale budget first and use it to bound the rest of the module design:
+
+- What agent count or range must this environment support?
+- What step budget and runtime budget are expected?
+- Should the module be lean, balanced, or rich?
+
+If the budget is unresolved, mark it as `UNRESOLVED` and include the question needed to close it. For larger populations or tight budgets, prefer batched writes, simple state, and cheap tool bodies.
 
 ### 1. Module Scope
 
@@ -90,6 +101,13 @@ Produce a JSON-structured spec:
   "class_name": "PascalCase class name",
   "description": "One-line module purpose",
   "rationale": "Why this module is needed, tied to hypothesis",
+
+  "scale_budget": {
+    "target_agent_count": "number or range",
+    "step_budget": "number or range",
+    "runtime_budget": "text",
+    "complexity_tier": "lean|balanced|rich|UNRESOLVED"
+  },
 
   "step_semantics": "What one step means in this environment",
 

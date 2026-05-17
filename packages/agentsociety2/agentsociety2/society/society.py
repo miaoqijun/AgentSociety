@@ -135,12 +135,12 @@ class AgentSociety:
 
     @property
     def current_time(self) -> datetime:
-        """:returns: 当前仿真时间。"""
+        """返回当前仿真时间。"""
         return self._t
 
     @property
     def step_count(self) -> int:
-        """:returns: 已执行的仿真步数。"""
+        """返回已执行的仿真步数。"""
         return self._step_count
 
     async def _persist_agent_profiles_once(self) -> None:

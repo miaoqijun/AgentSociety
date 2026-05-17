@@ -12,6 +12,7 @@ The orchestrator will provide:
 - **User requirements**: What the agent should do, its role and behaviors
 - **Hypothesis context**: The research hypothesis and experiment description (if available)
 - **Environment context**: What environment modules the agent will interact with
+- **Simulation scale budget**: Target agent count or range, step budget, runtime budget, preferred complexity tier
 
 ## Files to Read
 
@@ -25,6 +26,16 @@ If the orchestrator provides paths to HYPOTHESIS.md or EXPERIMENT.md, read them 
 ## Design Decisions
 
 Work through these decisions in order. Each decision must have a clear rationale tied to the user requirements or hypothesis.
+
+### 0. Scale / Runtime Fit
+
+Capture the scale budget first and use it to bound the rest of the design:
+
+- What agent count or range must this design support?
+- What step budget and runtime budget are expected?
+- Should the design be lean, balanced, or rich?
+
+If the budget is unresolved, mark it as `UNRESOLVED` and include the question needed to close it. For larger populations or tight budgets, prefer fewer environment calls, smaller mutable state, and simpler per-step reasoning.
 
 ### 1. Base Class Selection
 
@@ -92,6 +103,12 @@ Produce a JSON-structured spec:
   "rationale": "Why this base class, tied to requirements/hypothesis",
 
   "description": "One-line agent purpose",
+  "scale_budget": {
+    "target_agent_count": "number or range",
+    "step_budget": "number or range",
+    "runtime_budget": "text",
+    "complexity_tier": "lean|balanced|rich|UNRESOLVED"
+  },
 
   "profile_fields": {
     "standard": ["field1", "field2"],

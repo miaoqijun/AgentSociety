@@ -12,7 +12,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { randomUUID } from 'crypto';
+import { execFileSync } from 'child_process';
 import { SkillVersionManager } from './skillVersionManager';
 
 export interface WorkspaceInitOptions {
@@ -88,6 +88,11 @@ export class WorkspaceManager {
 
     try {
       reportProgress('正在创建基础文件...');
+
+      const gitInitResult = this.ensureWorkspaceGitRepository(workspacePath);
+      if (gitInitResult.initialized) {
+        filesCreated.push('.git/');
+      }
 
       // Create/update .gitignore to exclude .env
       const gitignorePath = path.join(workspacePath, '.gitignore');
@@ -235,6 +240,8 @@ export class WorkspaceManager {
       if (syncResult.created.length > 0) {
         filesCreated.push(...syncResult.created);
       }
+
+      this.ensureClaudeProjectHookFiles(workspacePath, filesCreated);
 
       reportProgress('正在安装官方 Office 文档处理技能...');
 
@@ -827,8 +834,12 @@ export class WorkspaceManager {
   private updateGitignore(gitignorePath: string): void {
     const entriesToAdd = [
       '.env',
-      '.claude/',
-      '.agentsociety/session.json',
+      '.claude/*',
+      '.claude/skills/',
+      '.claude/settings.local.json',
+      '!.claude/settings.json',
+      '!.claude/hooks/',
+      '!.claude/hooks/**',
       '# Python cache files in custom/',
       'custom/**/__pycache__/',
       'custom/**/*.pyc',
@@ -842,13 +853,21 @@ export class WorkspaceManager {
       }
 
       const lines = content.split('\n');
+      const normalizedLines = lines.filter((line) => line.trim() !== '.claude/');
+      let modified = normalizedLines.length !== lines.length;
+      if (modified) {
+        content = normalizedLines.join('\n');
+        if (content.length > 0 && !content.endsWith('\n')) {
+          content += '\n';
+        }
+        this.log('Removed legacy .claude/ ignore rule to preserve project hook files');
+      }
+
       const existingEntries = new Set(
-        lines
+        normalizedLines
           .map(l => l.trim())
           .filter(l => l && !l.startsWith('#'))
       );
-
-      let modified = false;
       for (const entry of entriesToAdd) {
         if (!existingEntries.has(entry)) {
           if (!content.endsWith('\n') && content.length > 0) {
@@ -866,6 +885,47 @@ export class WorkspaceManager {
       }
     } catch (error) {
       this.log(`Failed to update .gitignore: ${error}`);
+    }
+  }
+
+  private ensureWorkspaceGitRepository(workspacePath: string): { initialized: boolean; repoRoot?: string } {
+    try {
+      const existingRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+        cwd: workspacePath,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim();
+      if (existingRoot) {
+        this.log(`Workspace already attached to git repository: ${existingRoot}`);
+        return { initialized: false, repoRoot: existingRoot };
+      }
+    } catch (error) {
+      this.log(`No existing git repository detected for workspace: ${error}`);
+    }
+
+    try {
+      execFileSync('git', ['init', '--initial-branch=main'], {
+        cwd: workspacePath,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      this.log(`Initialized git repository at: ${workspacePath}`);
+      return { initialized: true, repoRoot: workspacePath };
+    } catch (error) {
+      this.log(`git init --initial-branch=main failed, retrying without branch flag: ${error}`);
+    }
+
+    try {
+      execFileSync('git', ['init'], {
+        cwd: workspacePath,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      this.log(`Initialized git repository at: ${workspacePath}`);
+      return { initialized: true, repoRoot: workspacePath };
+    } catch (error) {
+      this.log(`Failed to initialize git repository: ${error}`);
+      return { initialized: false };
     }
   }
 
@@ -931,10 +991,6 @@ The workspace keeps durable execution state under \`.agentsociety/\`. Claude Cod
 | File | Role | How to use it |
 |------|------|---------------|
 | \`.agentsociety/progress.json\` | Pipeline stage tracker | Read first when deciding the next research step |
-| \`.agentsociety/control_plane.json\` | Approvals, blockers, risks, assumptions | Check before risky or blocked actions |
-| \`.agentsociety/claims.json\` | Structured findings and review state | Use during analysis and paper generation |
-| \`.agentsociety/decisions.jsonl\` | Append-only decision log | Record important choices and rationale |
-| \`.agentsociety/session.json\` | Runtime session state | Useful for current session context, but not the primary long-term source of truth |
 | \`.agentsociety/bin/ags.py\` | Stable workspace launcher | Prefer this entry point for bundled workflow operations |
 
 Prefer updating pipeline state through \`.agentsociety/bin/ags.py research-pipeline ...\` instead of editing state files manually.
@@ -950,13 +1006,12 @@ Prefer updating pipeline state through \`.agentsociety/bin/ags.py research-pipel
 ├── AGENTS.md
 ├── .env
 ├── .claude/
+│   ├── settings.json           # Project-level Claude Code hook configuration
+│   ├── hooks/
+│   │   └── commit-skill-files.mjs
 │   └── skills/                 # Claude Code skill bundle for this workspace
 ├── .agentsociety/
 │   ├── progress.json
-│   ├── control_plane.json
-│   ├── claims.json
-│   ├── decisions.jsonl
-│   ├── session.json
 │   └── bin/ags.py
 ├── papers/                     # Literature outputs
 ├── datasets/                   # Downloaded datasets
@@ -985,6 +1040,8 @@ Use this routing model:
 - Use \`agentsociety-literature-search\` for academic literature collection.
 - Use \`agentsociety-web-research\` for supplementary web context.
 - Use \`agentsociety-scan-modules\` before hypothesis creation or experiment configuration.
+- Before \`experiment-config\`, \`create-agent\`, or \`create-env-module\`, resolve the simulation scale budget: target agent count or range, step budget, runtime budget, and preferred complexity tier. If the budget is missing, ask for it first and compare 2-3 approaches with trade-offs before choosing one.
+- If the work may depend on external data, search datasets first with \`agentsociety-use-dataset\`; if a local file should be shared or reused, guide the user through \`agentsociety-create-dataset\` upload instead of hand-copying data into config.
 - Use \`agentsociety-hypothesis\` to create or revise hypotheses.
 - Use \`agentsociety-experiment-config\` to prepare \`init_config.json\` and \`steps.yaml\`.
 - Use \`agentsociety-run-experiment\` only after configuration is ready and checked.
@@ -1012,8 +1069,11 @@ Do:
 - Match the user's language.
 - Explain the current pipeline stage when it matters to the next action.
 - Prefer \`.agentsociety/bin/ags.py\` over ad hoc helper scripts for workflow operations.
+- Expect eligible workspace files to be committed automatically after Claude Code finishes a turn.
 - Update pipeline state after completing a stage or resolving a meaningful blocker.
 - Read relevant state files before asking the user for information that may already exist in the workspace.
+- Resolve the simulation scale budget before configuration or custom module creation; if it is missing, ask clarifying questions and compare 2-3 approaches with trade-offs.
+- If external data is needed, search or inspect datasets before building new assumptions; guide dataset upload when the input should be shared or reused.
 
 Do not:
 
@@ -1022,6 +1082,229 @@ Do not:
 - Edit \`.agentsociety/*.json\` or \`.jsonl\` manually unless there is a clear reason not to use the CLI.
 - Start analysis before experiment outputs exist.
 - Start paper generation before analysis outputs and claim review are in place.
+`;
+  }
+
+  private ensureClaudeProjectHookFiles(
+    workspacePath: string,
+    filesCreated: string[]
+  ): void {
+    const claudeDir = path.join(workspacePath, '.claude');
+    const hooksDir = path.join(claudeDir, 'hooks');
+    const settingsPath = path.join(claudeDir, 'settings.json');
+    const scriptPath = path.join(hooksDir, 'commit-skill-files.mjs');
+    const hookCommand = '${CLAUDE_PROJECT_DIR}/.claude/hooks/commit-skill-files.mjs';
+
+    if (!fs.existsSync(claudeDir)) {
+      fs.mkdirSync(claudeDir, { recursive: true });
+      filesCreated.push('.claude/');
+      this.log(`Created: ${claudeDir}`);
+    }
+
+    if (!fs.existsSync(hooksDir)) {
+      fs.mkdirSync(hooksDir, { recursive: true });
+      filesCreated.push('.claude/hooks/');
+      this.log(`Created: ${hooksDir}`);
+    }
+
+    if (!fs.existsSync(scriptPath)) {
+      fs.writeFileSync(scriptPath, this.getClaudeAutoCommitHookScript(), 'utf-8');
+      filesCreated.push('.claude/hooks/commit-skill-files.mjs');
+      this.log(`Created: ${scriptPath}`);
+    }
+    try {
+      fs.chmodSync(scriptPath, 0o755);
+    } catch (error) {
+      this.log(`Failed to mark Claude hook script executable: ${error}`);
+    }
+
+    let settings: Record<string, any> = {};
+    if (fs.existsSync(settingsPath)) {
+      try {
+        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      } catch (error) {
+        this.log(`Failed to parse existing Claude settings, recreating hook section: ${error}`);
+        settings = {};
+      }
+    }
+
+    const hooks = settings.hooks && typeof settings.hooks === 'object'
+      ? settings.hooks
+      : {};
+    const rawStopHooks = Array.isArray(hooks.Stop) ? hooks.Stop : [];
+    const stopHooks = rawStopHooks.filter((group: any) => {
+      if (!Array.isArray(group?.hooks)) {
+        return true;
+      }
+      const remainingHooks = group.hooks.filter((hook: any) => {
+        if (hook?.type !== 'command') {
+          return true;
+        }
+        const legacyNodeHook = hook?.command === 'node'
+          && Array.isArray(hook?.args)
+          && hook.args.includes(hookCommand);
+        const directHook = hook?.command === hookCommand;
+        return !legacyNodeHook && !directHook;
+      });
+      group.hooks = remainingHooks;
+      return remainingHooks.length > 0;
+    });
+
+    stopHooks.push({
+      hooks: [
+        {
+          type: 'command',
+          command: hookCommand,
+        },
+      ],
+    });
+    hooks.Stop = stopHooks;
+    settings.hooks = hooks;
+    fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf-8');
+    if (!filesCreated.includes('.claude/settings.json')) {
+      filesCreated.push('.claude/settings.json');
+    }
+    this.log(`Updated Claude project settings: ${settingsPath}`);
+  }
+
+  private getClaudeAutoCommitHookScript(): string {
+    return `#!/usr/bin/env node
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+
+const input = await readHookInput();
+
+const TEXT_ARTIFACT_EXTENSIONS = new Set([
+  '.md',
+  '.txt',
+  '.json',
+  '.jsonl',
+  '.yaml',
+  '.yml',
+  '.csv',
+  '.tsv',
+  '.py',
+  '.ipynb',
+  '.tex',
+  '.bib',
+]);
+
+function readHookInput() {
+  return new Promise((resolve) => {
+    let raw = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => {
+      raw += chunk;
+    });
+    process.stdin.on('end', () => {
+      try {
+        resolve(raw.trim() ? JSON.parse(raw) : {});
+      } catch {
+        resolve({});
+      }
+    });
+    process.stdin.on('error', () => resolve({}));
+  });
+}
+
+function normalize(filePath) {
+  return filePath.replace(/\\\\/g, '/');
+}
+
+function git(args, options = {}) {
+  return execFileSync('git', args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    ...options,
+  }).trim();
+}
+
+function gitList(args) {
+  const output = execFileSync('git', args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return output ? output.split('\\0').filter(Boolean).map(normalize) : [];
+}
+
+function isEligibleArtifact(filePath) {
+  const normalized = normalize(filePath);
+
+  if (
+    normalized === '.env'
+    || normalized === '.claude/settings.local.json'
+    || normalized.startsWith('.claude/skills/')
+    || normalized.startsWith('.git/')
+  ) {
+    return false;
+  }
+
+  if (
+    normalized === '.claude/settings.json'
+    || normalized.startsWith('.claude/hooks/')
+    || normalized.startsWith('custom/')
+    || normalized.startsWith('hypothesis_')
+    || normalized.startsWith('paper/')
+    || normalized.startsWith('presentation/')
+    || normalized.startsWith('synthesis/')
+    || normalized === '.agentsociety/progress.json'
+    || normalized === 'papers/literature_index.json'
+  ) {
+    return true;
+  }
+
+  if (normalized.startsWith('papers/') || normalized.startsWith('datasets/')) {
+    return TEXT_ARTIFACT_EXTENSIONS.has(path.extname(normalized).toLowerCase());
+  }
+
+  return false;
+}
+
+try {
+  git(['rev-parse', '--is-inside-work-tree']);
+} catch {
+  process.exit(0);
+}
+
+const repoRoot = git(['rev-parse', '--show-toplevel']);
+if (!repoRoot) {
+  process.exit(0);
+}
+
+process.chdir(repoRoot);
+
+const unstaged = gitList(['diff', '--name-only', '-z']);
+const staged = gitList(['diff', '--cached', '--name-only', '-z']);
+const untracked = gitList(['ls-files', '--others', '--exclude-standard', '-z']);
+const changed = Array.from(new Set([...unstaged, ...staged, ...untracked]));
+const selected = changed.filter(isEligibleArtifact);
+
+if (selected.length === 0) {
+  process.exit(0);
+}
+
+const stagedOutsideSelection = staged.filter((filePath) => !selected.includes(filePath));
+if (stagedOutsideSelection.length > 0) {
+  process.exit(0);
+}
+
+execFileSync('git', ['add', '--', ...selected], {
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
+
+const stagedSelected = gitList(['diff', '--cached', '--name-only', '-z', '--', ...selected]);
+if (stagedSelected.length === 0) {
+  process.exit(0);
+}
+
+const sessionSuffix = typeof input.session_id === 'string' && input.session_id
+  ? \` [\${input.session_id.slice(0, 8)}]\`
+  : '';
+const commitMessage = \`chore(skill): save workspace updates\${sessionSuffix}\`;
+
+execFileSync('git', ['commit', '--only', '-m', commitMessage, '--', ...selected], {
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
 `;
   }
 
@@ -1085,38 +1368,35 @@ Do not:
       hypotheses: {},
     });
 
-    writeJsonIfMissing('.agentsociety/control_plane.json', {
-      version: '1.0',
-      current_focus: {
-        stage: null,
-        hypothesis_id: null,
-        experiment_id: null,
-        artifact: null,
-      },
-      next_recommended_actions: [],
-      pending_approvals: [],
-      open_risks: [],
-      active_assumptions: [],
-      blockers: [],
-    });
+    this.removeObsoleteWorkspaceStateFiles(workspacePath);
+  }
 
-    writeJsonIfMissing('.agentsociety/claims.json', {
-      version: '1.0',
-      claims: [],
-    });
+  private removeObsoleteWorkspaceStateFiles(workspacePath: string): void {
+    const agentsocietyDir = path.join(workspacePath, '.agentsociety');
+    if (!fs.existsSync(agentsocietyDir)) {
+      return;
+    }
 
-    writeTextIfMissing('.agentsociety/decisions.jsonl', '');
+    const keepRootFiles = new Set(['path.md', 'prefill_params.json', 'progress.json']);
+    for (const entry of fs.readdirSync(agentsocietyDir, { withFileTypes: true })) {
+      if (!entry.isFile()) {
+        continue;
+      }
+      if (keepRootFiles.has(entry.name)) {
+        continue;
+      }
+      if (!entry.name.endsWith('.json') && !entry.name.endsWith('.jsonl')) {
+        continue;
+      }
 
-    writeJsonIfMissing('.agentsociety/session.json', {
-      version: '1.0',
-      session_id: randomUUID(),
-      started_at: new Date().toISOString(),
-      last_active_at: new Date().toISOString(),
-      current_action: 'workspace_initialized',
-      pending_decisions: [],
-      errors: [],
-      session_summary: '',
-    });
+      const absolutePath = path.join(agentsocietyDir, entry.name);
+      try {
+        fs.rmSync(absolutePath, { force: true });
+        this.log(`Removed obsolete workspace state file: ${absolutePath}`);
+      } catch (error) {
+        this.log(`Failed to remove obsolete workspace state file ${absolutePath}: ${error}`);
+      }
+    }
   }
 
   private getWorkspacePathMemoryContent(): string {

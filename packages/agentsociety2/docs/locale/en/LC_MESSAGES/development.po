@@ -8,15 +8,15 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-09 12:39+0800\n"
+"POT-Creation-Date: 2026-05-17 23:13+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
 "Last-Translator: AgentSociety Team\n"
-"Language-Team: en <LL@li.org>\n"
 "Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "Generated-By: Babel 2.18.0\n"
 
 #: ../../development.rst:2
@@ -97,100 +97,100 @@ msgstr ""
 msgid "**analysis**: 数据分析和报告"
 msgstr "**analysis**: Data Analysis and Reporting"
 
-#: ../../development.rst:98
-msgid "**agent**: 智能体处理、选择、生成和过滤"
-msgstr "**agent**: Agent processing, selection, generation and filtering"
-
-#: ../../development.rst:101
+#: ../../development.rst:100
 msgid "后端 API"
 msgstr "Backend API"
 
-#: ../../development.rst:103
+#: ../../development.rst:102
 msgid "``backend/`` 模块提供 FastAPI REST API："
 msgstr "The ``backend/`` module provides the FastAPI REST API:"
 
-#: ../../development.rst:105
+#: ../../development.rst:104
 msgid ""
-"**Routers**: * ``/api/v1/experiments`` - 实验管理 * ``/api/v1/modules`` - 模块管理 *"
-" ``/api/v1/replay`` - 回放数据访问 * ``/api/v1/custom`` - 自定义模块注册"
+"**Routers**: * ``/api/v1/prefill-params`` - 模块参数预填充信息 * "
+"``/api/v1/experiments`` - 实验管理 * ``/api/v1/modules`` - 模块管理 * "
+"``/api/v1/replay`` - 回放数据访问 * ``/api/v1/custom`` - 自定义模块注册 * ``/api/v1"
+"/agent-skills`` - Agent Skills 扫描、导入和热重载"
 msgstr ""
-"**Routers**: * ``/api/v1/experiments`` - Experiment management * "
-"``/api/v1/modules`` - Module management * ``/api/v1/replay`` - Playback data"
-" access * ``/api/v1/custom`` - Custom module registration"
+"**Routers**: * ``/api/v1/prefill-params`` - prefill parameters for module"
+" configuration * ``/api/v1/experiments`` - experiment management * "
+"``/api/v1/modules`` - module management * ``/api/v1/replay`` - replay "
+"data access * ``/api/v1/custom`` - custom module registration * ``/api/v1"
+"/agent-skills`` - Agent Skills scanning, importing, and hot reloading"
 
-#: ../../development.rst:111
+#: ../../development.rst:112
 msgid "**Service Layer**: 业务逻辑层"
 msgstr "**Service Layer**: Business logic layer"
 
-#: ../../development.rst:113
+#: ../../development.rst:114
 msgid "启动后端："
 msgstr "Start the backend:"
 
-#: ../../development.rst:122
+#: ../../development.rst:123
 msgid "日志系统"
 msgstr "Logging System"
 
-#: ../../development.rst:124
+#: ../../development.rst:125
 msgid "增强的日志系统支持："
 msgstr "Enhanced logging system support:"
 
-#: ../../development.rst:126
+#: ../../development.rst:127
 msgid "**彩色控制台输出**: 按日志级别着色"
 msgstr "**彩色控制台输出**: Colored by log level"
 
-#: ../../development.rst:127
+#: ../../development.rst:128
 msgid "**文件日志**: 使用 ``add_file_handler()`` 写入日志文件"
 msgstr "**文件日志**: Use ``add_file_handler()`` to write to the log file"
 
-#: ../../development.rst:128
+#: ../../development.rst:129
 msgid "**LiteLLM 集成**: 自定义回调日志记录 LLM 调用"
 msgstr "**LiteLLM 集成**: Custom callback logging for LLM calls"
 
-#: ../../development.rst:144
+#: ../../development.rst:145
 msgid "贡献"
 msgstr "Contributing"
 
-#: ../../development.rst:146
+#: ../../development.rst:147
 msgid "请参阅 :doc:`contributing` 了解贡献指南。"
 msgstr "Please see :doc:`contributing` for contribution guidelines."
 
-#: ../../development.rst:149
+#: ../../development.rst:150
 msgid "构建文档"
 msgstr "Build Documentation"
 
-#: ../../development.rst:156
+#: ../../development.rst:157
 msgid "构建的文档将位于 ``_build/html/``。"
 msgstr "Built documentation will be in ``_build/html/``."
 
-#: ../../development.rst:158
+#: ../../development.rst:159
 msgid "要在编辑时进行实时预览："
 msgstr "For live preview while editing:"
 
-#: ../../development.rst:165
+#: ../../development.rst:166
 msgid "发布流程"
 msgstr "Release Process"
 
-#: ../../development.rst:167
+#: ../../development.rst:168
 msgid "更新 ``pyproject.toml`` 中的版本"
 msgstr "Update version in ``pyproject.toml``"
 
-#: ../../development.rst:168
+#: ../../development.rst:169
 msgid "更新 ``CHANGELOG.md``"
 msgstr "Update ``CHANGELOG.md``"
 
-#: ../../development.rst:169
+#: ../../development.rst:170
 msgid "提交更改"
 msgstr "Commit changes"
 
-#: ../../development.rst:170
+#: ../../development.rst:171
 msgid "创建标签：``git tag agentsociety2-vX.Y.Z``"
 msgstr "Create tag: ``git tag agentsociety2-vX.Y.Z``"
 
-#: ../../development.rst:171
+#: ../../development.rst:172
 msgid "推送：``git push --tags``"
 msgstr "Push: ``git push --tags``"
 
-#: ../../development.rst:172
+#: ../../development.rst:173
 msgid "GitHub Actions 将构建并发布到 PyPI"
 msgstr "GitHub Actions will build and publish to PyPI"
 
@@ -202,3 +202,7 @@ msgstr "GitHub Actions will build and publish to PyPI"
 
 #~ msgid "**paper**: 使用 EasyPaper 生成学术论文"
 #~ msgstr ""
+
+#~ msgid "**agent**: 智能体处理、选择、生成和过滤"
+#~ msgstr "**agent**: Agent processing, selection, generation and filtering"
+

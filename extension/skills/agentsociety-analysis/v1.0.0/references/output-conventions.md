@@ -12,6 +12,7 @@ presentation/
     report.md
     report.html
     assets/
+    charts/
     data/
     artifact_manifest.json
 ```
@@ -29,15 +30,22 @@ synthesis/
 ## Naming Rules
 
 - Chart filenames: `chart_{nn}_{description}.png`
+- Optional companion vector export: `chart_{nn}_{description}.svg`
 - Matching plotting scripts may live beside them as `chart_{nn}_{description}.py`
+- Composite figure filenames: `figure_{nn}_{description}.png`
+- Composite figure metadata sidecar: `figure_{nn}_{description}.json`
 - EDA outputs: `eda_{type}_{table}.html` or similar type-specific names
 - Keep only report-referenced charts in `assets/`
+- Keep intermediate plotting scripts, atomic charts, and composite figure specs under `charts/`
+- When `collect-assets` filters a referenced chart PNG, sibling same-stem vector exports are preserved automatically.
+- When `collect-assets` filters a referenced composite figure PNG, its same-stem JSON sidecar should remain under `charts/` as production metadata rather than being copied into `assets/`.
 - Do not write synthesis outputs under `presentation/`; they belong directly in `synthesis/`.
+- Do not store temporary EDA screenshots in `assets/` unless the report explicitly references them.
 
 ## Report References
 
-- Reference charts as `![Title](assets/chart_01_example.png)`.
-- Put a one-line description immediately below each chart.
+- Reference charts or composite figures as `![Title](assets/chart_01_example.png)` or `![Title](assets/figure_01_example.png)`.
+- Put a one-line description immediately below each chart or composite figure.
 - Keep `artifact_manifest.json` aligned with the final report and asset set.
 
 ## Artifact Manifest

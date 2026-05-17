@@ -1,7 +1,7 @@
 ---
 name: agentsociety-experiment-config
 version: 1.0.0
-description: Use when a hypothesis already exists and experiment configuration files need to be created, validated, or revised.
+description: Use when a hypothesis already exists and experiment configuration files need to be created, validated, or revised, especially after the simulation scale budget has been decided.
 ---
 
 # Experiment Config
@@ -13,10 +13,12 @@ Generate and validate experiment configuration (`init_config.json` + `steps.yaml
 - User says "set up experiment", "configure simulation", "prepare experiment run"
 - Hypothesis and `SIM_SETTINGS.json` exist and need `init_config.json` + `steps.yaml`
 - User wants to validate, check, or fix an existing experiment configuration
+- The simulation scale budget is known or has already been clarified
 
 **Do NOT use when:**
 - No hypothesis or `SIM_SETTINGS.json` exists yet (use **hypothesis** skill first)
 - User wants to *run* the experiment (use **run-experiment** skill)
+- Agent count, step budget, or runtime budget still need to be chosen. Resolve those before generating files.
 
 ## Quick Reference
 
@@ -30,11 +32,17 @@ Generate and validate experiment configuration (`init_config.json` + `steps.yaml
 
 Use the Python interpreter from `.env`. See `CLAUDE.md` for setup.
 
+## Scale Planning
+
+If the experiment size is still open, ask for the simulation scale budget before generating files. Collect the target agent count or range, step budget, runtime budget, and preferred complexity tier. Offer 2-3 options with trade-offs and a recommendation, then use the selected budget to balance agent count, agent complexity, and run length.
+
 ## Entry Conditions
 
 - `HYPOTHESIS.md` and `SIM_SETTINGS.json` already exist for the target experiment
 - module names are already known, or can be confirmed with `scan-modules` when needed
 - `user_data/` has been reviewed before generating defaults
+- the selected scale budget is available before freezing agent counts or step counts
+- any external dataset requirement has already been resolved with `use-dataset` or `create-dataset`
 
 ## Common Mistakes
 
@@ -110,6 +118,8 @@ digraph experiment_config {
 2. Run `prepare` to create `init/` directory and `config_params.py` template.
 3. Run `info` to display selected module details.
 4. Read `HYPOTHESIS.md`, `EXPERIMENT.md`, `SIM_SETTINGS.json`, and `user_data/` files.
+5. Confirm the selected scale budget before freezing agent counts or step counts.
+6. If the experiment depends on external data, resolve dataset search or upload first, then continue.
 
 ### Phase 2 -- Code Generation
 
@@ -117,6 +127,8 @@ Generate `config_params.py` that:
 - Uses **only** standard library imports (`json`, `pathlib`, `csv`)
 - Reads from `user_data/` directory
 - Outputs valid `init_config.json` and `steps.yaml` to stdout
+- Uses the selected scale budget to keep total runtime aligned with the requested simulation size
+- Resolves external data dependencies through dataset search or upload before freezing defaults
 
 **Delegate to subagent when:** the config involves many agents (10+) or complex step sequences (questionnaires, multi-phase interventions). Dispatch a subagent with all gathered Phase 1 context, instructing it to read `subagent-prompts/config-generator.md` and produce the script.
 
@@ -138,8 +150,9 @@ See [`references/config-structure.md`](references/config-structure.md) for the f
 2. All parameters go in `kwargs`.
 3. `agent_id` must equal `kwargs.id`.
 4. Read `user_data/` files before generating configuration.
-5. Questionnaire steps must include a non-empty `questions` list; each question needs `id` and `prompt`.
-6. Choice questions must provide `choices`; validation will fail otherwise.
+5. Confirm the scale budget before writing final agent counts or step counts.
+6. Questionnaire steps must include a non-empty `questions` list; each question needs `id` and `prompt`.
+7. Choice questions must provide `choices`; validation will fail otherwise.
 
 ## Documentation Sync
 

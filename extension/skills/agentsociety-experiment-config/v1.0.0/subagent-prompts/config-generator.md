@@ -14,6 +14,7 @@ The orchestrator will provide:
 - **Module selection** (from SIM_SETTINGS.json -- agent classes and env modules)
 - **Module details** (from `info` command output -- constructor parameters)
 - **User data** (contents of `user_data/` directory for parameter defaults)
+- **Simulation scale budget** (target agent count or range, step budget, runtime budget, preferred complexity tier)
 - **Steps specification** (what simulation steps to configure: run, ask, intervene, questionnaire)
 
 ## Files to Read
@@ -31,6 +32,7 @@ The orchestrator will provide:
 6. All parameters go in `kwargs` dictionary
 7. `agent_id` must equal `kwargs.id`
 8. If questionnaire steps are needed, each question must have `id` and `prompt`; choice questions must have `choices`
+9. Keep the total agent count, step count, and per-agent complexity aligned with the provided scale budget. If the budget is partial, choose conservative defaults and surface the unresolved items in the summary.
 
 ## Key Constraints
 

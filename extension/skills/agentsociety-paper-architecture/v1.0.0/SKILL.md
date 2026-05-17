@@ -85,6 +85,14 @@ through stdout JSON is fragile and error-prone.
 - The orchestrator does NOT call a CLI persist subcommand for draft_section.
 - The orchestrator verifies the files exist after the subagent returns.
 
+## Degraded Generation
+
+When a paragraph repeatedly drifts on citations, metrics, or figure
+anchors, the producer must switch from free-form drafting to the
+degraded-generation fallback documented in
+`references/degraded_generation.md`: write a skeleton, fill typed
+`[[...]]` slots, then render final markdown with no slot markers left.
+
 ## Common Mistakes
 
 1. **Wrong CITE sentinel:** Always `[CITE:key]`, never `\cite{}` or

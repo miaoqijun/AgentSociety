@@ -3,7 +3,7 @@
 `agentsociety2.skills.analysis` is now a pure tool layer for experiment analysis.
 
 Interactive orchestration has moved to the staged Claude Code skill under
-`extension/skills/agentsociety-analysis/`. That staged workflow is responsible
+`extension/skills/agentsociety-analysis/v1.0.0/`. That staged workflow is responsible
 for deciding what to inspect, which charts to generate, when to write reports,
 and when to enter cross-experiment synthesis.
 
@@ -57,7 +57,7 @@ quick_stats = EDAGenerator().generate_quick_stats(
 ## CLI Surface
 
 The staged skill uses
-`extension/skills/agentsociety-analysis/scripts/analysis.py`, which exposes:
+`extension/skills/agentsociety-analysis/v1.0.0/scripts/analysis.py`, which exposes:
 
 - `load-context`
 - `list-tables`
@@ -65,6 +65,7 @@ The staged skill uses
 - `query-data`
 - `run-code`
 - `run-eda`
+- `compose-figure`
 - `collect-assets`
 
 ## Output Layout
@@ -87,9 +88,13 @@ Optional cross-experiment synthesis outputs live under:
 
 For the full interactive workflow, use the extension skill files:
 
-- `extension/skills/agentsociety-analysis/SKILL.md`
-- `extension/skills/agentsociety-analysis/stages/01_context.md`
-- `extension/skills/agentsociety-analysis/stages/02_data_explore.md`
-- `extension/skills/agentsociety-analysis/stages/03_insight_and_viz.md`
-- `extension/skills/agentsociety-analysis/stages/04_report.md`
-- `extension/skills/agentsociety-analysis/stages/05_synthesis.md`
+- `extension/skills/agentsociety-analysis/v1.0.0/SKILL.md`
+- `extension/skills/agentsociety-analysis/v1.0.0/stages/01_context.md`
+- `extension/skills/agentsociety-analysis/v1.0.0/stages/02_data_explore.md`
+- `extension/skills/agentsociety-analysis/v1.0.0/stages/03_insight_and_viz.md`
+- `extension/skills/agentsociety-analysis/v1.0.0/stages/04_report.md`
+- `extension/skills/agentsociety-analysis/v1.0.0/stages/05_synthesis.md`
+
+The plotting and composite-figure guidance in that skill now follows a contract-first
+reference layout, but remains adapted to
+AgentSociety's Python-only analysis toolchain and report output conventions.

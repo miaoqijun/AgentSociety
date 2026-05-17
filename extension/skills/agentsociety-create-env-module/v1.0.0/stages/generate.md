@@ -9,6 +9,7 @@ Before writing code:
 - Confirm the real contract in `EnvBase`, the bundled local validator, and registry helpers.
 - Read at least one reference implementation that matches the desired complexity.
 - If the module carries mutable state, replay data, or resume requirements, read `references/persistence-patterns.md`.
+- Keep the implementation proportional to the simulation scale budget chosen during intake.
 
 Generation rules:
 

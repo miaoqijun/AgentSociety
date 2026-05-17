@@ -17,7 +17,7 @@ verdict) to the next dispatch.
 | `intake` | `paper_meta.yaml` exists | `paper-orchestrator build-pack` (no subagent needed; CLI runs adapter directly) | n/a |
 | `framing` | `research_pack.json` exists | `agentsociety-paper-framing` producer + angle-critic + contribution-auditor | `paper-orchestrator framing --payload <storyline_map JSON>` |
 | `evidence-audit` | `storyline_map.json` exists | `agentsociety-paper-evidence-expansion` producer + evidence-skeptic + alternative-explanation-reviewer | `paper-orchestrator evidence --payload <evidence_backlog JSON>` |
-| `expansion-plan` | `evidence_backlog.json` reviewed | (Phase 4) optional auto-execution of high-priority `auto_executable=true` items via `agentsociety-analysis` / `-literature-search`; otherwise advance | n/a |
+| `expansion-plan` | `evidence_backlog.json` reviewed | inspect high-priority gaps; dispatch `agentsociety-analysis` / `agentsociety-literature-search` for `auto_executable=true` items, open `human_gate` for blocked items, otherwise advance | n/a |
 | `manuscript-build` | `evidence_backlog.json` exists | `agentsociety-paper-architecture` producer + figure-logic-reviewer (claim_tree, figure_argument, section_outline, draft_section) | `paper-orchestrator architecture --artifact claim_ledger --payload <JSON>` etc.; manuscript markdown written directly to `<ws>/paper/artifacts/manuscript/` |
 | `skeptical-review` | manuscript markdown drafted | `agentsociety-paper-skeptical-review` (significance-calibrator + precision-editor + evidence-skeptic) | `paper-orchestrator review --payload <Review or ReviewRound JSON> --round N` |
 | `revision-router` | review round closed with non-empty `unresolved_fatal` or non-`accept` verdicts | `subagent-prompts/revision-router.md` (this skill) | n/a (router updates state directly) |
@@ -41,8 +41,10 @@ For every dispatch, do all of:
    (see the table above). Persistence is the only side effect this
    skill performs.
 4. **Re-read** `paper_state.yaml`. The CLI advances the phase
-   automatically when the right artifact lands; if not, advance with a
-   subsequent dispatch.
+   automatically when the right artifact lands; if external analysis or
+   literature dispatches were planned, keep the phase at
+   `expansion-plan`, refresh `research_pack` with `build-pack`, rerun
+   `evidence-audit`, then continue.
 
 ## Error Handling
 
@@ -61,8 +63,8 @@ If a subagent envelope returns:
 
 ## Phase 3 Scope
 
-Phase 3 only requires the path **intake -> framing -> manuscript-build
--> compile**. Evidence expansion, skeptical review, revision routing,
-and human-gate handling land in Phase 4. The router still consults
-`paper_state.yaml` correctly; phases past `manuscript-build` are
-no-ops in M1's smoke path.
+Phase 3 supports the smoke path **intake -> framing -> manuscript-build
+-> compile**. Phase 4 behavior is now live for `expansion-plan`,
+`revision-router`, and human-gate handling: the router may pause to
+request external analysis, literature augmentation, or human approval
+before resuming manuscript work.

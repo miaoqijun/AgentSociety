@@ -13,7 +13,6 @@ import argparse
 import asyncio
 import json
 import shutil
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 import aiohttp
@@ -618,25 +617,15 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
                 progress_file.write_text(json.dumps(progress_data, indent=2, ensure_ascii=False), encoding="utf-8")
                 result["created"].append(".agentsociety/progress.json")
 
-            decisions_file = target_dir / ".agentsociety" / "decisions.jsonl"
-            if not decisions_file.exists():
-                decisions_file.write_text("", encoding="utf-8")
-                result["created"].append(".agentsociety/decisions.jsonl")
-
-            session_file = target_dir / ".agentsociety" / "session.json"
-            if not session_file.exists():
-                session_data = {
-                    "version": "1.0",
-                    "session_id": str(uuid.uuid4()),
-                    "started_at": datetime.now(timezone.utc).isoformat(),
-                    "last_active_at": datetime.now(timezone.utc).isoformat(),
-                    "current_action": "workspace_initialized",
-                    "pending_decisions": [],
-                    "errors": [],
-                    "session_summary": "",
-                }
-                session_file.write_text(json.dumps(session_data, indent=2, ensure_ascii=False), encoding="utf-8")
-                result["created"].append(".agentsociety/session.json")
+            keep_root_files = {"path.md", "prefill_params.json", "progress.json"}
+            for existing_file in (target_dir / ".agentsociety").iterdir():
+                if not existing_file.is_file():
+                    continue
+                if existing_file.name in keep_root_files:
+                    continue
+                if existing_file.suffix not in {".json", ".jsonl"}:
+                    continue
+                existing_file.unlink()
 
         if not result["errors"] or any("failed" in e.lower() for e in result["errors"]):
             # 只有没有严重错误时才标记为成功

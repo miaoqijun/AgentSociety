@@ -13,7 +13,11 @@ AgentSociety 2 包含一组 LLM 原生的研究技能，用于自动化科学研
 * **实验设计**: 设计完整的实验配置
 * **论文撰写**: 通过 paper-orchestrator skill 套件（重写中）生成 Nature 风格学术论文 PDF
 * **数据分析**: 分析实验数据并生成报告
-* **智能体处理**: 智能体选择、生成和过滤
+
+当前 Python 包内公开的 research skills 模块为
+``agentsociety2.skills.literature``、``agentsociety2.skills.hypothesis``、
+``agentsociety2.skills.experiment``、``agentsociety2.skills.analysis``、
+``agentsociety2.skills.paper``。
 
 Claude Code Skills
 --------------------
@@ -30,6 +34,17 @@ Claude Code Skills
 * **agentsociety-analysis** - 数据分析与跨实验综合
 * **agentsociety-create-agent** - 自定义 Agent 生成与校验
 * **agentsociety-paper-orchestrator** - Nature/Science 级论文生成（6-skill 状态机）
+
+.. note::
+
+   本页中的 ``.agentsociety/bin/ags.py`` 命令面向**已初始化的工作区**。
+   如果当前目录尚未生成 ``.agentsociety/``，请先执行：
+
+   .. code-block:: bash
+
+      agentsociety-workspace init --target-dir .
+
+   等价入口是 ``python -m agentsociety2.society.workspace init --target-dir .``。
 
 create-agent 技能
 ~~~~~~~~~~~~~~~~~~~
@@ -59,6 +74,7 @@ create-agent 技能
 
 .. code-block:: bash
 
+   agentsociety-workspace init --target-dir .
    PYTHON_PATH=$(grep "^PYTHON_PATH=" .env | cut -d'=' -f2)
    PYTHON_PATH=${PYTHON_PATH:-.venv/bin/python}
    $PYTHON_PATH .agentsociety/bin/ags.py create-agent --file custom/agents/my_agent.py
@@ -92,8 +108,8 @@ create-agent 技能
 
 推荐流程：
 
-1. 使用 ``research-pipeline where-am-i --json`` 确认当前阶段。
-2. 在 ``experiment-config`` 阶段先扫描模块；如果缺少 Agent 或 Env，再分支到 ``create-agent`` 或 ``create-env-module``。
+1. 先确认工作区中已经具备 ``init_config.json``、``steps.yaml`` 与所需模块信息。
+2. 在 ``experiment-config`` 阶段先扫描模块；如果缺少 Agent 或 Env，先补充对应自定义模块，再重新扫描。
 3. 运行 ``experiment-config check`` 或等价校验，确认配置和步骤文件可用。
 4. 启动实验时使用 ``run-experiment``；后台执行必须指定日志文件，避免丢失 verbose 输出。
 5. 实验完成后检查 ``run/sqlite.db``、日志与 artifacts，再进入分析阶段。
@@ -147,7 +163,7 @@ create-agent 技能
 - ``papers/literature_index.json`` 是稳定索引，记录标题、作者、年份、来源、query、分数和本地 ``file_path``。
 - 每篇文献保存为 ``papers/<title>_<timestamp>.md``，这是后续 hypothesis、analysis 和 paper 技能引用的主要本地笔记。
 - 原文 PDF 如需下载，应放在 ``papers/full_texts/``，并记录到 ``extra_fields.full_text.file_path``；不要把索引中的 ``file_path`` 从 Markdown 笔记替换成 PDF。
-- 文献检索不会自动绕过出版商权限。PDF 下载只处理开放获取或用户授权的文件；没有开放 PDF 时，可以用 web research 补充 Markdown 笔记并记录来源。
+- 文献检索不会自动绕过出版商权限。PDF 下载只处理开放获取或用户授权的文件；没有开放 PDF 时，可以补充本地 Markdown 笔记并记录来源。
 
 Python API
 --------------------
@@ -345,7 +361,8 @@ skeptical-review → revision-router → release-gate``
 
 子命令：init-meta, intake, build-pack, framing, evidence, architecture,
 review, compile, run-loop, status。别名 ``paper``、``generate-paper``、
-``generate_paper`` 均路由至此。
+``generate_paper`` 均路由至此。执行前提同上：需要位于已初始化工作区内，
+且 ``.agentsociety/bin/ags.py`` 已可用。
 
 完整工作流示例
 ------------------------

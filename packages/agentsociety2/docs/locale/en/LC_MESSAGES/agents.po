@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-16 11:12+0800\n"
+"POT-Creation-Date: 2026-05-17 23:13+0800\n"
 "PO-Revision-Date: 2026-03-05 23:55+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -32,8 +32,8 @@ msgstr ""
 "social science: researchers place individuals, groups, institutions, and "
 "environmental mechanisms in runnable systems and observe how micro-level "
 "behavior aggregates into macro-level phenomena. Questions that once "
-"stayed in theory or small surveys become iterable, comparable, "
-"replayable experiments."
+"stayed in theory or small surveys become iterable, comparable, replayable"
+" experiments."
 
 #: ../../agents.rst:6
 msgid ""
@@ -44,9 +44,9 @@ msgstr ""
 "In practice the barrier remains high. A full experiment usually requires "
 "turning high-level social-science ideas into executable code: agent "
 "profiles, behavior logic, environment tools, step definitions, run "
-"configuration, and analysis artifacts. That demands solid programming "
-"and familiarity with simulation infrastructure, persistence, LLM calls, "
-"and replay—so many worthwhile questions never become runnable quickly."
+"configuration, and analysis artifacts. That demands solid programming and"
+" familiarity with simulation infrastructure, persistence, LLM calls, and "
+"replay—so many worthwhile questions never become runnable quickly."
 
 #: ../../agents.rst:8
 msgid ""
@@ -57,10 +57,10 @@ msgstr ""
 "In AgentSociety 2, the **AI Social Scientist** layer bridges research "
 "ideas and runnable simulations. Researchers focus on questions, theory, "
 "and experimental logic while the system helps structure experiments, "
-"generate configuration, run jobs, and analyze results. ``PersonAgent`` is "
-"the default human-facing abstraction: profile, capabilities, working "
-"memory, and environment interaction in inspectable, swappable, "
-"replayable units."
+"generate configuration, run jobs, and analyze results. ``PersonAgent`` is"
+" the default human-facing abstraction: profile, capabilities, working "
+"memory, and environment interaction in inspectable, swappable, replayable"
+" units."
 
 #: ../../agents.rst:10
 msgid "本部分先从研究者如何理解 ``PersonAgent`` 开始，再介绍需要调参、扩展或调试时会用到的工程细节。"
@@ -93,7 +93,9 @@ msgstr "How do they form emotions, intentions, plans, or social judgments?"
 
 #: ../../agents.rst:21
 msgid "哪些事件值得记住，哪些行为需要被记录和比较？"
-msgstr "Which events should be remembered and which behaviors recorded and compared?"
+msgstr ""
+"Which events should be remembered and which behaviors recorded and "
+"compared?"
 
 #: ../../agents.rst:23
 msgid ""
@@ -101,9 +103,9 @@ msgid ""
 "对应的正是这组问题。它不要求研究者把人的全部行为写成一个巨大函数，而是把人物拆成三个可理解的层次：``profile`` "
 "描述相对稳定的身份与背景，``workspace`` 保存仿真过程中逐步变化的状态，``skills`` 表达这个人物可以调用的行为能力。"
 msgstr ""
-"``PersonAgent`` maps to these questions. Instead of one giant function for "
-"all human behavior, it splits a person into three layers: ``profile`` "
-"for relatively stable identity and background, ``workspace`` for state "
+"``PersonAgent`` maps to these questions. Instead of one giant function "
+"for all human behavior, it splits a person into three layers: ``profile``"
+" for relatively stable identity and background, ``workspace`` for state "
 "that evolves during simulation, and ``skills`` for invocable "
 "capabilities."
 
@@ -117,8 +119,8 @@ msgstr ""
 "one-shot coding task. Researchers express hypotheses in natural language "
 "and configuration, then use skills, environment modules, and replay to "
 "check whether agents saw the right information, formed reasonable "
-"intentions, acted as expected, and whether micro-level actions support or "
-"challenge the hypothesis."
+"intentions, acted as expected, and whether micro-level actions support or"
+" challenge the hypothesis."
 
 #: ../../agents.rst:28
 msgid "类继承层次"
@@ -148,24 +150,37 @@ msgstr "PersonAgent"
 #: ../../agents.rst:46
 msgid "``PersonAgent`` 是 AgentSociety 2 中推荐的人物智能体。它把“一个人怎样行动”拆成三层："
 msgstr ""
+"``PersonAgent`` is the recommended person-oriented agent in AgentSociety "
+"2. It breaks down the question of how a person acts into three layers:"
 
 #: ../../agents.rst:48
 msgid "**profile** 描述相对稳定的身份、背景、偏好和目标；"
 msgstr ""
+"**profile** describes relatively stable identity, background, "
+"preferences, and goals;"
 
 #: ../../agents.rst:49
 msgid "**workspace** 保存这个人在仿真中的观察、情绪、意图、计划和记忆；"
 msgstr ""
+"**workspace** stores this person's observations, emotions, intentions, "
+"plans, and memories during simulation;"
 
 #: ../../agents.rst:50
 msgid "**skills** 提供可组合的能力，例如观察环境、更新认知、执行计划和写入记忆。"
 msgstr ""
+"**skills** provide composable capabilities such as observing the "
+"environment, updating cognition, executing plans, and writing memories."
 
 #: ../../agents.rst:52
 msgid ""
 "每个 simulation step 中，``PersonAgent`` 会先构建当前上下文，再让模型按需选择工具和技能。框架不强制固定的“观察 "
 "→ 认知 → 计划 → 记忆”流水线；这样做的好处是：简单 tick 可以很短，复杂 tick 又能按需要读取更多上下文。"
 msgstr ""
+"In each simulation step, ``PersonAgent`` first builds the current context"
+" and then lets the model choose tools and skills as needed. The framework"
+" does not enforce a fixed “observe → cognition → plan → memory” pipeline."
+" The advantage is that simple ticks can stay short, while complex ticks "
+"can read more context when needed."
 
 #: ../../agents.rst:54
 msgid ""
@@ -173,357 +188,381 @@ msgid ""
 "来表达人的行为差异；只有当你需要改变调度方式、状态机、外部系统调用，或要做一个与人物日常行动完全不同的实验 agent 时，才需要继承 "
 "``AgentBase`` 写新类。"
 msgstr ""
+"In most cases, it is recommended to use ``PersonAgent`` + profile + "
+"skills first to express differences in human behavior. Only when the "
+"scheduling model, state machine, or external-system invocation must "
+"change, or when an experiment needs an agent fundamentally different from"
+" everyday person behavior, is it necessary to subclass ``AgentBase`` and "
+"write a new class."
 
 #: ../../agents.rst:71
 msgid "构造参数"
-msgstr ""
+msgstr "Constructor Parameters"
 
 #: ../../agents.rst:77
-#, fuzzy
 msgid "参数"
-msgstr "Parameters:"
+msgstr "Parameters"
 
 #: ../../agents.rst:78 ../../agents.rst:104 ../../agents.rst:118
 #: ../../agents.rst:146 ../../agents.rst:174 ../../agents.rst:196
 #: ../../agents.rst:225 ../../agents.rst:251 ../../agents.rst:305
-#: ../../agents.rst:331 ../../agents.rst:383 ../../agents.rst:486
+#: ../../agents.rst:331 ../../agents.rst:383 ../../agents.rst:487
 msgid "说明"
-msgstr ""
+msgstr "Description"
 
 #: ../../agents.rst:79
 msgid "``id`` (int)"
-msgstr ""
+msgstr "``id`` (int)"
 
 #: ../../agents.rst:80
 msgid "智能体唯一标识符。"
-msgstr ""
+msgstr "Unique identifier of the agent."
 
 #: ../../agents.rst:81
 msgid "``profile`` (dict | Any)"
-msgstr ""
+msgstr "``profile`` (dict | Any)"
 
 #: ../../agents.rst:82
 msgid "画像对象（dict 或可序列化对象）。"
-msgstr ""
+msgstr "Profile object, either a dict or any serializable object."
 
 #: ../../agents.rst:83
 msgid "``name`` (str, 可选)"
-msgstr ""
+msgstr "``name`` (str, optional)"
 
 #: ../../agents.rst:84
 #, python-brace-format
 msgid "显示名称；为空时按 ``profile[\"name\"]`` 或 ``Agent_{id}`` 推导。"
 msgstr ""
+"Display name. When omitted, it is derived from ``profile[\"name\"]`` or "
+"``Agent_{id}``."
 
 #: ../../agents.rst:85
 msgid "``init_state`` (dict, 可选)"
-msgstr ""
+msgstr "``init_state`` (dict, optional)"
 
 #: ../../agents.rst:86
 msgid "初始状态，会写入 workspace。仅在对应文件不存在时写入，避免覆盖实验中已演化的状态。"
 msgstr ""
+"Initial state written into the workspace. It is only written when the "
+"target file does not yet exist, so previously evolved experiment state is"
+" not overwritten."
 
 #: ../../agents.rst:87
 msgid "``**capability_kwargs``"
-msgstr ""
+msgstr "``**capability_kwargs``"
 
 #: ../../agents.rst:88
 msgid "行为/能力参数，全部通过 ``AgentConfig.from_kwargs()`` 解析（见 :ref:`agent-config` 节）。"
 msgstr ""
+"Behavior and capability parameters, all parsed through "
+"``AgentConfig.from_kwargs()``; see :ref:`agent-config`."
 
 #: ../../agents.rst:93
 msgid "AgentConfig 配置体系"
-msgstr ""
+msgstr "AgentConfig Configuration System"
 
 #: ../../agents.rst:95
 msgid "``PersonAgent`` 的行为参数通过 ``AgentConfig`` 聚合管理，包含以下子配置："
 msgstr ""
+"``PersonAgent`` manages behavioral parameters through aggregated "
+"``AgentConfig`` settings, including the following sub-configurations:"
 
 #: ../../agents.rst:97
 msgid "**ModelConfig** — 模型与上下文窗口"
-msgstr ""
+msgstr "**ModelConfig** — model and context window"
 
 #: ../../agents.rst:103 ../../agents.rst:116 ../../agents.rst:144
 #: ../../agents.rst:172 ../../agents.rst:194
 msgid "字段"
-msgstr ""
+msgstr "Field"
 
 #: ../../agents.rst:105
 msgid "``model``"
-msgstr ""
+msgstr "``model``"
 
 #: ../../agents.rst:106
 msgid ""
 "LiteLLM 支持的模型名 / model id；``gpt-5.5`` 只是 OpenAI 示例，也可以使用 Anthropic 或其它 "
 "LiteLLM 支持的 provider 模型名。"
 msgstr ""
+"LiteLLM-supported model name or model ID. ``gpt-5.5`` is only an OpenAI "
+"example; Anthropic or any other provider model supported by LiteLLM can "
+"also be used."
 
 #: ../../agents.rst:107
 msgid "``context_window``"
-msgstr ""
+msgstr "``context_window``"
 
 #: ../../agents.rst:108
 msgid "显式声明上下文窗口（tokens）；``None`` 时自动从 LiteLLM 解析，默认 200,000。"
 msgstr ""
+"Explicitly declare the context window in tokens. When set to ``None``, it"
+" is resolved automatically from LiteLLM, with a default of 200,000."
 
 #: ../../agents.rst:110
 msgid "**LoopConfig** — 工具循环限制"
-msgstr ""
+msgstr "**LoopConfig** — tool-loop limits"
 
 #: ../../agents.rst:117 ../../agents.rst:145 ../../agents.rst:173
 #: ../../agents.rst:195
 msgid "默认值"
-msgstr ""
+msgstr "Default"
 
 #: ../../agents.rst:119
 msgid "``max_rounds``"
-msgstr ""
+msgstr "``max_rounds``"
 
 #: ../../agents.rst:120
 msgid "24"
-msgstr ""
+msgstr "24"
 
 #: ../../agents.rst:121
 msgid "单步最大工具轮数。"
-msgstr ""
+msgstr "Maximum number of tool rounds in a single step."
 
 #: ../../agents.rst:122
 msgid "``step_timeout``"
-msgstr ""
+msgstr "``step_timeout``"
 
 #: ../../agents.rst:123
 msgid "600"
-msgstr ""
+msgstr "600"
 
 #: ../../agents.rst:124
 msgid "单步总超时（秒）。"
-msgstr ""
+msgstr "Overall timeout per step, in seconds."
 
 #: ../../agents.rst:125
 msgid "``llm_request_timeout``"
-msgstr ""
+msgstr "``llm_request_timeout``"
 
 #: ../../agents.rst:126
 msgid "120.0"
-msgstr ""
+msgstr "120.0"
 
 #: ../../agents.rst:127
 msgid "单次 LLM 请求超时（秒）；``None`` 表示不限。"
-msgstr ""
+msgstr "Timeout for a single LLM request, in seconds; ``None`` means unlimited."
 
 #: ../../agents.rst:128
 msgid "``bash_retries``"
-msgstr ""
+msgstr "``bash_retries``"
 
 #: ../../agents.rst:129
 msgid "1"
-msgstr ""
+msgstr "1"
 
 #: ../../agents.rst:130
 msgid "bash 超时后额外重试次数。"
-msgstr ""
+msgstr "Additional retry count after a bash timeout."
 
 #: ../../agents.rst:131
 msgid "``llm_retries``"
-msgstr ""
+msgstr "``llm_retries``"
 
 #: ../../agents.rst:132
 msgid "3"
-msgstr ""
+msgstr "3"
 
 #: ../../agents.rst:133
 msgid "LLM 请求最大重试次数。"
-msgstr ""
+msgstr "Maximum retry count for LLM requests."
 
 #: ../../agents.rst:134
 msgid "``tool_decision_max_retries``"
-msgstr ""
+msgstr "``tool_decision_max_retries``"
 
 #: ../../agents.rst:135 ../../agents.rst:176
 msgid "10"
-msgstr ""
+msgstr "10"
 
 #: ../../agents.rst:136
 msgid "``acompletion_with_pydantic_validation`` 最大重试次数。"
-msgstr ""
+msgstr "Maximum retry count for ``acompletion_with_pydantic_validation``."
 
 #: ../../agents.rst:138
 msgid "**ContextConfig** — 上下文与压缩"
-msgstr ""
+msgstr "**ContextConfig** — context and compression"
 
 #: ../../agents.rst:147
 msgid "``preload_workspace_paths``"
-msgstr ""
+msgstr "``preload_workspace_paths``"
 
 #: ../../agents.rst:148 ../../agents.rst:151
 msgid "[]"
-msgstr ""
+msgstr "[]"
 
 #: ../../agents.rst:149
 msgid "预读文件列表，注入 system prompt 的 workspace 快照。"
 msgstr ""
+"List of preloaded files injected into the system prompt as workspace "
+"snapshots."
 
 #: ../../agents.rst:150
 msgid "``thread_key_state_paths``"
-msgstr ""
+msgstr "``thread_key_state_paths``"
 
 #: ../../agents.rst:152
 msgid "thread 压缩时附带的 KEY_STATE_JSON 文件路径。"
-msgstr ""
+msgstr "Paths to KEY_STATE_JSON files attached during thread compression."
 
 #: ../../agents.rst:153
 msgid "``system_prompt_max_identity_chars``"
-msgstr ""
+msgstr "``system_prompt_max_identity_chars``"
 
 #: ../../agents.rst:154
 msgid "10000"
-msgstr ""
+msgstr "10000"
 
 #: ../../agents.rst:155
 msgid "Agent Identity JSON 总长度上限。"
-msgstr ""
+msgstr "Maximum total length of the Agent Identity JSON."
 
 #: ../../agents.rst:156
 msgid "``workspace_read_chunk_cap``"
-msgstr ""
+msgstr "``workspace_read_chunk_cap``"
 
 #: ../../agents.rst:157
 msgid "32000"
-msgstr ""
+msgstr "32000"
 
 #: ../../agents.rst:158
 msgid "``workspace_read`` 单段最大字符数。"
-msgstr ""
+msgstr "Maximum character count for a single ``workspace_read`` chunk."
 
 #: ../../agents.rst:159
 msgid "``tool_result_thread_budget``"
-msgstr ""
+msgstr "``tool_result_thread_budget``"
 
 #: ../../agents.rst:160
 msgid "64000"
-msgstr ""
+msgstr "64000"
 
 #: ../../agents.rst:161
 msgid "单条 TOOL_RESULT_JSON 序列化预算。"
-msgstr ""
+msgstr "Serialization budget for one ``TOOL_RESULT_JSON`` entry."
 
 #: ../../agents.rst:162
 msgid "``profile_max_chars``"
-msgstr ""
+msgstr "``profile_max_chars``"
 
 #: ../../agents.rst:163
 msgid "4000"
-msgstr ""
+msgstr "4000"
 
 #: ../../agents.rst:164
 msgid "profile 截断阈值。"
-msgstr ""
+msgstr "Profile truncation threshold."
 
 #: ../../agents.rst:166
 msgid "**PersistenceConfig** — 持久化"
-msgstr ""
+msgstr "**PersistenceConfig** — persistence"
 
 #: ../../agents.rst:175
 msgid "``checkpoint_interval``"
-msgstr ""
+msgstr "``checkpoint_interval``"
 
 #: ../../agents.rst:177
 msgid "每 N 步保存一次检查点。"
-msgstr ""
+msgstr "Save one checkpoint every N steps."
 
 #: ../../agents.rst:178
 msgid "``checkpoint_max``"
-msgstr ""
+msgstr "``checkpoint_max``"
 
 #: ../../agents.rst:179
 msgid "20"
-msgstr ""
+msgstr "20"
 
 #: ../../agents.rst:180
 msgid "保留的最大检查点数量。"
-msgstr ""
+msgstr "Maximum number of retained checkpoints."
 
 #: ../../agents.rst:181
 msgid "``enable_llm_history``"
-msgstr ""
+msgstr "``enable_llm_history``"
 
 #: ../../agents.rst:182
 msgid "False"
-msgstr ""
+msgstr "False"
 
 #: ../../agents.rst:183
 msgid "是否启用 LLM 交互历史记录。"
-msgstr ""
+msgstr "Whether to enable LLM interaction history."
 
 #: ../../agents.rst:184
 msgid "``llm_history_max_entries``"
-msgstr ""
+msgstr "``llm_history_max_entries``"
 
 #: ../../agents.rst:185
 msgid "100"
-msgstr ""
+msgstr "100"
 
 #: ../../agents.rst:186
 msgid "LLM 历史最大条目数。"
-msgstr ""
+msgstr "Maximum number of LLM history entries."
 
 #: ../../agents.rst:188
 msgid "**ConcurrencyConfig** — 并发控制"
-msgstr ""
+msgstr "**ConcurrencyConfig** — concurrency control"
 
 #: ../../agents.rst:197
 msgid "``max_parallel_tools``"
-msgstr ""
+msgstr "``max_parallel_tools``"
 
 #: ../../agents.rst:198 ../../agents.rst:201
 msgid "5"
-msgstr ""
+msgstr "5"
 
 #: ../../agents.rst:199
 msgid "batch 工具最大并行数。"
-msgstr ""
+msgstr "Maximum parallelism for batch tools."
 
 #: ../../agents.rst:200
 msgid "``max_llm_concurrent``"
-msgstr ""
+msgstr "``max_llm_concurrent``"
 
 #: ../../agents.rst:202
 msgid "LLM 最大并发请求。"
-msgstr ""
+msgstr "Maximum number of concurrent LLM requests."
 
 #: ../../agents.rst:203
 msgid "``max_subprocess``"
-msgstr ""
+msgstr "``max_subprocess``"
 
 #: ../../agents.rst:204
 msgid "8"
-msgstr ""
+msgstr "8"
 
 #: ../../agents.rst:205
 msgid "子进程最大并发数。"
-msgstr ""
+msgstr "Maximum number of concurrent subprocesses."
 
 #: ../../agents.rst:206
 msgid "``rate_limit_rps``"
-msgstr ""
+msgstr "``rate_limit_rps``"
 
 #: ../../agents.rst:207
 msgid "10.0"
-msgstr ""
+msgstr "10.0"
 
 #: ../../agents.rst:208
 msgid "令牌桶限流（请求/秒）。"
-msgstr ""
+msgstr "Token-bucket rate limit in requests per second."
 
 #: ../../agents.rst:210
 msgid ""
 "这些参数可通过构造时的 ``**capability_kwargs`` 传入，也可通过环境变量覆盖（如 "
 "``AGENT_MODEL``、``AGENT_MAX_TOOL_ROUNDS`` 等）。"
 msgstr ""
+"These parameters can be passed through ``**capability_kwargs`` at "
+"construction time and can also be overridden by environment variables "
+"such as ``AGENT_MODEL`` and ``AGENT_MAX_TOOL_ROUNDS``."
 
 #: ../../agents.rst:214
 msgid "工具循环（Tool Loop）"
-msgstr ""
+msgstr "Tool Loop"
 
 #: ../../agents.rst:216
 msgid ""
@@ -531,447 +570,506 @@ msgid ""
 "``ToolDecision``，运行时负责校验、执行和把结果写回上下文。这个设计让 LLM 的自由生成被限制在可审计的工具结果里，也方便在 "
 "replay 中复盘每一步为什么发生。"
 msgstr ""
+"The core of ``PersonAgent.step()`` is a decision-execution-feedback loop."
+" In each round, the model submits only one structured ``ToolDecision``; "
+"the runtime validates it, executes it, and writes the result back into "
+"context. This design constrains free-form LLM generation to auditable "
+"tool results and also makes replay analysis easier when reviewing why "
+"each step happened."
 
 #: ../../agents.rst:218
 msgid "核心流程："
-msgstr ""
+msgstr "Core flow:"
 
 #: ../../agents.rst:224
 msgid "阶段"
-msgstr ""
+msgstr "Stage"
 
 #: ../../agents.rst:226
 msgid "上下文构建"
-msgstr ""
+msgstr "Context construction"
 
 #: ../../agents.rst:227
 msgid "预读 workspace 文件、刷新技能目录、构建系统提示词（静态段可缓存 + 动态段）。"
 msgstr ""
+"Preload workspace files, refresh the skill catalog, and build the system "
+"prompt from cached static sections plus dynamic sections."
 
 #: ../../agents.rst:228
 msgid "决策"
-msgstr ""
+msgstr "Decision"
 
 #: ../../agents.rst:229
 msgid "每轮由 ``acompletion_with_pydantic_validation(ToolDecision)`` 获取工具决策。"
 msgstr ""
+"Each round obtains a tool decision through "
+"``acompletion_with_pydantic_validation(ToolDecision)``."
 
 #: ../../agents.rst:230
 msgid "语义校验"
-msgstr ""
+msgstr "Semantic validation"
 
 #: ../../agents.rst:231
 msgid "``tool_name`` 做模糊匹配与纠正，无效名称返回可恢复错误对象。"
 msgstr ""
+"``tool_name`` is fuzzy-matched and corrected, and invalid names return a "
+"recoverable error object."
 
 #: ../../agents.rst:232
 msgid "安全检查"
-msgstr ""
+msgstr "Safety check"
 
 #: ../../agents.rst:233
 msgid "``ToolPolicy.check()`` 对 bash 命令做安全拦截。"
-msgstr ""
+msgstr "``ToolPolicy.check()`` performs safety interception for bash commands."
 
 #: ../../agents.rst:234
 msgid "循环检测"
-msgstr ""
+msgstr "Loop detection"
 
 #: ../../agents.rst:235
 msgid "``LoopDetectionService`` 检测 AAAA/ABAB 重复、过度使用等异常模式。"
 msgstr ""
+"``LoopDetectionService`` detects abnormal patterns such as AAAA/ABAB "
+"repetition and overuse."
 
 #: ../../agents.rst:236
 msgid "执行工具"
-msgstr ""
+msgstr "Tool execution"
 
 #: ../../agents.rst:237
 msgid "按工具名分发到具体处理器（技能操作、workspace 操作、bash、codegen 等）。"
 msgstr ""
+"Dispatch to the concrete handler by tool name, including skill "
+"operations, workspace operations, bash, codegen, and similar actions."
 
 #: ../../agents.rst:238
 msgid "结果回写"
-msgstr ""
+msgstr "Write-back"
 
 #: ../../agents.rst:239
 msgid "工具结果写入 thread（内存窗口 + 磁盘 JSONL），同时更新 workspace 缓存。"
 msgstr ""
+"Tool results are written back into the thread, both the in-memory window "
+"and disk JSONL, while the workspace cache is updated."
 
 #: ../../agents.rst:240
 msgid "结束条件"
-msgstr ""
+msgstr "Termination condition"
 
 #: ../../agents.rst:241
 msgid "``done=true`` 时先执行当前工具再结束；``tool_name=\"done\"/\"finish\"`` 立即结束。"
 msgstr ""
+"When ``done=true``, the current tool is executed first and then the step "
+"ends; ``tool_name=\"done\"`` or ``\"finish\"`` ends immediately."
 
 #: ../../agents.rst:244
 msgid "有效工具列表"
-msgstr ""
+msgstr "Valid Tool List"
 
 #: ../../agents.rst:250
 msgid "工具名"
-msgstr ""
+msgstr "Tool Name"
 
 #: ../../agents.rst:252
 msgid "``activate_skill``"
-msgstr ""
+msgstr "``activate_skill``"
 
 #: ../../agents.rst:253
 msgid "加载指定技能的完整 SKILL.md（含 ``$ARGUMENTS``/``$N`` 占位符替换和以 ``!`` 开头的反引号命令动态上下文注入）。"
 msgstr ""
+"Load the full ``SKILL.md`` of the specified skill, including "
+"``$ARGUMENTS``/``$N`` placeholder substitution and dynamic context "
+"injection for backtick commands that start with ``!``."
 
 #: ../../agents.rst:254
 msgid "``read_skill``"
-msgstr ""
+msgstr "``read_skill``"
 
 #: ../../agents.rst:255
 msgid "读取技能目录内的文件。"
-msgstr ""
+msgstr "Read files inside a skill directory."
 
 #: ../../agents.rst:256
 msgid "``execute_skill``"
-msgstr ""
+msgstr "``execute_skill``"
 
 #: ../../agents.rst:257
 msgid "执行技能脚本（如有 ``scripts/<name>.py``），以子进程运行。"
 msgstr ""
+"Execute a skill script, such as ``scripts/<name>.py`` when present, in a "
+"subprocess."
 
 #: ../../agents.rst:258
 msgid "``workspace_read``"
-msgstr ""
+msgstr "``workspace_read``"
 
 #: ../../agents.rst:259
 msgid "读取 agent 工作区文件（含分页）。"
-msgstr ""
+msgstr "Read agent workspace files, including pagination."
 
 #: ../../agents.rst:260
 msgid "``workspace_write``"
-msgstr ""
+msgstr "``workspace_write``"
 
 #: ../../agents.rst:261
 msgid "写入 agent 工作区文件。"
-msgstr ""
+msgstr "Write agent workspace files."
 
 #: ../../agents.rst:262
 msgid "``workspace_list``"
-msgstr ""
+msgstr "``workspace_list``"
 
 #: ../../agents.rst:263
 msgid "列出工作区文件。"
-msgstr ""
+msgstr "List workspace files."
 
 #: ../../agents.rst:264
 msgid "``bash``"
-msgstr ""
+msgstr "``bash``"
 
 #: ../../agents.rst:265
 msgid "在工作区内执行 bash 命令（含安全检查与超时）。"
 msgstr ""
+"Execute bash commands inside the workspace, with safety checks and "
+"timeouts."
 
 #: ../../agents.rst:266
 msgid "``glob``"
-msgstr ""
+msgstr "``glob``"
 
 #: ../../agents.rst:267
 msgid "按模式搜索工作区文件。"
-msgstr ""
+msgstr "Search workspace files by pattern."
 
 #: ../../agents.rst:268
 msgid "``grep``"
-msgstr ""
+msgstr "``grep``"
 
 #: ../../agents.rst:269
 msgid "在工作区文件中搜索内容。"
-msgstr ""
+msgstr "Search for content inside workspace files."
 
 #: ../../agents.rst:270
 msgid "``codegen``"
-msgstr ""
+msgstr "``codegen``"
 
 #: ../../agents.rst:271
 msgid "通过环境路由器执行代码生成。"
-msgstr ""
+msgstr "Execute code generation through the environment router."
 
 #: ../../agents.rst:272
 msgid "``batch``"
-msgstr ""
+msgstr "``batch``"
 
 #: ../../agents.rst:273
 msgid "批量执行多个工具（只读工具并行，写入工具顺序执行）。"
 msgstr ""
+"Execute multiple tools in batch, with read-only tools running in parallel"
+" and write tools executing sequentially."
 
 #: ../../agents.rst:274
 msgid "``done``"
-msgstr ""
+msgstr "``done``"
 
 #: ../../agents.rst:275
 msgid "结束当前仿真步（不执行额外工具）。"
-msgstr ""
+msgstr "Finish the current simulation step without executing extra tools."
 
 #: ../../agents.rst:276
 msgid "``finish``"
-msgstr ""
+msgstr "``finish``"
 
 #: ../../agents.rst:277
 msgid "同 ``done``，带 summary 提交。"
-msgstr ""
+msgstr "Same as ``done``, but submitted together with a summary."
 
 #: ../../agents.rst:280
 msgid "ToolDecision 模型"
-msgstr ""
+msgstr "ToolDecision Model"
 
 #: ../../agents.rst:282
 msgid "LLM 的每轮输出会被解析为 ``ToolDecision`` Pydantic 模型："
 msgstr ""
+"Each round of LLM output is parsed into the ``ToolDecision`` Pydantic "
+"model:"
 
 #: ../../agents.rst:292
 msgid ""
 "模型内置 ``_coerce_llm_field_shapes`` 验证器，自动处理 LLM "
 "常见的输出错误（嵌套包装、字段名别名、arguments 为字符串等）。"
 msgstr ""
+"The model includes the ``_coerce_llm_field_shapes`` validator, which "
+"automatically handles common LLM output errors such as nested wrappers, "
+"field-name aliases, and string-valued ``arguments``."
 
 #: ../../agents.rst:296
 msgid "上下文压缩"
-msgstr ""
+msgstr "Context Compression"
 
 #: ../../agents.rst:298
 msgid "当对话线程（thread）过长时，``PersonAgent`` 会执行分层压缩以控制在模型上下文窗口内："
 msgstr ""
+"When the conversation thread grows too long, ``PersonAgent`` performs "
+"tiered compression to keep it within the model context window:"
 
 #: ../../agents.rst:304
 msgid "层级"
-msgstr ""
+msgstr "Level"
 
 #: ../../agents.rst:306
 msgid "Light pruning"
-msgstr ""
+msgstr "Light pruning"
 
 #: ../../agents.rst:307
 msgid "去重相邻工具结果，按优先级丢弃低优先级消息。"
 msgstr ""
+"Deduplicate adjacent tool results and drop low-priority messages by "
+"priority."
 
 #: ../../agents.rst:308
 msgid "Medium compression"
-msgstr ""
+msgstr "Medium compression"
 
 #: ../../agents.rst:309
 msgid "调用 LLM 生成 ``StructuredSummary`` （结构化摘要 JSON）。"
-msgstr ""
+msgstr "Call the LLM to generate ``StructuredSummary``, a structured summary JSON."
 
 #: ../../agents.rst:310
 msgid "Heavy compression"
-msgstr ""
+msgstr "Heavy compression"
 
 #: ../../agents.rst:311
 msgid "滚动摘要合并，适用于极高利用率场景。"
-msgstr ""
+msgstr "Rolling-summary merging for extremely high-utilization scenarios."
 
 #: ../../agents.rst:313
 msgid "触发阈值（占上下文窗口比例）："
-msgstr ""
+msgstr "Trigger thresholds, as a proportion of the context window:"
 
 #: ../../agents.rst:315
 msgid "**58%** — 警告"
-msgstr ""
+msgstr "**58%** — warning"
 
 #: ../../agents.rst:316
 msgid "**72%** — 触发压缩"
-msgstr ""
+msgstr "**72%** — trigger compression"
 
 #: ../../agents.rst:317
 msgid "**84%** — 自动压缩"
-msgstr ""
+msgstr "**84%** — automatic compression"
 
 #: ../../agents.rst:318
 msgid "**90%** — 强制压缩"
-msgstr ""
+msgstr "**90%** — forced compression"
 
 #: ../../agents.rst:322
 msgid "内置 Skills"
-msgstr ""
+msgstr "Built-in Skills"
 
 #: ../../agents.rst:324
 msgid "当前内置技能位于 ``agentsociety2/agent/skills/`` 目录："
-msgstr ""
+msgstr "The current built-in skills live under ``agentsociety2/agent/skills/``:"
 
 #: ../../agents.rst:330
 msgid "技能"
-msgstr ""
+msgstr "Skill"
 
 #: ../../agents.rst:332
 msgid "``observation``"
-msgstr ""
+msgstr "``observation``"
 
 #: ../../agents.rst:333
 msgid "观察环境与自身状态。"
-msgstr ""
+msgstr "Observe the environment and the agent's own state."
 
 #: ../../agents.rst:334
 msgid "``cognition``"
-msgstr ""
+msgstr "``cognition``"
 
 #: ../../agents.rst:335
 msgid "生成情绪、需求和意图。"
-msgstr ""
+msgstr "Generate emotions, needs, and intentions."
 
 #: ../../agents.rst:336
 msgid "``plan``"
-msgstr ""
+msgstr "``plan``"
 
 #: ../../agents.rst:337
 msgid "制定与更新行动计划。"
-msgstr ""
+msgstr "Create and update action plans."
 
 #: ../../agents.rst:338
 msgid "``memory``"
-msgstr ""
+msgstr "``memory``"
 
 #: ../../agents.rst:339
 msgid "记忆管理与检索。"
-msgstr ""
+msgstr "Memory management and retrieval."
 
 #: ../../agents.rst:341
 msgid "它们不是固定“必须执行层”，而是由模型按上下文按需选择。"
 msgstr ""
+"They are not fixed mandatory stages; the model selects them as needed "
+"from context."
 
 #: ../../agents.rst:343
 msgid "详细说明请参见 :doc:`agent_skills`。"
-msgstr ""
+msgstr "See :doc:`agent_skills` for detailed explanations."
 
 #: ../../agents.rst:345
 msgid "理解这些技能时，可以把它们看成一条常见但不强制的行动链："
-msgstr ""
+msgstr "These skills can be understood as a common but non-mandatory action chain:"
 
 #: ../../agents.rst:347
 msgid "``observation`` 获取新环境事实。"
-msgstr ""
+msgstr "``observation`` acquires new facts from the environment."
 
 #: ../../agents.rst:348
 msgid "``cognition`` 把事实、需求、记忆和 profile 转成情绪与意图。"
 msgstr ""
+"``cognition`` turns facts, needs, memory, and profile into emotions and "
+"intentions."
 
 #: ../../agents.rst:349
 msgid "``plan`` 把意图变成一个可提交给环境的行动或多步计划。"
 msgstr ""
+"``plan`` turns intentions into an action or multi-step plan that can be "
+"submitted to the environment."
 
 #: ../../agents.rst:350
 msgid "``memory`` 只记录值得跨 tick 保留的结果。"
-msgstr ""
+msgstr "``memory`` records only results worth preserving across ticks."
 
 #: ../../agents.rst:352
 msgid ""
 "这只是推荐链路，不是框架硬编码的流程。实际执行顺序由工具循环中的模型决策、环境约束 ``PersonStepConstraints``、已存在的 "
 "workspace 状态共同决定。"
 msgstr ""
+"This is only a recommended chain, not a hard-coded framework flow. The "
+"actual execution order is determined jointly by model decisions inside "
+"the tool loop, environmental constraints in ``PersonStepConstraints``, "
+"and the existing workspace state."
 
 #: ../../agents.rst:356
 msgid "初始化流程"
-msgstr ""
+msgstr "Initialization Flow"
 
 #: ../../agents.rst:358
 msgid "``PersonAgent.init(env)`` 执行以下步骤："
-msgstr ""
+msgstr "``PersonAgent.init(env)`` performs the following steps:"
 
 #: ../../agents.rst:360
 msgid "调用父类 ``AgentBase.init(env)``"
-msgstr ""
+msgstr "Call the parent method ``AgentBase.init(env)``"
 
 #: ../../agents.rst:361
 msgid "创建 agent 工作目录与标准目录结构"
-msgstr ""
+msgstr "Create the agent workspace and standard directory layout"
 
 #: ../../agents.rst:362
 msgid "从 ``init_state`` 种子写入 workspace（仅写入不存在的文件）"
 msgstr ""
+"Seed the workspace from ``init_state`` and write only files that do not "
+"already exist"
 
 #: ../../agents.rst:363
 msgid "加载持久化的 ``agent_config.json`` （恢复已激活技能）"
-msgstr ""
+msgstr "Load the persisted ``agent_config.json`` to restore activated skills"
 
 #: ../../agents.rst:364
 msgid "扫描 custom skills（``<workspace>/custom/skills/``）与环境模块 skills"
 msgstr ""
+"Scan custom skills under ``<workspace>/custom/skills/`` together with "
+"skills declared by environment modules"
 
 #: ../../agents.rst:365
 msgid "刷新可见技能列表"
-msgstr ""
+msgstr "Refresh the visible skill list"
 
 #: ../../agents.rst:366
 msgid "激活环境模块声明的默认技能"
-msgstr ""
+msgstr "Activate default skills declared by environment modules"
 
 #: ../../agents.rst:367
 msgid "获取世界描述"
-msgstr ""
+msgstr "Fetch the world description"
 
 #: ../../agents.rst:368
 msgid "初始化检查点、WAL（预写日志）和清理器"
-msgstr ""
+msgstr "Initialize checkpoints, the WAL, and the cleaner"
 
 #: ../../agents.rst:369
 msgid "尝试从最近检查点恢复"
-msgstr ""
+msgstr "Attempt recovery from the latest checkpoint"
 
 #: ../../agents.rst:370
 msgid "初始化持久化记忆（``AgentMemory``）"
-msgstr ""
+msgstr "Initialize persistent memory through ``AgentMemory``"
 
 #: ../../agents.rst:374
 msgid "持久化与恢复"
-msgstr ""
+msgstr "Persistence and Recovery"
 
 #: ../../agents.rst:376
-#, fuzzy
 msgid "``PersonAgent`` 的持久化由多层机制保障："
-msgstr "The ``PersonAgent`` class is a ready-to-use agent implementation:"
+msgstr "The persistence of ``PersonAgent`` is ensured by multiple layers:"
 
 #: ../../agents.rst:382
 msgid "组件"
-msgstr ""
+msgstr "Component"
 
 #: ../../agents.rst:384
 msgid "``Checkpoint``"
-msgstr ""
+msgstr "``Checkpoint``"
 
 #: ../../agents.rst:385
 msgid "ACID 检查点（原子写入 + SHA256 校验 + fsync），按 ``checkpoint_interval`` 定期保存。"
 msgstr ""
+"ACID checkpointing with atomic writes, SHA256 verification, and fsync, "
+"saved periodically by ``checkpoint_interval``."
 
 #: ../../agents.rst:386
 msgid "``WriteAheadLog``"
-msgstr ""
+msgstr "``WriteAheadLog``"
 
 #: ../../agents.rst:387
 msgid "预写日志，记录 workspace_write/bash/execute_skill 的写入意图，用于崩溃恢复。"
 msgstr ""
+"Write-ahead log that records write intent for workspace_write, bash, and "
+"execute_skill, used for crash recovery."
 
 #: ../../agents.rst:388
 msgid "``WorkspaceCleaner``"
-msgstr ""
+msgstr "``WorkspaceCleaner``"
 
 #: ../../agents.rst:389
 msgid "定期清理日志、JSONL 轮转、检查点归档。"
-msgstr ""
+msgstr "Periodically clean logs, rotate JSONL files, and archive checkpoints."
 
 #: ../../agents.rst:390
 msgid "``SessionRecovery``"
-msgstr ""
+msgstr "``SessionRecovery``"
 
 #: ../../agents.rst:391
 msgid "从检查点 + WAL pending + 状态摘要构建恢复上下文。"
 msgstr ""
+"Build recovery context from checkpoints, pending WAL entries, and state "
+"summaries."
 
 #: ../../agents.rst:392
 msgid "``AgentMemory``"
-msgstr ""
+msgstr "``AgentMemory``"
 
 #: ../../agents.rst:393
 msgid "持久化记忆（``AGENT_MEMORY.md``），跨 step 保持关键信息。"
 msgstr ""
+"Persistent memory in ``AGENT_MEMORY.md`` that preserves key information "
+"across steps."
 
 #: ../../agents.rst:395
 msgid "Agent 工作区文件结构："
-msgstr ""
+msgstr "Agent workspace file layout:"
 
 #: ../../agents.rst:421
 msgid "自定义智能体"
@@ -982,373 +1080,423 @@ msgid ""
 "对于扩展 PersonAgent 的认知能力，推荐使用 **Agent Skills** 系统。 参见 :doc:`agent_skills` "
 "了解如何创建自定义 skill。"
 msgstr ""
+"For extending the cognitive capabilities of ``PersonAgent``, the "
+"recommended approach is the **Agent Skills** system. See "
+":doc:`agent_skills` for how to create custom skills."
 
 #: ../../agents.rst:428
 msgid "只有在需要完全不同的智能体架构时，才需要创建自定义智能体类。"
 msgstr ""
+"A custom agent class is only needed when a completely different agent "
+"architecture is required."
 
 #: ../../agents.rst:430
-#, fuzzy
 msgid "要创建自定义智能体，请继承 ``AgentBase`` 并实现必需的抽象方法。"
 msgstr ""
 "To create a custom agent, inherit from ``AgentBase`` and implement the "
-"required abstract methods:"
+"required abstract methods."
 
 #: ../../agents.rst:432
 msgid ""
-"如果你通过 VS Code 扩展或 ``.agentsociety/bin/ags.py`` 工作流创建自定义 Agent，可以使用内置的 "
-"**agentsociety-create-agent** 技能。它会把文件放在 ``custom/agents/``，并用本地校验器检查："
+"如果通过 VS Code 扩展或已初始化工作区中的 ``.agentsociety/bin/ags.py`` 工作流创建自定义 "
+"Agent，可以使用内置的 **agentsociety-create-agent** 技能。它会把文件放在 "
+"``custom/agents/``，并用本地校验器检查："
 msgstr ""
+"If a custom Agent is created through the VS Code extension or the "
+"``.agentsociety/bin/ags.py`` workflow inside an initialized workspace, "
+"the built-in **agentsociety-create-agent** skill can be used. It places "
+"files under ``custom/agents/`` and validates them with the local "
+"validator:"
 
 #: ../../agents.rst:434
 msgid "文件必须是 Python 文件，且不要放在路径片段 ``examples/`` 下（扫描器会跳过示例目录）。"
 msgstr ""
+"The file must be a Python file and should not be placed under a path "
+"segment named ``examples/``; the scanner skips example directories."
 
 #: ../../agents.rst:435
 msgid "至少有一个直接继承 ``AgentBase`` 或 ``PersonAgent`` 的类。"
 msgstr ""
+"There must be at least one class that directly inherits from "
+"``AgentBase`` or ``PersonAgent``."
 
 #: ../../agents.rst:436
 msgid "``ask``、``step``、``dump``、``load`` 必须都是 ``async def``。"
 msgstr ""
+"``ask``, ``step``, ``dump``, and ``load`` must all be declared as ``async"
+" def``."
 
 #: ../../agents.rst:437
 msgid "模块能被动态导入，目标类不能仍是 abstract class。"
 msgstr ""
+"The module must be importable dynamically, and the target class must not "
+"remain an abstract class."
 
 #: ../../agents.rst:439
 msgid "校验命令示例："
-msgstr ""
+msgstr "Example validation command:"
 
-#: ../../agents.rst:448
+#: ../../agents.rst:449
 msgid "AgentBase 抽象方法"
-msgstr ""
+msgstr "AgentBase Abstract Methods"
 
-#: ../../agents.rst:450
-#, fuzzy
+#: ../../agents.rst:451
 msgid "创建自定义智能体时，必须实现 ``AgentBase`` 的以下抽象方法："
 msgstr ""
-"When creating a custom agent, you must implement these abstract methods "
-"from ``AgentBase``:"
+"When creating a custom agent, the following abstract methods from "
+"``AgentBase`` must be implemented:"
 
-#: ../../agents.rst:452
+#: ../../agents.rst:453
 msgid "**async def ask(self, message: str, readonly: bool = True) -> str**"
 msgstr "**async def ask(self, message: str, readonly: bool = True) -> str**"
 
-#: ../../agents.rst:454
+#: ../../agents.rst:455
 msgid "处理来自环境或用户的问题并返回响应。"
 msgstr "Handle questions from the environment or users and return responses."
 
 #: ../../agents.rst
 msgid "param message"
-msgstr ""
+msgstr "param message"
 
-#: ../../agents.rst:456
+#: ../../agents.rst:457
 msgid "要处理的问题或指令。"
-msgstr ""
+msgstr "Question or instruction to be handled."
 
 #: ../../agents.rst
 msgid "param readonly"
-msgstr ""
+msgstr "param readonly"
 
-#: ../../agents.rst:457
+#: ../../agents.rst:458
 msgid "智能体是否可以修改环境（``False`` = 可以修改）。"
 msgstr ""
+"Whether the agent may modify the environment, with ``False`` meaning "
+"modification is allowed."
 
 #: ../../agents.rst
 msgid "returns"
-msgstr ""
+msgstr "returns"
 
-#: ../../agents.rst:458
-#, fuzzy
+#: ../../agents.rst:459
 msgid "智能体的响应字符串。"
-msgstr "The agent's response string"
+msgstr "Response string returned by the agent."
 
-#: ../../agents.rst:460
+#: ../../agents.rst:461
 msgid "**async def step(self, tick: int, t: datetime) -> str**"
 msgstr "**async def step(self, tick: int, t: datetime) -> str**"
 
-#: ../../agents.rst:462
+#: ../../agents.rst:463
 msgid "执行一个模拟步骤。"
-msgstr ""
+msgstr "Execute one simulation step."
 
 #: ../../agents.rst
 msgid "param tick"
-msgstr ""
+msgstr "param tick"
 
-#: ../../agents.rst:464
+#: ../../agents.rst:465
 msgid "此步骤的时间跨度（秒）。"
-msgstr ""
+msgstr "Time span of this step, in seconds."
 
 #: ../../agents.rst
 msgid "param t"
-msgstr ""
-
-#: ../../agents.rst:465
-msgid "此步骤结束后的当前模拟日期时间。"
-msgstr ""
+msgstr "param t"
 
 #: ../../agents.rst:466
-#, fuzzy
-msgid "智能体在此步骤中的操作描述。"
-msgstr "Description of the agent's action during this step"
+msgid "此步骤结束后的当前模拟日期时间。"
+msgstr "Current simulation datetime at the end of this step."
 
-#: ../../agents.rst:468
+#: ../../agents.rst:467
+msgid "智能体在此步骤中的操作描述。"
+msgstr "Description of the agent action in this step."
+
+#: ../../agents.rst:469
 msgid "**async def dump(self) -> dict**"
 msgstr "**async def dump(self) -> dict**"
 
-#: ../../agents.rst:470
+#: ../../agents.rst:471
 msgid "将智能体状态序列化为字典以便保存/加载。"
 msgstr "Serialize agent state to a dictionary for saving/loading."
 
-#: ../../agents.rst:472
+#: ../../agents.rst:473
 msgid "**async def load(self, dump_data: dict)**"
 msgstr "**async def load(self, dump_data: dict)**"
 
-#: ../../agents.rst:474
-#, fuzzy
+#: ../../agents.rst:475
 msgid "从先前 dump 的字典中恢复智能体状态。"
-msgstr "Restore agent state from a previously dumped dictionary."
+msgstr "Restore the agent state from a previously dumped dictionary."
 
-#: ../../agents.rst:477
+#: ../../agents.rst:478
 msgid "AgentBase 其他可用方法"
-msgstr ""
+msgstr "Other Available AgentBase Methods"
 
-#: ../../agents.rst:479
+#: ../../agents.rst:480
 msgid "``AgentBase`` 还提供以下可直接使用的方法："
-msgstr ""
+msgstr "``AgentBase`` also provides the following methods for direct use:"
 
-#: ../../agents.rst:485
+#: ../../agents.rst:486
 msgid "方法"
-msgstr ""
-
-#: ../../agents.rst:487
-msgid "``acompletion(messages, stream)``"
-msgstr ""
+msgstr "Method"
 
 #: ../../agents.rst:488
-msgid "向 LLM 发送补全请求，支持流式/非流式。"
-msgstr ""
+msgid "``acompletion(messages, stream)``"
+msgstr "``acompletion(messages, stream)``"
 
 #: ../../agents.rst:489
-msgid "``acompletion_with_system_prompt(messages, tick, t)``"
+msgid "向 LLM 发送补全请求，支持流式/非流式。"
 msgstr ""
+"Send a completion request to the LLM, supporting both streaming and non-"
+"streaming modes."
 
 #: ../../agents.rst:490
-msgid "自动附加系统提示词的 LLM 补全请求。"
-msgstr ""
+msgid "``acompletion_with_system_prompt(messages, tick, t)``"
+msgstr "``acompletion_with_system_prompt(messages, tick, t)``"
 
 #: ../../agents.rst:491
+msgid "自动附加系统提示词的 LLM 补全请求。"
+msgstr "LLM completion request with the system prompt attached automatically."
+
+#: ../../agents.rst:492
 msgid ""
 "``acompletion_with_pydantic_validation(model_type, messages, tick, t, "
 "...)``"
 msgstr ""
-
-#: ../../agents.rst:492
-msgid "带自动 Pydantic 校验与多轮纠错的 LLM 请求（支持 429 指数退避）。"
-msgstr ""
+"``acompletion_with_pydantic_validation(model_type, messages, tick, t, "
+"...)``"
 
 #: ../../agents.rst:493
-msgid "``ask_env(ctx, message, readonly, template_mode)``"
+msgid "带自动 Pydantic 校验与多轮纠错的 LLM 请求（支持 429 指数退避）。"
 msgstr ""
+"LLM request with automatic Pydantic validation and multi-round "
+"correction, including exponential backoff for HTTP 429 errors."
 
 #: ../../agents.rst:494
-msgid "向环境路由器发送请求。"
-msgstr ""
+msgid "``ask_env(ctx, message, readonly, template_mode)``"
+msgstr "``ask_env(ctx, message, readonly, template_mode)``"
 
 #: ../../agents.rst:495
-msgid "``get_system_prompt(tick, t)``"
-msgstr ""
+msgid "向环境路由器发送请求。"
+msgstr "Send a request to the environment router."
 
 #: ../../agents.rst:496
-msgid "生成包含身份、时间上下文和行为指南的系统提示词。"
-msgstr ""
+msgid "``get_system_prompt(tick, t)``"
+msgstr "``get_system_prompt(tick, t)``"
 
 #: ../../agents.rst:497
-msgid "``answer_external_question(prompt, *, t, response_type, choices)``"
+msgid "生成包含身份、时间上下文和行为指南的系统提示词。"
 msgstr ""
+"Generate a system prompt containing identity, temporal context, and "
+"behavioral guidance."
 
 #: ../../agents.rst:498
-msgid "基于内部状态回答外部问卷/访谈（不经过环境路由）。"
-msgstr ""
+msgid "``answer_external_question(prompt, *, t, response_type, choices)``"
+msgstr "``answer_external_question(prompt, *, t, response_type, choices)``"
 
 #: ../../agents.rst:499
-msgid "``set_skill_state(skill_name, state)``"
+msgid "基于内部状态回答外部问卷/访谈（不经过环境路由）。"
 msgstr ""
+"Answer external questionnaires or interviews from internal state without "
+"going through the environment router."
 
 #: ../../agents.rst:500
-msgid "设置技能状态。"
-msgstr ""
+msgid "``set_skill_state(skill_name, state)``"
+msgstr "``set_skill_state(skill_name, state)``"
 
 #: ../../agents.rst:501
-msgid "``get_skill_state(skill_name)``"
-msgstr ""
+msgid "设置技能状态。"
+msgstr "Set skill state."
 
 #: ../../agents.rst:502
-msgid "获取技能状态。"
-msgstr ""
+msgid "``get_skill_state(skill_name)``"
+msgstr "``get_skill_state(skill_name)``"
 
 #: ../../agents.rst:503
-msgid "``get_token_usages()``"
-msgstr ""
+msgid "获取技能状态。"
+msgstr "Get skill state."
 
 #: ../../agents.rst:504
-msgid "获取 Token 使用统计。"
-msgstr ""
+msgid "``get_token_usages()``"
+msgstr "``get_token_usages()``"
 
 #: ../../agents.rst:505
-msgid "``get_llm_interaction_history()``"
-msgstr ""
+msgid "获取 Token 使用统计。"
+msgstr "Get token-usage statistics."
 
 #: ../../agents.rst:506
-msgid "获取 LLM 交互历史记录。"
-msgstr ""
+msgid "``get_llm_interaction_history()``"
+msgstr "``get_llm_interaction_history()``"
 
-#: ../../agents.rst:509
+#: ../../agents.rst:507
+msgid "获取 LLM 交互历史记录。"
+msgstr "Get the LLM interaction history."
+
+#: ../../agents.rst:510
 msgid "参考实现"
 msgstr "Reference Implementation"
 
-#: ../../agents.rst:511
+#: ../../agents.rst:512
 msgid "有关完整参考，请参阅源代码中的 ``PersonAgent``。"
 msgstr "For a complete reference, see ``PersonAgent`` in the source code."
 
-#: ../../agents.rst:513
-#, fuzzy
+#: ../../agents.rst:514
 msgid "示例："
 msgstr "Example:"
 
-#: ../../agents.rst:542
+#: ../../agents.rst:543
 msgid "智能体配置文件"
 msgstr "Agent Profiles"
 
-#: ../../agents.rst:545
+#: ../../agents.rst:546
 msgid "配置文件设计"
 msgstr "Profile Design"
 
-#: ../../agents.rst:547
+#: ../../agents.rst:548
 msgid "一个好的智能体配置文件应包括："
 msgstr "A good agent profile should include:"
 
-#: ../../agents.rst:549
+#: ../../agents.rst:550
 msgid "**身份**: 姓名、年龄、角色"
 msgstr "**Identity**: Name, age, role"
 
-#: ../../agents.rst:550
+#: ../../agents.rst:551
 msgid "**个性**: 特征、偏好、怪癖"
 msgstr "**Personality**: Traits, preferences, quirks"
 
-#: ../../agents.rst:551
+#: ../../agents.rst:552
 msgid "**背景**: 历史、专业知识、关系"
 msgstr "**Background**: History, expertise, relationships"
 
-#: ../../agents.rst:552
+#: ../../agents.rst:553
 msgid "**目标**: 动机、欲望、恐惧"
 msgstr "**Goals**: Motivations, desires, fears"
 
-#: ../../agents.rst:576
+#: ../../agents.rst:577
 msgid ""
 "配置文件可以包含你希望的任何字段；``PersonAgent`` 会自动过滤潜在的指令注入（如 SYSTEM/INSTRUCTION "
 "等关键字模式），并将过长的 profile 截断到配置的 ``profile_max_chars`` 阈值内。"
 msgstr ""
+"The profile can contain any fields needed. ``PersonAgent`` automatically "
+"filters potential prompt-injection patterns such as SYSTEM or INSTRUCTION"
+" and truncates overly long profiles to the configured "
+"``profile_max_chars`` threshold."
 
-#: ../../agents.rst:579
+#: ../../agents.rst:580
 msgid "与智能体交互"
 msgstr "Interacting with Agents"
 
-#: ../../agents.rst:582
+#: ../../agents.rst:583
 msgid "ask() 方法"
 msgstr "ask() Method"
 
-#: ../../agents.rst:591
+#: ../../agents.rst:592
 msgid "``readonly`` 参数控制智能体是否可以修改环境："
 msgstr ""
 "The ``readonly`` parameter controls whether the agent can modify the "
 "environment:"
 
-#: ../../agents.rst:593
+#: ../../agents.rst:594
 msgid "``readonly=True``: 仅查询，无副作用"
 msgstr "``readonly=True``: Query only, no side effects"
 
-#: ../../agents.rst:594
+#: ../../agents.rst:595
 msgid "``readonly=False``: 可能调用修改状态的环境工具"
 msgstr "``readonly=False``: May call environment tools that modify state"
 
-#: ../../agents.rst:597
+#: ../../agents.rst:598
 msgid "step() 方法"
 msgstr "step() Method"
 
-#: ../../agents.rst:599
+#: ../../agents.rst:600
 msgid "``step()`` 方法在 AgentSociety 模拟期间自动调用："
 msgstr ""
 "The ``step()`` method is called automatically during AgentSociety "
 "simulations:"
 
-#: ../../agents.rst:608
-#, fuzzy
+#: ../../agents.rst:609
 msgid "execute() 方法"
-msgstr "step() Method"
+msgstr "``execute()`` method"
 
-#: ../../agents.rst:610
+#: ../../agents.rst:611
 msgid "直接执行技能（不经过工具循环）："
-msgstr ""
+msgstr "Execute a skill directly, without going through the tool loop:"
 
-#: ../../agents.rst:620
+#: ../../agents.rst:621
 msgid "会话管理"
-msgstr ""
+msgstr "Session Management"
 
-#: ../../agents.rst:631
+#: ../../agents.rst:632
 msgid "智能体记忆"
 msgstr "Agent Memory"
 
-#: ../../agents.rst:633
-#, fuzzy
+#: ../../agents.rst:634
 msgid "``PersonAgent`` 的记忆系统分为三层："
-msgstr "The ``PersonAgent`` class is a ready-to-use agent implementation:"
-
-#: ../../agents.rst:635
-msgid "**Thread（对话线程）**：短期上下文，维护最近工具调用和 LLM 交互，过长时自动压缩。"
-msgstr ""
+msgstr "The ``PersonAgent`` memory system is divided into three layers:"
 
 #: ../../agents.rst:636
+msgid "**Thread（对话线程）**：短期上下文，维护最近工具调用和 LLM 交互，过长时自动压缩。"
+msgstr ""
+"**Thread**: short-term context that keeps recent tool calls and LLM "
+"interactions, with automatic compression when it grows too long."
+
+#: ../../agents.rst:637
 msgid ""
 "**AgentMemory（运行时持久化记忆）**：跨 step 保持当前任务、已完成动作、错误记录等。位于 "
 "``AGENT_MEMORY.md``，由 thread 压缩摘要和 ``handoff_to_memory()`` 更新。"
 msgstr ""
+"**AgentMemory**: runtime persistent memory that keeps the current task, "
+"completed actions, error records, and similar state across steps. It "
+"lives in ``AGENT_MEMORY.md`` and is updated by thread-compression "
+"summaries and ``handoff_to_memory()``."
 
-#: ../../agents.rst:637
+#: ../../agents.rst:638
 msgid ""
 "**Skill 记忆文件**：``memory`` 技能按需写入 "
 "``state/memory.jsonl``，并可用维护脚本执行遗忘曲线和检索强化。"
 msgstr ""
+"**Skill memory file**: the ``memory`` skill writes to "
+"``state/memory.jsonl`` as needed, and maintenance scripts can apply "
+"forgetting-curve logic and retrieval enhancement."
 
-#: ../../agents.rst:638
+#: ../../agents.rst:639
 msgid ""
 "**Workspace "
 "状态文件**：技能脚本写入的状态文件（``state/emotion.json``、``state/intention.json``、``state/plan_state.json``"
 " 等）。"
 msgstr ""
+"**Workspace state files**: state files written by skill scripts, "
+"including ``state/emotion.json``, ``state/intention.json``, "
+"``state/plan_state.json``, and similar files."
 
-#: ../../agents.rst:640
+#: ../../agents.rst:641
 msgid "``AgentMemory`` 与 ``memory`` skill 不是同一个东西："
-msgstr ""
-
-#: ../../agents.rst:642
-msgid "``AgentMemory`` 是框架级会话摘要，主要服务长线程压缩、恢复与错误连续性。"
-msgstr ""
+msgstr "``AgentMemory`` and the ``memory`` skill are not the same thing:"
 
 #: ../../agents.rst:643
+msgid "``AgentMemory`` 是框架级会话摘要，主要服务长线程压缩、恢复与错误连续性。"
+msgstr ""
+"``AgentMemory`` is a framework-level session summary mainly used for "
+"long-thread compression, recovery, and error continuity."
+
+#: ../../agents.rst:644
 msgid ""
 "``state/memory.jsonl`` 是 agent 的经验记忆，由 LLM "
 "决定写什么，适合保存社会关系、地点、承诺、计划结果等可检索事实。"
 msgstr ""
+"``state/memory.jsonl`` is the agent's experiential memory. The LLM "
+"decides what to write there, and it is suitable for storing retrievable "
+"facts such as social relationships, places, commitments, and plan "
+"outcomes."
 
-#: ../../agents.rst:644
+#: ../../agents.rst:645
 msgid "是否写入 ``state/memory.jsonl`` 由 ``memory`` 技能和工具循环决定，不是每步固定 finalize 阶段。"
 msgstr ""
+"Whether ``state/memory.jsonl`` is written is determined by the ``memory``"
+" skill and the tool loop, rather than by a fixed finalize phase in every "
+"step."
 
-#: ../../agents.rst:646
+#: ../../agents.rst:647
 msgid "如果你想替换/扩展记忆策略，推荐做法是新增/替换 skill，而不是修改 ``PersonAgent`` 本体。"
 msgstr ""
+"To replace or extend the memory strategy, the recommended approach is to "
+"add or replace a skill rather than modifying ``PersonAgent`` itself."
 
 #~ msgid "配置文件可以包含您想要的任何字段。智能体将使用此信息来塑造其响应和决策。"
 #~ msgstr ""
@@ -1495,3 +1643,10 @@ msgstr ""
 
 #~ msgid "本部分介绍如何在 AgentSociety 2 中使用智能体。"
 #~ msgstr "This section introduces how to use agents in AgentSociety 2."
+
+#~ msgid ""
+#~ "如果你通过 VS Code 扩展或 ``.agentsociety/bin/ags.py``"
+#~ " 工作流创建自定义 Agent，可以使用内置的 **agentsociety-create-"
+#~ "agent** 技能。它会把文件放在 ``custom/agents/``，并用本地校验器检查："
+#~ msgstr ""
+

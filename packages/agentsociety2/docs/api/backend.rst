@@ -13,6 +13,41 @@ FastAPI 应用
 路由模块
 --------
 
+预填充参数路由
+~~~~~~~~~~~~~~
+
+.. automodule:: agentsociety2.backend.routers.prefill_params
+   :members:
+   :undoc-members:
+
+实验路由
+~~~~~~~~
+
+.. automodule:: agentsociety2.backend.routers.experiments
+   :members:
+   :undoc-members:
+
+回放路由
+~~~~~~~~
+
+.. automodule:: agentsociety2.backend.routers.replay
+   :members:
+   :undoc-members:
+
+自定义模块路由
+~~~~~~~~~~~~~~
+
+.. automodule:: agentsociety2.backend.routers.custom
+   :members:
+   :undoc-members:
+
+模块路由
+~~~~~~~~
+
+.. automodule:: agentsociety2.backend.routers.modules
+   :members:
+   :undoc-members:
+
 Agent Skills 路由
 ~~~~~~~~~~~~~~~~~
 

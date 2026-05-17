@@ -115,6 +115,12 @@ into:
 - `agentsociety-analysis` to regenerate figures (cap: 2 / round)
 - `agentsociety-literature-search` to augment refs (cap: 2 / round)
 
+When these dispatches are planned, the paper loop pauses in
+`expansion-plan` or reroutes through `evidence-audit` /
+`manuscript-build` after review. External results must be folded back
+into `research_pack.json` via `build-pack` before the next paper stage
+continues.
+
 When the same `target_artifact + issue_type` recurs across rounds, open
 a human gate via `human_gates.yaml` instead of dispatching again.
 

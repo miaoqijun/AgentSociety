@@ -100,7 +100,7 @@ class PersonAgent(AgentBase):
         :param profile: 画像对象（dict 或可序列化对象）。
         :param name: 可选显示名。
         :param init_state: 可选初始状态（会写入 workspace，默认不覆盖已存在文件）。
-        :param capability_kwargs: 传入 :meth:`AgentConfig.from_kwargs` 的扁平参数（节选）：
+        :param capability_kwargs: 传入 ``AgentConfig.from_kwargs()`` 的扁平参数（节选）：
 
             - ``max_tool_rounds``：单步最大工具轮数（默认 24）
             - ``preload_workspace_paths``：预读文件列表（注入 system prompt 的 workspace 快照）

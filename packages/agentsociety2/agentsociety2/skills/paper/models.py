@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -159,8 +159,45 @@ class ClaimLedger(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-EvidenceCategory = Literal["analysis", "control", "robustness", "figure", "experiment"]
+EvidenceCategory = Literal[
+    "analysis",
+    "control",
+    "robustness",
+    "figure",
+    "experiment",
+    "literature",
+    "alternative",
+]
 Priority = Literal["high", "medium", "low"]
+EvidenceGapType = Literal[
+    "missing_analysis",
+    "missing_control",
+    "missing_robustness",
+    "missing_figure",
+    "missing_experiment",
+    "missing_alternative",
+    "missing_literature",
+]
+EvidenceTool = Literal[
+    "agentsociety-analysis",
+    "agentsociety-literature-search",
+    "human",
+]
+
+
+_GAP_TYPE_TO_CATEGORY: dict[str, EvidenceCategory] = {
+    "missing_analysis": "analysis",
+    "missing_control": "control",
+    "missing_robustness": "robustness",
+    "missing_figure": "figure",
+    "missing_experiment": "experiment",
+    "missing_alternative": "alternative",
+    "missing_literature": "literature",
+}
+
+
+def _normalize_gap_token(raw: Optional[str]) -> str:
+    return (raw or "").strip().lower().replace("-", "_")
 
 
 class EvidenceGap(BaseModel):
@@ -170,12 +207,45 @@ class EvidenceGap(BaseModel):
 
     gap_id: str
     description: str
-    category: EvidenceCategory
+    category: EvidenceCategory = "analysis"
     priority: Priority = "medium"
     auto_executable: bool = False
     human_gated: bool = False
+    gap_type: Optional[EvidenceGapType] = None
+    tool: Optional[EvidenceTool] = None
+    claim_id: Optional[str] = None
     related_claim_ids: List[str] = Field(default_factory=list)
+    suggested_approach: Optional[str] = None
+    evidence_impact: Optional[str] = None
     notes: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_gap_shape(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        payload = dict(data)
+        gap_type = _normalize_gap_token(payload.get("gap_type"))
+        category = _normalize_gap_token(payload.get("category"))
+        tool = (payload.get("tool") or "").strip().lower()
+
+        if not category:
+            inferred_category = _GAP_TYPE_TO_CATEGORY.get(gap_type)
+            if inferred_category is not None:
+                payload["category"] = inferred_category
+            elif tool == "agentsociety-literature-search":
+                payload["category"] = "literature"
+            elif tool == "agentsociety-analysis":
+                payload["category"] = "analysis"
+
+        if payload.get("claim_id") and not payload.get("related_claim_ids"):
+            payload["related_claim_ids"] = [payload["claim_id"]]
+
+        if tool == "human" and "human_gated" not in payload:
+            payload["human_gated"] = True
+
+        return payload
 
 
 class EvidenceBacklog(BaseModel):
@@ -183,7 +253,11 @@ class EvidenceBacklog(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    items: List[EvidenceGap] = Field(default_factory=list)
+    items: List[EvidenceGap] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("items", "gaps"),
+    )
+    summary: Optional[Dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -353,6 +427,29 @@ class Counters(BaseModel):
     citation_augmentations: int = 0
 
 
+DraftGenerationMode = Literal["freeform", "template_slots"]
+
+
+class RoundConstraint(BaseModel):
+    """Machine-readable instruction carried into the next paper round."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    constraint_id: str
+    applies_to_phase: PaperPhase = PaperPhase.manuscript_build
+    target_artifact: str = "draft_section"
+    target_layer: TargetLayer = "paragraph"
+    generation_mode: DraftGenerationMode = "freeform"
+    issue_type: str = ""
+    rationale: str = ""
+    source_round: Optional[int] = None
+    source_reviewer: Optional[str] = None
+    block_id: Optional[str] = None
+    target_paths: List[str] = Field(default_factory=list)
+    required_slot_types: List[str] = Field(default_factory=list)
+    required_anchors: List[str] = Field(default_factory=list)
+
+
 class PaperState(BaseModel):
     """Kernel state persisted as ``state/paper_state.yaml``."""
 
@@ -367,6 +464,7 @@ class PaperState(BaseModel):
     last_blocker: Optional[str] = None
     release_status: ReleaseStatus = ReleaseStatus.not_started
     counters: Counters = Field(default_factory=Counters)
+    round_constraints: List[RoundConstraint] = Field(default_factory=list)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -416,6 +514,14 @@ class ResearchPackLiterature(BaseModel):
     bibtex: str = ""
 
 
+class ResearchPackReferencePool(BaseModel):
+    """Incremental literature pool for paper-stage citation growth."""
+
+    workspace_refs: List[ResearchPackLiterature] = Field(default_factory=list)
+    supplemental_refs: List[ResearchPackLiterature] = Field(default_factory=list)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class ProvenanceEntry(BaseModel):
     artifact_id: str = Field(..., description="e.g. 'hypothesis:1' or 'figure:fig:foo'")
     source_path: str
@@ -436,6 +542,7 @@ class ResearchPack(BaseModel):
     analyses: List[ResearchPackAnalysis] = Field(default_factory=list)
     figures: List[ResearchPackFigure] = Field(default_factory=list)
     literature: List[ResearchPackLiterature] = Field(default_factory=list)
+    reference_pool: Optional[ResearchPackReferencePool] = None
     synthesis_report: str = ""
     draft_inputs: Dict[str, str] = Field(default_factory=dict)
     provenance: List[ProvenanceEntry] = Field(default_factory=list)
@@ -484,6 +591,8 @@ __all__ = [
     "ResearchPackFigure",
     "ResearchPackHypothesis",
     "ResearchPackLiterature",
+    "ResearchPackReferencePool",
+    "RoundConstraint",
     "ResolvedState",
     "Review",
     "ReviewRound",
@@ -492,6 +601,7 @@ __all__ = [
     "Severity",
     "StorylineMap",
     "TargetLayer",
+    "DraftGenerationMode",
     # Review
     "Verdict",
     # Claim ledger

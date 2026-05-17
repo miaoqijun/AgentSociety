@@ -529,10 +529,6 @@ export class WorkspaceExportManager implements vscode.Disposable {
       return true;
     }
 
-    if (/^hypothesis_[^/]+\/experiment_[^/]+\/run(\/|$)/.test(normalizedPath)) {
-      return true;
-    }
-
     return false;
   }
 

@@ -633,17 +633,17 @@ class Config:
                     "path": f"{cls.HOME_DIR}/memory/agent_{id}_{random_suffix}",
                 },
             },
+            "history_db_path": os.path.join(
+                cls.HOME_DIR, "memory", f"agent_{id}_{random_suffix}.db"
+            ),
             "llm": {
-                "provider": "litellm",
+                "provider": "openai",
                 "config": {
                     "model": cls.NANO_LLM_MODEL,
                     "temperature": 0.0,
                     "max_tokens": 2000,
                     "api_key": cls.NANO_LLM_API_KEY,
-                    "litellm_params": {
-                        "api_base": cls.NANO_LLM_API_BASE,
-                        "api_key": cls.NANO_LLM_API_KEY,
-                    },
+                    "openai_base_url": cls.NANO_LLM_API_BASE,
                 },
             },
             "embedder": {

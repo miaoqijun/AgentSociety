@@ -4,6 +4,17 @@ Turn the request into a `DesignSpec` that becomes the source of truth for genera
 
 If the module has mutable runtime state, counters, per-agent snapshots, or replay requirements, also read `references/persistence-patterns.md` before freezing the design.
 
+## Scale Fit
+
+Record the simulation scale budget before freezing the tool and state design:
+
+- target agent count or range
+- expected step budget
+- runtime or compute budget
+- preferred complexity tier, such as lean, balanced, or rich
+
+For larger populations or tighter budgets, prefer batched writes, compact state, and cheaper tool bodies. For smaller simulations, richer state and more detailed tool logic are acceptable.
+
 Minimum design fields:
 
 - `module_name`
@@ -15,6 +26,7 @@ Minimum design fields:
 - `step_semantics`
 - `persistence`
 - `success_criteria`
+- `scale_budget`
 
 The `persistence` section should answer these questions explicitly:
 
