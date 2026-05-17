@@ -54,6 +54,7 @@ _compiler = None
 _figure_packer = None
 _latex_assembly = None
 _md_to_tex = None
+_template_slots = None
 _envelope = None
 _models = None
 _state = None  # namespace bag for state submodules
@@ -74,7 +75,7 @@ def _ensure_paper_imports() -> None:
 
     global _paper_paths, _bib_writer, _adapter_research_pack_builder
     global _interactive_meta, _compiler, _figure_packer, _latex_assembly
-    global _md_to_tex, _envelope, _models, _state
+    global _md_to_tex, _template_slots, _envelope, _models, _state
 
     if _paper_paths is not None:
         return
@@ -102,6 +103,7 @@ def _ensure_paper_imports() -> None:
     from agentsociety2.skills.paper.compose import (
         md_to_tex as md_to_tex_mod,
     )
+    from agentsociety2.skills.paper import template_slots as template_slots_mod
     from agentsociety2.skills.paper import envelope as envelope_mod
     from agentsociety2.skills.paper import models as models_mod
     from agentsociety2.skills.paper.state import (
@@ -140,6 +142,7 @@ def _ensure_paper_imports() -> None:
     _figure_packer = figure_packer_mod
     _latex_assembly = latex_assembly_mod
     _md_to_tex = md_to_tex_mod
+    _template_slots = template_slots_mod
     _envelope = envelope_mod
     _models = models_mod
 
@@ -287,6 +290,21 @@ def _workspace_command(func):
     return wrapper
 
 
+def _existing_research_pack_for_workspace(
+    workspace: Path,
+) -> Optional["_models.ResearchPack"]:
+    if not _state.research_pack.exists(workspace):
+        return None
+    try:
+        pack = _state.research_pack.load(workspace)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError, OSError):
+        return None
+    pack_workspace = Path(pack.workspace_path).expanduser().resolve()
+    if pack_workspace != workspace:
+        return None
+    return pack
+
+
 def _read_payload(raw: str) -> Any:
     candidate = Path(raw).expanduser()
     if candidate.exists():
@@ -362,10 +380,12 @@ def cmd_build_pack(args: argparse.Namespace) -> int:
             recommended_next_step="paper-orchestrator intake --workspace .",
         )
     try:
+        previous_pack = _existing_research_pack_for_workspace(workspace)
         pack = _adapter_research_pack_builder.build_research_pack(
             workspace,
             research_objective=args.research_objective or None,
         )
+        pack = _state.research_pack.refresh_reference_pool(pack, previous_pack)
         _state.research_pack.save(workspace, pack)
     except Exception as exc:
         return _error(f"failed to build research pack: {exc}", traceback=traceback.format_exc())
@@ -384,6 +404,7 @@ def cmd_build_pack(args: argparse.Namespace) -> int:
                 f"experiments={len(pack.experiments)}",
                 f"figures={len(pack.figures)}",
                 f"literature={len(pack.literature)}",
+                f"supplemental_literature={len(pack.reference_pool.supplemental_refs) if pack.reference_pool else 0}",
             ],
             "recommended_next_step": "dispatch paper-framing producer subagent",
         },
@@ -394,6 +415,7 @@ def cmd_build_pack(args: argparse.Namespace) -> int:
             "analyses": len(pack.analyses),
             "figures": len(pack.figures),
             "literature": len(pack.literature),
+            "supplemental_literature": len(pack.reference_pool.supplemental_refs) if pack.reference_pool else 0,
         },
         current_phase=state.current_phase.value,
     )
@@ -512,8 +534,14 @@ def _phase_recommended_next_step(phase: "_models.PaperPhase") -> str:
     mapping = {
         _models.PaperPhase.framing: "dispatch paper-framing producer subagent",
         _models.PaperPhase.evidence_audit: "dispatch paper-evidence-expansion audit subagent",
-        _models.PaperPhase.expansion_plan: "persist evidence backlog, then dispatch paper-architecture",
-        _models.PaperPhase.manuscript_build: "dispatch paper-architecture claim_ledger / figure_argument_map / draft_section",
+        _models.PaperPhase.expansion_plan: (
+            "resolve high-priority evidence gaps via analysis/literature dispatches, "
+            "then rebuild the research pack before paper-architecture"
+        ),
+        _models.PaperPhase.manuscript_build: (
+            "dispatch paper-architecture claim_ledger / figure_argument_map / draft_section, "
+            "respecting any paper_state.round_constraints for degraded generation"
+        ),
         _models.PaperPhase.skeptical_review: "dispatch paper-skeptical-review reviewers",
         _models.PaperPhase.revision_router: "run revision-router against the latest review round",
         _models.PaperPhase.release_gate: "compile and check final release blockers",
@@ -549,10 +577,14 @@ def _open_review_round(
 
 
 def _review_target_phase(review: "_models.Review") -> Optional["_models.PaperPhase"]:
-    route = (review.reroute_target or "").strip() or (_state.reviews.route_for(review.verdict) or "")
-    route = route.strip()
-    if route in {"human_gate"} or review.human_gate_flag:
+    route = (review.reroute_target or "").strip()
+    default_route = (_state.reviews.route_for(review.verdict) or "").strip()
+    if route in {"human_gate"} or review.human_gate_flag or default_route == "human_gate":
         return None
+    if not route:
+        route = (review.target_layer or "").strip()
+    if not route:
+        route = default_route
     if route in {"wording", "paragraph", "section", "figure-plan"}:
         return _models.PaperPhase.manuscript_build
     if route in {"evidence"}:
@@ -649,15 +681,260 @@ def _phase_from_gate(gate: "_models.HumanGate") -> "_models.PaperPhase":
     return _models.PaperPhase.framing
 
 
+def _normalize_router_token(raw: Optional[str]) -> str:
+    return (raw or "").strip().lower().replace("-", "_")
+
+
+def _slot_types_from_markers(markers: List[str]) -> List[str]:
+    slot_types: List[str] = []
+    seen: set[str] = set()
+    for marker in markers:
+        match = re.match(r"\[\[([A-Z_]+):", marker.strip())
+        if match is None:
+            continue
+        slot_type = match.group(1)
+        if slot_type in seen:
+            continue
+        seen.add(slot_type)
+        slot_types.append(slot_type)
+    return slot_types
+
+
+def _review_mentions_draft_instability(review: "_models.Review") -> bool:
+    if review.target_layer not in {"paragraph", "section"}:
+        return False
+
+    issue = _normalize_router_token(review.issue_type)
+    if issue in {
+        "citation_drift",
+        "evidence_drift",
+        "figure_anchor",
+        "figure_anchor_drift",
+        "missing_anchor",
+        "missing_citation_anchor",
+        "missing_figure_anchor",
+        "residual_template_slots",
+        "slot_marker",
+        "unsupported_anchor",
+    }:
+        return True
+
+    raw_text = (review.raw_text or "").lower()
+    if "[[" in raw_text and "slot" in raw_text:
+        return True
+    keyword_groups = (
+        ("citation", "drift"),
+        ("citation", "anchor"),
+        ("figure", "anchor"),
+        ("evidence", "anchor"),
+        ("template", "slot"),
+        ("slot", "marker"),
+    )
+    return any(all(token in raw_text for token in group) for group in keyword_groups)
+
+
+def _round_constraint_slot_types_for_review(review: "_models.Review") -> List[str]:
+    raw_text = review.raw_text or ""
+    raw_lower = raw_text.lower()
+    slot_types: List[str] = []
+    if _extract_citation_keys(raw_text):
+        slot_types.append("CITE_SLOT")
+    if _extract_figure_ids(raw_text):
+        slot_types.append("FIG_SLOT")
+    if "[[" in raw_text:
+        slot_types.extend(_slot_types_from_markers(re.findall(r"\[\[[A-Z_]+:[^\]]+\]\]", raw_text)))
+    if "metric" in raw_lower or "effect size" in raw_lower:
+        slot_types.append("METRIC_SLOT")
+    if "claim" in raw_lower or "overclaim" in raw_lower:
+        slot_types.append("CLAIM_SLOT")
+    if not slot_types:
+        slot_types.extend(["CLAIM_SLOT", "CITE_SLOT"])
+
+    deduped: List[str] = []
+    seen: set[str] = set()
+    for item in slot_types:
+        if item in seen:
+            continue
+        seen.add(item)
+        deduped.append(item)
+    return deduped
+
+
+def _round_constraint_anchors_for_review(review: "_models.Review") -> List[str]:
+    anchors: List[str] = []
+    seen: set[str] = set()
+    for key in _extract_citation_keys(review.raw_text or ""):
+        anchor = f"[CITE:{key}]"
+        if anchor in seen:
+            continue
+        seen.add(anchor)
+        anchors.append(anchor)
+    for figure_id in _extract_figure_ids(review.raw_text or ""):
+        anchor = f"[FIG:{figure_id}]"
+        if anchor in seen:
+            continue
+        seen.add(anchor)
+        anchors.append(anchor)
+    return anchors
+
+
+def _build_round_constraint_from_review(
+    review: "_models.Review",
+    *,
+    round_num: int,
+) -> Optional["_models.RoundConstraint"]:
+    if not _review_mentions_draft_instability(review):
+        return None
+
+    issue_token = _normalize_router_token(review.issue_type) or "draft_instability"
+    target_layer = review.target_layer if review.target_layer in {"paragraph", "section"} else "paragraph"
+    return _models.RoundConstraint(
+        constraint_id=f"review-{round_num}-{review.reviewer_profile}-{issue_token}-{target_layer}",
+        target_layer=target_layer,
+        generation_mode="template_slots",
+        issue_type=issue_token,
+        rationale=(review.raw_text or "").strip() or "review requested evidence-bound degraded generation",
+        source_round=round_num,
+        source_reviewer=review.reviewer_profile,
+        required_slot_types=_round_constraint_slot_types_for_review(review),
+        required_anchors=_round_constraint_anchors_for_review(review),
+    )
+
+
+def _upsert_round_constraint(
+    state: "_models.PaperState",
+    constraint: "_models.RoundConstraint",
+) -> None:
+    for index, existing in enumerate(state.round_constraints):
+        if existing.constraint_id == constraint.constraint_id:
+            state.round_constraints[index] = constraint
+            return
+    state.round_constraints.append(constraint)
+
+
+def _persist_compile_constraint(
+    workspace: Path,
+    constraint: "_models.RoundConstraint",
+    *,
+    blocker: str,
+) -> None:
+    if not _state.paper_state.exists(workspace):
+        return
+    state = _state.paper_state.load(workspace)
+    _upsert_round_constraint(state, constraint)
+    state.last_blocker = blocker
+    _state.paper_state.save(workspace, state)
+
+
+def _build_round_constraint_from_slot_markers(markers: List[str]) -> Optional["_models.RoundConstraint"]:
+    slot_types = _slot_types_from_markers(markers)
+    if not slot_types:
+        return None
+    preview = ", ".join(slot_types[:4])
+    return _models.RoundConstraint(
+        constraint_id="compile-residual-template-slots",
+        target_layer="paragraph",
+        generation_mode="template_slots",
+        issue_type="residual_template_slots",
+        rationale=f"compile blocked by residual degraded-generation markers: {preview}",
+        required_slot_types=slot_types,
+    )
+
+
+def _build_round_constraint_from_claim_binding_issue(issue: str) -> Optional["_models.RoundConstraint"]:
+    lowered = issue.lower()
+    if "manuscript-visible evidence anchor" not in lowered and "unsupported_gaps" not in lowered:
+        return None
+
+    anchors: List[str] = []
+    seen: set[str] = set()
+    for anchor in re.findall(r"\[(?:CITE|FIG):[^\]]+\]", issue):
+        if anchor in seen:
+            continue
+        seen.add(anchor)
+        anchors.append(anchor)
+
+    slot_types: List[str] = []
+    if any(anchor.startswith("[CITE:") for anchor in anchors):
+        slot_types.append("CITE_SLOT")
+    if any(anchor.startswith("[FIG:") for anchor in anchors):
+        slot_types.append("FIG_SLOT")
+    if not slot_types:
+        slot_types.extend(["CLAIM_SLOT", "CITE_SLOT"])
+
+    return _models.RoundConstraint(
+        constraint_id="compile-missing-evidence-anchor",
+        target_layer="paragraph",
+        generation_mode="template_slots",
+        issue_type="missing_anchor",
+        rationale=issue,
+        required_slot_types=slot_types,
+        required_anchors=anchors,
+    )
+
+
 def _is_literature_issue(review: "_models.Review") -> bool:
-    issue = (review.issue_type or "").strip().lower().replace("-", "_")
+    issue = _normalize_router_token(review.issue_type)
     return "literature" in issue or "citation" in issue or "reference" in issue
 
 
 def _is_figure_issue(review: "_models.Review") -> bool:
-    target = (review.target_layer or "").strip().lower().replace("-", "_")
-    reroute = (review.reroute_target or "").strip().lower().replace("-", "_")
+    target = _normalize_router_token(review.target_layer)
+    reroute = _normalize_router_token(review.reroute_target)
     return target == "figure_plan" or reroute == "figure_plan"
+
+
+def _is_analysis_issue(review: "_models.Review") -> bool:
+    issue = _normalize_router_token(review.issue_type)
+    return issue in {
+        "missing_analysis",
+        "missing_robustness",
+        "missing_alternative",
+        "missing_figure",
+    }
+
+
+def _is_literature_gap(item: "_models.EvidenceGap") -> bool:
+    category = _normalize_router_token(item.category)
+    gap_type = _normalize_router_token(item.gap_type)
+    tool = (item.tool or "").strip().lower()
+    return (
+        category == "literature"
+        or gap_type == "missing_literature"
+        or tool == "agentsociety-literature-search"
+    )
+
+
+def _is_analysis_gap(item: "_models.EvidenceGap") -> bool:
+    category = _normalize_router_token(item.category)
+    gap_type = _normalize_router_token(item.gap_type)
+    tool = (item.tool or "").strip().lower()
+    return (
+        tool == "agentsociety-analysis"
+        or category in {"analysis", "robustness", "figure", "alternative"}
+        or gap_type in {
+            "missing_analysis",
+            "missing_robustness",
+            "missing_figure",
+            "missing_alternative",
+        }
+    )
+
+
+def _analysis_dispatch_cap_exceeded(state: "_models.PaperState") -> bool:
+    return state.counters.figure_regenerations >= 2
+
+
+def _citation_dispatch_cap_exceeded(state: "_models.PaperState") -> bool:
+    return state.counters.citation_augmentations >= 2
+
+
+def _consume_analysis_dispatch(state: "_models.PaperState") -> None:
+    state.counters.figure_regenerations += 1
+
+
+def _consume_citation_dispatch(state: "_models.PaperState") -> None:
+    state.counters.citation_augmentations += 1
 
 
 def _open_gate_from_review(
@@ -681,6 +958,50 @@ def _open_gate_from_review(
     )
 
 
+def _open_gate_from_gap(
+    workspace: Path,
+    gap: "_models.EvidenceGap",
+    *,
+    round_num: int,
+) -> "_models.HumanGate":
+    pending = _state.human_gates.pending(workspace)
+    marker = f"gap:{gap.gap_id}:{round_num}"
+    for gate in pending:
+        if gate.note == marker:
+            return gate
+    return _state.human_gates.open_gate(
+        workspace,
+        triggering_issue=gap.gap_type or gap.category,
+        proposed_pivot="expansion-plan",
+        severity="major" if gap.priority == "high" else "moderate",
+        rationale=gap.description,
+        note=marker,
+    )
+
+
+def _dispatch_plan_note(
+    *,
+    item_id: str,
+    descriptor: str,
+    route: str,
+    priority: Optional[str] = None,
+) -> str:
+    parts = [f"{item_id}={descriptor}"]
+    if priority:
+        parts.append(f"priority={priority}")
+    parts.append(f"-> {route}")
+    return " ".join(parts)
+
+
+def _expansion_plan_next_step(dispatch_paths: List[str]) -> str:
+    if dispatch_paths:
+        return (
+            "run the planned analysis/literature dispatches, rebuild the research pack, "
+            "refresh evidence_backlog, then re-run `paper-orchestrator run-loop`"
+        )
+    return _phase_recommended_next_step(_models.PaperPhase.manuscript_build)
+
+
 def _route_revision_round(
     workspace: Path,
     state: "_models.PaperState",
@@ -695,18 +1016,37 @@ def _route_revision_round(
         if review.resolved_state == "resolved":
             continue
         cap_exceeded = False
+        external_skill: Optional[str] = None
+        target_subagent: Optional[str] = None
+        round_constraint = _build_round_constraint_from_review(
+            review,
+            round_num=review_round.round_num,
+        )
 
         if _is_figure_issue(review):
-            if state.counters.figure_regenerations >= 2:
+            if _analysis_dispatch_cap_exceeded(state):
                 cap_exceeded = True
             else:
-                state.counters.figure_regenerations += 1
+                _consume_analysis_dispatch(state)
+                external_skill = "agentsociety-analysis"
 
         if review.target_layer == "evidence" and _is_literature_issue(review):
-            if state.counters.citation_augmentations >= 2:
+            if _citation_dispatch_cap_exceeded(state):
                 cap_exceeded = True
             else:
-                state.counters.citation_augmentations += 1
+                _consume_citation_dispatch(state)
+                external_skill = "agentsociety-literature-search"
+
+        if (
+            external_skill is None
+            and review.target_layer == "evidence"
+            and _is_analysis_issue(review)
+        ):
+            if _analysis_dispatch_cap_exceeded(state):
+                cap_exceeded = True
+            else:
+                _consume_analysis_dispatch(state)
+                external_skill = "agentsociety-analysis"
 
         target_phase = _review_target_phase(review)
         if target_phase is None or cap_exceeded:
@@ -733,19 +1073,22 @@ def _route_revision_round(
             )
             continue
         next_phases.append(target_phase)
-        finding = (
-            f"issue={review.issue_type or 'unspecified'} verdict={review.verdict} -> {target_phase.value}"
-        )
+        finding = f"issue={review.issue_type or 'unspecified'} verdict={review.verdict} -> {target_phase.value}"
+        if external_skill is not None:
+            finding += f" via {external_skill}"
+        if round_constraint is not None:
+            _upsert_round_constraint(state, round_constraint)
+            finding += " mode=template_slots"
         findings.append(finding)
         skill_map = {
             _models.PaperPhase.framing: ("agentsociety-paper-framing", "producer"),
             _models.PaperPhase.evidence_audit: ("agentsociety-paper-evidence-expansion", "producer"),
             _models.PaperPhase.manuscript_build: ("agentsociety-paper-architecture", "producer"),
         }
-        target_skill, target_subagent = skill_map.get(
-            target_phase,
-            ("paper-orchestrator", None),
-        )
+        target_skill, target_subagent = skill_map.get(target_phase, ("paper-orchestrator", None))
+        if external_skill is not None:
+            target_skill = external_skill
+            target_subagent = None
         dispatch_paths.append(
             _record_dispatch_plan(
                 workspace,
@@ -785,10 +1128,121 @@ def _route_revision_round(
     return _models.PaperPhase.manuscript_build, findings, gate_ids, dispatch_paths
 
 
+def _route_expansion_plan(
+    workspace: Path,
+    state: "_models.PaperState",
+    backlog: "_models.EvidenceBacklog",
+) -> tuple[Optional["_models.PaperPhase"], List[str], List[str], List[str]]:
+    findings: List[str] = []
+    gate_ids: List[str] = []
+    dispatch_paths: List[str] = []
+
+    for gap in backlog.items:
+        if gap.priority != "high":
+            continue
+
+        descriptor = gap.gap_type or gap.category
+        route_skill: Optional[str] = None
+        cap_exceeded = False
+
+        if gap.human_gated or not gap.auto_executable:
+            cap_exceeded = False
+        elif _is_literature_gap(gap):
+            if _citation_dispatch_cap_exceeded(state):
+                cap_exceeded = True
+            else:
+                _consume_citation_dispatch(state)
+                route_skill = "agentsociety-literature-search"
+        elif _is_analysis_gap(gap):
+            if _analysis_dispatch_cap_exceeded(state):
+                cap_exceeded = True
+            else:
+                _consume_analysis_dispatch(state)
+                route_skill = "agentsociety-analysis"
+
+        if route_skill is not None:
+            finding = _dispatch_plan_note(
+                item_id="gap",
+                descriptor=f"{gap.gap_id}:{descriptor}",
+                priority=gap.priority,
+                route=route_skill,
+            )
+            findings.append(finding)
+            dispatch_paths.append(
+                _record_dispatch_plan(
+                    workspace,
+                    target_skill=route_skill,
+                    target_subagent=None,
+                    notes=finding,
+                    recommended_next_step=_expansion_plan_next_step([finding]),
+                )
+            )
+            continue
+
+        gate = _open_gate_from_gap(
+            workspace,
+            gap,
+            round_num=max(state.round, 1),
+        )
+        gate_ids.append(gate.gate_id)
+        finding = _dispatch_plan_note(
+            item_id="gap",
+            descriptor=f"{gap.gap_id}:{descriptor}",
+            priority=gap.priority,
+            route=f"human_gate:{gate.gate_id}",
+        )
+        if cap_exceeded:
+            finding += " cap_exceeded=true"
+        findings.append(finding)
+        dispatch_paths.append(
+            _record_dispatch_plan(
+                workspace,
+                target_skill="human-gate",
+                target_subagent=None,
+                notes=finding,
+                recommended_next_step="review and decide the pending human gate entry",
+                severity="fatal",
+            )
+        )
+
+    if gate_ids:
+        state.pending_human_gate = gate_ids[-1]
+        state.last_blocker = "human gate required by expansion-plan"
+        state.release_status = _models.ReleaseStatus.blocked
+        _state.paper_state.save(workspace, state)
+        return None, findings, gate_ids, dispatch_paths
+
+    if dispatch_paths:
+        state.last_blocker = "waiting for external analysis/literature dispatches"
+        _state.paper_state.save(workspace, state)
+        return _models.PaperPhase.expansion_plan, findings, gate_ids, dispatch_paths
+
+    findings.append("no high-priority evidence gaps require external dispatch; advance to manuscript-build")
+    state.last_blocker = None
+    _state.paper_state.save(workspace, state)
+    return _models.PaperPhase.manuscript_build, findings, gate_ids, dispatch_paths
+
+
 def _release_gate_verdict(
     workspace: Path,
 ) -> tuple[str, List[str], Optional[str]]:
     findings: List[str] = []
+    abstract_md = _normalize_manuscript_markdown(
+        "abstract",
+        _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_ABSTRACT_FILENAME),
+    )
+    main_md = _normalize_manuscript_markdown(
+        "main",
+        _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_MAIN_FILENAME),
+    )
+    results_md = _normalize_manuscript_markdown(
+        "results",
+        _read_manuscript_results(workspace),
+    )
+    discussion_md = _normalize_manuscript_markdown(
+        "discussion",
+        _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_DISCUSSION_FILENAME),
+    )
 
     meta = _interactive_meta.load_meta(workspace)
     criterion_1 = bool(meta.title.strip() and meta.affils and any(a.corresponding for a in meta.authors))
@@ -807,18 +1261,22 @@ def _release_gate_verdict(
         return "BLOCKED", findings, "storyline_map.json does not satisfy release-gate criterion_2"
 
     claim_ledger = _state.claim_ledger.load(workspace) if _state.claim_ledger.exists(workspace) else None
-    criterion_3 = True
-    bad_claim = None
-    if claim_ledger is None:
+    research_pack = _state.research_pack.load(workspace) if _state.research_pack.exists(workspace) else None
+    claim_binding_issues: List[str] = []
+    criterion_3 = claim_ledger is not None and research_pack is not None
+    if criterion_3:
+        claim_binding_issues = _claim_binding_issues(
+            workspace,
+            research_pack,
+            manuscript_texts=[abstract_md, main_md, results_md, discussion_md],
+        )
+        criterion_3 = not claim_binding_issues
+    if claim_ledger is None or research_pack is None:
         criterion_3 = False
-    else:
-        for claim in claim_ledger.claims:
-            if not claim.evidence_support and claim.unsupported_gaps:
-                criterion_3 = False
-                bad_claim = claim.claim_id
-                break
     findings.append(
-        "criterion_3=pass" if criterion_3 else f"criterion_3=fail: claim {bad_claim or 'unknown'} lacks evidence support"
+        "criterion_3=pass"
+        if criterion_3
+        else f"criterion_3=fail: {(claim_binding_issues[0] if claim_binding_issues else 'claim evidence binding could not be verified')}"
     )
     if not criterion_3:
         return "BLOCKED", findings, "claim_ledger.json does not satisfy release-gate criterion_3"
@@ -1164,7 +1622,9 @@ def _invalid_citation_keys(workspace: Path, *texts: str) -> List[str]:
         return []
     allowed = {
         entry.cite_key
-        for entry in _state.research_pack.load(workspace).literature
+        for entry in _state.research_pack.effective_literature(
+            _state.research_pack.load(workspace)
+        )
         if entry.cite_key
     }
     return sorted(key for key in used_keys if key not in allowed)
@@ -1178,6 +1638,141 @@ def _extract_figure_ids(*texts: str) -> List[str]:
             if cleaned:
                 figure_ids.add(cleaned)
     return sorted(figure_ids)
+
+
+def _normalize_pointer(raw: str) -> str:
+    return (raw or "").strip()
+
+
+def _extract_supported_citation_key(raw: str, valid_keys: set[str]) -> Optional[str]:
+    pointer = _normalize_pointer(raw)
+    if pointer.startswith("[CITE:") and pointer.endswith("]"):
+        pointer = pointer[6:-1].strip()
+    elif pointer.lower().startswith("cite:"):
+        pointer = pointer.split(":", 1)[1].strip()
+    return pointer if pointer in valid_keys else None
+
+
+def _normalize_figure_pointer(raw: str) -> str:
+    pointer = _normalize_pointer(raw)
+    if pointer.startswith("[FIG:") and pointer.endswith("]"):
+        pointer = pointer[5:-1].strip()
+    if pointer.lower().startswith("fig:"):
+        pointer = pointer.split(":", 1)[1].strip()
+    return pointer
+
+
+def _normalize_analysis_pointer(raw: str) -> str:
+    return _normalize_pointer(raw)
+
+
+def _claim_binding_issues(
+    workspace: Path,
+    research_pack: "_models.ResearchPack",
+    *,
+    manuscript_texts: Optional[List[str]] = None,
+) -> List[str]:
+    claim_ledger = _state.claim_ledger.load(workspace)
+    if claim_ledger is None:
+        return []
+
+    fmap = _state.figure_argument.load(workspace)
+    valid_citations = {
+        entry.cite_key
+        for entry in _state.research_pack.effective_literature(research_pack)
+        if entry.cite_key
+    }
+    valid_analyses = {entry.analysis_id for entry in research_pack.analyses if entry.analysis_id}
+    valid_figures: set[str] = set()
+    if fmap is not None:
+        for figure in fmap.figures:
+            normalized = _normalize_figure_pointer(figure.figure_id)
+            if normalized:
+                valid_figures.add(normalized)
+
+    cited_in_manuscript: set[str] = set()
+    figures_in_manuscript: set[str] = set()
+    if manuscript_texts:
+        cited_in_manuscript = set(_extract_citation_keys(*manuscript_texts))
+        figures_in_manuscript = set(_extract_figure_ids(*manuscript_texts))
+
+    issues: List[str] = []
+    for claim in claim_ledger.claims:
+        if not claim.evidence_support:
+            issues.append(f"claim {claim.claim_id} has empty evidence_support")
+            continue
+        if claim.unsupported_gaps:
+            issues.append(
+                f"claim {claim.claim_id} still lists unsupported_gaps: {', '.join(claim.unsupported_gaps[:3])}"
+            )
+
+        visible_candidates: List[str] = []
+        visible_anchor_found = False
+        seen_visible_candidates: set[str] = set()
+        analysis_support_found = False
+
+        for raw_support in claim.evidence_support:
+            support = _normalize_pointer(raw_support)
+            if not support:
+                continue
+
+            cite_key = _extract_supported_citation_key(support, valid_citations)
+            if cite_key is not None:
+                candidate = f"[CITE:{cite_key}]"
+                if candidate not in seen_visible_candidates:
+                    visible_candidates.append(candidate)
+                    seen_visible_candidates.add(candidate)
+                if cited_in_manuscript and cite_key in cited_in_manuscript:
+                    visible_anchor_found = True
+                continue
+
+            figure_id = _normalize_figure_pointer(support)
+            if figure_id in valid_figures:
+                candidate = f"[FIG:{figure_id}]"
+                if candidate not in seen_visible_candidates:
+                    visible_candidates.append(candidate)
+                    seen_visible_candidates.add(candidate)
+                if figures_in_manuscript and figure_id in figures_in_manuscript:
+                    visible_anchor_found = True
+                continue
+
+            analysis_id = _normalize_analysis_pointer(support)
+            if analysis_id in valid_analyses:
+                analysis_support_found = True
+                continue
+
+            if support.startswith("[CITE:") or support.lower().startswith("cite:"):
+                issues.append(f"claim {claim.claim_id} references unknown citation support '{support}'")
+            elif support.startswith("[FIG:") or support.lower().startswith("fig:") or figure_id:
+                issues.append(f"claim {claim.claim_id} references unknown figure support '{support}'")
+            elif support.lower().startswith("analysis:"):
+                issues.append(f"claim {claim.claim_id} references unknown analysis support '{support}'")
+            else:
+                issues.append(f"claim {claim.claim_id} references unknown evidence pointer '{support}'")
+
+        for linked_figure in claim.linked_figures:
+            figure_id = _normalize_figure_pointer(linked_figure)
+            if not figure_id:
+                continue
+            if figure_id not in valid_figures:
+                issues.append(f"claim {claim.claim_id} links unknown figure '{linked_figure}'")
+                continue
+            candidate = f"[FIG:{figure_id}]"
+            if candidate not in seen_visible_candidates:
+                visible_candidates.append(candidate)
+                seen_visible_candidates.add(candidate)
+            if figures_in_manuscript and figure_id in figures_in_manuscript:
+                visible_anchor_found = True
+
+        if manuscript_texts and visible_candidates and not visible_anchor_found:
+            issues.append(
+                f"claim {claim.claim_id} has no manuscript-visible evidence anchor; expected one of "
+                + ", ".join(visible_candidates[:4])
+            )
+        if not visible_candidates and not analysis_support_found:
+            issues.append(f"claim {claim.claim_id} has no resolvable evidence pointer")
+
+    return issues
 
 
 def _load_compile_research_pack(workspace: Path) -> "_models.ResearchPack":
@@ -1200,7 +1795,11 @@ def _write_compile_bibliography(
     timestamp: str,
     pack: "_models.ResearchPack",
 ) -> int:
-    refs = [entry.bibtex for entry in pack.literature if entry.bibtex]
+    refs = [
+        entry.bibtex
+        for entry in _state.research_pack.effective_literature(pack)
+        if entry.bibtex
+    ]
     return _bib_writer.write_bibtex_strings(
         _paper_paths.references_bib_path(workspace, timestamp),
         refs,
@@ -1358,6 +1957,46 @@ def cmd_compile(args: argparse.Namespace) -> int:
             recommended_next_step=(
                 "replace [CITE:key] markers with cite_key values from "
                 "paper/state/research_pack.json"
+            ),
+        )
+
+    unfilled_template_slots = _template_slots.find_unfilled_slot_markers(
+        "\n\n".join([abstract_md, main_md, results_md, discussion_md])
+    )
+    if unfilled_template_slots:
+        constraint = _build_round_constraint_from_slot_markers(unfilled_template_slots)
+        if constraint is not None:
+            _persist_compile_constraint(
+                workspace,
+                constraint,
+                blocker="compile blocked by residual degraded-generation slot markers",
+            )
+        return _missing_prereq(
+            f"manuscript still contains degraded-generation slot markers: {unfilled_template_slots[0]}",
+            recommended_next_step=(
+                "finish filling every [[...]] template slot before compiling the manuscript; "
+                "if the paragraph keeps drifting, re-dispatch draft_section with paper_state.round_constraints"
+            ),
+        )
+
+    claim_binding_issues = _claim_binding_issues(
+        workspace,
+        research_pack,
+        manuscript_texts=[abstract_md, main_md, results_md, discussion_md],
+    )
+    if claim_binding_issues:
+        constraint = _build_round_constraint_from_claim_binding_issue(claim_binding_issues[0])
+        if constraint is not None:
+            _persist_compile_constraint(
+                workspace,
+                constraint,
+                blocker="compile blocked by unresolved claim-to-manuscript evidence anchors",
+            )
+        return _missing_prereq(
+            claim_binding_issues[0],
+            recommended_next_step=(
+                "align claim_ledger evidence_support / linked_figures with the manuscript's [CITE:key] and [FIG:id] anchors; "
+                "use degraded generation constraints from paper_state.round_constraints when redrafting unstable paragraphs"
             ),
         )
 
@@ -1573,6 +2212,63 @@ def cmd_run_loop(args: argparse.Namespace) -> int:
             _state.paper_state.save(workspace, state)
         state = _state.paper_state.load(workspace)
 
+    if state.current_phase == _models.PaperPhase.expansion_plan:
+        backlog = _state.evidence_backlog.load(workspace)
+        if backlog is None:
+            return _missing_prereq(
+                "evidence_backlog.json could not be loaded for expansion-plan.",
+                recommended_next_step=_phase_recommended_next_step(state.current_phase),
+            )
+        next_phase, findings, gate_ids, dispatch_paths = _route_expansion_plan(
+            workspace,
+            state,
+            backlog,
+        )
+        if gate_ids:
+            return _human_gate_required(
+                "expansion-plan opened human gates for unresolved high-priority evidence gaps.",
+                recommended_next_step="review and decide the pending human gate entries",
+                key_findings=findings,
+                gate_ids=gate_ids,
+                artifacts_written=dispatch_paths,
+            )
+        if next_phase is None:
+            return _missing_prereq(
+                "expansion-plan did not produce a next phase.",
+                recommended_next_step=_phase_recommended_next_step(state.current_phase),
+            )
+        if next_phase == _models.PaperPhase.expansion_plan:
+            return _ok(
+                {
+                    "artifacts_read": [
+                        str(_paper_paths.paper_state_path(workspace)),
+                        str(_paper_paths.evidence_backlog_json_path(workspace)),
+                    ],
+                    "artifacts_written": dispatch_paths,
+                    "key_findings": findings,
+                    "recommended_next_step": _expansion_plan_next_step(dispatch_paths),
+                },
+                current_phase=state.current_phase.value,
+            )
+        _state.paper_state.reset_phase(state, target=next_phase)
+        state.pending_human_gate = None
+        state.last_blocker = None
+        if state.release_status == _models.ReleaseStatus.blocked:
+            state.release_status = _models.ReleaseStatus.draft
+        _state.paper_state.save(workspace, state)
+        return _ok(
+            {
+                "artifacts_read": [
+                    str(_paper_paths.paper_state_path(workspace)),
+                    str(_paper_paths.evidence_backlog_json_path(workspace)),
+                ],
+                "artifacts_written": dispatch_paths,
+                "key_findings": findings,
+                "recommended_next_step": _phase_recommended_next_step(next_phase),
+            },
+            current_phase=state.current_phase.value,
+        )
+
     if state.current_phase == _models.PaperPhase.manuscript_build:
         if not _state.claim_ledger.exists(workspace):
             return _missing_prereq(
@@ -1727,6 +2423,7 @@ def cmd_status(args: argparse.Namespace) -> int:
                 f"reviews={len(rounds)}",
                 f"runs={len(runs)}",
                 f"pending_human_gates={len(pending_gates)}",
+                f"round_constraints={len(state.round_constraints)}",
             ],
         },
         state=state.model_dump(mode="json"),

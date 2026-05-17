@@ -12,6 +12,7 @@ The orchestrator will provide:
 - **Design summary**: Base class choice, agent name, description, required behaviors
 - **Profile fields**: What profile data the agent needs
 - **Custom logic**: What the agent should do in `ask()` and `step()`
+- **Simulation scale budget**: Target agent count or range, step budget, runtime budget, preferred complexity tier
 
 ## Files to Read
 
@@ -35,6 +36,7 @@ Before writing code, read these files for reference:
 8. Override `mcp_description()` with a meaningful description
 9. Use only standard library + `agentsociety2` imports
 10. Do NOT place the file under an `examples/` path segment
+11. Keep the implementation proportional to the provided simulation scale budget
 
 ## Template Placeholders
 

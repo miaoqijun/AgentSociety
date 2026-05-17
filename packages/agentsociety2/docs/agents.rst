@@ -429,7 +429,7 @@ Agent 工作区文件结构：
 
 要创建自定义智能体，请继承 ``AgentBase`` 并实现必需的抽象方法。
 
-如果你通过 VS Code 扩展或 ``.agentsociety/bin/ags.py`` 工作流创建自定义 Agent，可以使用内置的 **agentsociety-create-agent** 技能。它会把文件放在 ``custom/agents/``，并用本地校验器检查：
+如果通过 VS Code 扩展或已初始化工作区中的 ``.agentsociety/bin/ags.py`` 工作流创建自定义 Agent，可以使用内置的 **agentsociety-create-agent** 技能。它会把文件放在 ``custom/agents/``，并用本地校验器检查：
 
 * 文件必须是 Python 文件，且不要放在路径片段 ``examples/`` 下（扫描器会跳过示例目录）。
 * 至少有一个直接继承 ``AgentBase`` 或 ``PersonAgent`` 的类。
@@ -440,6 +440,7 @@ Agent 工作区文件结构：
 
 .. code-block:: bash
 
+   agentsociety-workspace init --target-dir .
    PYTHON_PATH=$(grep "^PYTHON_PATH=" .env | cut -d'=' -f2)
    PYTHON_PATH=${PYTHON_PATH:-.venv/bin/python}
    $PYTHON_PATH .agentsociety/bin/ags.py create-agent --file custom/agents/my_agent.py

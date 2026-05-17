@@ -101,6 +101,113 @@ def test_invalid_citation_keys_are_detected_against_research_pack(tmp_path: Path
     assert invalid == ["C3", "C6"]
 
 
+def test_invalid_citation_keys_accept_reference_pool_supplemental_entries(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    models = generate_paper._models
+    research_pack = models.ResearchPack(
+        workspace_path=str(tmp_path),
+        literature=[],
+        reference_pool=models.ResearchPackReferencePool(
+            workspace_refs=[
+                models.ResearchPackLiterature(
+                    cite_key="Levy2021",
+                    title="Example Title",
+                )
+            ],
+            supplemental_refs=[
+                models.ResearchPackLiterature(
+                    cite_key="Smith2024",
+                    title="Supplemental Entry",
+                )
+            ],
+        ),
+    )
+    generate_paper._state.research_pack.save(tmp_path, research_pack)
+
+    invalid = generate_paper._invalid_citation_keys(
+        tmp_path,
+        "Core [CITE:Levy2021], supplemental [CITE:Smith2024], invalid [CITE:C3].",
+    )
+
+    assert invalid == ["C3"]
+
+
+def test_build_pack_preserves_incremental_supplemental_literature(tmp_path: Path, monkeypatch):
+    generate_paper._ensure_paper_imports()
+
+    (tmp_path / "paper").mkdir(parents=True)
+    _write_basic_meta(tmp_path)
+    state_dir = tmp_path / "paper" / "state"
+    state_dir.mkdir(parents=True)
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        tmp_path,
+        models.PaperState(current_phase=models.PaperPhase.framing),
+    )
+    generate_paper._state.research_pack.save(
+        tmp_path,
+        models.ResearchPack(
+            workspace_path=str(tmp_path),
+            literature=[
+                models.ResearchPackLiterature(
+                    cite_key="Existing2024",
+                    title="Existing Workspace Entry",
+                    bibtex="@article{existing2024,\n  title = {Existing Workspace Entry}\n}",
+                ),
+                models.ResearchPackLiterature(
+                    cite_key="Supplement2024",
+                    title="Supplemental Entry",
+                    bibtex="@article{supplement2024,\n  title = {Supplemental Entry}\n}",
+                ),
+            ],
+        ),
+    )
+
+    fresh_pack = models.ResearchPack(
+        workspace_path=str(tmp_path),
+        literature=[
+            models.ResearchPackLiterature(
+                cite_key="Existing2024",
+                title="Existing Workspace Entry",
+                bibtex="@article{existing2024,\n  title = {Existing Workspace Entry}\n}",
+            ),
+            models.ResearchPackLiterature(
+                cite_key="Fresh2025",
+                title="Fresh Workspace Entry",
+                bibtex="@article{fresh2025,\n  title = {Fresh Workspace Entry}\n}",
+            ),
+        ],
+    )
+
+    monkeypatch.setattr(
+        generate_paper._adapter_research_pack_builder,
+        "build_research_pack",
+        lambda workspace, research_objective=None: fresh_pack,
+    )
+
+    rc = generate_paper.cmd_build_pack(
+        argparse.Namespace(workspace=str(tmp_path), research_objective=None)
+    )
+
+    assert rc == 0
+    saved_pack = generate_paper._state.research_pack.load(tmp_path)
+    assert [entry.cite_key for entry in saved_pack.literature] == [
+        "Existing2024",
+        "Fresh2025",
+        "Supplement2024",
+    ]
+    assert saved_pack.reference_pool is not None
+    assert [entry.cite_key for entry in saved_pack.reference_pool.workspace_refs] == [
+        "Existing2024",
+        "Fresh2025",
+    ]
+    assert [entry.cite_key for entry in saved_pack.reference_pool.supplemental_refs] == [
+        "Supplement2024",
+    ]
+
+
 def test_research_pack_literature_keeps_bibtex_alignment_after_skipping_empty_titles():
     generate_paper._ensure_paper_imports()
 
@@ -314,6 +421,141 @@ def test_compile_blocks_open_review_round(tmp_path: Path):
     rc = generate_paper.cmd_compile(argparse.Namespace(workspace=str(workspace)))
 
     assert rc == 2
+
+
+def test_compile_blocks_claims_without_visible_citation_anchor(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    workspace = tmp_path
+    paper_dir = workspace / "paper"
+    manuscript_dir = paper_dir / "artifacts" / "manuscript"
+    manuscript_dir.mkdir(parents=True)
+    (manuscript_dir / "main.md").write_text(
+        "Body without the expected supporting citation.",
+        encoding="utf-8",
+    )
+    _write_basic_meta(workspace)
+
+    models = generate_paper._models
+    generate_paper._state.research_pack.save(
+        workspace,
+        models.ResearchPack(
+            workspace_path=str(workspace),
+            literature=[
+                models.ResearchPackLiterature(
+                    cite_key="Levy2021",
+                    title="Example Title",
+                    bibtex="@article{levy2021,\n  title = {Example Title}\n}",
+                )
+            ],
+        ),
+    )
+    generate_paper._state.claim_ledger.save(
+        workspace,
+        models.ClaimLedger(
+            claims=[
+                models.Claim(
+                    claim_id="C1",
+                    claim_text="Supported claim",
+                    evidence_support=["[CITE:Levy2021]"],
+                )
+            ]
+        ),
+    )
+
+    rc = generate_paper.cmd_compile(argparse.Namespace(workspace=str(workspace)))
+
+    assert rc == 2
+
+
+def test_compile_blocks_claims_without_visible_figure_anchor(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    workspace = tmp_path
+    paper_dir = workspace / "paper"
+    manuscript_dir = paper_dir / "artifacts" / "manuscript"
+    manuscript_dir.mkdir(parents=True)
+    (manuscript_dir / "main.md").write_text(
+        "Body without the expected figure reference.",
+        encoding="utf-8",
+    )
+    _write_basic_meta(workspace)
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        workspace,
+        models.PaperState(current_phase=models.PaperPhase.manuscript_build),
+    )
+    generate_paper._state.research_pack.save(
+        workspace,
+        models.ResearchPack(workspace_path=str(workspace), literature=[]),
+    )
+    generate_paper._state.claim_ledger.save(
+        workspace,
+        models.ClaimLedger(
+            claims=[
+                models.Claim(
+                    claim_id="C1",
+                    claim_text="Figure-backed claim",
+                    evidence_support=["F1"],
+                )
+            ]
+        ),
+    )
+    generate_paper._state.figure_argument.save(
+        workspace,
+        models.FigureArgumentMap(
+            figures=[
+                models.FigureSpec(
+                    figure_id="F1",
+                    title="Main effect plot",
+                    question_answered="Does the treatment move the main outcome?",
+                    status="rendered",
+                    file_path=str(tmp_path / "f1.png"),
+                    panels=["Treatment effect by condition."],
+                )
+            ]
+        ),
+    )
+    (tmp_path / "f1.png").write_bytes(b"png")
+
+    rc = generate_paper.cmd_compile(argparse.Namespace(workspace=str(workspace)))
+
+    assert rc == 2
+
+
+def test_compile_blocks_unfilled_degraded_generation_slot_markers(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    workspace = tmp_path
+    paper_dir = workspace / "paper"
+    manuscript_dir = paper_dir / "artifacts" / "manuscript"
+    manuscript_dir.mkdir(parents=True)
+    (manuscript_dir / "main.md").write_text(
+        "Body with unresolved slot [[METRIC_SLOT:s1]].",
+        encoding="utf-8",
+    )
+    _write_basic_meta(workspace)
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        workspace,
+        models.PaperState(current_phase=models.PaperPhase.manuscript_build),
+    )
+    generate_paper._state.research_pack.save(
+        workspace,
+        models.ResearchPack(workspace_path=str(workspace), literature=[]),
+    )
+
+    rc = generate_paper.cmd_compile(argparse.Namespace(workspace=str(workspace)))
+
+    assert rc == 2
+    state = generate_paper._state.paper_state.load(workspace)
+    assert state.last_blocker == "compile blocked by residual degraded-generation slot markers"
+    assert len(state.round_constraints) == 1
+    assert state.round_constraints[0].generation_mode == "template_slots"
+    assert state.round_constraints[0].issue_type == "residual_template_slots"
+    assert "METRIC_SLOT" in state.round_constraints[0].required_slot_types
 
 
 def test_compile_blocks_source_platform_mismatch(tmp_path: Path):
@@ -663,6 +905,68 @@ def test_run_loop_routes_framing_phase_to_storyline_requirement(tmp_path: Path):
     assert rc == 2
 
 
+def test_run_loop_expansion_plan_records_external_dispatches(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    paper_dir = tmp_path / "paper"
+    (paper_dir / "state").mkdir(parents=True)
+    _write_basic_meta(tmp_path)
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        tmp_path,
+        models.PaperState(current_phase=models.PaperPhase.expansion_plan),
+    )
+    generate_paper._state.research_pack.save(
+        tmp_path,
+        models.ResearchPack(workspace_path=str(tmp_path)),
+    )
+    generate_paper._state.evidence_backlog.save(
+        tmp_path,
+        models.EvidenceBacklog.model_validate(
+            {
+                "gaps": [
+                    {
+                        "gap_id": "G1",
+                        "claim_id": "C1",
+                        "gap_type": "missing_literature",
+                        "description": "Need prior work coverage.",
+                        "priority": "high",
+                        "auto_executable": True,
+                        "tool": "agentsociety-literature-search",
+                    },
+                    {
+                        "gap_id": "G2",
+                        "claim_id": "C2",
+                        "gap_type": "missing_figure",
+                        "description": "Need an additional robustness plot.",
+                        "priority": "high",
+                        "auto_executable": True,
+                        "tool": "agentsociety-analysis",
+                    },
+                ]
+            }
+        ),
+    )
+
+    rc = generate_paper.cmd_run_loop(
+        argparse.Namespace(workspace=str(tmp_path), max_rounds=0)
+    )
+
+    assert rc == 0
+    state = generate_paper._state.paper_state.load(tmp_path)
+    assert state.current_phase == models.PaperPhase.expansion_plan
+    assert state.counters.citation_augmentations == 1
+    assert state.counters.figure_regenerations == 1
+    latest_run = generate_paper._state.runs.latest_run(tmp_path)
+    assert latest_run is not None
+    dispatches = generate_paper._state.runs.list_dispatches(tmp_path, latest_run)
+    assert [dispatch.target_skill for dispatch in dispatches] == [
+        "agentsociety-literature-search",
+        "agentsociety-analysis",
+    ]
+
+
 def test_run_loop_routes_manuscript_build_to_compile(tmp_path: Path, monkeypatch):
     generate_paper._ensure_paper_imports()
 
@@ -825,6 +1129,162 @@ def test_run_loop_revision_router_records_dispatch_for_manuscript_build(tmp_path
     assert dispatch.envelope.status == "DONE"
     assert dispatch.notes is not None
     assert "manuscript-build" in dispatch.notes
+
+
+def test_run_loop_revision_router_persists_template_slot_constraint_for_anchor_drift(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    paper_dir = tmp_path / "paper"
+    (paper_dir / "state").mkdir(parents=True)
+    _write_basic_meta(tmp_path, corresponding=True)
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        tmp_path,
+        models.PaperState(current_phase=models.PaperPhase.revision_router),
+    )
+    generate_paper._state.research_pack.save(
+        tmp_path,
+        models.ResearchPack(workspace_path=str(tmp_path)),
+    )
+    generate_paper._state.reviews.save_round(
+        tmp_path,
+        models.ReviewRound(
+            round_num=1,
+            completed_at=datetime.utcnow(),
+            reviews=[
+                models.Review(
+                    reviewer_profile="precision-editor",
+                    verdict="revise_structural",
+                    severity="warning",
+                    target_layer="paragraph",
+                    issue_type="missing_citation_anchor",
+                    raw_text="The paragraph drifted away from the evidence anchor and needs [CITE:Levy2021].",
+                )
+            ],
+        ),
+    )
+
+    rc = generate_paper.cmd_run_loop(
+        argparse.Namespace(workspace=str(tmp_path), max_rounds=0)
+    )
+
+    assert rc == 0
+    state = generate_paper._state.paper_state.load(tmp_path)
+    assert state.current_phase == models.PaperPhase.manuscript_build
+    assert len(state.round_constraints) == 1
+    constraint = state.round_constraints[0]
+    assert constraint.generation_mode == "template_slots"
+    assert constraint.target_artifact == "draft_section"
+    assert constraint.target_layer == "paragraph"
+    assert constraint.source_reviewer == "precision-editor"
+    assert constraint.required_anchors == ["[CITE:Levy2021]"]
+    assert "CITE_SLOT" in constraint.required_slot_types
+
+    latest_run = generate_paper._state.runs.latest_run(tmp_path)
+    assert latest_run is not None
+    dispatches = generate_paper._state.runs.list_dispatches(tmp_path, latest_run)
+    assert len(dispatches) == 1
+    assert dispatches[0].notes is not None
+    assert "mode=template_slots" in dispatches[0].notes
+
+
+def test_run_loop_revision_router_records_dispatch_for_literature_search(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    paper_dir = tmp_path / "paper"
+    (paper_dir / "state").mkdir(parents=True)
+    _write_basic_meta(tmp_path, corresponding=True)
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        tmp_path,
+        models.PaperState(current_phase=models.PaperPhase.revision_router),
+    )
+    generate_paper._state.research_pack.save(
+        tmp_path,
+        models.ResearchPack(workspace_path=str(tmp_path)),
+    )
+    generate_paper._state.reviews.save_round(
+        tmp_path,
+        models.ReviewRound(
+            round_num=1,
+            completed_at=datetime.utcnow(),
+            reviews=[
+                models.Review(
+                    reviewer_profile="evidence-skeptic",
+                    verdict="revise_structural",
+                    severity="warning",
+                    target_layer="evidence",
+                    issue_type="missing_literature",
+                )
+            ],
+        ),
+    )
+
+    rc = generate_paper.cmd_run_loop(
+        argparse.Namespace(workspace=str(tmp_path), max_rounds=0)
+    )
+
+    assert rc == 0
+    state = generate_paper._state.paper_state.load(tmp_path)
+    assert state.current_phase == models.PaperPhase.evidence_audit
+    assert state.counters.citation_augmentations == 1
+    latest_run = generate_paper._state.runs.latest_run(tmp_path)
+    assert latest_run is not None
+    dispatches = generate_paper._state.runs.list_dispatches(tmp_path, latest_run)
+    assert len(dispatches) == 1
+    assert dispatches[0].target_skill == "agentsociety-literature-search"
+    assert dispatches[0].target_subagent is None
+
+
+def test_run_loop_revision_router_records_dispatch_for_analysis(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    paper_dir = tmp_path / "paper"
+    (paper_dir / "state").mkdir(parents=True)
+    _write_basic_meta(tmp_path, corresponding=True)
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        tmp_path,
+        models.PaperState(current_phase=models.PaperPhase.revision_router),
+    )
+    generate_paper._state.research_pack.save(
+        tmp_path,
+        models.ResearchPack(workspace_path=str(tmp_path)),
+    )
+    generate_paper._state.reviews.save_round(
+        tmp_path,
+        models.ReviewRound(
+            round_num=1,
+            completed_at=datetime.utcnow(),
+            reviews=[
+                models.Review(
+                    reviewer_profile="figure-logic-reviewer",
+                    verdict="revise_structural",
+                    severity="warning",
+                    target_layer="figure_plan",
+                    issue_type="missing_figure",
+                )
+            ],
+        ),
+    )
+
+    rc = generate_paper.cmd_run_loop(
+        argparse.Namespace(workspace=str(tmp_path), max_rounds=0)
+    )
+
+    assert rc == 0
+    state = generate_paper._state.paper_state.load(tmp_path)
+    assert state.current_phase == models.PaperPhase.manuscript_build
+    assert state.counters.figure_regenerations == 1
+    latest_run = generate_paper._state.runs.latest_run(tmp_path)
+    assert latest_run is not None
+    dispatches = generate_paper._state.runs.list_dispatches(tmp_path, latest_run)
+    assert len(dispatches) == 1
+    assert dispatches[0].target_skill == "agentsociety-analysis"
+    assert dispatches[0].target_subagent is None
 
 
 def test_run_loop_revision_router_opens_human_gate_for_major_pivot(tmp_path: Path):
@@ -1148,7 +1608,16 @@ def test_run_loop_release_gate_marks_paper_ready(tmp_path: Path):
     )
     generate_paper._state.research_pack.save(
         tmp_path,
-        models.ResearchPack(workspace_path=str(tmp_path)),
+        models.ResearchPack(
+            workspace_path=str(tmp_path),
+            analyses=[
+                models.ResearchPackAnalysis(
+                    analysis_id="analysis:1",
+                    hypothesis_id="1",
+                    summary="Supported analysis",
+                )
+            ],
+        ),
     )
     generate_paper._state.storyline.save(
         tmp_path,
@@ -1213,6 +1682,89 @@ def test_run_loop_release_gate_marks_paper_ready(tmp_path: Path):
     assert state.release_status == models.ReleaseStatus.ready
 
 
+def test_run_loop_release_gate_blocks_unknown_claim_analysis_support(tmp_path: Path):
+    generate_paper._ensure_paper_imports()
+
+    paper_dir = tmp_path / "paper"
+    manuscript_dir = paper_dir / "artifacts" / "manuscript"
+    manuscript_dir.mkdir(parents=True)
+    (paper_dir / "state").mkdir(parents=True, exist_ok=True)
+    (manuscript_dir / "main.md").write_text("Body", encoding="utf-8")
+    (paper_dir / "paper_meta.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "title": "Test Paper",
+                "authors": [{"name": "Alice", "affils": [1], "corresponding": True, "email": "a@example.com"}],
+                "affils": [{"id": 1, "name": "Test Lab"}],
+            },
+            sort_keys=False,
+            allow_unicode=True,
+        ),
+        encoding="utf-8",
+    )
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        tmp_path,
+        models.PaperState(current_phase=models.PaperPhase.release_gate),
+    )
+    generate_paper._state.research_pack.save(
+        tmp_path,
+        models.ResearchPack(workspace_path=str(tmp_path)),
+    )
+    generate_paper._state.storyline.save(
+        tmp_path,
+        models.StorylineMap(
+            current_angle="Strong angle",
+            contribution_statement="Clear contribution",
+        ),
+    )
+    generate_paper._state.claim_ledger.save(
+        tmp_path,
+        models.ClaimLedger(
+            claims=[
+                models.Claim(
+                    claim_id="C1",
+                    claim_text="Unsupported claim",
+                    evidence_support=["analysis:missing"],
+                )
+            ]
+        ),
+    )
+    generate_paper._state.figure_argument.save(
+        tmp_path,
+        models.FigureArgumentMap(figures=[]),
+    )
+    generate_paper._state.reviews.save_round(
+        tmp_path,
+        models.ReviewRound(
+            round_num=1,
+            completed_at=datetime.utcnow(),
+            reviews=[
+                models.Review(
+                    reviewer_profile="precision-editor",
+                    verdict="accept",
+                    severity="info",
+                )
+            ],
+            unresolved_fatal=[],
+        ),
+    )
+    timestamp, run_dir = generate_paper._state.runs.open_run(
+        tmp_path, timestamp="20260507_123100"
+    )
+    out_dir = run_dir / "compose" / "out"
+    out_dir.mkdir(parents=True)
+    (out_dir / "paper.pdf").write_bytes(b"x" * (10 * 1024 + 32))
+
+    rc = generate_paper.cmd_run_loop(
+        argparse.Namespace(workspace=str(tmp_path), max_rounds=0)
+    )
+
+    assert timestamp == "20260507_123100"
+    assert rc == 2
+
+
 def test_human_gate_decide_accept_routes_back_to_requested_phase(tmp_path: Path):
     generate_paper._ensure_paper_imports()
 
@@ -1248,6 +1800,33 @@ def test_human_gate_decide_accept_routes_back_to_requested_phase(tmp_path: Path)
     assert state.current_phase == models.PaperPhase.manuscript_build
     assert state.release_status == models.ReleaseStatus.in_review
     assert state.pending_human_gate is None
+
+
+def test_status_reports_round_constraint_count(tmp_path: Path, capsys):
+    generate_paper._ensure_paper_imports()
+
+    models = generate_paper._models
+    generate_paper._state.paper_state.save(
+        tmp_path,
+        models.PaperState(
+            current_phase=models.PaperPhase.manuscript_build,
+            round_constraints=[
+                models.RoundConstraint(
+                    constraint_id="test-constraint",
+                    generation_mode="template_slots",
+                    issue_type="missing_anchor",
+                )
+            ],
+        ),
+    )
+
+    rc = generate_paper.cmd_status(argparse.Namespace(workspace=str(tmp_path)))
+
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["success"] is True
+    assert "round_constraints=1" in payload["envelope"]["key_findings"]
+    assert len(payload["state"]["round_constraints"]) == 1
 
 
 def test_human_gate_decide_reject_keeps_paper_blocked(tmp_path: Path):

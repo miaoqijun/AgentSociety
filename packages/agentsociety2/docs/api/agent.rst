@@ -9,7 +9,7 @@ Agent 模块
 AgentBase
 ~~~~~~~~~
 
-.. autoclass:: agentsociety2.agent.AgentBase
+.. autoclass:: agentsociety2.agent.base.AgentBase
    :members:
    :undoc-members:
    :show-inheritance:
@@ -17,7 +17,7 @@ AgentBase
 PersonAgent
 ~~~~~~~~~~~
 
-.. autoclass:: agentsociety2.agent.PersonAgent
+.. autoclass:: agentsociety2.agent.person.PersonAgent
    :members:
    :undoc-members:
    :show-inheritance:
@@ -25,6 +25,13 @@ PersonAgent
 
 数据模型
 --------
+
+LLMInteractionHistory
+~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: agentsociety2.agent.base.LLMInteractionHistory
+   :members:
+   :undoc-members:
 
 ``AgentBase`` 只规定智能体必须具备的最小生命周期接口。``PersonAgent`` 在此基础上增加了 workspace、技能目录、工具循环、检查点与上下文压缩等运行时能力。
 

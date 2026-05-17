@@ -1,7 +1,7 @@
 ---
 name: agentsociety-create-env-module
 version: 1.0.0
-description: Use when creating or revising a custom environment module, or when an experiment needs an environment class that does not yet exist in the workspace.
+description: Use when creating or revising a custom environment module, when an experiment needs an environment class that does not yet exist in the workspace, or when the module design must fit a simulation budget.
 ---
 
 # Create Environment Module
@@ -13,6 +13,7 @@ Create or repair a custom `EnvBase` environment module under `custom/envs`. Guid
 - User asks to create a new environment or simulation module (e.g. "social media module", "voting environment", "market simulation")
 - `experiment-config` needs an environment module that does not yet exist in the workspace
 - User wants to add or modify `@tool`-decorated methods on an existing custom env
+- The simulation scale, step budget, or runtime budget should influence the module design
 
 **Do NOT use when:**
 - The env module already exists and only needs registration (use `scan-modules` instead)
@@ -42,6 +43,17 @@ digraph create_env_flow {
 - `stages/design.md`: structured design
 - `stages/generate.md`: code generation
 - `stages/validate.md`: validation and failure mapping
+
+## Scale Budget
+
+Collect the simulation scale budget before locking the module design:
+
+- target agent count or range
+- expected step budget
+- runtime or compute budget
+- preferred complexity tier, such as lean, balanced, or rich
+
+If the scale budget is missing, ask a single round of clarifying questions. Present 2-3 approaches with trade-offs and a recommendation, then choose the one that keeps tool cost and state size proportional to the simulation size.
 
 ## Shared References
 - Compatibility contract: `checklists/compatibility.md`

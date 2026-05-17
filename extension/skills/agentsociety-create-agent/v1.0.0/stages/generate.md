@@ -12,6 +12,7 @@ Write the Agent code.
 2. Replace placeholders with actual values
 3. Implement custom logic in `ask()` and `step()`
 4. Add `mcp_description()` with profile fields
+5. Keep the implementation proportional to the simulation scale budget chosen during intake
 
 ## Template Placeholders
 

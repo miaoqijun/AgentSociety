@@ -95,7 +95,6 @@ AgentSociety 2 使用 `ruff`_ 进行检查和格式化：
 * **hypothesis**: 假设生成和管理
 * **paper**: 通过 paper-orchestrator skill 套件生成 Nature 风格学术论文（重写中）
 * **analysis**: 数据分析和报告
-* **agent**: 智能体处理、选择、生成和过滤
 
 后端 API
 -------------------------
@@ -103,10 +102,12 @@ AgentSociety 2 使用 `ruff`_ 进行检查和格式化：
 ``backend/`` 模块提供 FastAPI REST API：
 
 * **Routers**:
+  * ``/api/v1/prefill-params`` - 模块参数预填充信息
   * ``/api/v1/experiments`` - 实验管理
   * ``/api/v1/modules`` - 模块管理
   * ``/api/v1/replay`` - 回放数据访问
   * ``/api/v1/custom`` - 自定义模块注册
+  * ``/api/v1/agent-skills`` - Agent Skills 扫描、导入和热重载
 
 * **Service Layer**: 业务逻辑层
 

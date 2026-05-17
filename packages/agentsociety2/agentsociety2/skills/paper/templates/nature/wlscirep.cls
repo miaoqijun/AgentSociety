@@ -92,26 +92,38 @@
   {0em}
   {#1}
   []  
-\titleformat{\subsection}
+\titleformat{\subsection}[block]
   {\rmfamily\bfseries}
   {\thesubsection}
   {0.5em}
   {#1}
   []
-\titleformat{\subsubsection}
+\titleformat{name=\subsection,numberless}[block]
+  {\rmfamily\bfseries}
+  {}
+  {0em}
+  {#1}
+  []
+\titleformat{\subsubsection}[block]
   {\rmfamily\small\bfseries\itshape}
   {\thesubsubsection}
   {0.5em}
   {#1}
-  []    
+  []
+\titleformat{name=\subsubsection,numberless}[block]
+  {\rmfamily\small\bfseries\itshape}
+  {}
+  {0em}
+  {#1}
+  []
 \titleformat{\paragraph}[runin]
   {\rmfamily\small\bfseries}
   {}
   {0em}
   {#1} 
 \titlespacing*{\section}{0pc}{3ex \@plus4pt \@minus3pt}{5pt}
-\titlespacing*{\subsection}{0pc}{2.5ex \@plus3pt \@minus2pt}{0pt}
-\titlespacing*{\subsubsection}{0pc}{2ex \@plus2.5pt \@minus1.5pt}{0pt}
+\titlespacing*{\subsection}{0pc}{2.5ex \@plus3pt \@minus2pt}{0.75ex}
+\titlespacing*{\subsubsection}{0pc}{2ex \@plus2.5pt \@minus1.5pt}{0.5ex}
 \titlespacing*{\paragraph}{0pc}{1.5ex \@plus2pt \@minus1pt}{10pt}
 
 %
@@ -175,7 +187,7 @@ THE ABSTRACT\vskip12pt}\let\go\relax\fi
 \noindent
 {\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\color{color1}\large\rmfamily \textbf{Abstract}}}
 }%
-\vskip-2.5pt
+\vskip4pt
 {%
 \noindent
 {%

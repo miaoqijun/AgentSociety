@@ -1,7 +1,7 @@
 ---
 name: agentsociety-create-agent
 version: 1.0.0
-description: Use when creating or revising a custom agent type, or when an experiment needs an agent class that does not yet exist in the workspace.
+description: Use when creating or revising a custom agent type, when an experiment needs an agent class that does not yet exist in the workspace, or when the agent design must be sized against a simulation budget.
 ---
 
 # Create Agent
@@ -16,6 +16,7 @@ Add Python modules under **`custom/agents/`** relative to the **workspace root**
 - Designing agent behaviors or implementing AgentBase/PersonAgent subclasses
 - experiment-config needs an agent class that does not yet exist in the workspace
 - Extending an existing agent with custom logic
+- The simulation size, step budget, or runtime budget needs to shape the agent design
 
 **Do NOT use when:**
 - You only need to discover existing agents (use scan-modules)
@@ -24,6 +25,17 @@ Add Python modules under **`custom/agents/`** relative to the **workspace root**
 ## Quick Reference
 
 Use the Python interpreter from `.env`. See `CLAUDE.md` for setup.
+
+## Scale Budget
+
+Collect the simulation scale budget before locking the agent design:
+
+- target agent count or range
+- expected step budget
+- runtime or compute budget
+- preferred complexity tier, such as lean, balanced, or rich
+
+If the budget is still open, ask a single round of clarifying questions. Present 2-3 approaches with trade-offs and a recommendation, then choose the option that keeps per-agent logic proportional to the simulation size.
 
 | Action | Command |
 |--------|---------|
@@ -102,6 +114,7 @@ Stages 2-3 (design + code generation) can consume significant context. Delegate 
 - The agent design involves complex logic (multi-step reasoning, state machines, nested tool calls)
 - The profile has many custom fields that need careful mapping
 - The hypothesis requires non-trivial agent behaviors tied to experiment variables
+- The target simulation size is high enough that the design needs a leaner reasoning or state strategy
 - You are in a long research pipeline session and context is at a premium
 
 **How to delegate (planner → generator → reviewer):**

@@ -137,7 +137,7 @@ init_config.json
        ],
        "env_router": "agentsociety2.env:CodeGenRouter",
        "storage": {
-           "db_path": "experiment.db"
+           "db_path": "sqlite.db"
        }
    }
 
@@ -185,7 +185,7 @@ steps.yaml
    hypothesis_1/experiment_1/run/
    ├── pid.json              # 进程信息（PID、启动时间、状态）
    ├── output.log            # 日志文件（如果指定了 --log-file）
-   ├── experiment.db         # SQLite 数据库
+   ├── sqlite.db             # SQLite 数据库
    └── artifacts/            # 步骤产物（如果启用了 save_artifact）
        ├── step_1_ask.json
        ├── step_2_intervene.json

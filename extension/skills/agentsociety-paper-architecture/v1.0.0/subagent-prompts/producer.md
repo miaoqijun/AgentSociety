@@ -44,6 +44,10 @@ Your behavior branches on `target_artifact`:
 
 - `block`, `figures_for_block`, `claims_for_block`, `target_paths` are
   only present when `target_artifact = draft_section`.
+- `round_constraints` may contain machine-readable degraded-generation
+  directives persisted in `paper_state.yaml`, for example:
+  `generation_mode=template_slots`, `required_slot_types`, and
+  `required_anchors`.
 - `claim_ledger_path` is null when `target_artifact = claim_tree`.
 - `figure_argument_map_path` is null when `target_artifact` is
   `claim_tree` or `figure_argument_map`.
@@ -57,6 +61,8 @@ Your behavior branches on `target_artifact`:
 ### When target_artifact involves figures or drafting:
 2. **`references/figure_role_taxonomy.md`** — five canonical figure
    roles, placement rules, anti-patterns
+3. **`references/degraded_generation.md`** — fallback procedure for
+   evidence-dense or unstable paragraphs
 
 ### Named artifacts:
 3. Research pack at `research_pack_path`
@@ -209,8 +215,18 @@ return content in the envelope.
    parent directory first and then create the file in one write.
 5. Draft the markdown following the structure rules and calibration
    patterns.
-6. Write the .md file(s) to the paths in `target_paths`.
-7. Emit the envelope as the **last line of stdout**.
+6. If a paragraph keeps drifting on citations, metrics, or figure
+   anchors, switch to degraded generation:
+   - write a paragraph skeleton
+   - use typed `[[...]]` slots from `references/degraded_generation.md`
+   - fill the slots with evidence-bound content
+   - render the final paragraph with no `[[...]]` markers remaining
+7. Write the .md file(s) to the paths in `target_paths`.
+8. Emit the envelope as the **last line of stdout**.
+
+When `round_constraints` includes an entry targeting `draft_section`
+with `generation_mode = template_slots`, apply that instruction first
+instead of attempting another unconstrained freeform paragraph.
 
 **Markdown rules:**
 - Citation sentinels: `[CITE:key]` only, where `key` must come from the
@@ -218,6 +234,10 @@ return content in the envelope.
   `C6` are never valid citation keys.
 - Figure sentinels: `[FIG:id]` (compose pipeline converts to
   `Fig.~\ref{fig:id}`)
+- Degraded-generation slots: `[[CLAIM_SLOT:s1]]`,
+  `[[METRIC_SLOT:s2]]`, etc. are allowed only during internal fallback
+  drafting and must be fully removed before the final markdown is
+  written.
 - Avoid cross-section reference sentinels unless the orchestrator has
   provided an explicit section label to target.
 - One dominant function per paragraph.
@@ -272,13 +292,18 @@ tooling layer.
    direction of travel.
 7. **Layer-1 before Layer-2:** Ensure argumentative sharpness before
    prose polish.
-8. **Status enum locked:** Only use values from the status mapping.
-9. **Direct-write contract for draft_section:** Write files at the
+8. **Fallback trigger:** If two free-form attempts still leave evidence
+   drift, use degraded generation instead of improvising another full
+   rewrite.
+9. **Status enum locked:** Only use values from the status mapping.
+10. **Direct-write contract for draft_section:** Write files at the
    paths in `target_paths`. Emit envelope as last line of stdout after
    all writes complete. Do NOT use CLI persist.
-10. **Low-provenance weakening:** Research pack entries with low
+11. **Low-provenance weakening:** Research pack entries with low
     provenance must weaken claim wording, not be ignored.
-11. **JSON envelope is full output:** No commentary outside the JSON.
-12. **No dropped inputs:** Do not silently drop claims or figures from
+12. **No residual slot markers:** Final manuscript files may not contain
+    any `[[...]]` degraded-generation marker.
+13. **JSON envelope is full output:** No commentary outside the JSON.
+14. **No dropped inputs:** Do not silently drop claims or figures from
     the input lists. If you cannot use one, explain why in
     `key_findings`.

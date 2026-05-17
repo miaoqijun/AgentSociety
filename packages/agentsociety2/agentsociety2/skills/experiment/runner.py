@@ -240,8 +240,8 @@ async def list_experiments(
 
     :param workspace_path: Path to workspace directory
     :param hypothesis_id: Optional hypothesis ID to filter by
-
     :returns: List of ExperimentInfo objects
+
     Note:
         Uses simplified init structure: init/init_config.json, init/steps.yaml
     """

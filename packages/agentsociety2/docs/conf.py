@@ -153,6 +153,29 @@ intersphinx_mapping = {
     "pydantic": ("https://pydantic.dev/docs/validation/latest/", None),
 }
 
+# nitpicky 模式下优先修正文档内的确定性错误；以下保留项主要来自
+# 第三方类型提示、TypeVar 和当前 Sphinx/autodoc 对导入重导出模型的解析限制。
+nitpick_ignore_regex = [
+    (
+        r"py:class",
+        r"litellm\.types\.llms\.openai\.ChatCompletion(?:User|Assistant|Tool|System|Function|Developer)Message",
+    ),
+    (r"py:class", r"litellm\.types\.utils\.ModelResponse"),
+    (
+        r"py:class",
+        r"litellm\.litellm_core_utils\.streaming_handler\.CustomStreamWrapper",
+    ),
+    (r"py:class", r"litellm\.router\.Router"),
+    (r"py:class", r"starlette\.requests\.Request"),
+    (r"py:exc", r"HTTPException"),
+    (r"py:class", r"agentsociety2\.(?:agent\.base|env\.router_base)\.T"),
+    (r"py:class", r"datetime"),
+    (
+        r"py:class",
+        r"(?:WordingStrength|DispatchStatus|EnvelopeStatus|Severity|EvidenceCategory|Priority|EvidenceGapType|EvidenceTool|FigureStatus|HumanGateSeverity|HumanDecision|RoundConstraint|Confidence|Verdict|TargetLayer|ResolvedState)",
+    ),
+]
+
 # -- Options for Napoleon -----------------------------------------------------
 
 napoleon_google_docstring = True

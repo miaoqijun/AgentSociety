@@ -6,13 +6,13 @@ All LLM work lives in the plugin skills under
 ``extension/skills/agentsociety-paper-*``; this package provides the
 non-LLM logic those skills (and the orchestrator CLI) use:
 
-- :mod:`paths` - on-disk layout helpers
-- :mod:`models` - pydantic schemas (PaperState, ResearchPack, ...)
-- :mod:`envelope` - skill return contract
-- :mod:`state` - YAML/JSON CRUD over <workspace>/paper/state and artifacts
-- :mod:`adapter` - workspace -> ResearchPack ingestion + reusable helpers
-- :mod:`compose` - markdown -> LaTeX -> PDF
-- :mod:`cli` - CLI entry points (init-meta, intake, build-pack, framing,
+- ``agentsociety2.skills.paper.paths`` - on-disk layout helpers
+- ``agentsociety2.skills.paper.models`` - pydantic schemas (PaperState, ResearchPack, ...)
+- ``agentsociety2.skills.paper.envelope`` - skill return contract
+- ``agentsociety2.skills.paper.state`` - YAML/JSON CRUD over <workspace>/paper/state and artifacts
+- ``agentsociety2.skills.paper.adapter`` - workspace -> ResearchPack ingestion + reusable helpers
+- ``agentsociety2.skills.paper.compose`` - markdown -> LaTeX -> PDF
+- ``agentsociety2.skills.paper.cli`` - CLI entry points (init-meta, intake, build-pack, framing,
   evidence, architecture, review, compile, run-loop, status)
 """
 
@@ -27,6 +27,15 @@ from agentsociety2.skills.paper.envelope import (
     build_envelope,
     envelope_to_json,
     parse_envelope,
+)
+from agentsociety2.skills.paper.template_slots import (
+    ParagraphTemplate,
+    SlotType,
+    TemplateSlot,
+    build_template_fill_prompt,
+    find_unfilled_slot_markers,
+    parse_template_slots,
+    render_filled_template,
 )
 from agentsociety2.skills.paper.models import (
     Affiliation,
@@ -59,6 +68,7 @@ from agentsociety2.skills.paper.models import (
     ResearchPackFigure,
     ResearchPackHypothesis,
     ResearchPackLiterature,
+    ResearchPackReferencePool,
     ResolvedState,
     Review,
     ReviewRound,
@@ -82,6 +92,7 @@ __all__ = [
     "DispatchStatus",
     "Envelope",
     "EnvelopeStatus",
+    "ParagraphTemplate",
     "EvidenceBacklog",
     "EvidenceCategory",
     "EvidenceGap",
@@ -103,18 +114,25 @@ __all__ = [
     "ResearchPackFigure",
     "ResearchPackHypothesis",
     "ResearchPackLiterature",
+    "ResearchPackReferencePool",
     "ResolvedState",
     "Review",
     "ReviewRound",
     "SectionLogic",
+    "SlotType",
     "Severity",
     "SkillEnvelope",
     "StorylineMap",
+    "TemplateSlot",
     "TargetLayer",
     "Verdict",
     "WordingStrength",
+    "build_template_fill_prompt",
     "build_envelope",
     "envelope_to_json",
+    "find_unfilled_slot_markers",
     "parse_envelope",
+    "parse_template_slots",
     "paths",
+    "render_filled_template",
 ]

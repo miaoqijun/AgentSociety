@@ -12,6 +12,7 @@ The orchestrator will provide:
 - **Design summary**: Module name, class name, description, required tools/state
 - **Tool specs**: What `@tool` methods the env needs (readonly vs read-write, observe vs regular)
 - **State requirements**: Whether the module needs persistence (replay tables, dump/load)
+- **Simulation scale budget**: Target agent count or range, step budget, runtime budget, preferred complexity tier
 
 ## Files to Read
 
@@ -35,6 +36,7 @@ Run `$PYTHON_PATH .agentsociety/bin/ags.py create-env-module-resolve-sources` if
 7. Provide `mcp_description()` with a useful description
 8. For observation: use `@tool(readonly=True, kind="observe")`
 9. Do NOT create package-style output (no `__init__.py` + submodules)
+10. Keep the implementation proportional to the provided simulation scale budget
 
 ### Persistence Rules (only if module has mutable state)
 

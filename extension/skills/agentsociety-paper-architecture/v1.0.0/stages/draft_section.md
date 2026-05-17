@@ -67,7 +67,7 @@ For each block from `section_outline.blocks[]`:
      "claims_for_block": [<filtered claim entries>],
      "target_paths": ["<from outline target_paths>"],
      "prior_review_findings": [],
-     "round_constraints": []
+     "round_constraints": ["<from paper/state/paper_state.yaml>"]
    }
    ```
 
@@ -77,10 +77,15 @@ For each block from `section_outline.blocks[]`:
    - Verify every path in `target_paths` exists and is non-empty.
    - Verify result blocks stayed under `manuscript/results/` rather than
      being flattened to `manuscript/results_*.md`.
+   - Verify the written markdown contains no residual degraded-generation
+     slot marker such as `[[METRIC_SLOT:s1]]`.
    - If any file is missing, re-dispatch the same block (max 1 retry).
    - If retry fails, open a human_gate.
 
 6. Record the written paths in the orchestrator's dispatch log.
+7. If `round_constraints` contains a `template_slots` instruction for
+   this draft pass, honor it before attempting another unconstrained
+   rewrite of the same unstable paragraph.
 
 ## Important Rules
 
@@ -93,6 +98,9 @@ For each block from `section_outline.blocks[]`:
 - Citation sentinels: `[CITE:key]` only, and `key` must come from the
   literature cite keys in `research_pack.json`. Claim IDs are invalid.
 - Figure sentinels: `[FIG:id]` → will be converted to `Fig.~\ref{fig:id}`.
+- If drafting drifts on evidence insertion, switch to the degraded
+  generation fallback in `references/degraded_generation.md`, then write
+  only the fully rendered markdown.
 - Cross-section references require an explicit label from the
   orchestrator. In the absence of such a label, avoid `[SEC:*]`
   sentinels.

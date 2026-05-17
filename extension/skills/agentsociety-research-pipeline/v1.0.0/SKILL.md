@@ -1,7 +1,7 @@
 ---
 name: agentsociety-research-pipeline
 version: 1.0.0
-description: Use when starting or resuming an AgentSociety research workspace, deciding which research skill to invoke next, or checking current pipeline state.
+description: Use when starting or resuming an AgentSociety research workspace, deciding which research skill to invoke next, checking current pipeline state, or sizing a simulation before configuration and module creation.
 ---
 
 # Research Pipeline
@@ -11,6 +11,26 @@ Orchestrates the AgentSociety research workflow. Determines which skill to invok
 ## Overview
 
 The research pipeline is a directed workflow: **literature search → hypothesis → experiment config → run → analysis → paper**. Supporting skills (scan-modules, create-agent, create-env-module, web-research, datasets) branch off the main trunk at specific points.
+
+## Scale Planning Gate
+
+Before entering `experiment-config`, `create-agent`, or `create-env-module`, confirm the simulation scale budget:
+
+- target agent count or range
+- expected step budget
+- acceptable runtime or compute budget
+- preferred complexity tier, such as lean, balanced, or rich
+
+If any of these are missing, ask one round of clarifying questions first. Present 2-3 approaches with trade-offs and a recommendation, then route into the appropriate skill once the budget is fixed.
+
+## Dataset Gate
+
+If the task may depend on external data, treat dataset access as a first-class branch rather than an afterthought.
+
+- Use `agentsociety-use-dataset` to search, inspect, and download datasets from the platform.
+- If no suitable dataset exists locally or remotely, surface that gap before continuing with experiment design.
+- Use `agentsociety-create-dataset` when the work needs packaging, validation, upload, or publishing of a dataset.
+- If local files should be shared or reused, guide the user through dataset upload rather than folding the files into experiment config by hand.
 
 ## Quick Reference
 
@@ -29,6 +49,7 @@ Use `where-am-i --json` whenever the current stage is unclear.
 - If `.agentsociety/progress.json` exists, trust `current_stage` as the primary routing signal.
 - If the file is missing, infer the stage from workspace artifacts, then initialize progress tracking.
 - If the current stage already has a failed status, route to the owning skill for repair rather than restarting the pipeline.
+- If the work depends on simulation size or runtime budget and those values are missing, resolve the scale planning gate before routing onward.
 
 | `current_stage` | Route to Skill |
 |-----------------|----------------|
@@ -119,8 +140,8 @@ digraph research_pipeline {
 | **create-agent** | experiment-config | When needed agent class doesn't exist |
 | **create-env-module** | experiment-config | When needed env module doesn't exist |
 | **web-research** | literature-search, hypothesis, analysis | When supplementary non-academic context needed |
-| **create-dataset** | experiment-config | When packaging data for the platform |
-| **use-dataset** | experiment-config, analysis | When external datasets are needed |
+| **create-dataset** | experiment-config | When packaging data for upload or publishing |
+| **use-dataset** | literature-search, hypothesis, experiment-config, analysis | When searching, downloading, or inspecting datasets |
 
 ## Skill Index
 
@@ -137,7 +158,7 @@ digraph research_pipeline {
 | create-env-module | "create environment", "custom module", "env module" |
 | web-research | "web search", "current events", "recent developments" |
 | create-dataset | "create dataset", "upload dataset", "publish data" |
-| use-dataset | "download dataset", "find data", "browse datasets" |
+| use-dataset | "download dataset", "find data", "browse datasets", "search datasets", "dataset search" |
 
 ## Iterative Cycles
 

@@ -57,3 +57,4 @@ AgentDialog
 .. autoclass:: agentsociety2.storage.models.AgentDialog
    :members:
    :undoc-members:
+   :exclude-members: type

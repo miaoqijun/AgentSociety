@@ -86,13 +86,13 @@ class ModuleRegistry:
 
     @property
     def env_modules(self) -> Dict[str, Type[EnvBase]]:
-        """:returns: 已注册环境模块映射（访问会触发惰性加载）。"""
+        """返回已注册环境模块映射，并在访问时触发惰性加载。"""
         self._ensure_loaded()
         return self._env_modules.copy()
 
     @property
     def agent_modules(self) -> Dict[str, Type[AgentBase]]:
-        """:returns: 已注册 agent 映射（访问会触发惰性加载）。"""
+        """返回已注册 agent 映射，并在访问时触发惰性加载。"""
         self._ensure_loaded()
         return self._agent_modules.copy()
 
@@ -147,12 +147,12 @@ class ModuleRegistry:
         return self._agent_modules.get(agent_type)
 
     def list_env_modules(self) -> List[Tuple[str, Type[EnvBase]]]:
-        """:returns: 已注册环境模块列表（会触发惰性加载）。"""
+        """返回已注册环境模块列表，并在访问时触发惰性加载。"""
         self._ensure_loaded()
         return list(self._env_modules.items())
 
     def list_agent_modules(self) -> List[Tuple[str, Type[AgentBase]]]:
-        """:returns: 已注册 agent 列表（会触发惰性加载）。"""
+        """返回已注册 agent 列表，并在访问时触发惰性加载。"""
         self._ensure_loaded()
         return list(self._agent_modules.items())
 
@@ -167,7 +167,7 @@ class ModuleRegistry:
         logger.debug(f"Registry workspace set to: {self._workspace_path}")
 
     def _resolve_workspace_path(self) -> Optional[Path]:
-        """:returns: 用于 custom 模块发现的 workspace 路径；若无法推断则返回 ``None``。"""
+        """返回用于 custom 模块发现的 workspace 路径；若无法推断则返回 ``None``。"""
 
         if self._workspace_path is not None:
             return self._workspace_path

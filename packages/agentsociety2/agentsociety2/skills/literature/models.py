@@ -22,50 +22,39 @@ class LiteratureEntry(BaseModel):
 
     # Basic information
     title: str = Field(..., description="Literature title")
-    """Literature title, required field"""
 
     journal: Optional[str] = Field(None, description="Journal name")
-    """Journal or conference name"""
 
     doi: Optional[str] = Field(None, description="DOI identifier")
-    """Digital Object Identifier"""
 
     abstract: Optional[str] = Field(None, description="Abstract")
-    """Literature abstract"""
 
     # File information
     file_path: str = Field(..., description="File path (relative to workspace root)")
-    """Path to the literature file, relative to workspace root"""
 
     file_type: Literal["markdown", "pdf", "docx", "txt", "md"] = Field(
         ..., description="File type"
     )
-    """File type: markdown, pdf, docx, txt, md"""
 
     # Source information
     source: Literal["literature_search", "user_upload"] = Field(
         ..., description="Literature source"
     )
-    """Literature source: literature_search (from literature search tool) or user_upload"""
 
     # Search related (only when source is literature_search)
     query: Optional[str] = Field(None, description="Search query")
-    """Query used to retrieve this literature (only when source is literature_search)"""
 
     avg_similarity: Optional[float] = Field(
         None, ge=0.0, le=1.0, description="Average similarity score (0-1)"
     )
-    """Average similarity score between literature and query, range 0-1"""
 
     # Time information
     saved_at: str = Field(..., description="Save time (ISO format)")
-    """Literature save time, ISO 8601 format string"""
 
     # Other fields (allow extension)
     extra_fields: Optional[Dict[str, Any]] = Field(
         None, description="Other extension fields"
     )
-    """Other extension fields for storing additional metadata"""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -116,20 +105,16 @@ class LiteratureIndex(BaseModel):
     entries: list[LiteratureEntry] = Field(
         default_factory=list, description="List of literature entries"
     )
-    """List of all literature entries"""
 
     version: str = Field(default="1.0", description="Index file version")
-    """Index file format version"""
 
     created_at: Optional[str] = Field(
         None, description="Index creation time (ISO format)"
     )
-    """Index creation time, ISO 8601 format string"""
 
     updated_at: Optional[str] = Field(
         None, description="Index last update time (ISO format)"
     )
-    """Index last update time, ISO 8601 format string"""
 
     model_config = ConfigDict(
         extra="forbid",

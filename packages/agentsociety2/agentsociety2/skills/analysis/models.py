@@ -57,17 +57,16 @@ class ExperimentPaths(BaseModel):
 
 
 class PresentationPaths(BaseModel):
-    """
-    单实验分析产物的输出路径（按 hypothesis 聚合，位于 presentation 下，由 utils.presentation_paths 构建）。
+    """单实验分析产物的输出路径。
 
-    生成产物布局：
-    - output_dir/
-      - report_zh.md, report_zh.html, report_en.md, report_en.html  （双语报告）
-      - report.md, report.html  （向后兼容别名，指向中文版）
-      - README.md
-      - data/analysis_summary.json
-    - charts/  （生成的可视化目录，再被复制到 assets）
-      - assets/  （报告引用的图片，DIR_REPORT_ASSETS）
+    这些路径按 hypothesis 聚合，位于 ``presentation/`` 下，由
+    ``utils.presentation_paths`` 构建。
+
+    典型产物包括：
+
+    - ``output_dir/`` 下的双语报告、兼容别名报告、``README.md`` 与
+      ``data/analysis_summary.json``。
+    - ``charts/`` 下的生成图表，以及复制到 ``assets/`` 的报告引用资源。
     """
 
     output_dir: Path = Field(
