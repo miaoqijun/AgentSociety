@@ -6,6 +6,7 @@ import asyncio
 import ast
 import dataclasses
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -19,11 +20,20 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 
 
-# Load environment variables from workspace .env file
-workspace_root = Path(__file__).resolve().parents[4]
-env_file = workspace_root / ".env"
-if env_file.exists():
-    load_dotenv(env_file)
+def _default_workspace() -> Path:
+    raw_workspace = os.environ.get("AGENTSOCIETY_WORKSPACE")
+    if raw_workspace:
+        return Path(raw_workspace).expanduser().resolve()
+    return Path.cwd().resolve()
+
+
+def _load_workspace_env() -> None:
+    env_file = _default_workspace() / ".env"
+    if env_file.exists():
+        load_dotenv(env_file)
+
+
+_load_workspace_env()
 
 ContextLoader: type[Any] | None = None
 DataReader: type[Any] | None = None
@@ -135,9 +145,10 @@ def _error(message: str) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = _JsonArgumentParser(description="Analysis CLI tool layer")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    workspace_default = str(_default_workspace())
 
     load_context_parser = subparsers.add_parser("load-context")
-    load_context_parser.add_argument("--workspace", required=True)
+    load_context_parser.add_argument("--workspace", default=workspace_default)
     load_context_parser.add_argument("--hypothesis-id", required=True)
     load_context_parser.add_argument("--experiment-id", required=True)
 
@@ -168,7 +179,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run_eda_parser.add_argument("--tables")
 
     collect_assets_parser = subparsers.add_parser("collect-assets")
-    collect_assets_parser.add_argument("--workspace", required=True)
+    collect_assets_parser.add_argument("--workspace", default=workspace_default)
     collect_assets_parser.add_argument("--hypothesis-id", required=True)
     collect_assets_parser.add_argument("--experiment-id", required=True)
     collect_assets_parser.add_argument("--output-dir", required=True)

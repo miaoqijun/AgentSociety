@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from datetime import datetime
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from typing import TypedDict
 
@@ -10,6 +11,28 @@ import yaml  # type: ignore[import-untyped]
 
 from agentsociety2.skills.paper.cli import generate_paper
 from agentsociety2.skills.paper.paths import nature_template_dir
+
+
+def _load_paper_adapter_cli_module():
+    repo_root = Path(__file__).resolve().parents[3]
+    module_path = (
+        repo_root
+        / "extension"
+        / "skills"
+        / "agentsociety-paper-adapter"
+        / "v1.0.0"
+        / "scripts"
+        / "build_research_pack.py"
+    )
+    spec = spec_from_file_location("paper_adapter_cli_test_module", module_path)
+    module = module_from_spec(spec)
+    assert spec is not None
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+paper_adapter_cli = _load_paper_adapter_cli_module()
 
 
 class CompileUrlCase(TypedDict):
@@ -52,6 +75,15 @@ def test_status_parser_defaults_workspace_to_current_dir():
 
     assert args.workspace == "."
     assert args.func is generate_paper.cmd_status
+
+
+def test_paper_adapter_parser_defaults_workspace_from_env(monkeypatch, tmp_path):
+    monkeypatch.setenv("AGENTSOCIETY_WORKSPACE", str(tmp_path))
+
+    parser = paper_adapter_cli.build_parser()
+    args = parser.parse_args([])
+
+    assert Path(args.workspace) == tmp_path.resolve()
 
 
 def test_nature_template_dir_uses_skill_packaged_template():

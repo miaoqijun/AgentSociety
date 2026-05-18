@@ -92,6 +92,17 @@ def test_filter_assets_with_companions_keeps_same_stem_vector_exports():
     ]
 
 
+def test_load_context_parser_defaults_workspace_from_env(monkeypatch, tmp_path):
+    monkeypatch.setenv("AGENTSOCIETY_WORKSPACE", str(tmp_path))
+
+    parser = analysis_cli._build_parser()
+    args = parser.parse_args(
+        ["load-context", "--hypothesis-id", "1", "--experiment-id", "2"]
+    )
+
+    assert Path(args.workspace) == tmp_path.resolve()
+
+
 def test_compose_figure_grid_layout(tmp_path):
     image_module = pytest.importorskip("PIL.Image")
 

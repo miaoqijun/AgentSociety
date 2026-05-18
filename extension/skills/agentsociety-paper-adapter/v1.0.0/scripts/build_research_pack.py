@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 
 def _emit(payload: dict) -> None:
@@ -20,14 +21,26 @@ def _emit(payload: dict) -> None:
     sys.stdout.flush()
 
 
-def main() -> int:
+def _default_workspace() -> str:
+    raw_workspace = os.environ.get("AGENTSOCIETY_WORKSPACE")
+    if raw_workspace:
+        return str(Path(raw_workspace).expanduser().resolve())
+    return str(Path.cwd().resolve())
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="paper-adapter")
-    parser.add_argument("--workspace", required=True)
+    parser.add_argument("--workspace", default=_default_workspace())
     parser.add_argument(
         "--research-objective",
         default=None,
         help="Optional override for ResearchPack.research_objective.",
     )
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
     args = parser.parse_args()
 
     # Sentinel env defaults so the agentsociety2 package init succeeds in
