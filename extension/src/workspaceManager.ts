@@ -7,6 +7,7 @@
  * - @extension/src/projectStructureProvider.ts - 树视图调用WorkspaceManager初始化工作区
  * - @extension/src/extension.ts - 主入口，创建WorkspaceManager实例
  * - @extension/skills/ - AgentSociety 内置 skills（插件侧只读展示，同时同步到 workspace/.claude/skills）
+ *   and exposed to Codex through workspace/.codex/skills when possible.
  */
 
 import * as vscode from 'vscode';
@@ -457,6 +458,8 @@ export class WorkspaceManager {
       );
     }
 
+    created.push(...this.ensureCodexSkillsLink(workspacePath, targetDir));
+
     if (synced.length === 0) {
       return {
         success: false,
@@ -472,6 +475,48 @@ export class WorkspaceManager {
       created,
       synced,
     };
+  }
+
+  private ensureCodexSkillsLink(workspacePath: string, claudeSkillsDir: string): string[] {
+    const codexDir = path.join(workspacePath, '.codex');
+    const codexSkillsPath = path.join(codexDir, 'skills');
+    const created: string[] = [];
+    const relativeTarget = path.relative(codexDir, claudeSkillsDir) || '.';
+
+    if (!fs.existsSync(codexDir)) {
+      fs.mkdirSync(codexDir, { recursive: true });
+      created.push('.codex/');
+      this.log(`Created: ${codexDir}`);
+    }
+
+    if (fs.existsSync(codexSkillsPath)) {
+      const stat = fs.lstatSync(codexSkillsPath);
+      if (stat.isSymbolicLink()) {
+        const resolved = fs.realpathSync(codexSkillsPath);
+        const expected = fs.realpathSync(claudeSkillsDir);
+        if (resolved === expected) {
+          return created;
+        }
+        fs.rmSync(codexSkillsPath, { recursive: true, force: true });
+      } else if (stat.isDirectory() && fs.readdirSync(codexSkillsPath).length === 0) {
+        fs.rmSync(codexSkillsPath, { recursive: true, force: true });
+      } else {
+        this.log(
+          `Skipped Codex skills link because .codex/skills already exists and is not empty: ${codexSkillsPath}`,
+        );
+        return created;
+      }
+    }
+
+    try {
+      fs.symlinkSync(relativeTarget, codexSkillsPath, 'dir');
+      created.push('.codex/skills (symlink to ../.claude/skills)');
+      this.log(`Created symlink: ${codexSkillsPath} -> ${relativeTarget}`);
+    } catch (error) {
+      this.log(`Failed to create Codex skills symlink: ${error}`);
+    }
+
+    return created;
   }
 
   private syncWorkspaceRuntimeAssets(
@@ -840,6 +885,8 @@ export class WorkspaceManager {
       '!.claude/settings.json',
       '!.claude/hooks/',
       '!.claude/hooks/**',
+      '.codex/*',
+      '.codex/skills/',
       '# Python cache files in custom/',
       'custom/**/__pycache__/',
       'custom/**/*.pyc',
