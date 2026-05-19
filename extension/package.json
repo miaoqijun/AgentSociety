@@ -2,7 +2,7 @@
   "name": "ai-social-scientist",
   "displayName": "AI Social Scientist",
   "description": "AI Social Scientist - Next-generation human-AI interaction interface for social science research",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "publisher": "tsinghua-fib-lab",
   "repository": {
     "type": "git",
@@ -520,7 +520,13 @@
         "aiSocialScientist.preferredAiChat": {
           "type": "string",
           "default": "",
-          "enum": ["", "claude-code", "codex", "cursor", "vscode-chat"],
+          "enum": [
+            "",
+            "claude-code",
+            "codex",
+            "cursor",
+            "vscode-chat"
+          ],
           "enumDescriptions": [
             "未设置（自动检测或每次选择）",
             "Claude Code (anthropic.claude-code)",
