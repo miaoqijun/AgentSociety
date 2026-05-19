@@ -238,6 +238,10 @@ export class BackendManager {
     if (envConfig.nanoLlmApiBase) { env.AGENTSOCIETY_NANO_LLM_API_BASE = envConfig.nanoLlmApiBase; }
     if (envConfig.nanoLlmModel) { env.AGENTSOCIETY_NANO_LLM_MODEL = envConfig.nanoLlmModel; }
 
+    if (envConfig.analysisLlmApiKey) { env.AGENTSOCIETY_ANALYSIS_LLM_API_KEY = envConfig.analysisLlmApiKey; }
+    if (envConfig.analysisLlmApiBase) { env.AGENTSOCIETY_ANALYSIS_LLM_API_BASE = envConfig.analysisLlmApiBase; }
+    if (envConfig.analysisLlmModel) { env.AGENTSOCIETY_ANALYSIS_LLM_MODEL = envConfig.analysisLlmModel; }
+
     // Embedding 配置
     if (envConfig.embeddingApiKey) { env.AGENTSOCIETY_EMBEDDING_API_KEY = envConfig.embeddingApiKey; }
     if (envConfig.embeddingApiBase) { env.AGENTSOCIETY_EMBEDDING_API_BASE = envConfig.embeddingApiBase; }
@@ -245,7 +249,7 @@ export class BackendManager {
     if (envConfig.embeddingDims) { env.AGENTSOCIETY_EMBEDDING_DIMS = String(envConfig.embeddingDims); }
 
     // Literature Search 配置
-    if (envConfig.literatureSearchApiUrl) { env.LITERATURE_SEARCH_API_URL = envConfig.literatureSearchApiUrl; }
+    if (envConfig.literatureSearchMcpUrl) { env.LITERATURE_SEARCH_MCP_URL = envConfig.literatureSearchMcpUrl; }
     if (envConfig.literatureSearchApiKey) { env.LITERATURE_SEARCH_API_KEY = envConfig.literatureSearchApiKey; }
 
     return {
@@ -574,6 +578,7 @@ export class BackendManager {
       if (isConfigError) {
         await this.showConfigError(`Failed to start backend service: ${errorMessage}`);
       } else {
+        this.outputChannel.show(true);
         vscode.window.showErrorMessage(
           `Failed to start backend service: ${errorMessage}`
         );

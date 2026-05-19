@@ -18,6 +18,14 @@
  */
 
 import * as vscode from 'vscode';
+import {
+  CLAUDE_SETTINGS_PATH,
+  detectClaudeCli,
+  isClaudeCodeEnvCustomized,
+  readClaudeConfig,
+  writeClaudeConfig,
+} from './services/claudeCodeSettings';
+import type { ClaudeCodeConfigValues } from './webview/configPage/claudeCodeTypes';
 import * as path from 'path';
 import { localize } from './i18n';
 import type { ConfigValues, WorkspaceInfo } from './webview/configPage/types';
@@ -78,25 +86,30 @@ export class ConfigPageViewProvider {
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
     this._panel.webview.onDidReceiveMessage(
-      async (message: { command: string; config?: Partial<ConfigValues>; llmType?: string; url?: string }) => {
+      async (message: {
+        command: string;
+        config?: Partial<ConfigValues> | ClaudeCodeConfigValues;
+        llmType?: string;
+        url?: string;
+      }) => {
         switch (message.command) {
           case 'requestConfig':
             await this._sendInitialConfig();
             break;
           case 'saveConfig':
-            await this._handleSaveConfig(message.config || {});
+            await this._handleSaveConfig((message.config || {}) as Partial<ConfigValues>);
             break;
           case 'startBackend':
-            await this._handleStartBackend(message.config || {});
+            await this._handleStartBackend((message.config || {}) as Partial<ConfigValues>);
             break;
           case 'validateConfig':
-            await this._handleValidateConfig(message.config || {}, message.llmType);
+            await this._handleValidateConfig((message.config || {}) as Partial<ConfigValues>, message.llmType);
             break;
           case 'validatePython':
-            await this._handleValidatePython(message.config || {});
+            await this._handleValidatePython((message.config || {}) as Partial<ConfigValues>);
             break;
           case 'validateLiteratureSearch':
-            await this._handleValidateLiteratureSearch(message.config || {});
+            await this._handleValidateLiteratureSearch((message.config || {}) as Partial<ConfigValues>);
             break;
           case 'closeConfigPage':
             this._panel.dispose();
@@ -107,8 +120,8 @@ export class ConfigPageViewProvider {
           case 'openFolder':
             await vscode.commands.executeCommand('workbench.action.files.openFolder');
             break;
-          case 'openClaudeCodeConfig':
-            await vscode.commands.executeCommand('aiSocialScientist.openClaudeCodeConfig');
+          case 'saveClaudeConfig':
+            await this._handleSaveClaudeConfig((message.config || {}) as ClaudeCodeConfigValues);
             break;
           case 'openUrl':
             if (message.url) {
@@ -125,9 +138,18 @@ export class ConfigPageViewProvider {
   private async _sendInitialConfig(): Promise<void> {
     // Read from .env file instead of VSCode settings
     const envConfig = this._envManager.readEnv();
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspacePath = workspaceFolder?.uri.fsPath;
+    const envPath = this._envManager.getEnvPath();
+    let envFilePath: string | undefined;
+    if (workspacePath && envPath) {
+      envFilePath = path.relative(workspacePath, envPath) || path.basename(envPath);
+    }
+
     const workspaceInfo: WorkspaceInfo = {
-      hasWorkspace: !!(vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0),
-      workspacePath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+      hasWorkspace: Boolean(workspaceFolder),
+      workspacePath,
+      envFilePath,
     };
 
     const configValues: Partial<ConfigValues> = {
@@ -151,12 +173,10 @@ export class ConfigPageViewProvider {
       embeddingApiBase: envConfig.embeddingApiBase || '',
       embeddingModel: envConfig.embeddingModel || 'text-embedding-3-large',
       embeddingDims: envConfig.embeddingDims ?? 1024,
-      literatureSearchApiUrl: envConfig.literatureSearchApiUrl || 'http://localhost:8008/api/search',
+      literatureSearchMcpUrl:
+        envConfig.literatureSearchMcpUrl || 'https://llmapi.fiblab.net/mcp/',
       literatureSearchApiKey: envConfig.literatureSearchApiKey || '',
     };
-
-    // 获取后端状态
-    const backendStatus = await this._getBackendStatus();
 
     this._panel.webview.postMessage({
       command: 'initialConfig',
@@ -168,9 +188,45 @@ export class ConfigPageViewProvider {
       workspaceInfo: workspaceInfo
     });
 
+    await this._sendClaudeInitialConfig();
+    await this._postOverviewStatus();
+  }
+
+  public navigateToAdvancedTab(tab: 'models' | 'python' | 'literature' | 'claude'): void {
+    this._panel.webview.postMessage({ command: 'navigateAdvanced', tab });
+  }
+
+  private async _sendClaudeInitialConfig(): Promise<void> {
+    const cliStatus = await detectClaudeCli();
+    this._panel.webview.postMessage({
+      command: 'initialClaudeConfig',
+      config: readClaudeConfig(),
+      settingsPath: CLAUDE_SETTINGS_PATH,
+      cliStatus,
+    });
+  }
+
+  private async _handleSaveClaudeConfig(config: ClaudeCodeConfigValues): Promise<void> {
+    try {
+      writeClaudeConfig(config);
+      this._panel.webview.postMessage({ command: 'claudeSaveResult', success: true });
+      await this._postOverviewStatus();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this._panel.webview.postMessage({
+        command: 'claudeSaveResult',
+        success: false,
+        error: message,
+      });
+    }
+  }
+
+  private async _postOverviewStatus(): Promise<void> {
+    const backendStatus = await this._getBackendStatus();
     this._panel.webview.postMessage({
       command: 'backendStatus',
-      backendStatus: backendStatus
+      backendStatus,
+      claudeCodeCustomized: isClaudeCodeEnvCustomized(),
     });
   }
 
@@ -265,7 +321,7 @@ export class ConfigPageViewProvider {
       embeddingApiBase: config.embeddingApiBase,
       embeddingModel: config.embeddingModel,
       embeddingDims: config.embeddingDims,
-      literatureSearchApiUrl: config.literatureSearchApiUrl,
+      literatureSearchMcpUrl: config.literatureSearchMcpUrl,
       literatureSearchApiKey: config.literatureSearchApiKey,
     });
 
@@ -349,6 +405,36 @@ export class ConfigPageViewProvider {
     });
   }
 
+  private async _literatureValidateHttpPost(
+    url: string,
+    headerMap: Record<string, string> | undefined,
+    body: Record<string, unknown>
+  ): Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }> {
+    const headers = {
+      ...(headerMap ?? {}),
+      'Content-Type': 'application/json',
+    };
+    if (typeof globalThis.fetch === 'function') {
+      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+      return {
+        ok: res.ok,
+        status: res.status,
+        json: () => res.json(),
+      };
+    }
+    const jr = await requestJson(url, {
+      method: 'POST',
+      headers,
+      body,
+      timeoutMs: CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS,
+    });
+    return {
+      ok: jr.ok,
+      status: jr.status,
+      json: async () => jr.data,
+    };
+  }
+
   private async _literatureValidateHttpGet(
     url: string,
     headerMap: Record<string, string> | undefined
@@ -375,55 +461,180 @@ export class ConfigPageViewProvider {
     };
   }
 
+  private _literatureAuthHeaders(apiKey: string): Record<string, string> | undefined {
+    const trimmed = apiKey.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    return { Authorization: `Bearer ${trimmed}` };
+  }
+
+  private _literatureAuthError(status: number, apiKey: string): string {
+    if (status === 401 || status === 403) {
+      return apiKey.trim()
+        ? localize('configPage.validation.literatureAuthInvalid')
+        : localize('configPage.validation.literatureAuthRequired');
+    }
+    return localize('configPage.validation.literatureGatewayError', String(status));
+  }
+
+  private static readonly LITERATURE_MCP_TOOL_SUFFIXES = [
+    'literature_search',
+    'literature_status',
+    'literature_ingest_text',
+  ] as const;
+
+  /** Validation only requires search + status; ingest is optional and unused by the runtime. */
+  private static readonly LITERATURE_MCP_REQUIRED_SUFFIXES = [
+    'literature_search',
+    'literature_status',
+  ] as const;
+
+  private _isLiteratureMcpTool(name: string): boolean {
+    return ConfigPageViewProvider.LITERATURE_MCP_TOOL_SUFFIXES.some(
+      (suffix) => name === suffix || name.endsWith(`-${suffix}`)
+    );
+  }
+
+  private _literatureMcpGatewayOrigin(mcpUrl: string): string | null {
+    try {
+      let normalized = mcpUrl.trim();
+      if (normalized.endsWith('/mcp')) {
+        normalized = `${normalized}/`;
+      }
+      const parsed = new URL(normalized);
+      return parsed.origin;
+    } catch {
+      return null;
+    }
+  }
+
+  private _pickLiteratureMcpTool(
+    toolNames: string[],
+    suffix: (typeof ConfigPageViewProvider.LITERATURE_MCP_TOOL_SUFFIXES)[number]
+  ): string | null {
+    const literatureTools = toolNames.filter((name) => this._isLiteratureMcpTool(name));
+    const exact = literatureTools.find((name) => name === suffix || name.endsWith(`-${suffix}`));
+    return exact ?? null;
+  }
+
+  private _missingLiteratureTools(toolNames: string[]): string[] {
+    return ConfigPageViewProvider.LITERATURE_MCP_REQUIRED_SUFFIXES.filter(
+      (suffix) => !this._pickLiteratureMcpTool(toolNames, suffix)
+    );
+  }
+
   private async _handleValidateLiteratureSearch(config: Partial<ConfigValues>): Promise<void> {
-    const apiUrl = config.literatureSearchApiUrl || '';
+    const mcpUrl = config.literatureSearchMcpUrl || '';
     const apiKey = config.literatureSearchApiKey || '';
+    const authHeaders = this._literatureAuthHeaders(apiKey);
+
+    if (!mcpUrl.trim()) {
+      this._panel.webview.postMessage({
+        command: 'literatureValidationResult',
+        success: false,
+        error: '请输入学术文献检索 MCP 地址',
+      });
+      return;
+    }
+
+    if (!apiKey.trim()) {
+      this._panel.webview.postMessage({
+        command: 'literatureValidationResult',
+        success: false,
+        error: '需要输入 API Key',
+      });
+      return;
+    }
+
+    if (!mcpUrl.includes('/mcp')) {
+      this._panel.webview.postMessage({
+        command: 'literatureValidationResult',
+        success: false,
+        error: 'MCP 地址应为 https://llmapi.fiblab.net/mcp/',
+      });
+      return;
+    }
+
+    const gatewayOrigin = this._literatureMcpGatewayOrigin(mcpUrl);
+    if (!gatewayOrigin) {
+      this._panel.webview.postMessage({
+        command: 'literatureValidationResult',
+        success: false,
+        error: '请使用 MCP 网关地址 https://llmapi.fiblab.net/mcp/',
+      });
+      return;
+    }
 
     try {
-      const baseUrl = apiUrl.replace(/\/api\/search\/?$/, '').replace(/\/$/, '');
-
-      const healthUrl = `${baseUrl}/health`;
-      const healthResponse = await this._literatureValidateHttpGet(healthUrl, undefined);
-
-      if (!healthResponse.ok) {
+      const listUrl = `${gatewayOrigin}/mcp-rest/tools/list`;
+      const listResponse = await this._literatureValidateHttpGet(listUrl, authHeaders);
+      if (!listResponse.ok) {
         this._panel.webview.postMessage({
           command: 'literatureValidationResult',
           success: false,
-          error: `服务不可用: HTTP ${healthResponse.status}`,
+          error: this._literatureAuthError(listResponse.status, apiKey),
         });
         return;
       }
 
-      const statsUrl = `${baseUrl}/api/stats`;
-      const statsResponse = await this._literatureValidateHttpGet(
-        statsUrl,
-        apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+      const listData = (await listResponse.json()) as {
+        tools?: Array<{ name?: string }>;
+      };
+      const toolNames = (listData.tools ?? [])
+        .map((tool) => tool.name)
+        .filter((name): name is string => Boolean(name));
+      const missing = this._missingLiteratureTools(toolNames);
+      if (missing.length > 0) {
+        this._panel.webview.postMessage({
+          command: 'literatureValidationResult',
+          success: false,
+          error: '网关未提供学术文献检索服务，请确认 API Key 具备文献检索权限',
+        });
+        return;
+      }
+
+      const statusTool = this._pickLiteratureMcpTool(toolNames, 'literature_status');
+      if (!statusTool) {
+        this._panel.webview.postMessage({
+          command: 'literatureValidationResult',
+          success: false,
+          error: '无法获取学术文献检索服务状态',
+        });
+        return;
+      }
+
+      const callUrl = `${gatewayOrigin}/mcp-rest/tools/call`;
+      const callResponse = await this._literatureValidateHttpPost(
+        callUrl,
+        authHeaders,
+        { name: statusTool, arguments: {} }
       );
-
-      if (statsResponse.status === 401 || statsResponse.status === 403) {
-        const errorMsg = apiKey ? 'API Key 无效' : '需要输入 API Key';
+      if (!callResponse.ok) {
         this._panel.webview.postMessage({
           command: 'literatureValidationResult',
           success: false,
-          error: errorMsg,
+          error: this._literatureAuthError(callResponse.status, apiKey),
         });
         return;
       }
 
-      if (!statsResponse.ok) {
+      const callPayload = (await callResponse.json()) as Array<{ text?: string }>;
+      const textBlock = callPayload.find((block) => block.text)?.text;
+      if (!textBlock) {
         this._panel.webview.postMessage({
           command: 'literatureValidationResult',
           success: false,
-          error: `验证失败: HTTP ${statsResponse.status}`,
+          error: '学术文献检索服务未返回有效状态',
         });
         return;
       }
 
-      const statsData = (await statsResponse.json()) as { sources?: Record<string, unknown> };
+      const statusData = JSON.parse(textBlock) as { sources?: Record<string, unknown> };
       this._panel.webview.postMessage({
         command: 'literatureValidationResult',
         success: true,
-        sources: statsData.sources,
+        sources: statusData.sources,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误';

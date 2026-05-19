@@ -1,6 +1,7 @@
-"""Literature search functionality
+"""Literature search and workspace persistence.
 
-Core functions for searching academic literature and managing results.
+Search academic literature via MCP, save Markdown metadata, and optionally
+download open-access PDFs into the workspace index.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from agentsociety2.skills.literature.formatter import (
 )
 from agentsociety2.config import get_llm_router
 from agentsociety2.skills.literature.core import search_literature
+from agentsociety2.skills.literature.full_text import download_open_access_pdfs
 from agentsociety2.logger import get_logger
 
 logger = get_logger()
@@ -27,11 +29,12 @@ async def search_literature_and_save(
     query: str,
     workspace_path: Path,
     router: Optional[Any] = None,
-    limit: Optional[int] = None,
+    limit: int = 10,
     year_from: Optional[int] = None,
     year_to: Optional[int] = None,
     sources: Optional[List[Literal["local", "arxiv", "crossref", "openalex"]]] = None,
     enable_multi_query: bool = False,
+    download_full_text: bool = True,
 ) -> Dict[str, Any]:
     """Search for literature and save results to workspace
 
@@ -43,6 +46,7 @@ async def search_literature_and_save(
     :param year_to: Filter by publication year (end)
     :param sources: Data sources to search (default: all sources)
     :param enable_multi_query: Enable multi-query mode to split complex queries into subtopics
+    :param download_full_text: After saving metadata, try to download open-access PDFs
 
     :returns: Dictionary with search results and saved file information
     """
@@ -54,8 +58,7 @@ async def search_literature_and_save(
         "query": query,
         "router": router,
     }
-    if limit is not None:
-        call_kwargs["limit"] = limit
+    call_kwargs["limit"] = limit
     if year_from is not None:
         call_kwargs["year_from"] = year_from
     if year_to is not None:
@@ -80,8 +83,8 @@ async def search_literature_and_save(
     articles = result.get("articles", [])
     total = result.get("total", len(articles))
 
-    # Save literature results to workspace
-    saved_files = []
+    saved_files: List[str] = []
+    full_text_stats: Dict[str, int] = {}
     if articles and workspace_path:
         try:
             saved_files = await _save_literature_to_workspace(
@@ -92,12 +95,24 @@ async def search_literature_and_save(
         except Exception as e:
             logger.error(f"Failed to save literature to workspace: {e}", exc_info=True)
 
+        if download_full_text and saved_files:
+            try:
+                full_text_stats = download_open_access_pdfs(
+                    workspace_path,
+                    only_without_full_text=True,
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to download open-access full texts: %s", e, exc_info=True
+                )
+
     return {
         "success": True,
         "articles": articles,
         "total": total,
         "query": query,
         "saved_files": saved_files,
+        "full_text_stats": full_text_stats,
         "content": format_search_results(articles, total, query),
     }
 
@@ -346,7 +361,7 @@ def format_search_results(articles: list, total: int, query: str) -> str:
     content_parts = [
         f"Found {total} article(s) related to '{query}':\n",
     ]
-    for idx, article in enumerate(articles[:5], 1):  # Show first 5 articles
+    for idx, article in enumerate(articles[:10], 1):
         title = article.get("title", "Unknown Title")
         journal = article.get("journal", "")
         abstract = article.get("abstract", "")
@@ -379,8 +394,8 @@ def format_search_results(articles: list, total: int, query: str) -> str:
             content_parts.append(f"   Abstract: {abstract_preview}")
         content_parts.append("")
 
-    if total > 5:
-        content_parts.append(f"... {total - 5} more article(s) not shown")
+    if total > 10:
+        content_parts.append(f"... {total - 10} more article(s) not shown")
 
     return "\n".join(content_parts)
 

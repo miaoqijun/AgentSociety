@@ -1,6 +1,7 @@
-"""Literature search core module
+"""Literature search core module.
 
-Core functions for searching academic literature using an external API.
+Search academic literature via the MCP gateway, with optional Chinese translation
+and multi-query splitting.
 """
 
 from __future__ import annotations
@@ -10,8 +11,8 @@ import json
 import re
 from typing import Any, Dict, List, Literal, Optional
 
-import aiohttp
 from agentsociety2.config import Config, get_llm_router
+from agentsociety2.skills.literature.mcp_client import call_literature_search_mcp
 from agentsociety2.logger import get_logger
 from litellm import AllMessageValues
 from litellm.router import Router
@@ -337,37 +338,34 @@ async def search_literature(
     max_chunks_per_article: Optional[int] = None,
     return_chunks: bool = True,
     enable_multi_query: bool = False,
-    api_url: Optional[str] = None,
+    mcp_url: Optional[str] = None,
     api_key: Optional[str] = None,
     timeout: int = 120,
 ) -> Optional[Dict[str, Any]]:
-    """
-    调用文献搜索API获取相关文献信息
+    """Search academic literature through the MCP gateway.
 
-    :param query: 搜索查询词（如果是中文，会自动翻译成英文）
-    :param limit: 返回的文献数量
-    :param router: LLM router实例（用于翻译和查询拆分，如果为None则使用默认router）
-    :param year_from: 出版年份筛选（起始）
-    :param year_to: 出版年份筛选（结束）
-    :param sources: 指定数据源列表（默认为None，搜索全部数据源：local, arxiv, crossref, openalex）
-    :param similarity_threshold: 本地搜索相似度阈值 (0.0-1.0)
-    :param vector_similarity_weight: 向量权重 (0.0-1.0)
-    :param chunk_content_limit: chunk内容长度限制
-    :param relevant_content_limit: 相关内容长度限制
-    :param max_chunks_per_article: 每篇文献的最大chunk数量
-    :param return_chunks: 是否返回chunks
-    :param enable_multi_query: 是否启用多查询模式，将复杂查询拆分为多个子主题分别搜索
-    :param api_url: 文献搜索API的URL
-    :param api_key: 文献搜索API的认证Key
-    :param timeout: 请求超时时间（秒）
-
-    :returns: 文献搜索结果字典，如果失败返回None
+    :param query: Search query; Chinese text is translated to English when detected.
+    :param limit: Maximum number of articles per sub-query (default 10).
+    :param router: LLM router for translation and query splitting.
+    :param year_from: Optional start publication year filter.
+    :param year_to: Optional end publication year filter.
+    :param sources: Optional source list (``local``, ``arxiv``, ``crossref``, ``openalex``); default all.
+    :param similarity_threshold: Local index similarity threshold (0.0–1.0).
+    :param vector_similarity_weight: Vector weight for hybrid local search (0.0–1.0).
+    :param chunk_content_limit: Max characters per chunk in the response.
+    :param relevant_content_limit: Max characters of relevant content per article.
+    :param max_chunks_per_article: Max chunks returned per article.
+    :param return_chunks: Whether to include chunk text in results.
+    :param enable_multi_query: Split complex queries into subtopics and merge results.
+    :param mcp_url: MCP gateway URL; uses ``Config.get_literature_search_mcp_url()`` when omitted.
+    :param api_key: Bearer API key; uses ``Config.get_literature_search_api_key()`` when omitted.
+    :param timeout: MCP request timeout in seconds.
+    :returns: Dict with ``articles``, ``total``, ``query``, and optional ``sources``; ``None`` on failure.
     """
-    # 如果router为None，使用默认router
     if router is None:
         router = get_llm_router("default")
-    if not api_url:
-        api_url = Config.get_literature_search_api_url()
+    if not mcp_url:
+        mcp_url = Config.get_literature_search_mcp_url()
     if not api_key:
         api_key = Config.get_literature_search_api_key()
 
@@ -410,7 +408,7 @@ async def search_literature(
             relevant_content_limit=relevant_content_limit,
             max_chunks_per_article=max_chunks_per_article,
             return_chunks=return_chunks,
-            api_url=api_url,
+            mcp_url=mcp_url,
             api_key=api_key,
             timeout=timeout,
         )
@@ -430,7 +428,7 @@ async def search_literature(
             relevant_content_limit=relevant_content_limit,
             max_chunks_per_article=max_chunks_per_article,
             return_chunks=return_chunks,
-            api_url=api_url,
+            mcp_url=mcp_url,
             api_key=api_key,
             timeout=timeout,
         )
@@ -467,99 +465,82 @@ async def _search_literature_single(
     relevant_content_limit: Optional[int],
     max_chunks_per_article: Optional[int],
     return_chunks: bool,
-    api_url: str,
+    mcp_url: str,
     api_key: str,
     timeout: int,
 ) -> Optional[Dict[str, Any]]:
-    """
-    执行单次文献搜索（内部函数）
+    """Run a single MCP literature search request.
 
-    :param query: 搜索查询词
-    :param limit: 返回的文献数量
-    :param year_from: 出版年份筛选（起始）
-    :param year_to: 出版年份筛选（结束）
-    :param sources: 指定数据源列表
-    :param similarity_threshold: 本地搜索相似度阈值
-    :param vector_similarity_weight: 向量权重
-    :param chunk_content_limit: chunk内容长度限制
-    :param relevant_content_limit: 相关内容长度限制
-    :param max_chunks_per_article: 每篇文献的最大chunk数量
-    :param return_chunks: 是否返回chunks
-    :param api_url: 文献搜索API的URL
-    :param api_key: 文献搜索API的认证Key
-    :param timeout: 请求超时时间（秒）
-
-    :returns: 文献搜索结果字典，如果失败返回None
+    :param query: English search query sent to the gateway.
+    :param limit: Maximum number of articles to return.
+    :param year_from: Optional start publication year.
+    :param year_to: Optional end publication year.
+    :param sources: Optional data source names.
+    :param similarity_threshold: Local index similarity threshold.
+    :param vector_similarity_weight: Vector weight for hybrid local search.
+    :param chunk_content_limit: Max characters per chunk.
+    :param relevant_content_limit: Max relevant content length per article.
+    :param max_chunks_per_article: Max chunks per article (0 when ``return_chunks`` is false).
+    :param return_chunks: Whether to request chunk payloads.
+    :param mcp_url: MCP gateway URL.
+    :param api_key: Bearer API key.
+    :param timeout: Request timeout in seconds.
+    :returns: Normalized result dict or ``None`` on timeout or error.
     """
+    payload: Dict[str, Any] = {
+        "query": query,
+        "limit": limit,
+    }
+    if year_from is not None:
+        payload["year_from"] = year_from
+    if year_to is not None:
+        payload["year_to"] = year_to
+    if sources is not None:
+        payload["sources"] = sources
+    if similarity_threshold is not None:
+        payload["similarity_threshold"] = similarity_threshold
+    if vector_similarity_weight is not None:
+        payload["vector_similarity_weight"] = vector_similarity_weight
+    if chunk_content_limit is not None:
+        payload["chunk_content_limit"] = chunk_content_limit
+    if relevant_content_limit is not None:
+        payload["relevant_content_limit"] = relevant_content_limit
+    if max_chunks_per_article is not None:
+        payload["max_chunks_per_article"] = max_chunks_per_article
+    if not return_chunks:
+        payload["max_chunks_per_article"] = 0
+
+    logger.debug(f"MCP 搜索参数: {payload}")
+
     try:
-        async with aiohttp.ClientSession() as session:
-            payload: Dict[str, Any] = {
-                "query": query,
-                "limit": limit,
-                "return_chunks": return_chunks,
-            }
-
-            # 添加可选参数
-            if year_from is not None:
-                payload["year_from"] = year_from
-            if year_to is not None:
-                payload["year_to"] = year_to
-            if sources is not None:
-                payload["sources"] = sources
-            if similarity_threshold is not None:
-                payload["similarity_threshold"] = similarity_threshold
-            if vector_similarity_weight is not None:
-                payload["vector_similarity_weight"] = vector_similarity_weight
-            if chunk_content_limit is not None:
-                payload["chunk_content_limit"] = chunk_content_limit
-            if relevant_content_limit is not None:
-                payload["relevant_content_limit"] = relevant_content_limit
-            if max_chunks_per_article is not None:
-                payload["max_chunks_per_article"] = max_chunks_per_article
-
-            headers = {
-                "Content-Type": "application/json",
-            }
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-
-            logger.debug(f"搜索请求参数: {payload}")
-
-            async with session.post(
-                api_url,
-                json=payload,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-            ) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    # 转换响应格式以保持兼容性
-                    converted_result = _convert_api_response(result, query)
-                    total_articles = converted_result.get("total", 0)
-                    logger.info(f"搜索成功，找到 {total_articles} 篇相关文献")
-                    return converted_result
-                elif response.status == 401:
-                    logger.error("API认证失败，请检查 LITERATURE_SEARCH_API_KEY 配置")
-                    return None
-                else:
-                    error_text = await response.text()
-                    logger.warning(
-                        f"搜索API返回错误状态码: {response.status}, {error_text}"
-                    )
-                    return None
+        result = await call_literature_search_mcp(
+            mcp_url=mcp_url,
+            api_key=api_key,
+            arguments=payload,
+            timeout=timeout,
+        )
+        converted_result = _convert_api_response(result, query)
+        total_articles = converted_result.get("total", 0)
+        logger.info(f"MCP 搜索成功，找到 {total_articles} 篇相关文献")
+        return converted_result
     except asyncio.TimeoutError:
-        logger.warning("搜索API请求超时")
+        logger.warning("MCP 文献搜索请求超时")
         return None
     except Exception as e:
-        logger.warning(f"搜索失败: {e}")
+        message = str(e).lower()
+        if "401" in message or "auth" in message:
+            logger.error("MCP 认证失败，请检查 LITERATURE_SEARCH_API_KEY 配置")
+        else:
+            logger.warning(f"MCP 搜索失败: {e}")
         return None
 
 
 def _convert_api_response(response: Dict[str, Any], query: str) -> Dict[str, Any]:
-    """
-    将新API响应格式转换为内部格式
+    """Map MCP search JSON (``results``) to the internal ``articles`` shape.
 
-    新API返回 'results'，内部使用 'articles'
+    :param response: Raw MCP search response.
+    :param query: Original user query string.
+    :returns: Dict with ``articles``, ``total``, ``query``, and optional ``sources``.
     """
     results = response.get("results", [])
     articles = []

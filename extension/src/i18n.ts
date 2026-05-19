@@ -255,6 +255,9 @@ const translations: Record<string, Record<string, string>> = {
     'configPage.title': 'AI Social Scientist 配置',
     'configPage.noWorkspace': '请先打开一个工作区文件夹。配置将保存在当前工作区中。',
     'configPage.openWorkspace': '打开工作区',
+    'configPage.validation.literatureAuthRequired': '需要输入 API Key',
+    'configPage.validation.literatureAuthInvalid': 'API Key 无效或已过期',
+    'configPage.validation.literatureGatewayError': '学术文献检索网关不可用（HTTP {0}）。请确认 MCP 地址正确，且 Key 已开通学术文献检索权限。',
 
     // projectView
     'projectView.refreshed': '工作区视图已刷新',
@@ -609,6 +612,9 @@ const translations: Record<string, Record<string, string>> = {
     'configPage.title': 'AI Social Scientist Configuration',
     'configPage.noWorkspace': 'Please open a workspace folder first. Configuration will be saved in the current workspace.',
     'configPage.openWorkspace': 'Open Workspace',
+    'configPage.validation.literatureAuthRequired': 'API key is required',
+    'configPage.validation.literatureAuthInvalid': 'API key is invalid or expired',
+    'configPage.validation.literatureGatewayError': 'Literature search gateway unavailable (HTTP {0}). Check the MCP URL and ensure your key has literature search access.',
 
     // projectView
     'projectView.refreshed': 'Project view refreshed',

@@ -15,9 +15,22 @@ import {
   Tooltip,
   Tag,
 } from 'antd';
-import { SaveOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined, QuestionCircleOutlined, ReloadOutlined, SettingOutlined, CloudServerOutlined, LinkOutlined, StopOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { SaveOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined, ReloadOutlined, SettingOutlined, LinkOutlined, StopOutlined, CodeOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import type { VSCodeAPI, ConfigValues, WorkspaceInfo, BackendStatus } from './types';
+import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from './claudeCodeTypes';
+import { DEFAULT_CLAUDE_BASE_URL } from './claudeBaseUrlPresets';
+import type { VSCodeAPI, ConfigValues, WorkspaceInfo, BackendStatus, ValidationState } from './types';
+import { AdvancedConfigSection, type AdvancedTopTab } from './AdvancedConfigSection';
+import { advancedPanelInnerStyle, glassCardStyle } from './configPageStyles';
+import { ValidationAction } from './ValidationAction';
+import {
+  ADVANCED_VALIDATION_KEYS,
+  type AdvancedValidationKey,
+  getAdvancedItemVisualStatus,
+  getAdvancedKeyFingerprint,
+  getAdvancedValidationLabel,
+  statusColor,
+} from './advancedValidation';
 import { useVscodeTheme } from '../theme';
 import 'antd/dist/reset.css';
 
@@ -45,30 +58,67 @@ const DEFAULT_VALUES: ConfigValues = {
   embeddingApiBase: 'https://api.openai.com/v1',
   embeddingModel: 'text-embedding-3-large',
   embeddingDims: 1024,
-  literatureSearchApiUrl: 'http://localhost:8008/api/search',
+  literatureSearchMcpUrl: 'https://llmapi.fiblab.net/mcp/',
   literatureSearchApiKey: '',
+};
+
+const DEFAULT_CLAUDE_VALUES: ClaudeCodeConfigValues = {
+  apiKey: '',
+  baseUrl: DEFAULT_CLAUDE_BASE_URL,
+  model: '',
+  sonnetModel: '',
+  opusModel: '',
+  haikuModel: '',
 };
 
 interface ConfigPageAppProps {
   vscode: VSCodeAPI;
 }
 
-interface ValidationState {
-  validating: boolean;
-  valid: boolean | null;
-  error: string | null;
-}
-
 export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   const { t } = useTranslation();
   const { isDark, palette, themeConfig } = useVscodeTheme();
   const [form] = Form.useForm<ConfigValues>();
+  const [claudeForm] = Form.useForm<ClaudeCodeConfigValues>();
   const watchedValues = Form.useWatch([], form) as Partial<ConfigValues> | undefined;
+  const watchedClaudeValues = Form.useWatch([], claudeForm) as Partial<ClaudeCodeConfigValues> | undefined;
   const currentValues = watchedValues || {};
+  const claudeValues = watchedClaudeValues || {};
+  const [savedEnvConfig, setSavedEnvConfig] = React.useState<Partial<ConfigValues>>({});
+  const [savedClaudeConfig, setSavedClaudeConfig] = React.useState<Partial<ClaudeCodeConfigValues>>({});
   const hasText = (value?: string) => Boolean(value && value.trim());
-  const defaultLlmModel = (currentValues.llmModel || DEFAULT_VALUES.llmModel || '').trim();
-  const defaultLlmApiBase = (currentValues.llmApiBase || DEFAULT_VALUES.llmApiBase || '').trim();
-  const hasDefaultLlmKey = hasText(currentValues.llmApiKey);
+
+  const effectiveConfigValues = React.useMemo(
+    (): ConfigValues =>
+      ({
+        ...DEFAULT_VALUES,
+        ...savedEnvConfig,
+        ...form.getFieldsValue(),
+        ...currentValues,
+      }) as ConfigValues,
+    [currentValues, form, savedEnvConfig]
+  );
+
+  const effectiveClaudeValues = React.useMemo(
+    (): ClaudeCodeConfigValues =>
+      ({
+        ...DEFAULT_CLAUDE_VALUES,
+        ...savedClaudeConfig,
+        ...claudeForm.getFieldsValue(),
+        ...claudeValues,
+      }) as ClaudeCodeConfigValues,
+    [claudeForm, claudeValues, savedClaudeConfig]
+  );
+
+  const getConfigValuesForValidation = React.useCallback((): ConfigValues => effectiveConfigValues, [effectiveConfigValues]);
+
+  const getClaudeValuesForValidation = React.useCallback(
+    (): ClaudeCodeConfigValues => effectiveClaudeValues,
+    [effectiveClaudeValues]
+  );
+  const defaultLlmModel = (effectiveConfigValues.llmModel || DEFAULT_VALUES.llmModel || '').trim();
+  const defaultLlmApiBase = (effectiveConfigValues.llmApiBase || DEFAULT_VALUES.llmApiBase || '').trim();
+  const hasDefaultLlmKey = hasText(effectiveConfigValues.llmApiKey);
 
   const getEffectiveApiKey = (values: Partial<ConfigValues>, llmType: string): string => {
     switch (llmType) {
@@ -112,7 +162,7 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     }
 
     if (llmType === 'literature') {
-      return hasText(values.literatureSearchApiUrl) ? null : t('configPage.validation.literatureUrlRequired');
+      return hasText(values.literatureSearchMcpUrl) ? null : t('configPage.validation.literatureUrlRequired');
     }
 
     const apiKey = getEffectiveApiKey(values, llmType);
@@ -128,13 +178,18 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     return null;
   };
 
-  const defaultValidateDisabledReason = getValidationDisabledReason('default', currentValues);
-  const coderValidateDisabledReason = getValidationDisabledReason('coder', currentValues);
-  const nanoValidateDisabledReason = getValidationDisabledReason('nano', currentValues);
-  const analysisValidateDisabledReason = getValidationDisabledReason('analysis', currentValues);
-  const embeddingValidateDisabledReason = getValidationDisabledReason('embedding', currentValues);
+  const defaultValidateDisabledReason = getValidationDisabledReason('default', effectiveConfigValues);
+  const coderValidateDisabledReason = getValidationDisabledReason('coder', effectiveConfigValues);
+  const nanoValidateDisabledReason = getValidationDisabledReason('nano', effectiveConfigValues);
+  const analysisValidateDisabledReason = getValidationDisabledReason('analysis', effectiveConfigValues);
+  const embeddingValidateDisabledReason = getValidationDisabledReason('embedding', effectiveConfigValues);
   const pythonValidateDisabledReason = null;
-  const literatureValidateDisabledReason = getValidationDisabledReason('literature', currentValues);
+  const literatureValidateDisabledReason = getValidationDisabledReason('literature', effectiveConfigValues);
+  const claudeValidateDisabledReason = !hasText(effectiveClaudeValues.apiKey)
+    ? t('claudeCodeConfig.apiKeyRequired')
+    : !hasText(effectiveClaudeValues.baseUrl)
+      ? t('claudeCodeConfig.baseUrlRequired')
+      : null;
   const [loading, setLoading] = React.useState(false);
   const [startingBackend, setStartingBackend] = React.useState(false);
   const [workspaceInfo, setWorkspaceInfo] = React.useState<WorkspaceInfo>({ hasWorkspace: false });
@@ -150,141 +205,504 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     literature: { validating: false, valid: null, error: null },
   });
 
-  // 后端状态
   const [backendStatus, setBackendStatus] = React.useState<BackendStatus>({ isRunning: false });
+  const [claudeCliStatus, setClaudeCliStatus] = React.useState<ClaudeCodeCliStatus>({ installed: false });
+  const [claudeSettingsPath, setClaudeSettingsPath] = React.useState('~/.claude/settings.json');
+  const [claudeCodeCustomized, setClaudeCodeCustomized] = React.useState(false);
+  const [advancedOpen, setAdvancedOpen] = React.useState<string[]>([]);
+  const [advancedTopTab, setAdvancedTopTab] = React.useState<AdvancedTopTab>('models');
+  const advancedSectionRef = React.useRef<HTMLDivElement>(null);
+  const pythonSectionRef = React.useRef<HTMLDivElement>(null);
+  const literatureSectionRef = React.useRef<HTMLDivElement>(null);
+  const claudeSectionRef = React.useRef<HTMLDivElement>(null);
+  const actionsSectionRef = React.useRef<HTMLDivElement>(null);
+  const pendingSaveClaudeRef = React.useRef(false);
+  const literatureValidateManualRef = React.useRef(false);
+  const pendingStartBackendRef = React.useRef(false);
+  const advancedKeyPrevFingerprintRef = React.useRef<Partial<Record<AdvancedValidationKey, string>>>({});
+  const advancedKeyValidFingerprintRef = React.useRef<Partial<Record<AdvancedValidationKey, string>>>({});
+  const defaultValidFingerprintRef = React.useRef<string | null>(null);
+  const advancedKeyValidateTimersRef = React.useRef<
+    Partial<Record<AdvancedValidationKey, ReturnType<typeof setTimeout>>>
+  >({});
+  const ADVANCED_CHANGE_VALIDATE_DELAY_MS = 1500;
 
-  // 计算配置统计 - 改为显示已配置的服务数量
-  const getConfigStats = () => {
-    const values = currentValues;
-    // 检查核心配置是否已填写
-    const hasLlmKey = hasText(values.llmApiKey);
-    const hasPython = hasText(values.pythonPath);
-    // 统计已配置的可选服务
-    const configuredOptionalServices = [
-      hasText(values.coderLlmApiKey) || hasDefaultLlmKey,  // Coder 可使用默认 key
-      hasText(values.nanoLlmApiKey) || hasDefaultLlmKey,   // Nano 可使用默认 key
-      hasText(values.analysisLlmApiKey) || hasDefaultLlmKey, // Analysis 可使用默认 key
-      hasText(values.embeddingApiKey) || hasDefaultLlmKey,   // Embedding 可使用默认 key
-      hasText(values.literatureSearchApiUrl),  // 文献检索
-    ].filter(Boolean).length;
+  const getDefaultLlmFingerprint = React.useCallback(
+    () =>
+      JSON.stringify({
+        llmApiKey: effectiveConfigValues.llmApiKey,
+        llmApiBase: effectiveConfigValues.llmApiBase,
+        llmModel: effectiveConfigValues.llmModel,
+      }),
+    [effectiveConfigValues.llmApiBase, effectiveConfigValues.llmApiKey, effectiveConfigValues.llmModel]
+  );
 
-    return { hasLlmKey, hasPython, configuredOptionalServices };
+  const markValidFingerprint = React.useCallback(
+    (kind: string) => {
+      if (kind === 'default') {
+        defaultValidFingerprintRef.current = getDefaultLlmFingerprint();
+        return;
+      }
+      if ((ADVANCED_VALIDATION_KEYS as readonly string[]).includes(kind)) {
+        const key = kind as AdvancedValidationKey;
+        advancedKeyValidFingerprintRef.current[key] = getAdvancedKeyFingerprint(
+          key,
+          effectiveConfigValues
+        );
+      }
+    },
+    [effectiveConfigValues, getDefaultLlmFingerprint]
+  );
+
+  const isStillValid = React.useCallback(
+    (kind: string): boolean => {
+      const state = validationState[kind];
+      if (state?.valid !== true) {
+        return false;
+      }
+      if (kind === 'default') {
+        return defaultValidFingerprintRef.current === getDefaultLlmFingerprint();
+      }
+      if ((ADVANCED_VALIDATION_KEYS as readonly string[]).includes(kind)) {
+        const key = kind as AdvancedValidationKey;
+        return (
+          advancedKeyValidFingerprintRef.current[key] ===
+          getAdvancedKeyFingerprint(key, effectiveConfigValues)
+        );
+      }
+      return false;
+    },
+    [effectiveConfigValues, getDefaultLlmFingerprint, validationState]
+  );
+
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const stats = getConfigStats();
+  const expandAdvancedConfig = (
+    tab: AdvancedTopTab = 'models',
+    scrollTarget?: React.RefObject<HTMLDivElement | null>
+  ) => {
+    setAdvancedTopTab(tab);
+    setAdvancedOpen(['advanced']);
+    window.setTimeout(() => {
+      scrollToRef(scrollTarget ?? advancedSectionRef);
+    }, 200);
+  };
+
+  const jumpToAdvanced = (tab: AdvancedTopTab = 'models') => {
+    const scrollTarget =
+      tab === 'python'
+        ? pythonSectionRef
+        : tab === 'literature'
+          ? literatureSectionRef
+          : tab === 'claude'
+            ? claudeSectionRef
+            : advancedSectionRef;
+    expandAdvancedConfig(tab, scrollTarget);
+  };
+
+  const advancedBlockedByKind = React.useMemo(
+    (): Record<AdvancedValidationKey, string | null> => ({
+      coder: coderValidateDisabledReason,
+      nano: nanoValidateDisabledReason,
+      analysis: analysisValidateDisabledReason,
+      embedding: embeddingValidateDisabledReason,
+      python: pythonValidateDisabledReason,
+      literature: literatureValidateDisabledReason,
+    }),
+    [
+      analysisValidateDisabledReason,
+      coderValidateDisabledReason,
+      embeddingValidateDisabledReason,
+      literatureValidateDisabledReason,
+      nanoValidateDisabledReason,
+      pythonValidateDisabledReason,
+    ]
+  );
+
+  const claudeCredentialsReady =
+    hasText(effectiveClaudeValues.apiKey) && hasText(effectiveClaudeValues.baseUrl);
+
+  const advancedOverview = React.useMemo(() => {
+    const totalCount = ADVANCED_VALIDATION_KEYS.length;
+    const itemStatuses = ADVANCED_VALIDATION_KEYS.map((key) => ({
+      key,
+      visual: getAdvancedItemVisualStatus(validationState[key], advancedBlockedByKind[key]),
+    }));
+    const validCount = itemStatuses.filter((item) => item.visual === 'ok').length;
+    const checkedCount = itemStatuses.filter(
+      (item) => item.visual === 'ok' || item.visual === 'error'
+    ).length;
+    const validating = itemStatuses.some((item) => item.visual === 'validating');
+    const hasError = itemStatuses.some((item) => item.visual === 'error');
+
+    const summary = validating
+      ? t('configPage.advancedValidation.checkingShort', { done: validCount, total: totalCount })
+      : checkedCount === 0
+        ? t('configPage.advancedValidation.notCheckedShort')
+        : t('configPage.advancedValidation.passedShort', { done: validCount, total: totalCount });
+
+    let accent: string | undefined;
+    if (validating) {
+      accent = palette.linkForeground;
+    } else if (validCount >= totalCount) {
+      accent = palette.successForeground;
+    } else if (hasError) {
+      accent = palette.errorForeground;
+    } else if (checkedCount === 0) {
+      accent = palette.descriptionForeground;
+    } else {
+      accent = palette.warningForeground;
+    }
+
+    const issueItems = itemStatuses.filter(
+      (item) => item.visual === 'error' || item.visual === 'blocked'
+    );
+
+    const tooltip =
+      issueItems.length === 0 ? undefined : (
+        <div style={{ maxWidth: 240 }}>
+          {issueItems.map((item) => {
+            const color = statusColor(item.visual, palette);
+            const label = getAdvancedValidationLabel(item.key, t);
+            const detail =
+              item.visual === 'error'
+                ? t('configPage.advancedValidation.statusErrorShort')
+                : t('configPage.advancedValidation.statusBlockedShort');
+            return (
+              <div
+                key={item.key}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: color,
+                    flexShrink: 0,
+                  }}
+                />
+                <Text style={{ color: palette.editorForeground, whiteSpace: 'nowrap' }}>{label}</Text>
+                <Text style={{ color }}>{detail}</Text>
+              </div>
+            );
+          })}
+        </div>
+      );
+
+    return { summary, accent, tooltip };
+  }, [advancedBlockedByKind, palette, t, validationState]);
+
+  const claudeOverview = React.useMemo(() => {
+    const configured = claudeCredentialsReady || claudeCodeCustomized;
+    if (configured) {
+      return {
+        value: t('configPage.status.configured'),
+        accent: palette.successForeground,
+        tooltip: t('configPage.overview.claudeConfiguredHint'),
+      };
+    }
+    if (claudeValidateDisabledReason) {
+      return {
+        value: t('configPage.status.notConfigured'),
+        accent: palette.descriptionForeground,
+        tooltip: claudeValidateDisabledReason,
+      };
+    }
+    return {
+      value: t('configPage.status.default'),
+      accent: undefined,
+      tooltip: t('configPage.overview.jumpToClaudeCode'),
+    };
+  }, [
+    claudeCodeCustomized,
+    claudeCredentialsReady,
+    claudeValidateDisabledReason,
+    palette,
+    t,
+  ]);
 
   const saveDisabledReason = React.useMemo((): string | null => {
     if (!workspaceInfo.hasWorkspace) {
       return t('configPage.noWorkspaceHint');
     }
-    if (!hasText(currentValues.llmApiKey)) {
+    if (!hasText(effectiveConfigValues.llmApiKey)) {
       return t('configPage.notifications.apiKeyMissing');
     }
-    if (!hasText(currentValues.llmApiBase)) {
+    if (!hasText(effectiveConfigValues.llmApiBase)) {
       return t('configPage.notifications.apiBaseMissing');
     }
     return null;
-  }, [currentValues.llmApiBase, currentValues.llmApiKey, t, workspaceInfo.hasWorkspace]);
+  }, [effectiveConfigValues.llmApiBase, effectiveConfigValues.llmApiKey, t, workspaceInfo.hasWorkspace]);
 
   const canSave = !saveDisabledReason;
   const canSaveAndStart = canSave && !startingBackend;
 
-  // Reset to default values
-  const handleResetDefaults = () => {
+  const resetWorkspaceValidationState = () => {
+    for (const key of ADVANCED_VALIDATION_KEYS) {
+      const timer = advancedKeyValidateTimersRef.current[key];
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+    advancedKeyValidateTimersRef.current = {};
+    advancedKeyPrevFingerprintRef.current = {};
+    advancedKeyValidFingerprintRef.current = {};
+    defaultValidFingerprintRef.current = null;
+    setValidationState({
+      default: { validating: false, valid: null, error: null },
+      coder: { validating: false, valid: null, error: null },
+      nano: { validating: false, valid: null, error: null },
+      analysis: { validating: false, valid: null, error: null },
+      embedding: { validating: false, valid: null, error: null },
+      python: { validating: false, valid: null, error: null },
+      literature: { validating: false, valid: null, error: null },
+    });
+  };
+
+  const handleResetWorkspaceDefaults = () => {
+    resetWorkspaceValidationState();
+    setSavedEnvConfig({});
     form.setFieldsValue(DEFAULT_VALUES);
     notification.info({
-      message: t('configPage.resetDefaults'),
+      message: t('configPage.resetWorkspaceDefaults'),
       placement: 'top',
     });
   };
 
-  // Validation handler - reads current form values
-  const handleValidate = async (llmType: string) => {
-    const values = form.getFieldsValue();
-
-    // Special handling for Python validation
-    if (llmType === 'python') {
-      setValidationState(prev => ({ ...prev, python: { validating: true, valid: null, error: null } }));
-      vscode.postMessage({
-        command: 'validatePython',
-        config: values,
-      });
-      return;
-    }
-
-    // For coder/nano/analysis/embedding, check if default LLM config is filled in the form
-    if ([
-      'coder',
-      'nano',
-      'analysis',
-      'embedding',
-    ].includes(llmType)) {
-      const effectiveApiKey = getEffectiveApiKey(values, llmType);
-      if (!effectiveApiKey) {
-        notification.warning({
-          message: t('configPage.validationFailed'),
-          description: t('configPage.validation.needsApiKey'),
-          placement: 'top',
-        });
-        return;
-      }
-      const effectiveApiBase = getEffectiveApiBase(values, llmType);
-      if (!effectiveApiBase) {
-        notification.warning({
-          message: t('configPage.validationFailed'),
-          description: t('configPage.validation.needsApiBase'),
-          placement: 'top',
-        });
-        return;
-      }
-
-      setValidationState(prev => ({ ...prev, [llmType]: { validating: true, valid: null, error: null } }));
-      vscode.postMessage({
-        command: 'validateConfig',
-        config: values,
-        llmType,
-      });
-      return;
-    }
-
-    // For default LLM, check required fields
-    if (llmType === 'default') {
-      const missingField = !values.llmApiKey ? t('configPage.notifications.apiKeyMissing') : !values.llmApiBase ? t('configPage.notifications.apiBaseMissing') : '';
-      if (missingField) {
-        notification.warning({
-          message: t('configPage.validationFailed'),
-          description: missingField,
-          placement: 'top',
-        });
-        return;
-      }
-      setValidationState(prev => ({ ...prev, [llmType]: { validating: true, valid: null, error: null } }));
-      vscode.postMessage({
-        command: 'validateConfig',
-        config: values,
-        llmType,
-      });
-      return;
-    }
-
-    // For literature search, validate API URL and Key
-    if (llmType === 'literature') {
-      if (!values.literatureSearchApiUrl) {
-        notification.warning({
-          message: t('configPage.validationFailed'),
-          description: '请输入文献检索 API URL',
-          placement: 'top',
-        });
-        return;
-      }
-      setValidationState(prev => ({ ...prev, [llmType]: { validating: true, valid: null, error: null } }));
-      vscode.postMessage({
-        command: 'validateLiteratureSearch',
-        config: values,
-      });
-      return;
-    }
+  const handleResetClaudeDefaults = () => {
+    setSavedClaudeConfig({});
+    claudeForm.setFieldsValue(DEFAULT_CLAUDE_VALUES);
+    notification.info({
+      message: t('configPage.resetClaudeDefaults'),
+      placement: 'top',
+    });
   };
+
+  const submitValidation = React.useCallback(
+    (llmType: string, values: ConfigValues, options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+      const failLocal = (error: string) => {
+        setValidationState((prev) => ({
+          ...prev,
+          [llmType]: { validating: false, valid: false, error },
+        }));
+        if (!silent) {
+          notification.warning({
+            message: t('configPage.validationFailed'),
+            description: error,
+            placement: 'top',
+          });
+        }
+      };
+
+      if (llmType === 'python') {
+        setValidationState((prev) => ({
+          ...prev,
+          python: { validating: true, valid: null, error: null },
+        }));
+        vscode.postMessage({ command: 'validatePython', config: values });
+        return;
+      }
+
+      if (['coder', 'nano', 'analysis', 'embedding'].includes(llmType)) {
+        const effectiveApiKey = getEffectiveApiKey(values, llmType);
+        if (!effectiveApiKey) {
+          failLocal(t('configPage.validation.needsApiKey'));
+          return;
+        }
+        const effectiveApiBase = getEffectiveApiBase(values, llmType);
+        if (!effectiveApiBase) {
+          failLocal(t('configPage.validation.needsApiBase'));
+          return;
+        }
+        setValidationState((prev) => ({
+          ...prev,
+          [llmType]: { validating: true, valid: null, error: null },
+        }));
+        vscode.postMessage({ command: 'validateConfig', config: values, llmType });
+        return;
+      }
+
+      if (llmType === 'default') {
+        const missingField = !values.llmApiKey
+          ? t('configPage.notifications.apiKeyMissing')
+          : !values.llmApiBase
+            ? t('configPage.notifications.apiBaseMissing')
+            : '';
+        if (missingField) {
+          failLocal(missingField);
+          return;
+        }
+        setValidationState((prev) => ({
+          ...prev,
+          default: { validating: true, valid: null, error: null },
+        }));
+        vscode.postMessage({ command: 'validateConfig', config: values, llmType });
+        return;
+      }
+
+      if (llmType === 'literature') {
+        if (!hasText(values.literatureSearchMcpUrl)) {
+          failLocal(t('configPage.validation.literatureUrlRequired'));
+          return;
+        }
+        setValidationState((prev) => ({
+          ...prev,
+          literature: { validating: true, valid: null, error: null },
+        }));
+        vscode.postMessage({ command: 'validateLiteratureSearch', config: values });
+      }
+    },
+    [t, vscode]
+  );
+
+  const validateAdvancedItem = React.useCallback(
+    (key: AdvancedValidationKey, options?: { silent?: boolean; manual?: boolean }) => {
+      const silent = options?.silent ?? !options?.manual;
+      const manual = options?.manual ?? false;
+      if (!manual && isStillValid(key)) {
+        return;
+      }
+      const configValues = getConfigValuesForValidation();
+      if (key === 'literature' && manual) {
+        literatureValidateManualRef.current = true;
+      }
+      submitValidation(key, configValues, { silent });
+    },
+    [getConfigValuesForValidation, isStillValid, submitValidation]
+  );
+
+  const validateAllAdvanced = React.useCallback(
+    (options?: { manual?: boolean }) => {
+      const manual = options?.manual ?? false;
+      if (manual) {
+        literatureValidateManualRef.current = true;
+      }
+      for (const key of ADVANCED_VALIDATION_KEYS) {
+        if (!manual && isStillValid(key)) {
+          continue;
+        }
+        validateAdvancedItem(key, { silent: true, manual });
+      }
+    },
+    [isStillValid, validateAdvancedItem]
+  );
+
+  const handleValidate = (llmType: string) => {
+    const configValues = getConfigValuesForValidation();
+    if (llmType === 'literature') {
+      literatureValidateManualRef.current = true;
+    }
+    if (ADVANCED_VALIDATION_KEYS.includes(llmType as AdvancedValidationKey)) {
+      validateAdvancedItem(llmType as AdvancedValidationKey, { silent: false, manual: true });
+      return;
+    }
+    submitValidation(llmType, configValues, { silent: false });
+  };
+
+  const saveClaudeConfig = () => {
+    vscode.postMessage({
+      command: 'saveClaudeConfig',
+      config: getClaudeValuesForValidation(),
+    });
+  };
+
+  const persistClaudeSettingsIfReady = (): boolean => {
+    const claude = getClaudeValuesForValidation();
+    const hasKey = hasText(claude.apiKey);
+    const hasBase = hasText(claude.baseUrl);
+    if (!hasKey && !hasBase) {
+      pendingSaveClaudeRef.current = false;
+      return true;
+    }
+    if (hasKey && hasBase) {
+      pendingSaveClaudeRef.current = true;
+      saveClaudeConfig();
+      return true;
+    }
+    pendingSaveClaudeRef.current = false;
+    notification.warning({
+      message: t('configPage.notifications.saveFailed'),
+      description: t('configPage.notifications.claudePartial'),
+      placement: 'top',
+    });
+    return false;
+  };
+
+  React.useEffect(() => {
+    if (!workspaceInfo.hasWorkspace) {
+      return;
+    }
+
+    const envValues = getConfigValuesForValidation();
+
+    for (const key of ADVANCED_VALIDATION_KEYS) {
+      const fingerprint = getAdvancedKeyFingerprint(key, envValues);
+      const prev = advancedKeyPrevFingerprintRef.current[key];
+      const validFingerprint = advancedKeyValidFingerprintRef.current[key];
+
+      if (prev === undefined) {
+        advancedKeyPrevFingerprintRef.current[key] = fingerprint;
+        continue;
+      }
+      if (prev === fingerprint) {
+        continue;
+      }
+
+      advancedKeyPrevFingerprintRef.current[key] = fingerprint;
+
+      if (fingerprint === validFingerprint) {
+        setValidationState((prevState) => {
+          const cur = prevState[key];
+          if (cur?.valid === true && !cur.validating && !cur.error) {
+            return prevState;
+          }
+          return {
+            ...prevState,
+            [key]: { validating: false, valid: true, error: null },
+          };
+        });
+        continue;
+      }
+
+      setValidationState((prevState) => {
+        const cur = prevState[key];
+        if (cur?.valid === null && cur?.validating === false && !cur?.error) {
+          return prevState;
+        }
+        return {
+          ...prevState,
+          [key]: { validating: false, valid: null, error: null },
+        };
+      });
+
+      const existingTimer = advancedKeyValidateTimersRef.current[key];
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      advancedKeyValidateTimersRef.current[key] = setTimeout(() => {
+        validateAdvancedItem(key, { silent: true });
+      }, ADVANCED_CHANGE_VALIDATE_DELAY_MS);
+    }
+  }, [
+    getConfigValuesForValidation,
+    validateAdvancedItem,
+    workspaceInfo.hasWorkspace,
+  ]);
+
+  React.useEffect(() => {
+    return () => {
+      for (const key of ADVANCED_VALIDATION_KEYS) {
+        const timer = advancedKeyValidateTimersRef.current[key];
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     vscode.postMessage({ command: 'requestConfig' });
@@ -296,29 +714,78 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
 
       if (message.command === 'initialConfig') {
         const config = message.config || {};
+        setSavedEnvConfig(config);
         form.setFieldsValue({
           ...DEFAULT_VALUES,
           ...config,
         });
+      } else if (message.command === 'initialClaudeConfig') {
+        const msg = message as {
+          config?: Partial<ClaudeCodeConfigValues>;
+          settingsPath?: string;
+          cliStatus?: ClaudeCodeCliStatus;
+        };
+        setSavedClaudeConfig(msg.config || {});
+        claudeForm.setFieldsValue({
+          ...DEFAULT_CLAUDE_VALUES,
+          ...msg.config,
+        });
+        if (msg.settingsPath) {
+          setClaudeSettingsPath(msg.settingsPath);
+        }
+        if (msg.cliStatus) {
+          setClaudeCliStatus(msg.cliStatus);
+        }
+      } else if (message.command === 'navigateAdvanced') {
+        const tab = (message as { tab?: AdvancedTopTab }).tab ?? 'models';
+        jumpToAdvanced(tab);
       } else if (message.command === 'workspaceInfo') {
         setWorkspaceInfo(message.workspaceInfo || { hasWorkspace: false });
       } else if (message.command === 'backendStatus') {
         setBackendStatus(message.backendStatus || { isRunning: false });
+        if (typeof message.claudeCodeCustomized === 'boolean') {
+          setClaudeCodeCustomized(message.claudeCodeCustomized);
+        }
+      } else if (message.command === 'claudeSaveResult') {
+        const msg = message as { success?: boolean; error?: string };
+        if (msg.success) {
+          setClaudeCodeCustomized(true);
+        } else if (msg.error) {
+          notification.error({
+            message: t('claudeCodeConfig.saveFailed'),
+            description: msg.error,
+            placement: 'top',
+          });
+        }
       } else if (message.command === 'saveResult') {
         const msg = message as { success?: boolean; error?: string };
         setLoading(false);
         if (msg.success) {
-          notification.success({
-            message: t('configPage.notifications.saveSuccess'),
-            description: t('configPage.notifications.saveSuccessDesc'),
-            placement: 'top',
-          });
-        } else if (msg.error) {
-          notification.error({
-            message: t('configPage.notifications.saveFailed'),
-            description: msg.error,
-            placement: 'top',
-          });
+          if (pendingStartBackendRef.current) {
+            pendingStartBackendRef.current = false;
+            vscode.postMessage({
+              command: 'startBackend',
+              config: form.getFieldsValue(),
+            });
+          } else {
+            notification.success({
+              message: t('configPage.notifications.saveSuccess'),
+              description: pendingSaveClaudeRef.current
+                ? t('configPage.notifications.saveSuccessDescWithClaude')
+                : t('configPage.notifications.saveSuccessDesc'),
+              placement: 'top',
+            });
+          }
+        } else {
+          pendingStartBackendRef.current = false;
+          setStartingBackend(false);
+          if (msg.error) {
+            notification.error({
+              message: t('configPage.notifications.saveFailed'),
+              description: msg.error,
+              placement: 'top',
+            });
+          }
         }
       } else if (message.command === 'startBackendResult') {
         const msg = message as { success?: boolean; error?: string };
@@ -345,25 +812,34 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
           ...prev,
           [msg.llmType]: { validating: false, valid: msg.success ?? false, error: msg.error || null },
         }));
+        if (msg.success) {
+          markValidFingerprint(msg.llmType);
+        }
       } else if (message.command === 'literatureValidationResult') {
         const msg = message as { success?: boolean; error?: string; sources?: Record<string, unknown> };
         setValidationState(prev => ({
           ...prev,
           literature: { validating: false, valid: msg.success ?? false, error: msg.error || null },
         }));
-        if (msg.success && msg.sources) {
+        if (msg.success) {
+          markValidFingerprint('literature');
+        }
+        if (msg.success && msg.sources && literatureValidateManualRef.current) {
           notification.success({
-            message: '文献检索配置验证成功',
-            description: `服务已连接，数据源: ${Object.keys(msg.sources).join(', ')}`,
+            message: t('configPage.validation.literatureValidateSuccess'),
+            description: t('configPage.validation.literatureValidateSuccessDesc', {
+              sources: Object.keys(msg.sources).join(', '),
+            }),
             placement: 'top',
           });
         }
+        literatureValidateManualRef.current = false;
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [form, vscode]);
+  }, [claudeForm, form, jumpToAdvanced, markValidFingerprint, t, vscode]);
 
   const handleSave = async () => {
     if (!workspaceInfo.hasWorkspace) {
@@ -394,6 +870,10 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     }
 
     setLoading(true);
+    if (!persistClaudeSettingsIfReady()) {
+      setLoading(false);
+      return;
+    }
     vscode.postMessage({
       command: 'saveConfig',
       config: values,
@@ -428,22 +908,26 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
       return;
     }
 
+    pendingStartBackendRef.current = true;
     setLoading(true);
     setStartingBackend(true);
-
-    // First save, then start backend
+    if (!persistClaudeSettingsIfReady()) {
+      pendingStartBackendRef.current = false;
+      setLoading(false);
+      setStartingBackend(false);
+      return;
+    }
     vscode.postMessage({
       command: 'saveConfig',
       config: values,
     });
+  };
 
-    // Wait a bit then start backend
-    setTimeout(() => {
-      vscode.postMessage({
-        command: 'startBackend',
-        config: values,
-      });
-    }, 500);
+  const handleOverviewStartBackend = () => {
+    if (backendStatus.isRunning || startingBackend || !canSaveAndStart) {
+      return;
+    }
+    void handleSaveAndStart();
   };
 
   // 玻璃态样式常量
@@ -456,32 +940,59 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   };
 
   // 统计卡片
-  const statPill = (label: string, value: string | number, icon: React.ReactNode, accent?: string) => (
-    <div
-      style={{
-        flex: '1 1 100px',
-        minWidth: 90,
-        padding: '12px 16px',
-        borderRadius: 10,
-        border: `1px solid ${palette.panelBorder}`,
-        background: isDark
-          ? 'rgba(37, 37, 38, 0.6)'
-          : 'rgba(255, 255, 255, 0.55)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        transition: 'all 0.2s ease',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ color: accent ?? palette.linkForeground }}>{icon}</span>
-        <span style={{ fontSize: 11, color: palette.descriptionForeground, fontWeight: 500 }}>{label}</span>
+  const statPill = (
+    label: string,
+    value: string | number,
+    icon: React.ReactNode,
+    accent?: string,
+    onClick?: () => void,
+    tooltipTitle?: React.ReactNode
+  ) => {
+    const pill = (
+      <div
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={
+          onClick
+            ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onClick();
+              }
+            }
+            : undefined
+        }
+        style={{
+          flex: '1 1 100px',
+          minWidth: 90,
+          padding: '12px 16px',
+          borderRadius: 10,
+          border: `1px solid ${palette.panelBorder}`,
+          background: isDark
+            ? 'rgba(37, 37, 38, 0.6)'
+            : 'rgba(255, 255, 255, 0.55)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'all 0.2s ease',
+          cursor: onClick ? 'pointer' : undefined,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+          <span style={{ color: accent ?? palette.linkForeground }}>{icon}</span>
+          <span style={{ fontSize: 11, color: palette.descriptionForeground, fontWeight: 500 }}>{label}</span>
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: accent ?? palette.editorForeground, lineHeight: 1 }}>
+          {value}
+        </div>
       </div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: accent ?? palette.editorForeground, lineHeight: 1 }}>
-        {value}
-      </div>
-    </div>
-  );
+    );
+    if (!tooltipTitle) {
+      return pill;
+    }
+    return <Tooltip title={tooltipTitle}>{pill}</Tooltip>;
+  };
 
   return (
     <ConfigProvider theme={themeConfig}>
@@ -530,7 +1041,11 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                 </span>
                 <div>
                   <Title level={4} style={{ margin: 0 }}>{t('configPage.title')}</Title>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{t('configPage.subtitle')}</Text>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                    {workspaceInfo.envFilePath
+                      ? t('configPage.envFileLoaded', { path: workspaceInfo.envFilePath })
+                      : t('configPage.subtitle')}
+                  </Text>
                 </div>
               </div>
             </div>
@@ -538,72 +1053,103 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
             {/* 统计卡片 - 显示后端状态和配置概览 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {/* 后端状态卡片 */}
-              <div
-                style={{
-                  flex: '1 1 140px',
-                  minWidth: 120,
-                  padding: '12px 16px',
-                  borderRadius: 10,
-                  border: `1px solid ${palette.panelBorder}`,
-                  background: backendStatus.isRunning
-                    ? (isDark ? 'rgba(34, 139, 34, 0.15)' : 'rgba(34, 139, 34, 0.08)')
-                    : (isDark ? 'rgba(37, 37, 38, 0.6)' : 'rgba(255, 255, 255, 0.55)'),
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                  transition: 'all 0.2s ease',
-                }}
+              <Tooltip
+                title={
+                  backendStatus.isRunning
+                    ? undefined
+                    : (saveDisabledReason ?? t('configPage.overview.startBackendOnClick'))
+                }
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <span style={{ color: backendStatus.isRunning ? palette.successForeground : palette.descriptionForeground }}>
-                    {backendStatus.isRunning ? <CheckCircleOutlined /> : <StopOutlined />}
-                  </span>
-                  <span style={{ fontSize: 11, color: palette.descriptionForeground, fontWeight: 500 }}>后端服务</span>
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: backendStatus.isRunning ? palette.successForeground : palette.editorForeground, lineHeight: 1 }}>
-                  {backendStatus.isRunning ? `运行中 :${backendStatus.port}` : '未启动'}
-                </div>
-                {!backendStatus.isRunning && (
-                  <div style={{ marginTop: 4, fontSize: 11, color: palette.descriptionForeground }}>
-                    建议启动；暂未启动不影响配置编辑和 CLI/Claude Code 实验运行
+                <div
+                  role={!backendStatus.isRunning ? 'button' : undefined}
+                  tabIndex={!backendStatus.isRunning && canSaveAndStart ? 0 : undefined}
+                  onClick={!backendStatus.isRunning ? handleOverviewStartBackend : undefined}
+                  onKeyDown={
+                    !backendStatus.isRunning
+                      ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleOverviewStartBackend();
+                        }
+                      }
+                      : undefined
+                  }
+                  style={{
+                    flex: '1 1 140px',
+                    minWidth: 120,
+                    padding: '12px 16px',
+                    borderRadius: 10,
+                    border: `1px solid ${palette.panelBorder}`,
+                    background: backendStatus.isRunning
+                      ? (isDark ? 'rgba(34, 139, 34, 0.15)' : 'rgba(34, 139, 34, 0.08)')
+                      : (isDark ? 'rgba(37, 37, 38, 0.6)' : 'rgba(255, 255, 255, 0.55)'),
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    transition: 'all 0.2s ease',
+                    cursor: !backendStatus.isRunning
+                      ? (canSaveAndStart && !startingBackend ? 'pointer' : 'not-allowed')
+                      : undefined,
+                    opacity: !backendStatus.isRunning && !canSaveAndStart ? 0.65 : 1,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                    <span style={{ color: backendStatus.isRunning ? palette.successForeground : palette.descriptionForeground }}>
+                      {backendStatus.isRunning ? <CheckCircleOutlined /> : <StopOutlined />}
+                    </span>
+                    <span style={{ fontSize: 11, color: palette.descriptionForeground, fontWeight: 500 }}>
+                      {t('configPage.overview.backend')}
+                    </span>
                   </div>
-                )}
-                {backendStatus.isRunning && backendStatus.url && (
-                  <div style={{ marginTop: 4, fontSize: 11, color: palette.linkForeground, cursor: 'pointer' }}
-                    onClick={() => { if (backendStatus.url) { vscode.postMessage({ command: 'openUrl', url: backendStatus.url }); } }}
-                  >
-                    <LinkOutlined style={{ marginRight: 4 }} />{backendStatus.url}
+                  <div style={{ fontSize: 20, fontWeight: 700, color: backendStatus.isRunning ? palette.successForeground : palette.editorForeground, lineHeight: 1 }}>
+                    {backendStatus.isRunning
+                      ? t('configPage.overview.backendRunning', { port: backendStatus.port ?? '' })
+                      : startingBackend
+                        ? t('configPage.starting')
+                        : t('configPage.overview.backendStopped')}
                   </div>
-                )}
-              </div>
+                  {!backendStatus.isRunning && !startingBackend && (
+                    <Tooltip title={t('configPage.overview.backendStoppedDetail')}>
+                      <div style={{ marginTop: 4, fontSize: 11, color: palette.descriptionForeground, width: 'fit-content' }}>
+                        {t('configPage.overview.backendStoppedHint')}
+                      </div>
+                    </Tooltip>
+                  )}
+                  {backendStatus.isRunning && backendStatus.url && (
+                    <div
+                      style={{ marginTop: 4, fontSize: 11, color: palette.linkForeground, cursor: 'pointer' }}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (backendStatus.url) {
+                          vscode.postMessage({ command: 'openUrl', url: backendStatus.url });
+                        }
+                      }}
+                    >
+                      <LinkOutlined style={{ marginRight: 4 }} />{backendStatus.url}
+                    </div>
+                  )}
+                </div>
+              </Tooltip>
               {/* LLM 配置状态 */}
-              {statPill('LLM 配置', stats.hasLlmKey ? '已配置' : '未配置', <KeyOutlined />, stats.hasLlmKey ? palette.successForeground : palette.errorForeground)}
-              {/* Python 环境 */}
-              {statPill('Python 环境', stats.hasPython ? '已配置' : '默认', <CloudServerOutlined />)}
-              {/* Claude Code 配置入口 */}
-              <div
-                style={{
-                  flex: '1 1 100px',
-                  minWidth: 90,
-                  padding: '12px 16px',
-                  borderRadius: 10,
-                  border: `1px solid ${palette.linkForeground}40`,
-                  background: isDark
-                    ? 'rgba(37, 37, 38, 0.6)'
-                    : 'rgba(255, 255, 255, 0.55)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onClick={() => vscode.postMessage({ command: 'openClaudeCodeConfig' })}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                  <span style={{ color: palette.linkForeground }}><ThunderboltOutlined /></span>
-                  <span style={{ fontSize: 11, color: palette.descriptionForeground, fontWeight: 500 }}>Claude Code</span>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: palette.linkForeground, lineHeight: 1 }}>
-                  配置
-                </div>
-              </div>
+              {statPill(
+                t('configPage.overview.advanced'),
+                advancedOverview.summary,
+                <SettingOutlined />,
+                advancedOverview.accent,
+                () => {
+                  jumpToAdvanced('models');
+                  validateAllAdvanced({ manual: true });
+                },
+                advancedOverview.tooltip
+              )}
+              {statPill(
+                t('configPage.overview.claudeCode'),
+                claudeOverview.value,
+                <CodeOutlined />,
+                claudeOverview.accent,
+                () => jumpToAdvanced('claude'),
+                claudeOverview.tooltip
+              )}
             </div>
           </div>
 
@@ -618,26 +1164,16 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
           )}
 
           <Form form={form} style={{ marginBottom: 20 }}>
-            {/* ========== 必填配置 - 玻璃态卡片 ========== */}
+            {/* ========== 默认 LLM（必填）========== */}
             <Card
               title={
                 <Space>
                   <KeyOutlined style={{ color: palette.errorForeground }} />
-                  <span>LLM 配置</span>
-                  <Tag color="red" style={{ marginLeft: 4 }}>必填</Tag>
+                  <span>{t('configPage.llm.cardTitle')}</span>
+                  <Tag color="red" style={{ marginLeft: 4 }}>{t('configPage.llm.requiredTag')}</Tag>
                 </Space>
               }
-              style={{
-                marginBottom: 16,
-                borderRadius: 12,
-                border: `1px solid ${palette.panelBorder}`,
-                background: isDark
-                  ? 'rgba(37, 37, 38, 0.6)'
-                  : 'rgba(255, 255, 255, 0.5)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-              }}
+              style={glassCardStyle(isDark, palette)}
               styles={{ body: { padding: '16px 20px' } }}
             >
               <Form.Item
@@ -654,337 +1190,78 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               <Form.Item name="llmModel" label={t('configPage.llm.modelName')}>
                 <Input placeholder={t('configPage.llm.modelPlaceholder')} />
               </Form.Item>
-              {validationState.default.error && (
-                <Alert type="error" message={t('configPage.validationFailed')} description={validationState.default.error} style={{ marginBottom: 12, borderRadius: 8 }} />
-              )}
-              {validationState.default.valid && (
-                <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 12, borderRadius: 8 }} />
-              )}
-              <Tooltip title={defaultValidateDisabledReason || ''}>
-                <Button
-                  type="primary"
-                  icon={<CheckCircleOutlined />}
-                  onClick={() => handleValidate('default')}
-                  loading={validationState.default?.validating}
-                  disabled={Boolean(defaultValidateDisabledReason)}
-                >
-                  {t('configPage.validate')}
-                </Button>
-              </Tooltip>
+              <ValidationAction
+                t={t}
+                palette={palette}
+                state={validationState.default}
+                disabledReason={defaultValidateDisabledReason}
+                onValidate={() => handleValidate('default')}
+              />
             </Card>
 
-            {/* ========== 可选配置（折叠）========== */}
-            <Collapse
-              bordered={false}
-              style={{
-                marginBottom: 16,
-                background: 'transparent',
-              }}
-              items={[
-                {
-                  key: 'advanced',
-                  label: <span style={{ fontWeight: 500 }}>{t('configPage.advancedConfig')}</span>,
-                  children: (
-                    <>
-                      {/* 代码生成 LLM */}
-                      <Card
-                        size="small"
-                        title={
-                          <Space>
-                            <span>{t('configPage.coder.title')}</span>
-                            <Tooltip title={t('configPage.coder.hint')}><QuestionCircleOutlined style={{ color: palette.descriptionForeground }} /></Tooltip>
-                          </Space>
-                        }
-                        style={{
-                          marginBottom: 12,
-                          borderRadius: 10,
-                          border: `1px solid ${palette.panelBorder}`,
-                          background: isDark
-                            ? 'rgba(37, 37, 38, 0.5)'
-                            : 'rgba(255, 255, 255, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                        }}
-                        styles={{ body: { padding: '12px 16px' } }}
-                      >
-                        <Form.Item name="coderLlmApiKey" label={t('configPage.coder.apiKey')}>
-                          <Input.Password
-                            placeholder={t('configPage.linkedPlaceholders.apiKey', {
-                              status: hasDefaultLlmKey
-                                ? t('configPage.linkedPlaceholders.configured')
-                                : t('configPage.linkedPlaceholders.notConfigured'),
-                            })}
-                            autoComplete="off"
-                          />
-                        </Form.Item>
-                        <Form.Item name="coderLlmApiBase" label={t('configPage.coder.apiBase')}>
-                          <Input placeholder={t('configPage.linkedPlaceholders.apiBase', { base: defaultLlmApiBase })} />
-                        </Form.Item>
-                        <Form.Item name="coderLlmModel" label={t('configPage.coder.model')}>
-                          <Input placeholder={t('configPage.coder.modelPlaceholder', { model: defaultLlmModel })} />
-                        </Form.Item>
-                        {validationState.coder.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.coder.error} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        {validationState.coder.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        <Tooltip title={coderValidateDisabledReason || ''}>
-                          <Button
-                            size="small"
-                            icon={<CheckCircleOutlined />}
-                            onClick={() => handleValidate('coder')}
-                            loading={validationState.coder?.validating}
-                            disabled={Boolean(coderValidateDisabledReason)}
-                          >
-                            {t('configPage.validate')}
-                          </Button>
-                        </Tooltip>
-                      </Card>
-
-                      {/* 高频操作 LLM */}
-                      <Card
-                        size="small"
-                        title={
-                          <Space>
-                            <span>{t('configPage.advanced.nano.title')}</span>
-                            <Tooltip title={t('configPage.advanced.nano.hint')}><QuestionCircleOutlined style={{ color: palette.descriptionForeground }} /></Tooltip>
-                          </Space>
-                        }
-                        style={{
-                          marginBottom: 12,
-                          borderRadius: 10,
-                          border: `1px solid ${palette.panelBorder}`,
-                          background: isDark
-                            ? 'rgba(37, 37, 38, 0.5)'
-                            : 'rgba(255, 255, 255, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                        }}
-                        styles={{ body: { padding: '12px 16px' } }}
-                      >
-                        <Form.Item name="nanoLlmApiKey" label={t('configPage.advanced.nano.apiKey')}>
-                          <Input.Password
-                            placeholder={t('configPage.linkedPlaceholders.apiKey', {
-                              status: hasDefaultLlmKey
-                                ? t('configPage.linkedPlaceholders.configured')
-                                : t('configPage.linkedPlaceholders.notConfigured'),
-                            })}
-                            autoComplete="off"
-                          />
-                        </Form.Item>
-                        <Form.Item name="nanoLlmApiBase" label={t('configPage.advanced.nano.apiBase')}>
-                          <Input placeholder={t('configPage.linkedPlaceholders.apiBase', { base: defaultLlmApiBase })} />
-                        </Form.Item>
-                        <Form.Item name="nanoLlmModel" label={t('configPage.advanced.nano.model')}>
-                          <Input placeholder={t('configPage.advanced.nano.modelPlaceholder', { model: defaultLlmModel })} />
-                        </Form.Item>
-                        {validationState.nano.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.nano.error} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        {validationState.nano.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        <Tooltip title={nanoValidateDisabledReason || ''}>
-                          <Button
-                            size="small"
-                            icon={<CheckCircleOutlined />}
-                            onClick={() => handleValidate('nano')}
-                            loading={validationState.nano?.validating}
-                            disabled={Boolean(nanoValidateDisabledReason)}
-                          >
-                            {t('configPage.validate')}
-                          </Button>
-                        </Tooltip>
-                      </Card>
-
-                      {/* 分析 LLM */}
-                      <Card
-                        size="small"
-                        title={
-                          <Space>
-                            <span>{t('configPage.analysis.title')}</span>
-                            <Tooltip title={t('configPage.analysis.hint')}><QuestionCircleOutlined style={{ color: palette.descriptionForeground }} /></Tooltip>
-                          </Space>
-                        }
-                        style={{
-                          marginBottom: 12,
-                          borderRadius: 10,
-                          border: `1px solid ${palette.panelBorder}`,
-                          background: isDark
-                            ? 'rgba(37, 37, 38, 0.5)'
-                            : 'rgba(255, 255, 255, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                        }}
-                        styles={{ body: { padding: '12px 16px' } }}
-                      >
-                        <Form.Item name="analysisLlmApiKey" label={t('configPage.analysis.apiKey')}>
-                          <Input.Password
-                            placeholder={t('configPage.linkedPlaceholders.apiKey', {
-                              status: hasDefaultLlmKey
-                                ? t('configPage.linkedPlaceholders.configured')
-                                : t('configPage.linkedPlaceholders.notConfigured'),
-                            })}
-                            autoComplete="off"
-                          />
-                        </Form.Item>
-                        <Form.Item name="analysisLlmApiBase" label={t('configPage.analysis.apiBase')}>
-                          <Input placeholder={t('configPage.linkedPlaceholders.apiBase', { base: defaultLlmApiBase })} />
-                        </Form.Item>
-                        <Form.Item name="analysisLlmModel" label={t('configPage.analysis.model')}>
-                          <Input placeholder={t('configPage.analysis.modelPlaceholder', { model: defaultLlmModel })} />
-                        </Form.Item>
-                        {validationState.analysis?.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.analysis.error} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        {validationState.analysis?.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        <Tooltip title={analysisValidateDisabledReason || ''}>
-                          <Button
-                            size="small"
-                            icon={<CheckCircleOutlined />}
-                            onClick={() => handleValidate('analysis')}
-                            loading={validationState.analysis?.validating}
-                            disabled={Boolean(analysisValidateDisabledReason)}
-                          >
-                            {t('configPage.validate')}
-                          </Button>
-                        </Tooltip>
-                      </Card>
-
-                      {/* Embedding */}
-                      <Card
-                        size="small"
-                        title={
-                          <Space>
-                            <span>{t('configPage.advanced.embedding.title')}</span>
-                            <Tooltip title={t('configPage.advanced.embedding.hint')}><QuestionCircleOutlined style={{ color: palette.descriptionForeground }} /></Tooltip>
-                          </Space>
-                        }
-                        style={{
-                          marginBottom: 12,
-                          borderRadius: 10,
-                          border: `1px solid ${palette.panelBorder}`,
-                          background: isDark
-                            ? 'rgba(37, 37, 38, 0.5)'
-                            : 'rgba(255, 255, 255, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                        }}
-                        styles={{ body: { padding: '12px 16px' } }}
-                      >
-                        <Form.Item name="embeddingApiKey" label={t('configPage.advanced.embedding.apiKey')}>
-                          <Input.Password
-                            placeholder={t('configPage.linkedPlaceholders.apiKey', {
-                              status: hasDefaultLlmKey
-                                ? t('configPage.linkedPlaceholders.configured')
-                                : t('configPage.linkedPlaceholders.notConfigured'),
-                            })}
-                            autoComplete="off"
-                          />
-                        </Form.Item>
-                        <Form.Item name="embeddingApiBase" label={t('configPage.advanced.embedding.apiBase')}>
-                          <Input placeholder={t('configPage.linkedPlaceholders.apiBase', { base: defaultLlmApiBase })} />
-                        </Form.Item>
-                        <Form.Item name="embeddingModel" label={t('configPage.advanced.embedding.model')}>
-                          <Input placeholder={t('configPage.advanced.embedding.modelPlaceholder')} />
-                        </Form.Item>
-                        <Form.Item name="embeddingDims" label={t('configPage.advanced.embedding.dims')}>
-                          <InputNumber min={64} max={4096} style={{ width: '100%' }} placeholder={t('configPage.advanced.embedding.dimsPlaceholder')} />
-                        </Form.Item>
-                        {validationState.embedding.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.embedding.error} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        {validationState.embedding.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        <Tooltip title={embeddingValidateDisabledReason || ''}>
-                          <Button
-                            size="small"
-                            icon={<CheckCircleOutlined />}
-                            onClick={() => handleValidate('embedding')}
-                            loading={validationState.embedding?.validating}
-                            disabled={Boolean(embeddingValidateDisabledReason)}
-                          >
-                            {t('configPage.validate')}
-                          </Button>
-                        </Tooltip>
-                      </Card>
-
-                      {/* Python 环境 */}
-                      <Card
-                        size="small"
-                        title={
-                          <Space>
-                            <span>{t('configPage.python.title')}</span>
-                            <Tooltip title={t('configPage.python.hint')}><QuestionCircleOutlined style={{ color: palette.descriptionForeground }} /></Tooltip>
-                          </Space>
-                        }
-                        style={{
-                          marginBottom: 12,
-                          borderRadius: 10,
-                          border: `1px solid ${palette.panelBorder}`,
-                          background: isDark
-                            ? 'rgba(37, 37, 38, 0.5)'
-                            : 'rgba(255, 255, 255, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                        }}
-                        styles={{ body: { padding: '12px 16px' } }}
-                      >
-                        <Form.Item name="pythonPath" label={t('configPage.python.path')}>
-                          <Input placeholder={t('configPage.python.pathPlaceholder')} />
-                        </Form.Item>
-                        {validationState.python.error && <Alert type="error" message={t('configPage.validationFailed')} description={validationState.python.error} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        {validationState.python.valid && <Alert type="success" message={t('configPage.validationSuccess')} style={{ marginBottom: 8, borderRadius: 6 }} />}
-                        <Tooltip title={pythonValidateDisabledReason || ''}>
-                          <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleValidate('python')} loading={validationState.python?.validating}>{t('configPage.validate')}</Button>
-                        </Tooltip>
-                      </Card>
-
-                      {/* 文献检索 */}
-                      <Card
-                        size="small"
-                        title={
-                          <Space>
-                            <span>{t('configPage.literature.title')}</span>
-                            <Tooltip title={t('configPage.literature.hint')}><QuestionCircleOutlined style={{ color: palette.descriptionForeground }} /></Tooltip>
-                          </Space>
-                        }
-                        style={{
-                          marginBottom: 12,
-                          borderRadius: 10,
-                          border: `1px solid ${palette.panelBorder}`,
-                          background: isDark
-                            ? 'rgba(37, 37, 38, 0.5)'
-                            : 'rgba(255, 255, 255, 0.45)',
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                        }}
-                        styles={{ body: { padding: '12px 16px' } }}
-                      >
-                        <Form.Item name="literatureSearchApiUrl" label={t('configPage.advanced.literature.apiUrl')}>
-                          <Input placeholder={t('configPage.advanced.literature.apiUrlPlaceholder')} />
-                        </Form.Item>
-                        <Form.Item name="literatureSearchApiKey" label="API Key">
-                          <Input.Password placeholder="lit-xxx" autoComplete="off" />
-                        </Form.Item>
-                        <Form.Item>
-                          <Space>
-                            <Tooltip title={literatureValidateDisabledReason || ''}>
-                              <Button
-                                size="small"
-                                icon={<CheckCircleOutlined />}
-                                loading={validationState.literature?.validating}
-                                onClick={() => handleValidate('literature')}
-                                disabled={Boolean(literatureValidateDisabledReason)}
-                              >
-                                {t('configPage.literature.validateConfig')}
-                              </Button>
-                            </Tooltip>
-                            {validationState.literature?.valid === true && (
-                              <Text type="success">✓ {t('configPage.literature.validateSuccess')}</Text>
-                            )}
-                            {validationState.literature?.valid === false && (
-                              <Text type="danger">✗ {validationState.literature.error}</Text>
-                            )}
-                          </Space>
-                        </Form.Item>
-                      </Card>
-                    </>
-                  ),
-                },
-              ]}
-            />
+            {/* ========== 高级配置（折叠）========== */}
+            <div ref={advancedSectionRef}>
+              <Collapse
+                bordered={false}
+                activeKey={advancedOpen}
+                onChange={(keys) => setAdvancedOpen(Array.isArray(keys) ? keys : keys ? [keys] : [])}
+                style={{ marginBottom: 16, background: 'transparent' }}
+                expandIconPosition="end"
+                items={[
+                  {
+                    key: 'advanced',
+                    forceRender: true,
+                    label: (
+                      <span style={{ fontWeight: 500, color: palette.editorForeground }}>
+                        {t('configPage.advancedConfig')}
+                      </span>
+                    ),
+                    style: {
+                      marginBottom: 8,
+                      borderRadius: 10,
+                      border: `1px solid ${palette.panelBorder}`,
+                      background: isDark ? 'rgba(37, 37, 38, 0.45)' : 'rgba(255, 255, 255, 0.4)',
+                      overflow: 'hidden',
+                    },
+                    children: (
+                      <div style={advancedPanelInnerStyle(isDark, palette)}>
+                        <AdvancedConfigSection
+                          t={t}
+                          palette={palette}
+                          hasDefaultLlmKey={hasDefaultLlmKey}
+                          defaultLlmApiBase={defaultLlmApiBase}
+                          defaultLlmModel={defaultLlmModel}
+                          activeTopTab={advancedTopTab}
+                          onActiveTopTabChange={setAdvancedTopTab}
+                          validationState={validationState}
+                          validateDisabledByKind={{
+                            coder: coderValidateDisabledReason,
+                            nano: nanoValidateDisabledReason,
+                            analysis: analysisValidateDisabledReason,
+                            embedding: embeddingValidateDisabledReason,
+                          }}
+                          pythonValidateDisabledReason={pythonValidateDisabledReason}
+                          literatureValidateDisabledReason={literatureValidateDisabledReason}
+                          claudeValidateDisabledReason={claudeValidateDisabledReason}
+                          onValidate={handleValidate}
+                          pythonSectionRef={pythonSectionRef}
+                          literatureSectionRef={literatureSectionRef}
+                          claudeSectionRef={claudeSectionRef}
+                          claudeForm={claudeForm}
+                          claudeCliStatus={claudeCliStatus}
+                          claudeSettingsPath={claudeSettingsPath}
+                          onResetClaude={handleResetClaudeDefaults}
+                        />
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            </div>
 
             {/* ========== 操作按钮 - 玻璃态 ========== */}
             <div
+              ref={actionsSectionRef}
               style={{
                 position: 'sticky',
                 bottom: 16,
@@ -1003,37 +1280,42 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                   : '0 10px 30px rgba(0,0,0,0.12)',
               }}
             >
-              <Space size="middle" wrap>
-                <Button
-                  size="large"
-                  icon={<ReloadOutlined />}
-                  onClick={handleResetDefaults}
-                >
-                  {t('configPage.resetDefaults')}
-                </Button>
-                <Tooltip title={saveDisabledReason || ''}>
+              <Space size="middle" wrap direction="vertical" style={{ width: '100%' }}>
+                <Space size="middle" wrap style={{ justifyContent: 'center' }}>
                   <Button
                     size="large"
-                    icon={<SaveOutlined />}
-                    onClick={handleSave}
-                    disabled={!canSave}
-                    loading={loading}
+                    icon={<ReloadOutlined />}
+                    onClick={handleResetWorkspaceDefaults}
                   >
-                    {t('configPage.save')}
+                    {t('configPage.resetWorkspaceDefaults')}
                   </Button>
-                </Tooltip>
-                <Tooltip title={saveDisabledReason || ''}>
-                  <Button
-                    type="primary"
-                    size="large"
-                    icon={<RocketOutlined />}
-                    onClick={handleSaveAndStart}
-                    loading={startingBackend}
-                    disabled={!canSaveAndStart}
-                  >
-                    {startingBackend ? t('configPage.starting') : t('configPage.saveAndStart')}
-                  </Button>
-                </Tooltip>
+                  <Tooltip title={saveDisabledReason || ''}>
+                    <Button
+                      size="large"
+                      icon={<SaveOutlined />}
+                      onClick={handleSave}
+                      disabled={!canSave}
+                      loading={loading}
+                    >
+                      {t('configPage.save')}
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title={saveDisabledReason || ''}>
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<RocketOutlined />}
+                      onClick={handleSaveAndStart}
+                      loading={startingBackend}
+                      disabled={!canSaveAndStart}
+                    >
+                      {startingBackend ? t('configPage.starting') : t('configPage.saveAndStart')}
+                    </Button>
+                  </Tooltip>
+                </Space>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', textAlign: 'center' }}>
+                  {t('configPage.saveHint')}
+                </Text>
               </Space>
             </div>
           </Form>

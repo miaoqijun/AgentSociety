@@ -27,7 +27,9 @@ These are project-level files and are safe to maintain with the project. Put per
 
 ### Configure the model service used by Claude Code
 
-Claude Code uses Anthropic by default. If you route requests through a proxy or compatible gateway, configure environment variables in `~/.claude/settings.json`:
+Claude Code uses Anthropic by default. If you route requests through a proxy or compatible gateway, configure environment variables in **`~/.claude/settings.json`**, or use the extension config page under **Advanced → Claude Code**:
+
+[Open Claude Code settings (config page)](command:aiSocialScientist.openClaudeCodeConfig)
 
 ![Claude Code settings file example](../images/claude-settings-json.png)
 

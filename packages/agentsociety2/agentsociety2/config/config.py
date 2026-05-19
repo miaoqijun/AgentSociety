@@ -69,6 +69,7 @@ def _redact_router_config_for_log(obj: Any) -> Any:
         return [_redact_router_config_for_log(x) for x in obj]
     return obj
 
+
 # Initialize LiteLLM logging once
 _litellm_logging_initialized = False
 
@@ -330,20 +331,20 @@ class Config:
 
     # Web Search API settings
 
-    LITERATURE_SEARCH_API_URL: str = (
-        os.getenv("LITERATURE_SEARCH_API_URL", "").strip()
-        or "http://localhost:8008/api/search"
+    LITERATURE_SEARCH_MCP_URL: str = (
+        os.getenv("LITERATURE_SEARCH_MCP_URL", "").strip()
+        or "https://llmapi.fiblab.net/mcp/"
     )
     """
-    Base URL for the literature search service.
+    MCP gateway URL for academic literature search (Streamable HTTP).
 
-    Environment variable: LITERATURE_SEARCH_API_URL
-    Default: "http://localhost:8008/api/search"
+    Environment variable: LITERATURE_SEARCH_MCP_URL
+    Default: "https://llmapi.fiblab.net/mcp/"
     """
 
     LITERATURE_SEARCH_API_KEY: str = os.getenv("LITERATURE_SEARCH_API_KEY", "").strip()
     """
-    API key for the literature search service authentication.
+    Bearer token for literature MCP authentication.
 
     Environment variable: LITERATURE_SEARCH_API_KEY
     Default: "" (empty, must be set for authenticated requests)
@@ -601,16 +602,27 @@ class Config:
             )
 
     @classmethod
-    def get_literature_search_api_url(cls) -> str:
-        """Get literature search API URL, preferring the latest environment value."""
-        return (
-            os.getenv("LITERATURE_SEARCH_API_URL", "").strip()
-            or cls.LITERATURE_SEARCH_API_URL
+    def get_literature_search_mcp_url(cls) -> str:
+        """Return the normalized academic literature MCP gateway URL.
+
+        :returns: URL from ``LITERATURE_SEARCH_MCP_URL`` (environment overrides class default).
+        """
+        from agentsociety2.skills.literature.mcp_client import (
+            normalize_literature_mcp_url,
         )
+
+        raw = (
+            os.getenv("LITERATURE_SEARCH_MCP_URL", "").strip()
+            or cls.LITERATURE_SEARCH_MCP_URL
+        )
+        return normalize_literature_mcp_url(raw)
 
     @classmethod
     def get_literature_search_api_key(cls) -> str:
-        """Get literature search API key, preferring the latest environment value."""
+        """Return the Bearer token for the literature MCP gateway.
+
+        :returns: Key from ``LITERATURE_SEARCH_API_KEY`` (environment overrides class default).
+        """
         return (
             os.getenv("LITERATURE_SEARCH_API_KEY", "").strip()
             or cls.LITERATURE_SEARCH_API_KEY

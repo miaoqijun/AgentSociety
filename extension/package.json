@@ -264,7 +264,7 @@
       },
       {
         "command": "aiSocialScientist.openClaudeCodeConfig",
-        "title": "AI Social Scientist: Claude Code 配置",
+        "title": "AI Social Scientist: Claude Code 配置（配置页）",
         "icon": "$(key)"
       },
       {

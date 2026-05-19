@@ -47,11 +47,21 @@ def _import_literature_api():
 async def main():
     parser = argparse.ArgumentParser(description="Search academic literature")
     parser.add_argument("query", help="Search query")
-    parser.add_argument("--limit", type=int, default=10, help="Number of articles (default: 10)")
-    parser.add_argument("--year-from", type=int, default=None, help="Filter by year (start)")
-    parser.add_argument("--year-to", type=int, default=None, help="Filter by year (end)")
+    parser.add_argument(
+        "--limit", type=int, default=10, help="Number of articles (default: 10)"
+    )
+    parser.add_argument(
+        "--year-from", type=int, default=None, help="Filter by year (start)"
+    )
+    parser.add_argument(
+        "--year-to", type=int, default=None, help="Filter by year (end)"
+    )
     parser.add_argument("--workspace", default=".", help="Workspace path")
-    parser.add_argument("--multi-query", action="store_true", help="Enable multi-query mode (split complex queries into subtopics)")
+    parser.add_argument(
+        "--multi-query",
+        action="store_true",
+        help="Enable multi-query mode (split complex queries into subtopics)",
+    )
 
     args = parser.parse_args()
 
@@ -94,6 +104,7 @@ async def main():
             print(f"Warning: Failed to generate summary: {e}")
 
         saved_files = result.get("saved_files", [])
+        full_text_stats = result.get("full_text_stats") or {}
         index_path = workspace_path / "papers" / "literature_index.json"
         if saved_files:
             content += (
@@ -101,8 +112,18 @@ async def main():
                 f"- Literature index: `{index_path}`\n"
                 f"- Markdown notes saved: {len(saved_files)}\n"
                 "- Use `@papers/<note>.md` references for Claude/Agent reading.\n"
-                "- If original PDFs are needed, inspect DOI/URL/PDF metadata and save open-access files under `papers/full_texts/`."
             )
+            if full_text_stats:
+                content += (
+                    "- Open-access PDF download: "
+                    f"downloaded={full_text_stats.get('downloaded', 0)}, "
+                    f"no_candidate={full_text_stats.get('no_candidate', 0)}, "
+                    f"failed={full_text_stats.get('failed', 0)}, "
+                    f"skipped={full_text_stats.get('skipped', 0)}\n"
+                    "- PDF paths are recorded in `extra_fields.full_text` under `papers/full_texts/`.\n"
+                )
+            else:
+                content += "- Open-access PDFs are downloaded automatically when URLs are available.\n"
 
         print(content)
         return 0

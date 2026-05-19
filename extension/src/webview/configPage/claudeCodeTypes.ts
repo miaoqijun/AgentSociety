@@ -1,13 +1,3 @@
-/**
- * Claude Code 配置页的类型定义
- */
-
-export interface VSCodeAPI {
-  postMessage(message: unknown): void;
-  getState(): unknown;
-  setState(state: unknown): void;
-}
-
 export interface ClaudeCodeConfigValues {
   apiKey: string;
   baseUrl: string;
@@ -22,4 +12,3 @@ export interface ClaudeCodeCliStatus {
   version?: string;
   error?: string;
 }
-

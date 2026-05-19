@@ -128,20 +128,22 @@ class TestConfigClass:
         """Test that ChromaDB telemetry is disabled by default."""
         assert os.environ.get("ANONYMIZED_TELEMETRY", "False") == "False"
 
-    def test_literature_search_api_url_default(self):
-        """Test literature search API URL has a default."""
-        assert Config.LITERATURE_SEARCH_API_URL is not None
-        assert Config.LITERATURE_SEARCH_API_URL.startswith("http")
+    def test_literature_search_mcp_url_default(self):
+        """Test literature search MCP URL default points at gateway MCP."""
+        url = Config.get_literature_search_mcp_url()
+        assert url.startswith("https://")
+        assert url.endswith("/mcp/")
 
 
 class TestConfigGetters:
     """Tests for Config getter methods."""
 
-    def test_get_literature_search_api_url(self):
-        """Test getting literature search API URL."""
-        url = Config.get_literature_search_api_url()
-        assert url is not None
+    def test_get_literature_search_mcp_url(self):
+        """Test getting literature search MCP URL."""
+        url = Config.get_literature_search_mcp_url()
         assert isinstance(url, str)
+        assert url.startswith("http")
+        assert "/mcp" in url
 
     def test_get_literature_search_api_key(self):
         """Test getting literature search API key."""
