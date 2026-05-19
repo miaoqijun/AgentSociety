@@ -658,3 +658,9 @@ Memory 语义
 * Murre, J. M. J. and Dros, J. (2015). Replication and Analysis of Ebbinghaus' Forgetting Curve: https://doi.org/10.1371/journal.pone.0120644
 * Anderson, J. R. and Schooler, L. J. (1991). Reflections of the Environment in Memory: https://doi.org/10.1111/j.1467-9280.1991.tb00174.x
 * Evans, J. S. B. T. (2008). Dual-processing accounts of reasoning, judgment, and social cognition: https://doi.org/10.1146/annurev.psych.59.103006.093629
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   skill_guide

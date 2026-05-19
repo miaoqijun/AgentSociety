@@ -104,7 +104,6 @@ msgid "收集智能体响应"
 msgstr "Collecting Agent Responses"
 
 #: ../../interaction.rst:162
-#, fuzzy
 msgid "使用 ReplayWriter 进行环境数据收集"
 msgstr "Data Collection with ReplayWriter"
 

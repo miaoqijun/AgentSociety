@@ -66,31 +66,28 @@ msgid "必需参数"
 msgstr "Required Arguments"
 
 #: ../../cli.rst:30 ../../cli.rst:43
-#, fuzzy
 msgid "参数"
-msgstr "Required Arguments"
+msgstr "Parameter"
 
 #: ../../cli.rst:31 ../../cli.rst:45 ../../cli.rst:170
 msgid "说明"
-msgstr "illustrate"
+msgstr "Description"
 
 #: ../../cli.rst:32
 msgid "``--config`` <PATH>"
 msgstr "``--config`` <PATH>"
 
 #: ../../cli.rst:33
-#, fuzzy
 msgid "初始化配置文件路径（init_config.json）"
-msgstr "init_config.json"
+msgstr "Initialization configuration file path (init_config.json)"
 
 #: ../../cli.rst:34
 msgid "``--steps`` <PATH>"
 msgstr "``--steps`` <PATH>"
 
 #: ../../cli.rst:35
-#, fuzzy
 msgid "步骤配置文件路径（steps.yaml）"
-msgstr "steps.yaml"
+msgstr "Step configuration file path (steps.yaml)"
 
 #: ../../cli.rst:38
 msgid "可选参数"
@@ -98,7 +95,7 @@ msgstr "Optional Arguments"
 
 #: ../../cli.rst:44
 msgid "默认值"
-msgstr "default value"
+msgstr "Default value"
 
 #: ../../cli.rst:46
 msgid "``--run-dir`` <PATH>"
@@ -118,7 +115,7 @@ msgstr "``--experiment-id`` <TEXT>"
 
 #: ../../cli.rst:50 ../../cli.rst:56
 msgid "无"
-msgstr "none"
+msgstr "None"
 
 #: ../../cli.rst:51
 msgid "实验标识符"
@@ -142,7 +139,7 @@ msgstr "``--log-file`` <PATH>"
 
 #: ../../cli.rst:57
 msgid "日志文件路径（**后台运行必需**）"
-msgstr "Log file path (**后台运行必需**)"
+msgstr "Log file path (**required for background execution**)"
 
 #: ../../cli.rst:60
 msgid "运行实验"
@@ -202,9 +199,8 @@ msgid "步骤类型"
 msgstr "Step Types"
 
 #: ../../cli.rst:169
-#, fuzzy
 msgid "类型"
-msgstr "Step Types"
+msgstr "Type"
 
 #: ../../cli.rst:171
 msgid "``ask``"
@@ -247,18 +243,16 @@ msgid "日志级别"
 msgstr "Log Levels"
 
 #: ../../cli.rst:212
-#, fuzzy
 msgid "可选的日志级别："
-msgstr "Log Levels"
+msgstr "Available log levels:"
 
 #: ../../cli.rst:218
-#, fuzzy
 msgid "级别"
-msgstr "Log Levels"
+msgstr "Level"
 
 #: ../../cli.rst:219
 msgid "用途"
-msgstr "use"
+msgstr "Usage"
 
 #: ../../cli.rst:220
 msgid "``DEBUG``"
@@ -282,7 +276,7 @@ msgstr "``WARNING``"
 
 #: ../../cli.rst:225
 msgid "警告信息"
-msgstr "warning message"
+msgstr "Warning message"
 
 #: ../../cli.rst:226
 msgid "``ERROR``"
@@ -290,7 +284,7 @@ msgstr "``ERROR``"
 
 #: ../../cli.rst:227
 msgid "错误信息"
-msgstr "error message"
+msgstr "Error message"
 
 #: ../../cli.rst:228
 msgid "``CRITICAL``"
@@ -298,7 +292,7 @@ msgstr "``CRITICAL``"
 
 #: ../../cli.rst:229
 msgid "严重错误"
-msgstr "serious error"
+msgstr "Critical error"
 
 #: ../../cli.rst:232
 msgid "示例：完整工作流"

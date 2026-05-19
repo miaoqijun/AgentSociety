@@ -66,6 +66,7 @@ AgentSociety 2
    :maxdepth: 2
    :caption: 入门指南:
 
+   user_guide
    installation
    quickstart
    cli
@@ -82,7 +83,6 @@ AgentSociety 2
    storage
    custom_modules
    skills
-   skill_guide
 
 .. toctree::
    :maxdepth: 2

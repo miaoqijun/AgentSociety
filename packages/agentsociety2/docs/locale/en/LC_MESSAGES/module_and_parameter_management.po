@@ -4,14 +4,13 @@
 # package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-02 22:32+0800\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"PO-Revision-Date: 2026-05-19 00:00+0800\n"
+"Last-Translator: AgentSociety Team\n"
 "Language-Team: en <LL@li.org>\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -85,7 +84,7 @@ msgstr "1.2 Module registration system"
 
 #: ../../module_and_parameter_management.md:24
 msgid "核心组件"
-msgstr "core components"
+msgstr "Core components"
 
 #: ../../module_and_parameter_management.md:34
 msgid "ModuleRegistry (单例模式)"
@@ -98,15 +97,15 @@ msgstr ""
 
 #: ../../module_and_parameter_management.md:44
 msgid "**主要方法：**"
-msgstr "**主要方法：**"
+msgstr "**Main methods:**"
 
 #: ../../module_and_parameter_management.md
 msgid "方法"
-msgstr "method"
+msgstr "Method"
 
 #: ../../module_and_parameter_management.md
 msgid "说明"
-msgstr "illustrate"
+msgstr "Description"
 
 #: ../../module_and_parameter_management.md
 msgid "`register_env_module(module_type, module_class, is_custom)`"
@@ -192,7 +191,7 @@ msgstr "Custom module scan"
 
 #: ../../module_and_parameter_management.md:88
 msgid "**扫描规则：**"
-msgstr "**扫描规则：**"
+msgstr "**Scanning rules:**"
 
 #: ../../module_and_parameter_management.md:89
 msgid "扫描 `custom/agents/` 和 `custom/envs/` 目录"
@@ -303,7 +302,7 @@ msgstr "2.3 Prefill Params"
 
 #: ../../module_and_parameter_management.md:182
 msgid "文件位置"
-msgstr "file location"
+msgstr "File location"
 
 #: ../../module_and_parameter_management.md:188
 msgid "文件结构"
@@ -328,7 +327,7 @@ msgstr ""
 
 #: ../../module_and_parameter_management.md:236
 msgid "**验证内容：**"
-msgstr "**验证内容：**"
+msgstr "**Validation content:**"
 
 #: ../../module_and_parameter_management.md:237
 msgid "加载 `init_config.json`"
@@ -336,7 +335,7 @@ msgstr "Loading `init_config.json`"
 
 #: ../../module_and_parameter_management.md:238
 msgid "解析 `SIM_SETTINGS.json`"
-msgstr "Analysis `SIM_SETTINGS.json`"
+msgstr "Parse `SIM_SETTINGS.json`"
 
 #: ../../module_and_parameter_management.md:239
 msgid "实例化每个环境模块类（严格验证）"
@@ -412,21 +411,22 @@ msgstr "AgentSociety2's module and parameter management system provides:"
 
 #: ../../module_and_parameter_management.md:419
 msgid "**自动发现机制**：自动发现内置和自定义模块"
-msgstr "**自动发现机制**: Automatically discover built-in and custom modules"
+msgstr "**Automatic discovery mechanism**: Automatically discover built-in and custom modules"
 
 #: ../../module_and_parameter_management.md:420
 msgid "**统一注册表**：单例模式的 ModuleRegistry"
-msgstr "**统一注册表**: ModuleRegistry in singleton mode"
+msgstr "**Unified registry**: ModuleRegistry in singleton mode"
 
 #: ../../module_and_parameter_management.md:421
 msgid "**多源参数管理**：类定义、生成参数、预填充参数"
 msgstr ""
-"**多源参数管理**: Class definition, generated parameters, pre-filled parameters"
+"**Multi-source parameter management**: Class definition, generated parameters,"
+" pre-filled parameters"
 
 #: ../../module_and_parameter_management.md:422
 msgid "**灵活的查询接口**：命令行脚本和 API 接口"
-msgstr "**灵活的查询接口**: Command line script and API interface"
+msgstr "**Flexible query interface**: Command line script and API interface"
 
 #: ../../module_and_parameter_management.md:423
 msgid "**严格的验证**：通过实例化验证配置有效性"
-msgstr "**严格的验证**: Verify configuration validity through instantiation"
+msgstr "**Strict validation**: Verify configuration validity through instantiation"

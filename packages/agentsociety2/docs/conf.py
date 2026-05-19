@@ -46,6 +46,8 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+gettext_allow_fuzzy_translations = True
+
 # -- Autodoc configuration ---------------------------------------------------
 autodoc_default_options = {
     "members": True,

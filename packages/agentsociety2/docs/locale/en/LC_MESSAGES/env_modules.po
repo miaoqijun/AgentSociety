@@ -92,14 +92,12 @@ msgid "``SimpleSocialSpace`` - 社交互动模块"
 msgstr "``SimpleSocialSpace`` - Social interaction module"
 
 #: ../../env_modules.rst:58
-#, fuzzy
 msgid "``PublicGoodsEnv`` - 公共物品博弈模块"
-msgstr "``PublicGoodsGame`` - Public goods game module"
+msgstr "``PublicGoodsEnv`` - Public goods game module"
 
 #: ../../env_modules.rst:59
-#, fuzzy
 msgid "``PrisonersDilemmaEnv`` - 囚徒困境模块"
-msgstr "``PrisonersDilemma`` - Prisoner's dilemma module"
+msgstr "``PrisonersDilemmaEnv`` - Prisoner's dilemma module"
 
 #: ../../env_modules.rst:62
 msgid "@tool 装饰器"
@@ -166,24 +164,20 @@ msgid "示例"
 msgstr "Examples"
 
 #: ../../env_modules.rst:161
-#, fuzzy
 msgid "请参阅 ``agentsociety2.contrib.env`` 中的内置环境类（类名以当前代码为准）："
-msgstr "See the :mod:`agentsociety2.contrib.env` package for example modules:"
+msgstr "See the built-in environment classes in ``agentsociety2.contrib.env`` (class names follow the current code):"
 
 #: ../../env_modules.rst:163
-#, fuzzy
 msgid "``SimpleSocialSpace`` — 社交互动"
-msgstr "``SimpleSocialSpace`` - Social interaction module"
+msgstr "``SimpleSocialSpace`` — social interaction"
 
 #: ../../env_modules.rst:164
-#, fuzzy
 msgid "``PublicGoodsEnv`` — 公共物品博弈"
-msgstr "``PublicGoodsGame`` - Public goods game module"
+msgstr "``PublicGoodsEnv`` — public goods game"
 
 #: ../../env_modules.rst:165
-#, fuzzy
 msgid "``PrisonersDilemmaEnv`` — 囚徒困境"
-msgstr "``PrisonersDilemma`` - Prisoner's dilemma module"
+msgstr "``PrisonersDilemmaEnv`` — prisoner's dilemma"
 
 #: ../../env_modules.rst:166
 msgid "``TrustGameEnv`` — 信任博弈"
@@ -211,4 +205,4 @@ msgstr "``TrustGameEnv`` — trust game"
 #~ msgstr "``PrisonersDilemma`` - Prisoner's dilemma module"
 
 #~ msgid "``TrustGameEnv``（信任博弈）"
-#~ msgstr ""
+#~ msgstr "``TrustGameEnv`` — trust game"

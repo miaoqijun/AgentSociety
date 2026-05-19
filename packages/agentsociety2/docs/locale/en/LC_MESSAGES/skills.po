@@ -53,7 +53,7 @@ msgstr "**Experiment Design**: Design complete experiment configurations"
 #: ../../skills.rst:14
 msgid "**论文撰写**: 通过 paper-orchestrator skill 套件（重写中）生成 Nature 风格学术论文 PDF"
 msgstr ""
-"**论文撰写**: Generate Nature style academic paper PDF through paper-"
+"**Paper writing**: Generate Nature-style academic paper PDF through the paper-"
 "orchestrator skill suite (under rewriting)"
 
 #: ../../skills.rst:15
@@ -145,7 +145,7 @@ msgstr ""
 
 #: ../../skills.rst:50
 msgid "create-agent 技能"
-msgstr "create-agent skills"
+msgstr "create-agent skill"
 
 #: ../../skills.rst:52
 msgid ""
@@ -161,7 +161,7 @@ msgstr ""
 
 #: ../../skills.rst:54
 msgid "**文件位置与扫描规则**:"
-msgstr "**文件位置与扫描规则**:"
+msgstr "**File location and scan rules**:"
 
 #: ../../skills.rst:56
 msgid ""
@@ -186,11 +186,11 @@ msgstr ""
 
 #: ../../skills.rst:60
 msgid "**基类选择**:"
-msgstr "**基类选择**:"
+msgstr "**Base class selection**:"
 
 #: ../../skills.rst:66
 msgid "基类"
-msgstr "base class"
+msgstr "Base class"
 
 #: ../../skills.rst:67
 msgid "适用场景"
@@ -218,7 +218,7 @@ msgstr ""
 
 #: ../../skills.rst:73
 msgid "**本地校验**:"
-msgstr "**本地校验**:"
+msgstr "**Local validation**:"
 
 #: ../../skills.rst:83
 msgid ""
@@ -260,11 +260,11 @@ msgstr "Skill"
 
 #: ../../skills.rst:100
 msgid "主要输入"
-msgstr "main input"
+msgstr "Main input"
 
 #: ../../skills.rst:101
 msgid "主要输出"
-msgstr "main output"
+msgstr "Main output"
 
 #: ../../skills.rst:102
 msgid "``agentsociety-experiment-config``"
@@ -342,38 +342,38 @@ msgstr ""
 
 #: ../../skills.rst:125
 msgid "**加载上下文**：读取 hypothesis、experiment config、steps 和 run 元数据。"
-msgstr "**加载上下文**: Read hypothesis, experiment config, steps and run metadata."
+msgstr "**Load context**: Read hypothesis, experiment config, steps, and run metadata."
 
 #: ../../skills.rst:126
 msgid "**确认问题**：明确本次分析是验证假设、解释异常、比较组间差异，还是生成报告。"
 msgstr ""
-"**确认问题**: Clarify whether this analysis is to test hypotheses, explain "
+"**Clarify the question**: Clarify whether this analysis is to test hypotheses, explain "
 "anomalies, compare differences between groups, or generate a report."
 
 #: ../../skills.rst:127
 msgid "**探索数据**：列出 SQLite 表，查看 schema、行数、关键字段和缺失情况。"
 msgstr ""
-"**探索数据**: List the SQLite table and view the schema, number of rows, key "
-"fields and missing conditions."
+"**Explore data**: List the SQLite tables and view the schema, number of rows, key "
+"fields, and missing values."
 
 #: ../../skills.rst:128
 msgid "**提出发现**：先给出可检验发现，再决定需要哪些图表。"
 msgstr ""
-"**提出发现**: Give testable findings first, then decide which graphs are "
-"needed."
+"**Propose findings**: Present testable findings first, then decide which charts "
+"are needed."
 
 #: ../../skills.rst:129
 msgid "**生成图表**：单实验默认最多 5 张图；每张图在报告中必须有一句说明。"
 msgstr ""
-"**生成图表**: A single experiment can have up to 5 pictures by default; each "
-"picture must have an explanation in the report."
+"**Generate charts**: A single experiment can have up to 5 charts by default; each "
+"chart must have a corresponding explanation in the report."
 
 #: ../../skills.rst:130
 #, python-brace-format
 msgid "**写报告**：单实验输出到 ``presentation/hypothesis_{id}/``，跨实验综合输出到 ``synthesis/``。"
 msgstr ""
-"**写报告**: Single experiment output to ``presentation/hypothesis_{id}/``, "
-"cross-experiment comprehensive output to ``synthesis/``."
+"**Write report**: Single-experiment output goes to ``presentation/hypothesis_{id}/``, "
+"and cross-experiment synthesis output goes to ``synthesis/``."
 
 #: ../../skills.rst:132
 msgid "常用命令："
@@ -472,7 +472,7 @@ msgstr ""
 
 #: ../../skills.rst:207
 msgid "**保存结果**:"
-msgstr "**保存结果**:"
+msgstr "**Save results**:"
 
 #: ../../skills.rst:209
 msgid ""
@@ -491,8 +491,8 @@ msgid ""
 "Code 或 Agent 读取。"
 msgstr ""
 "``papers/literature_index.json`` will be updated simultaneously. "
-"``file_path`` in the index points to the local Markdown document note, so"
-" ``@引用`` in the plug-in can be copied to "
+"``file_path`` in the index points to the local Markdown literature note, so"
+" the ``@cite`` button in the plug-in can be copied as "
 "``@papers/<title>_<timestamp>.md`` for Claude Code or Agent to read."
 
 #: ../../skills.rst:215
@@ -504,7 +504,7 @@ msgstr ""
 
 #: ../../skills.rst:217
 msgid "**原文下载（由 Claude/Agent 按需执行）**:"
-msgstr "**原文下载（由 Claude/Agent 按需执行）**:"
+msgstr "**Full-text download (on demand by Claude/Agent)**:"
 
 #: ../../skills.rst:219
 msgid ""
@@ -513,7 +513,7 @@ msgid ""
 "``open_access``、``best_oa_location`` 等元信息；Claude Code 或 Agent "
 "可以基于这些线索按需下载开放获取原文。"
 msgstr ""
-"Documentation skills do not hardcode download policies in the Python API."
+"The literature skill does not hardcode download policies in the Python API."
 " The search results will try to retain meta-information such as ``doi``, "
 "``url``, ``pdf_url``, ``full_text_url``, ``download_url``, "
 "``open_access``, ``best_oa_location``; Claude Code or Agent can download "
@@ -574,13 +574,13 @@ msgid ""
 "**数据源**: - ``local``: RAGFlow 本地知识库 - ``arxiv``: arXiv 预印本平台 - "
 "``crossref``: CrossRef DOI 元数据库 - ``openalex``: OpenAlex 学术图谱 (2.5亿+ 论文)"
 msgstr ""
-"**数据源**: - ``local``: RAGFlow local knowledge base - ``arxiv``: arXiv "
-"preprint platform - ``crossref``: Crossref DOI metadata repository - "
+"**Data sources**: - ``local``: RAGFlow local knowledge base - ``arxiv``: arXiv "
+"preprint platform - ``crossref``: CrossRef DOI metadata repository - "
 "``openalex``: OpenAlex scholarly graph (250 million+ papers)"
 
 #: ../../skills.rst:254
 msgid "**配置**: 需要在 ``.env`` 文件中配置 API:"
-msgstr "**配置**: API needs to be configured in ``.env`` file:"
+msgstr "**Configuration**: API needs to be configured in the ``.env`` file:"
 
 #: ../../skills.rst:263
 msgid "假设技能 (hypothesis)"
@@ -613,14 +613,14 @@ msgid ""
 "作为唯一入口点调度。Python 包 ``agentsociety2.skills.paper`` 提供非 LLM 逻辑（状态管理、适配器、 "
 "LaTeX 编译）。"
 msgstr ""
-"The paper generates a state machine driver composed of 6 plugin skills, "
-"and schedules it through ``paper-orchestrator`` as the only entry point. "
-"Python package ``agentsociety2.skills.paper`` provides non-LLM logic "
+"Paper generation is driven by a state machine composed of 6 plugin skills, "
+"scheduled through ``paper-orchestrator`` as the sole entry point. "
+"The Python package ``agentsociety2.skills.paper`` provides non-LLM logic "
 "(state management, adapters, LaTeX compilation)."
 
 #: ../../skills.rst:329
 msgid "**Skill 套件：**"
-msgstr "**Skill 套件：**"
+msgstr "**Skill suite:**"
 
 #: ../../skills.rst:331
 msgid ""
@@ -664,7 +664,7 @@ msgstr ""
 
 #: ../../skills.rst:341
 msgid "**状态机阶段：**"
-msgstr "**状态机阶段：**"
+msgstr "**State machine stages:**"
 
 #: ../../skills.rst:343
 msgid ""
@@ -676,7 +676,7 @@ msgstr ""
 
 #: ../../skills.rst:346
 msgid "**持久化布局：**"
-msgstr "**持久化布局：**"
+msgstr "**Persistence layout:**"
 
 #: ../../skills.rst:348
 msgid "所有论文状态持久化在 ``<workspace>/paper/`` 下："
@@ -714,7 +714,7 @@ msgstr "``runs/<TS>/compose/out/paper.pdf`` — Final deliverable"
 
 #: ../../skills.rst:358
 msgid "**CLI 入口：**"
-msgstr "**CLI 入口：**"
+msgstr "**CLI entry point:**"
 
 #: ../../skills.rst:360
 msgid "``$PYTHON_PATH .agentsociety/bin/ags.py paper-orchestrator <subcommand>``"
@@ -743,31 +743,31 @@ msgstr "Here's a typical research workflow using Claude Code Skills:"
 
 #: ../../skills.rst:372
 msgid "**定义研究话题** - 编辑 ``TOPIC.md``"
-msgstr "**定义研究话题** - Edit ``TOPIC.md``"
+msgstr "**Define research topic** - Edit ``TOPIC.md``"
 
 #: ../../skills.rst:373
 msgid "**文献检索** - 使用 ``/agentsociety-literature-search``"
-msgstr "**文献检索** - Use ``/agentsociety-literature-search``"
+msgstr "**Literature search** - Use ``/agentsociety-literature-search``"
 
 #: ../../skills.rst:374
 msgid "**创建假设** - 使用 ``/agentsociety-hypothesis add``"
-msgstr "**创建假设** - Use ``/agentsociety-hypothesis add``"
+msgstr "**Create hypothesis** - Use ``/agentsociety-hypothesis add``"
 
 #: ../../skills.rst:375
 msgid "**配置实验** - 使用 ``/agentsociety-experiment-config validate/prepare/run``"
-msgstr "**配置实验** - Use ``/agentsociety-experiment-config validate/prepare/run``"
+msgstr "**Configure experiment** - Use ``/agentsociety-experiment-config validate/prepare/run``"
 
 #: ../../skills.rst:376
 msgid "**执行实验** - 使用 ``/agentsociety-run-experiment start``"
-msgstr "**执行实验** - Use ``/agentsociety-run-experiment start``"
+msgstr "**Run experiment** - Use ``/agentsociety-run-experiment start``"
 
 #: ../../skills.rst:377
 msgid "**分析结果** - 使用 ``/agentsociety-analysis``"
-msgstr "**分析结果** - Use ``/agentsociety-analysis``"
+msgstr "**Analyze results** - Use ``/agentsociety-analysis``"
 
 #: ../../skills.rst:378
 msgid "**生成论文** - 使用 ``/agentsociety-paper-orchestrator``（别名 ``/paper``）"
-msgstr "**生成论文** - Use ``/agentsociety-paper-orchestrator`` (alias ``/paper``)"
+msgstr "**Generate paper** - Use ``/agentsociety-paper-orchestrator`` (alias ``/paper``)"
 
 #: ../../skills.rst:381
 msgid "配置"

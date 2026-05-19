@@ -4,14 +4,13 @@
 # package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-17 23:13+0800\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"PO-Revision-Date: 2026-05-19 00:00+0000\n"
+"Last-Translator: AgentSociety Team\n"
 "Language: en\n"
 "Language-Team: en <LL@li.org>\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -30,7 +29,7 @@ msgstr "This module provides the core classes and data model of the agent."
 
 #: ../../api/agent.rst:7
 msgid "核心类"
-msgstr "core class"
+msgstr "Core Classes"
 
 #: ../../api/agent.rst:10
 msgid "AgentBase"
@@ -51,9 +50,9 @@ msgid ""
 "LLM 交互：基类在初始化时通过 ``get_llm_router_and_model(\"nano\")`` 绑定 **nano** "
 "角色路由（高频/轻量调用）"
 msgstr ""
-"LLM interaction: The base class binds **nano** role routing through "
-"``get_llm_router_and_model(\"nano\")`` during initialization (high "
-"frequency/light call)"
+"LLM interaction: The base class binds the **nano** role router via "
+"``get_llm_router_and_model(\"nano\")`` during initialization (for high-"
+"frequency/lightweight calls)"
 
 #: agentsociety2.agent.base.AgentBase:6 of
 msgid ""
@@ -73,16 +72,13 @@ msgid "子类必须实现以下抽象方法："
 msgstr "Subclasses must implement the following abstract methods:"
 
 #: agentsociety2.agent.base.AgentBase:11 of
-msgid ":meth:`ask` — 处理问题并返回响应"
-msgstr ":meth:`ask` — Handle the problem and return a response"
+msgid ":meth:`ask` — Handle questions and return a response"
 
 #: agentsociety2.agent.base.AgentBase:12 of
-msgid ":meth:`step` — 执行一个模拟步骤"
-msgstr ":meth:`step` — perform a simulation step"
+msgid ":meth:`step` — Execute a simulation step"
 
 #: agentsociety2.agent.base.AgentBase:13 of
-msgid ":meth:`dump` — 序列化智能体状态"
-msgstr ":meth:`dump` — Serialized agent state"
+msgid ":meth:`dump` — Serialize agent state"
 
 #: agentsociety2.agent.base.AgentBase:14 of
 msgid ":meth:`load` — 从字典恢复智能体状态"
@@ -114,15 +110,15 @@ msgstr "Agent unique identifier."
 #: agentsociety2.agent.base.AgentBase.__init__:4 of
 msgid "智能体画像对象（dict 或任意可解析类型）。子类应负责把 profile 解析为自身状态。"
 msgstr ""
-"Agent portrait object (dict or any parsable type). Subclasses should be "
+"Agent profile object (dict or any parsable type). Subclasses should be "
 "responsible for parsing the profile into their own state."
 
 #: agentsociety2.agent.base.AgentBase.__init__:5 of
 #, python-brace-format
 msgid "可选显示名称；为空时按 ``profile[\"name\"]`` 或 ``Agent_{id}`` 推导。"
 msgstr ""
-"Optional display name; press ``profile[\"name\"]`` or ``Agent_{id}`` to "
-"deduce when empty."
+"Optional display name; falls back to ``profile[\"name\"]`` or ``Agent_{id}`` "
+"when empty."
 
 #: agentsociety2.agent.base.AgentBase.mcp_description:1 of
 msgid "返回用于 MCP 候选列表展示的描述文本（Markdown）。"
@@ -135,7 +131,7 @@ msgstr ""
 #: ../../api/society.rst ../../api/storage.rst
 #: agentsociety2.backend.routers.prefill_params.get_class_prefill_params of
 msgid "返回"
-msgstr "return"
+msgstr "Returns"
 
 #: agentsociety2.agent.base.AgentBase.mcp_description:3 of
 msgid "Markdown 文本，通常包含类简介、初始化参数说明与示例配置。"
@@ -164,8 +160,8 @@ msgstr "Generate context overrides for CodeGenRouter.ask."
 msgid "返回稳定的身份键（id, agent_id, person_id），由框架提供， 与具体 skill 无关。后合并时覆盖模型误传。"
 msgstr ""
 "Returns stable identity keys (id, agent_id, person_id), provided by the "
-"framework, independent of specific skills. Coverage model "
-"misrepresentation during post-merge."
+"framework, independent of specific skills. These keys override any "
+"incorrect values the model may pass during merging."
 
 #: agentsociety2.agent.base.AgentBase.env_codegen_ctx_overlay:6 of
 msgid "包含 id, agent_id, person_id 的字典。"
@@ -193,7 +189,7 @@ msgstr "Get a copy of Token usage statistics."
 
 #: agentsociety2.agent.base.AgentBase.get_token_usages:3 of
 msgid "按模型名索引的 Token 使用统计字典。"
-msgstr "Token indexed by model name uses statistical dictionary."
+msgstr "Token usage statistics dictionary indexed by model name."
 
 #: agentsociety2.agent.base.AgentBase.reset_token_usages:1 of
 msgid "重置所有 Token 使用统计。"
@@ -201,7 +197,7 @@ msgstr "Resets all Token usage statistics."
 
 #: agentsociety2.agent.base.AgentBase.set_skill_state:1 of
 msgid "设置某个 skill 的状态。"
-msgstr "Set the status of a skill."
+msgstr "Set the state of a skill."
 
 #: agentsociety2.agent.base.AgentBase.set_skill_state:3 of
 msgid "由 skill 的 run() 函数调用，用于注册或更新自己的状态。"
@@ -226,7 +222,7 @@ msgstr ""
 
 #: agentsociety2.agent.base.AgentBase.get_skill_state:1 of
 msgid "获取某个 skill 的状态。"
-msgstr "Get the status of a skill."
+msgstr "Get the state of a skill."
 
 #: agentsociety2.agent.base.AgentBase.get_skill_state:4 of
 msgid "该 skill 的状态对象，如果不存在则返回 ``None``。"
@@ -234,15 +230,15 @@ msgstr "The skill's state object, or ``None`` if it does not exist."
 
 #: agentsociety2.agent.base.AgentBase.has_skill_state:1 of
 msgid "检查某个 skill 是否有状态。"
-msgstr "Check whether a skill has status."
+msgstr "Check whether a skill has state."
 
 #: agentsociety2.agent.base.AgentBase.has_skill_state:4 of
 msgid "是否存在该 skill 的状态。"
-msgstr "Whether the skill's status exists."
+msgstr "Whether the skill's state exists."
 
 #: agentsociety2.agent.base.AgentBase.clear_skill_state:1 of
 msgid "清除某个 skill 的状态。"
-msgstr "Clear the status of a skill."
+msgstr "Clear the state of a skill."
 
 #: agentsociety2.agent.base.AgentBase.clear_skill_state:4 of
 msgid "是否成功清除（如果不存在则返回 ``False``）。"
@@ -317,14 +313,14 @@ msgstr "LLM response object."
 
 #: agentsociety2.agent.base.AgentBase.get_system_prompt:1 of
 msgid "获取智能体的系统提示词。"
-msgstr "Get the system prompt word of the agent."
+msgstr "Get the system prompt of the agent."
 
 #: agentsociety2.agent.base.AgentBase.get_system_prompt:3 of
 msgid "生成的提示词将预置到 LLM 消息中，使 LLM 理解自身作为 AgentSociety 仿真环境中模拟真实人类行为的智能体角色。"
 msgstr ""
-"The generated prompt words will be preset into the LLM message, allowing "
-"the LLM to understand its role as an agent simulating real human behavior"
-" in the AgentSociety simulation environment."
+"The generated prompt will be prepended to the LLM messages, enabling "
+"the LLM to understand its role as an agent simulating real human behavior "
+"in the AgentSociety simulation environment."
 
 #: agentsociety2.agent.base.AgentBase.get_system_prompt:6 of
 msgid "当前仿真步的时间尺度（秒）。范围从 60 秒（1分钟）到约一个月。"
@@ -339,8 +335,8 @@ msgstr "The time after the end of the current simulation step."
 #: agentsociety2.agent.base.AgentBase.get_system_prompt:8 of
 msgid "完整的系统提示词字符串，包含时间上下文、仿真环境说明和行为指南。"
 msgstr ""
-"The complete system prompt word string, including time context, "
-"simulation environment description and behavior guidance."
+"The complete system prompt string, including time context, "
+"simulation environment description, and behavior guidelines."
 
 #: agentsociety2.agent.base.AgentBase.ask_env:1 of
 msgid "向环境路由器发送请求。"
@@ -414,11 +410,11 @@ msgstr "A dictionary containing agent states."
 
 #: agentsociety2.agent.base.AgentBase.ask:1 of
 msgid "处理来自环境的问题。"
-msgstr "Dealing with problems from the environment."
+msgstr "Handle questions from the environment."
 
 #: agentsociety2.agent.base.AgentBase.ask:3 of
 msgid "问题消息。"
-msgstr "Problem message."
+msgstr "Question message."
 
 #: agentsociety2.agent.base.AgentBase.ask:5 of
 msgid "智能体的回答字符串。"
@@ -442,12 +438,12 @@ msgstr "Subclasses can override this method to perform additional cleanup logic.
 
 #: agentsociety2.agent.base.AgentBase.get_profile:1 of
 msgid "获取智能体画像。"
-msgstr "Get an image of the agent."
+msgstr "Get the agent's profile."
 
 #: agentsociety2.agent.base.AgentBase.get_profile:3 of
 msgid "包含智能体画像数据的字典。子类可重写以返回结构化数据。"
 msgstr ""
-"A dictionary containing agent portrait data. Subclasses can override to "
+"A dictionary containing the agent's profile data. Subclasses can override to "
 "return structured data."
 
 #: agentsociety2.agent.base.AgentBase.name:1 of
@@ -582,7 +578,7 @@ msgstr "Agent unique identifier."
 
 #: agentsociety2.agent.person.PersonAgent.__init__:4 of
 msgid "画像对象（dict 或可序列化对象）。"
-msgstr "Portrait object (dict or serializable object)."
+msgstr "Profile object (dict or serializable object)."
 
 #: agentsociety2.agent.person.PersonAgent.__init__:5 of
 msgid "可选显示名。"
@@ -935,10 +931,12 @@ msgid ""
 "``AgentBase`` / ``PersonAgent`` 创建新类。技能系统的设计说明见 :doc:`/agent_skills`，API "
 "参考见 :doc:`/api/skills`。"
 msgstr ""
-"如果只是扩展人物行为，优先新增或修改 Agent Skill；只有需要改变智能体生命周期、状态机或外部系统调用方式时，才继承 "
-"``AgentBase`` / ``PersonAgent`` 创建新类。 See :doc:`/agent_skills` for the "
-"design description of the skill system, and see :doc:`/api/skills` for "
-"the API reference."
+"If you only want to extend agent behavior, prefer adding or modifying an "
+"Agent Skill; only inherit from ``AgentBase`` / ``PersonAgent`` to create a "
+"new class when you need to change the agent lifecycle, state machine, or "
+"external system interaction patterns. See :doc:`/agent_skills` for the "
+"skill system design guide, and see :doc:`/api/skills` for the API "
+"reference."
 
 #: ../../api/backend.rst:2
 msgid "Backend API 模块"
@@ -2514,7 +2512,7 @@ msgstr "Provide unified LLM call encapsulation (retry and token statistics)"
 
 #: agentsociety2.env.router_base.RouterBase:8 of
 msgid "生成 world description（可选，用于 PersonAgent 的提示词）"
-msgstr "Generate world description (optional, prompt word for PersonAgent)"
+msgstr "Generate world description (optional, used as the prompt for PersonAgent)"
 
 #: agentsociety2.env.router_base.RouterBase.__init__:1
 #: agentsociety2.env.router_codegen.CodeGenRouter.__init__:1
@@ -2922,21 +2920,21 @@ msgstr "Tool type:"
 
 #: agentsociety2.env.base.EnvBase:7 of
 msgid "**常规工具**: ``@tool(readonly=False)`` — 可修改环境状态"
-msgstr "**常规工具**: ``@tool(readonly=False)`` — Environment status can be modified"
+msgstr "**Regular tools**: ``@tool(readonly=False)`` — Can modify environment state"
 
 #: agentsociety2.env.base.EnvBase:8 of
 msgid "**只读工具**: ``@tool(readonly=True)`` — 仅查询，不修改状态"
-msgstr "**只读工具**: ``@tool(readonly=True)`` — Query only, do not modify status"
+msgstr "**Read-only tools**: ``@tool(readonly=True)`` — Query only, does not modify state"
 
 #: agentsociety2.env.base.EnvBase:9 of
 msgid "**观察工具**: ``@tool(readonly=True, kind=\"observe\")`` — 自动调用"
 msgstr ""
-"**观察工具**: ``@tool(readonly=True, kind=\"observe\")`` — Automatically "
-"called"
+"**Observation tools**: ``@tool(readonly=True, kind=\"observe\")`` — "
+"Automatically called"
 
 #: agentsociety2.env.base.EnvBase:10 of
 msgid "**统计工具**: ``@tool(readonly=True, kind=\"statistics\")`` — 统计信息"
-msgstr "**统计工具**: ``@tool(readonly=True, kind=\"statistics\")`` — Statistics"
+msgstr "**Statistics tools**: ``@tool(readonly=True, kind=\"statistics\")`` — Statistical information"
 
 #: agentsociety2.env.base.EnvBase:12 of
 msgid "子类应实现："
@@ -3154,7 +3152,7 @@ msgstr "Closes the environment module and releases resources (optional override)
 
 #: agentsociety2.env.base.EnvBase.dump:1 of
 msgid "序列化环境模块状态。"
-msgstr "Serialized environment module state."
+msgstr "Serialize environment module state."
 
 #: agentsociety2.env.base.EnvBase.dump:3 of
 msgid "可序列化字典，包含 ``name``、``t`` 与 ``state``。"
@@ -5214,11 +5212,10 @@ msgid ""
 "为可选子进程脚本路径；未声明时会尝试按 ``scripts/<name>.py`` 自动识别。环境交互走工具 ``codegen``，不经 "
 "skill 的 execute 分支。"
 msgstr ""
-"**解析进 catalog 的字段**: ``name``, ``description``. ``script`` is the "
-"optional sub-process script path; if it is not declared, it will try to "
-"press ``scripts/<name>.py`` to automatically identify it. The environment"
-" interaction tool is ``codegen``, without going through the execute "
-"branch of the skill."
+"**Fields parsed into the catalog**: ``name``, ``description``. ``script`` "
+"is the optional sub-process script path; if not declared, it will attempt "
+"to auto-detect at ``scripts/<name>.py``. Environment interaction goes "
+"through the ``codegen`` tool, not through the skill's execute branch."
 
 #: ../../api/society.rst:2
 msgid "Society 模块"

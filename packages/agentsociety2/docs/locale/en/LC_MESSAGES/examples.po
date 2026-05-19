@@ -115,15 +115,15 @@ msgstr "Shows comprehensive data tracking:"
 
 #: ../../examples.rst:68
 msgid "为环境模块启用 ReplayWriter"
-msgstr ""
+msgstr "Enabling ReplayWriter for environment modules"
 
 #: ../../examples.rst:69
 msgid "生成 replay catalog 和环境 replay dataset"
-msgstr ""
+msgstr "Generating replay catalog and environment replay dataset"
 
 #: ../../examples.rst:70
 msgid "结合 agent workspace 文件检查本地 thread / 工具日志"
-msgstr ""
+msgstr "Inspecting local threads and tool logs alongside agent workspace files"
 
 #: ../../examples.rst:73
 msgid "博弈论示例"
@@ -217,4 +217,3 @@ msgstr "CodeGenRouter: Generate code to execute (recommended)"
 
 #~ msgid "读回记录的数据进行分析"
 #~ msgstr "Reading back recorded data for analysis"
-

@@ -178,23 +178,20 @@ msgid "至少存在一个合法 ``@tool``"
 msgstr "There is at least one legal ``@tool``"
 
 #: ../../custom_modules.rst:142
-#, fuzzy
 msgid "``step()`` 必须存在"
-msgstr "``step()``"
+msgstr "``step()`` must be present"
 
 #: ../../custom_modules.rst:143
 msgid "默认应支持无参实例化 ``cls()``"
 msgstr "Parameterless instantiation should be supported by default ``cls()``"
 
 #: ../../custom_modules.rst:144
-#, fuzzy
 msgid "若模块需要观察能力，应提供 ``@tool(readonly=True, kind='observe')`` 观察工具"
-msgstr "Use ``kind=\"observe\"`` for read-only observations"
+msgstr "If the module needs observation capability, provide an ``@tool(readonly=True, kind='observe')`` observation tool"
 
 #: ../../custom_modules.rst:145
-#, fuzzy
 msgid "建议提供信息完整的 ``mcp_description()`` ；未覆盖时会显示基类默认描述"
-msgstr "``mcp_description()``"
+msgstr "Providing an informative ``mcp_description()`` is recommended; if not overridden, the base class default description is displayed"
 
 #: ../../custom_modules.rst:149
 msgid "扫描器会跳过路径中包含 ``examples/`` 的文件（示例仅供参考，不参与注册）。"
@@ -277,11 +274,11 @@ msgstr "**Test Custom Modules**"
 
 #: ../../custom_modules.rst:199
 msgid "**创建或恢复 workflow run**"
-msgstr "**创建或恢复 workflow run**"
+msgstr "**Create or restore workflow run**"
 
 #: ../../custom_modules.rst:207
 msgid "**验证 workflow run**"
-msgstr "**验证 workflow run**"
+msgstr "**Validate workflow run**"
 
 #: ../../custom_modules.rst:216
 msgid "API 端点"
@@ -342,18 +339,17 @@ msgid "获取模块状态概述"
 msgstr "Get module status overview"
 
 #: ../../custom_modules.rst:239
-#, fuzzy
 msgid "``/api/v1/custom/workflow/runs``"
-msgstr "``/api/v1/custom/list``"
+msgstr "``/api/v1/custom/workflow/runs``"
 
 #: ../../custom_modules.rst:241
 msgid "创建或恢复自定义环境 workflow run"
 msgstr "Create or restore a custom environment workflow run"
 
 #: ../../custom_modules.rst:242
-#, fuzzy, python-brace-format
+#, python-brace-format
 msgid "``/api/v1/custom/workflow/runs/{run_id}/validate``"
-msgstr "``/api/v1/custom/list``"
+msgstr "``/api/v1/custom/workflow/runs/{run_id}/validate``"
 
 #: ../../custom_modules.rst:244
 msgid "执行 scanner/tester/registry 的端到端校验"

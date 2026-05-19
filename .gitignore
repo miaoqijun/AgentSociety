@@ -182,6 +182,10 @@ package-lock.json
 
 # Custom
 paper_sources/
+.playwright-mcp/
+
+# Sphinx generated .pot templates
+packages/agentsociety2/docs/locale/gettext/
 
 # =========================================
 # Pattern Exceptions

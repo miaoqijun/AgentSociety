@@ -43,7 +43,6 @@ msgid "您的第一个智能体"
 msgstr "Your First Agent"
 
 #: ../../quickstart.rst:14
-#, fuzzy
 msgid "使用 :class:`~agentsociety2.society.AgentSociety` 创建一个简单的智能体并与它交互："
 msgstr "Use :class:`~agentsociety2.society.AgentSociety` to create a simple agent and interact with it:"
 
@@ -65,7 +64,7 @@ msgstr "Running Experiments with CLI"
 
 #: ../../quickstart.rst:118
 msgid "AgentSociety 2 提供了一个强大的 CLI 用于运行实验。"
-msgstr "AgentSociety 2 provides a CLI for running experiments."
+msgstr "AgentSociety 2 provides a powerful CLI for running experiments."
 
 #: ../../quickstart.rst:120
 msgid "**前台运行（调试）:**"
@@ -77,9 +76,9 @@ msgstr "**Background Execution (Production):**"
 
 #: ../../quickstart.rst:141
 msgid "**重要**: 后台运行时必须指定 ``--log-file`` 参数。"
-msgstr "**Important**: specify ``--log-file`` when running in the background."
-"**Important**: When running in background, you must specify the ``--log-"
-"file`` parameter."
+msgstr ""
+"**Important**: When running in background, you must specify the "
+"``--log-file`` parameter."
 
 #: ../../quickstart.rst:143
 msgid "更多详情请参见 :doc:`cli`。"
@@ -90,9 +89,8 @@ msgid "运行实验（代码方式）"
 msgstr "Running Experiments (Code)"
 
 #: ../../quickstart.rst:148
-#, fuzzy
 msgid "下面是一个使用 AgentSociety 2 的多智能体完整实验示例："
-msgstr "Here's a complete example of a multi-agent experiment using AgentSociety:"
+msgstr "Here's a complete example of a multi-agent experiment using AgentSociety 2:"
 
 #: ../../quickstart.rst:206
 msgid ""
@@ -163,4 +161,3 @@ msgstr "Ask a specific agent:"
 
 #~ msgid "运行实验"
 #~ msgstr "Running Experiments"
-

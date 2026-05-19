@@ -4,14 +4,13 @@
 # package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: AgentSociety 2 2.3.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-09 12:39+0800\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"PO-Revision-Date: 2026-05-19 00:00+0800\n"
+"Last-Translator: AgentSociety Team\n"
 "Language-Team: en <LL@li.org>\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"
@@ -145,11 +144,11 @@ msgstr ""
 
 #: ../../skill_guide.md
 msgid "工具"
-msgstr "tool"
+msgstr "Tool"
 
 #: ../../skill_guide.md
 msgid "用途"
-msgstr "use"
+msgstr "Usage"
 
 #: ../../skill_guide.md
 msgid "示例"
@@ -161,7 +160,7 @@ msgstr "`workspace_read`"
 
 #: ../../skill_guide.md
 msgid "读取文件"
-msgstr "read file"
+msgstr "Read file"
 
 #: ../../skill_guide.md
 msgid "`workspace_read(\"state/observation.txt\")`"
@@ -173,7 +172,7 @@ msgstr "`workspace_write`"
 
 #: ../../skill_guide.md
 msgid "写入文件"
-msgstr "write file"
+msgstr "Write file"
 
 #: ../../skill_guide.md
 msgid "`workspace_write(\"state/result.json\", content)`"
@@ -209,7 +208,7 @@ msgstr "`bash`"
 
 #: ../../skill_guide.md
 msgid "执行命令"
-msgstr "execute command"
+msgstr "Execute command"
 
 #: ../../skill_guide.md
 msgid "`bash(\"echo hello\")`"
@@ -233,7 +232,7 @@ msgstr "`glob`"
 
 #: ../../skill_guide.md
 msgid "文件匹配"
-msgstr "file match"
+msgstr "File matching"
 
 #: ../../skill_guide.md
 msgid "`glob(\"*.json\")`"
@@ -245,11 +244,11 @@ msgstr "`done`"
 
 #: ../../skill_guide.md
 msgid "完成执行"
-msgstr "Complete execution"
+msgstr "Finish execution"
 
 #: ../../skill_guide.md
 msgid "表示skill执行完毕"
-msgstr "Indicates that the skill execution is completed"
+msgstr "Indicates that the skill execution is complete"
 
 #: ../../skill_guide.md:112
 msgid "Skill类型"
@@ -257,7 +256,7 @@ msgstr "Skill type"
 
 #: ../../skill_guide.md:114
 msgid "类型1：纯Prompt驱动（推荐）"
-msgstr "Type 1: Pure Prompt driver (recommended)"
+msgstr "Type 1: Pure prompt-driven (recommended)"
 
 #: ../../skill_guide.md:116
 msgid "大多数Skill不需要编程，只需要清晰的描述："
@@ -294,7 +293,7 @@ msgstr ""
 
 #: ../../skill_guide.md:202
 msgid "最佳实践"
-msgstr "best practices"
+msgstr "Best practices"
 
 #: ../../skill_guide.md:204
 msgid "1. 保持单一职责"
@@ -372,20 +371,21 @@ msgstr "Debugging Tips"
 #: ../../skill_guide.md:269
 msgid "**查看workspace文件**：检查输出文件是否正确生成"
 msgstr ""
-"**查看workspace文件**: Check whether the output file is generated correctly"
+"**Check workspace files**: Check whether the output file is generated correctly"
 
 #: ../../skill_guide.md:270
 msgid "**检查tool_calls.jsonl**：查看LLM调用了哪些工具"
-msgstr "**检查tool_calls.jsonl**: Check which tools are called by LLM"
+msgstr "**Check tool_calls.jsonl**: Check which tools are called by LLM"
 
 #: ../../skill_guide.md:271
 msgid "**简化描述**：如果Skill行为异常，尝试简化描述"
 msgstr ""
-"**简化描述**: If the Skill behaves abnormally, try to simplify the description"
+"**Simplify description**: If the Skill behaves abnormally, try to simplify "
+"the description"
 
 #: ../../skill_guide.md:272
 msgid "**添加示例**：示例通常能显著改善LLM理解"
-msgstr "**添加示例**: Examples often significantly improve LLM understanding"
+msgstr "**Add examples**: Examples often significantly improve LLM understanding"
 
 #: ../../skill_guide.md:274
 msgid "示例：完整的Skill"
@@ -397,7 +397,7 @@ msgstr "FAQ"
 
 #: ../../skill_guide.md:350
 msgid "**Q: Skill之间如何通信？**"
-msgstr "**Q: Skill之间如何通信？**"
+msgstr "**Q: How do Skills communicate with each other?**"
 
 #: ../../skill_guide.md:352
 msgid "A: 通过workspace文件。一个Skill写入文件，另一个Skill读取。"
@@ -407,7 +407,7 @@ msgstr ""
 
 #: ../../skill_guide.md:354
 msgid "**Q: 如何控制Skill执行顺序？**"
-msgstr "**Q: 如何控制Skill执行顺序？**"
+msgstr "**Q: How to control Skill execution order?**"
 
 #: ../../skill_guide.md:356
 msgid ""
@@ -419,7 +419,7 @@ msgstr ""
 
 #: ../../skill_guide.md:358
 msgid "**Q: Skill可以调用其他Skill吗？**"
-msgstr "**Q: Skill可以调用其他Skill吗？**"
+msgstr "**Q: Can a Skill call other Skills?**"
 
 #: ../../skill_guide.md:360
 msgid "A: 不直接调用。通过workspace文件松耦合，LLM决定何时激活哪个Skill。"
@@ -429,7 +429,7 @@ msgstr ""
 
 #: ../../skill_guide.md:362
 msgid "**Q: 如何测试Skill？**"
-msgstr "**Q: 如何测试Skill？**"
+msgstr "**Q: How to test a Skill?**"
 
 #: ../../skill_guide.md:364
 msgid "A: 创建测试workspace，放置输入文件，运行agent，检查输出文件。"
@@ -439,11 +439,11 @@ msgstr ""
 
 #: ../../skill_guide.md:366
 msgid "进阶主题"
-msgstr "Advanced themes"
+msgstr "Advanced topics"
 
 #: ../../skill_guide.md:368
 msgid "状态管理"
-msgstr "Status management"
+msgstr "State management"
 
 #: ../../skill_guide.md:370
 msgid "如果Skill需要维护状态，写入JSON文件："
@@ -455,7 +455,7 @@ msgstr "Use `codegen` tools to interact with the environment:"
 
 #: ../../skill_guide.md:392
 msgid "时间感知"
-msgstr "time perception"
+msgstr "Time awareness"
 
 #: ../../skill_guide.md:394
 msgid "Skill可以接收时间信息："
