@@ -199,69 +199,12 @@
   },
   "configPage": {
     "title": "AI Social Scientist Configuration",
-    "subtitle": "Configuration is saved to the workspace .env; start the backend for the full extension experience",
-    "description": "After saving configuration, start the local backend to enable agent skill runtime management, module discovery, prefill parameters, replay APIs, and API documentation. If the backend is not running yet, config editing and CLI/Claude Code experiment runs can still continue.",
-    "advancedConfig": "Advanced Configuration (optional)",
-    "resetDefaults": "Reset to Defaults",
-    "saveAndStart": "Save and Start Backend",
-    "starting": "Starting backend...",
-    "validationSuccess": "Validation Successful",
-    "validationFailed": "Validation Failed",
-    "analysis": {
-      "title": "Data Analysis LLM",
-      "hint": "For data analysis, insight generation, and report writing (API key/base can be left blank to reuse the default LLM configuration above)",
-      "apiKey": "API Key",
-      "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
-      "apiBase": "API URL",
-      "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
-      "model": "Model",
-      "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
-    },
-    "python": {
-      "title": "Python Environment",
-      "hint": "Python runtime environment configuration",
-      "path": "Python Path",
-      "pathPlaceholder": "python3, or leave empty to auto-detect"
-    },
-    "literature": {
-      "title": "Literature Search Service",
-      "hint": "Unified academic literature search service",
-      "validateConfig": "Validate Configuration",
-      "validateSuccess": "Validation Successful"
-    },
-    "steps": {
-      "llm": {
-        "title": "LLM Configuration",
-        "description": "Configure Large Language Model API"
-      },
-      "backend": {
-        "title": "Backend Service",
-        "description": "Configure backend service address"
-      },
-      "coder": {
-        "title": "Code Generation LLM",
-        "description": "Dedicated model for code generation (optional)"
-      },
-      "advanced": {
-        "title": "Advanced Features",
-        "description": "Embedding, search, etc. (optional)"
-      },
-      "finish": {
-        "title": "Finish",
-        "description": "Complete configuration"
-      }
-    },
-    "noWorkspace": "No workspace detected",
-    "noWorkspaceHint": "Open a folder first (File → Open Folder)",
-    "save": "Save",
-    "validate": "Validate",
-    "validating": "Validating...",
-    "validationSuccess": "Validation Successful",
-    "validationFailed": "Validation Failed",
-    "startBackend": "Start Backend Service",
-    "previous": "Previous",
-    "next": "Next",
+    "subtitle": "Settings saved to workspace .env",
+    "advancedConfig": "Advanced configuration",
+    "envFileLoaded": "Config file: {{path}}",
     "llm": {
+      "cardTitle": "Default LLM",
+      "requiredTag": "Required",
       "apiKey": "LLM API Key",
       "apiKeyRequired": "LLM API Key *",
       "apiKeyRequiredHint": "For core functions like default chat, analysis, etc.",
@@ -271,14 +214,79 @@
       "modelName": "LLM Model Name",
       "modelPlaceholder": "Default: gpt-5.4"
     },
-    "backend": {
-      "title": "Backend Service Configuration",
-      "hint": "Recommended for the full extension experience; port is auto-allocated and Python path auto-detects if empty",
-      "pythonPath": "Python Path (optional, auto-detect if empty)",
-      "pythonPathPlaceholder": "python3 or /usr/bin/python3"
+    "advancedValidation": {
+      "passedShort": "{{done}}/{{total}} passed",
+      "checkingShort": "Checking {{done}}/{{total}}",
+      "statusOk": "OK",
+      "statusError": "Failed",
+      "statusErrorShort": "Failed",
+      "statusBlocked": "Needs input",
+      "statusBlockedShort": "Pending",
+      "notCheckedShort": "Not validated",
+      "clickToValidate": "Click to validate",
+      "statusIdleShort": "Unchecked"
     },
+    "sections": {
+      "inheritHintShort": "Leave blank to reuse the default LLM API key and base URL above.",
+      "specializedModels": "Specialized models"
+    },
+    "resetWorkspaceDefaults": "Reset workspace config",
+    "resetClaudeDefaults": "Reset Claude config",
+    "saveHint": "Claude settings are saved only when both API Key and Base URL are filled",
+    "saveAndStart": "Save and Start Backend",
+    "starting": "Starting backend...",
+    "validationSuccess": "Validation Successful",
+    "validationFailed": "Validation Failed",
+    "analysis": {
+      "shortTitle": "Analysis",
+      "title": "Data Analysis LLM",
+      "hint": "For data analysis, insight generation, and report writing (API key/base can be left blank to reuse the default LLM configuration above)",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
+      "apiBase": "API URL",
+      "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
+      "model": "Model",
+      "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
+    },
+    "overview": {
+      "backend": "Backend",
+      "backendRunning": "Running :{{port}}",
+      "backendStopped": "Stopped",
+      "backendStoppedHint": "Click to start",
+      "startBackendOnClick": "Save settings and start backend",
+      "backendStoppedDetail": "You can still save settings and run experiments via CLI / Claude Code",
+      "advanced": "Advanced",
+      "claudeCode": "Claude Code",
+      "jumpToClaudeCode": "Open the Claude Code tab under advanced settings",
+      "claudeConfiguredHint": "Required fields filled",
+      "claudeNotConfiguredHint": "Not configured (optional)"
+    },
+    "status": {
+      "configured": "Configured",
+      "default": "Default",
+      "notConfigured": "Not set"
+    },
+    "python": {
+      "title": "Python Environment",
+      "hint": "Python runtime environment configuration",
+      "path": "Python Path",
+      "pathPlaceholder": "python3, or leave empty to auto-detect"
+    },
+    "literature": {
+      "title": "Academic Literature Search",
+      "hint": "Connect to the academic literature search gateway via MCP",
+      "validateConfig": "Validate Configuration",
+      "validateSuccess": "Validation Successful"
+    },
+    "noWorkspace": "No workspace detected",
+    "noWorkspaceHint": "Open a folder first (File → Open Folder)",
+    "save": "Save",
+    "validate": "Validate",
+    "revalidate": "Re-validate",
+    "validating": "Validating...",
     "coder": {
-      "title": "Code Generation LLM (optional)",
+      "shortTitle": "Coder",
+      "title": "Code generation LLM",
       "hint": "Dedicated model for code generation; leave blank to reuse the default LLM configuration above",
       "apiKey": "Code Generation LLM API Key",
       "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
@@ -289,6 +297,7 @@
     },
     "advanced": {
       "embedding": {
+        "shortTitle": "Embedding",
         "title": "Embedding Model",
         "hint": "For text embedding (API key/base can be left blank to reuse the default LLM configuration above)",
         "apiKey": "Embedding API Key",
@@ -301,7 +310,8 @@
         "dimsPlaceholder": "1024"
       },
       "nano": {
-        "title": "High-Frequency LLM (optional)",
+        "shortTitle": "Nano",
+        "title": "High-frequency LLM",
         "hint": "Lightweight model for high-frequency operations; leave blank to reuse the default LLM configuration above",
         "apiKey": "High-Frequency LLM API Key",
         "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
@@ -311,19 +321,18 @@
         "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
       },
       "literature": {
-        "title": "Literature Search Service (optional)",
-        "apiUrl": "Literature Search API URL",
-        "apiUrlPlaceholder": "http://localhost:8002/api/v1/search"
+        "title": "Academic literature search",
+        "apiUrl": "Academic literature search MCP URL",
+        "apiUrlPlaceholder": "https://llmapi.fiblab.net/mcp/",
+        "apiKey": "Academic literature search API Key",
+        "apiKeyPlaceholder": "sk-... (LiteLLM virtual key with academic literature search access)"
       }
-    },
-    "finish": {
-      "title": "Configuration Complete!",
-      "description": "All configurations have been saved to the workspace's <code>.env</code> file.",
-      "hint": "Configuration is saved. Start the backend to enable agent skill management, module discovery, prefill parameters, replay APIs, and API docs."
     },
     "notifications": {
       "saveSuccess": "Save Successful",
-      "saveSuccessDesc": "Configuration has been saved to .env file",
+      "saveSuccessDesc": "Configuration saved to workspace .env",
+      "saveSuccessDescWithClaude": "Saved to workspace .env and Claude settings.json",
+      "claudePartial": "Fill both Claude API Key and Base URL, or leave both empty before saving",
       "saveFailed": "Save Failed",
       "backendStarted": "Backend service started",
       "backendStartFailed": "Failed to start backend service",
@@ -343,7 +352,12 @@
       "emptyApiKey": "API Key or Base URL is empty",
       "needsApiKey": "Please enter the current API key, or fill in the default LLM API key above",
       "needsApiBase": "Please enter the current API URL, or fill in the default LLM API URL above",
-      "literatureUrlRequired": "Please enter Literature Search API URL",
+      "literatureUrlRequired": "Please enter the academic literature search MCP URL",
+      "literatureValidateSuccess": "Academic literature search configuration validated",
+      "literatureValidateSuccessDesc": "Connected. Data sources: {{sources}}",
+      "literatureAuthRequired": "API key is required",
+      "literatureAuthInvalid": "API key is invalid or expired",
+      "literatureGatewayError": "Literature search gateway unavailable (HTTP {{status}}). Check the MCP URL and ensure your key has literature search access.",
       "invalidKey": "API Key is invalid or expired",
       "invalidUrl": "This URL doesn’t look right. Check the full address against your provider’s documentation.",
       "serverError": "Server error",
@@ -577,12 +591,10 @@
     "sourcesList": "Marketplace Sources"
   },
   "claudeCodeConfig": {
-    "title": "Claude Code Configuration",
-    "subtitle": "Configure Claude Code CLI global settings",
+    "subtitle": "Claude Code CLI connection settings; saved to the path below",
     "savePath": "Save path",
     "apiConfig": "API Configuration",
     "required": "Required",
-    "optional": "Optional",
     "modelMapping": "Model Mapping",
     "modelMappingTip": "Map your provider's models to Claude's role aliases (sonnet/opus/haiku)",
     "defaultModel": "Default Model",
@@ -591,13 +603,19 @@
     "haikuModel": "Haiku Model",
     "selectOrManual": "Enter model name",
     "leaveEmpty": "Leave empty to skip",
-    "save": "Save",
-    "resetDefaults": "Reset Defaults",
-    "saveSuccess": "Saved successfully",
-    "saveSuccessDesc": "Claude Code configuration written to settings.json",
     "saveFailed": "Save failed",
     "apiKeyRequired": "API Key is required",
+    "apiKeyPlaceholder": "sk-ant-... or your provider's key",
     "baseUrlRequired": "Base URL is required",
+    "baseUrlPlaceholder": "https://api.anthropic.com",
+    "baseUrlCustom": "Custom",
+    "baseUrlPresets": {
+      "anthropic": "Anthropic Official",
+      "bigmodel": "Zhipu BigModel",
+      "kimi": "Kimi Coding",
+      "minimax": "MiniMax",
+      "openrouter": "OpenRouter"
+    },
     "cliDetected": "Claude Code CLI detected {{version}}",
     "cliNotInstalled": "Claude Code CLI not installed"
   }

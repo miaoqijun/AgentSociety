@@ -54,7 +54,7 @@ export interface EnvConfig {
   pythonPath?: string;
 
   // Literature Search
-  literatureSearchApiUrl?: string;
+  literatureSearchMcpUrl?: string;
   literatureSearchApiKey?: string;
 }
 
@@ -83,7 +83,7 @@ const ENV_KEY_MAP: Record<keyof EnvConfig, string> = {
   backendPid: 'BACKEND_PID',
   backendLogLevel: 'BACKEND_LOG_LEVEL',
   pythonPath: 'PYTHON_PATH',
-  literatureSearchApiUrl: 'LITERATURE_SEARCH_API_URL',
+  literatureSearchMcpUrl: 'LITERATURE_SEARCH_MCP_URL',
   literatureSearchApiKey: 'LITERATURE_SEARCH_API_KEY',
 };
 
@@ -98,7 +98,7 @@ export const DEFAULT_ENV_CONFIG: Partial<EnvConfig> = {
   backendLogLevel: 'info',
   embeddingModel: 'text-embedding-3-large',
   embeddingDims: 1024,
-  literatureSearchApiUrl: 'http://localhost:8008/api/search',
+  literatureSearchMcpUrl: 'https://llmapi.fiblab.net/mcp/',
 };
 
 export class EnvManager {
@@ -165,10 +165,8 @@ export class EnvManager {
       const [, key, value] = match;
       const envVar = key.trim();
 
-      // Find matching config key
       for (const [configKey, envName] of Object.entries(ENV_KEY_MAP)) {
         if (envName === envVar) {
-          // Type conversion
           if (configKey === 'backendPort' || configKey === 'backendPid' || configKey === 'embeddingDims') {
             (config as any)[configKey] = parseInt(value, 10);
           } else {
@@ -336,10 +334,10 @@ BACKEND_LOG_LEVEL=info
 PYTHON_PATH=
 
 # ========== Literature Search / 文献搜索 ==========
-# Literature search API URL / 文献搜索 API 地址
-LITERATURE_SEARCH_API_URL=http://localhost:8008/api/search
-# Literature search API Key / 文献搜索 API 密钥
-LITERATURE_SEARCH_API_KEY=lit-your-api-key-here
+# Literature search MCP URL / 文献搜索 MCP 地址
+LITERATURE_SEARCH_MCP_URL=https://llmapi.fiblab.net/mcp/
+# Literature search MCP bearer token / 文献搜索 MCP 密钥（LiteLLM sk- 虚拟密钥）
+LITERATURE_SEARCH_API_KEY=sk-your-litellm-virtual-key
 `;
   }
 

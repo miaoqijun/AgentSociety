@@ -1,9 +1,6 @@
-"""Literature search and management module
+"""Literature search and management.
 
-Provides functionality for:
-- Searching academic literature
-- Saving and indexing literature in workspace
-- Formatting literature entries
+Academic literature search (MCP), workspace indexing, formatting, and full-text helpers.
 """
 
 from agentsociety2.skills.literature.models import LiteratureEntry, LiteratureIndex

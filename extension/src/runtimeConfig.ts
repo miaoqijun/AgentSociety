@@ -22,7 +22,7 @@ const LEGACY_ENV_SETTING_MAP: Array<{
     { settingKey: 'env.embeddingApiBase', envKey: 'embeddingApiBase' },
     { settingKey: 'env.embeddingModel', envKey: 'embeddingModel' },
     { settingKey: 'env.embeddingDims', envKey: 'embeddingDims' },
-    { settingKey: 'env.literatureSearchApiUrl', envKey: 'literatureSearchApiUrl' },
+    { settingKey: 'env.literatureSearchMcpUrl', envKey: 'literatureSearchMcpUrl' },
   ];
 
 function isNonEmptyString(value: unknown): value is string {

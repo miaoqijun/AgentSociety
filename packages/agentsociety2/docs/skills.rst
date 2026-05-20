@@ -8,7 +8,7 @@ AgentSociety 2 包含一组 LLM 原生的研究技能，用于自动化科学研
 
 研究技能模块提供以下功能：
 
-* **文献检索**: 搜索和管理学术论文
+* **学术文献检索**: 通过 MCP 网关搜索和管理学术论文
 * **假设生成**: 从研究问题生成可测试的假设
 * **实验设计**: 设计完整的实验配置
 * **论文撰写**: 通过 paper-orchestrator skill 套件（重写中）生成 Nature 风格学术论文 PDF
@@ -27,7 +27,7 @@ Claude Code Skills
 - AgentSociety 内置研究 skills：随 VSCode 插件打包，可在插件树视图中浏览（只读）。
 - Agent(Person) 扩展 skills：由后端 `/api/v1/agent-skills/*` 管理，支持扫描/导入/热重载。
 
-* **agentsociety-literature-search** - 文献检索
+* **agentsociety-literature-search** - 学术文献检索
 * **agentsociety-hypothesis** - 假设管理（add, get, list, delete）
 * **agentsociety-experiment-config** - 实验配置生成与验证
 * **agentsociety-run-experiment** - 实验执行与监控
@@ -139,7 +139,7 @@ create-agent 技能
    $PYTHON_PATH .agentsociety/bin/ags.py analysis query-data --db-path hypothesis_1/experiment_1/run/sqlite.db --sql "SELECT * FROM agent_profile LIMIT 5"
 
 
-文献检索服务
+学术文献检索
 ~~~~~~~~~~~~~~
 
 ``agentsociety-literature-search`` 通过统一的远程检索服务收集学术文献，并把结果保存到工作区 ``papers/`` 目录。默认检索所有已配置数据源：``local``、``arxiv``、``crossref``、``openalex``。
@@ -148,21 +148,21 @@ create-agent 技能
 
 .. code-block:: bash
 
-   LITERATURE_SEARCH_API_URL=http://localhost:8008/api/search
-   LITERATURE_SEARCH_API_KEY=lit-your-api-key-here
+   LITERATURE_SEARCH_MCP_URL=https://llmapi.fiblab.net/mcp/
+   LITERATURE_SEARCH_API_KEY=your-literature-search-key
 
 搜索命令示例：
 
 .. code-block:: bash
 
-   $PYTHON_PATH .agentsociety/bin/ags.py literature-search "agent-based modeling social networks" --limit 10
+   $PYTHON_PATH .agentsociety/bin/ags.py literature-search "agent-based modeling social networks"
    $PYTHON_PATH .agentsociety/bin/ags.py literature-search "urban mobility simulation LLM agents" --year-from 2020 --year-to 2026 --multi-query
 
 输出约定：
 
 - ``papers/literature_index.json`` 是稳定索引，记录标题、作者、年份、来源、query、分数和本地 ``file_path``。
 - 每篇文献保存为 ``papers/<title>_<timestamp>.md``，这是后续 hypothesis、analysis 和 paper 技能引用的主要本地笔记。
-- 原文 PDF 如需下载，应放在 ``papers/full_texts/``，并记录到 ``extra_fields.full_text.file_path``；不要把索引中的 ``file_path`` 从 Markdown 笔记替换成 PDF。
+- 检索完成后会自动尝试下载开放获取 PDF 到 ``papers/full_texts/``，路径写入 ``extra_fields.full_text.file_path``；不要把索引中的 ``file_path`` 从 Markdown 笔记替换成 PDF。
 - 文献检索不会自动绕过出版商权限。PDF 下载只处理开放获取或用户授权的文件；没有开放 PDF 时，可以补充本地 Markdown 笔记并记录来源。
 
 Python API
@@ -173,8 +173,9 @@ Python API
 文献技能 (literature)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-文献技能默认使用已经配置好的 ``LITERATURE_SEARCH_API_URL`` 和
-``LITERATURE_SEARCH_API_KEY`` 调用统一检索服务。推荐优先使用
+文献技能通过 **MCP 协议** 连接学术文献检索网关，使用工作区 ``.env`` 中的
+``LITERATURE_SEARCH_MCP_URL`` 和 ``LITERATURE_SEARCH_API_KEY``（无需单独配置
+Claude ``mcp.json``）。网关上的其他 MCP 工具不会被文献技能调用。推荐优先使用
 ``search_literature_and_save``，而不是直接调用底层 ``search_literature``：
 前者会把检索结果落到工作区中，确保后续 Agent、Claude Code 和论文写作技能
 都能通过本地文件继续引用这些文献。
@@ -183,11 +184,10 @@ Python API
 
    from agentsociety2.skills.literature import search_literature_and_save, load_literature_index
 
-   # 搜索并保存文献（默认搜索所有数据源，并更新 papers/literature_index.json）
+   # 搜索并保存文献（默认 10 篇、所有数据源，并更新 papers/literature_index.json）
    result = await search_literature_and_save(
        workspace_path=Path("./workspace"),
        query="agent-based modeling social networks",
-       limit=10,
        year_from=2020,      # 可选：年份筛选
        year_to=2024,
        enable_multi_query=True,  # 可选：启用多查询模式
@@ -197,7 +197,6 @@ Python API
    await search_literature_and_save(
        workspace_path=Path("./workspace"),
        query="machine learning",
-       limit=5,
        sources=["local", "arxiv"],  # 可选：指定数据源
    )
 
@@ -252,12 +251,12 @@ Python API
 - ``openalex``: OpenAlex 学术图谱 (2.5亿+ 论文)
 
 **配置**:
-需要在 ``.env`` 文件中配置 API:
+在 workspace ``.env`` 中配置 MCP（无需 Claude ``mcp.json``，除非要让 Claude 独立连接同一网关）:
 
 .. code-block:: bash
 
-   LITERATURE_SEARCH_API_URL=http://localhost:8008/api/search
-   LITERATURE_SEARCH_API_KEY=lit-your-api-key-here
+   LITERATURE_SEARCH_MCP_URL=https://llmapi.fiblab.net/mcp/
+   LITERATURE_SEARCH_API_KEY=your-literature-search-key
 
 假设技能 (hypothesis)
 ~~~~~~~~~~~~~~~~~~~~~~~

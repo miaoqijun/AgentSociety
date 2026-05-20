@@ -2,19 +2,17 @@
  * HelpPageViewProvider - Help Page Webview Provider
  *
  * Embeds ReadTheDocs documentation as the primary help source,
- * with local HELP.md as offline fallback.
+ * with a short inline offline fallback when the iframe cannot load.
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
 
 const RTD_BASE_URL = 'https://agentsociety2.readthedocs.io';
 
 export class HelpPageViewProvider {
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
-  private readonly extensionPath: string;
   private disposables: vscode.Disposable[] = [];
 
   public static currentPanel: HelpPageViewProvider | undefined;
@@ -49,7 +47,6 @@ export class HelpPageViewProvider {
   private constructor(panel: vscode.WebviewPanel, context: vscode.ExtensionContext) {
     this.panel = panel;
     this.extensionUri = context.extensionUri;
-    this.extensionPath = context.extensionPath;
 
     this.updateWebviewContent();
 
@@ -75,64 +72,32 @@ export class HelpPageViewProvider {
     );
   }
 
-  /**
-   * Read fallback help content from local HELP.md based on locale
-   */
-  private readHelpContent(): string {
-    const locale = vscode.env.language;
-
-    const localeSpecificPath = path.join(this.extensionPath, `HELP.${locale}.md`);
-    if (fs.existsSync(localeSpecificPath)) {
-      try {
-        return fs.readFileSync(localeSpecificPath, 'utf-8');
-      } catch (error) {
-        console.error(`Failed to read HELP.${locale}.md:`, error);
-      }
-    }
-
-    const baseLocale = locale.split('-')[0];
-    if (baseLocale !== locale) {
-      const baseLocalePath = path.join(this.extensionPath, `HELP.${baseLocale}.md`);
-      if (fs.existsSync(baseLocalePath)) {
-        try {
-          return fs.readFileSync(baseLocalePath, 'utf-8');
-        } catch (error) {
-          console.error(`Failed to read HELP.${baseLocale}.md:`, error);
-        }
-      }
-    }
-
-    const defaultPath = path.join(this.extensionPath, 'HELP.md');
-    try {
-      if (fs.existsSync(defaultPath)) {
-        return fs.readFileSync(defaultPath, 'utf-8');
-      }
-    } catch (error) {
-      console.error('Failed to read HELP.md:', error);
-    }
-
-    const isZh = locale.startsWith('zh');
+  private offlineHelpContent(): string {
+    const isZh = vscode.env.language.startsWith('zh');
+    const rtdUrl = this.getRtdUrl();
     if (isZh) {
       return `# AI Social Scientist 使用指南
 
-帮助文档加载失败，请查看 [README.md](https://github.com/tsinghua-fib-lab/agentsociety) 获取更多信息。
+当前无法加载在线文档。完整说明见 [ReadTheDocs](${rtdUrl})。
 
 ## 快速入口
 
 - [打开配置页面](command:aiSocialScientist.openConfigPage)
 - [打开技能市场](command:aiSocialScientist.openSkillMarketplace)
 - [后端状态菜单](command:aiSocialScientist.backendStatusMenu)
+- [打开 Walkthrough](command:aiSocialScientist.openWalkthrough)
 `;
     }
     return `# AI Social Scientist User Guide
 
-Failed to load help documentation. Please visit [README.md](https://github.com/tsinghua-fib-lab/agentsociety) for more information.
+Online documentation is unavailable. See the full guide on [ReadTheDocs](${rtdUrl}).
 
 ## Quick Links
 
 - [Open Configuration Page](command:aiSocialScientist.openConfigPage)
 - [Open Skill Marketplace](command:aiSocialScientist.openSkillMarketplace)
 - [Backend Status Menu](command:aiSocialScientist.backendStatusMenu)
+- [Open Walkthrough](command:aiSocialScientist.openWalkthrough)
 `;
   }
 
@@ -149,7 +114,7 @@ Failed to load help documentation. Please visit [README.md](https://github.com/t
    * Update webview content
    */
   private updateWebviewContent(): void {
-    const helpContent = this.readHelpContent();
+    const helpContent = this.offlineHelpContent();
     const rtdUrl = this.getRtdUrl();
     this.panel.webview.html = this.getHtmlForWebview(helpContent, rtdUrl);
   }

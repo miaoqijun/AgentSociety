@@ -16,7 +16,7 @@ Think of skills as a research toolbox. Each skill you install gives an agent or 
 
 | Skill | Function | When You Need It |
 |-------|----------|-----------------|
-| 📚 Literature Search | Search academic papers, extract key info | Doing a literature review |
+| 📚 Academic literature search | Search academic papers, extract key info | Literature review (set MCP URL + API key under **Advanced** in config) |
 | 💡 Hypothesis Generation | Derive testable hypotheses from literature | Formulating research hypotheses |
 | 🔬 Experiment Design | Generate experiment configs, design research flows | Designing experiments |
 | 📊 Data Analysis | Run analysis scripts, generate visual reports | Analyzing experiment data |

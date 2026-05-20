@@ -121,7 +121,7 @@ class TestSplitQueryIntoSubtopics:
 
 
 class TestSearchLiteratureSingle:
-    """Tests for _search_literature_single with mocked HTTP."""
+    """Tests for _search_literature_single with mocked MCP."""
 
     @pytest.mark.asyncio
     async def test_search_returns_results(self):
@@ -138,25 +138,10 @@ class TestSearchLiteratureSingle:
             "total": 1,
         }
 
-        with patch("aiohttp.ClientSession") as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 200
-            mock_response.json = AsyncMock(return_value=mock_response_data)
-            mock_response.text = AsyncMock(return_value="")
-
-            mock_post = AsyncMock()
-            mock_post.__aenter__ = AsyncMock(return_value=mock_response)
-            mock_post.__aexit__ = AsyncMock(return_value=None)
-
-            mock_session_instance = MagicMock()
-            mock_session_instance.post.return_value = mock_post
-            mock_session_instance.__aenter__ = AsyncMock(
-                return_value=mock_session_instance
-            )
-            mock_session_instance.__aexit__ = AsyncMock(return_value=None)
-
-            mock_session.return_value = mock_session_instance
-
+        with patch(
+            "agentsociety2.skills.literature.core.call_literature_search_mcp",
+            new=AsyncMock(return_value=mock_response_data),
+        ):
             result = await _search_literature_single(
                 query="test query",
                 limit=10,
@@ -169,7 +154,7 @@ class TestSearchLiteratureSingle:
                 relevant_content_limit=None,
                 max_chunks_per_article=None,
                 return_chunks=True,
-                api_url="http://test.api/search",
+                mcp_url="http://test.api/mcp/sse",
                 api_key="test-key",
                 timeout=30,
             )
@@ -181,23 +166,10 @@ class TestSearchLiteratureSingle:
     @pytest.mark.asyncio
     async def test_search_handles_auth_error(self):
         """Test handling of authentication error."""
-        with patch("aiohttp.ClientSession") as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 401
-
-            mock_post = AsyncMock()
-            mock_post.__aenter__ = AsyncMock(return_value=mock_response)
-            mock_post.__aexit__ = AsyncMock(return_value=None)
-
-            mock_session_instance = MagicMock()
-            mock_session_instance.post.return_value = mock_post
-            mock_session_instance.__aenter__ = AsyncMock(
-                return_value=mock_session_instance
-            )
-            mock_session_instance.__aexit__ = AsyncMock(return_value=None)
-
-            mock_session.return_value = mock_session_instance
-
+        with patch(
+            "agentsociety2.skills.literature.core.call_literature_search_mcp",
+            new=AsyncMock(side_effect=RuntimeError("401 auth failed")),
+        ):
             result = await _search_literature_single(
                 query="test query",
                 limit=10,
@@ -210,7 +182,7 @@ class TestSearchLiteratureSingle:
                 relevant_content_limit=None,
                 max_chunks_per_article=None,
                 return_chunks=True,
-                api_url="http://test.api/search",
+                mcp_url="http://test.api/mcp/sse",
                 api_key="test-key",
                 timeout=30,
             )
@@ -220,16 +192,10 @@ class TestSearchLiteratureSingle:
     @pytest.mark.asyncio
     async def test_search_handles_timeout(self):
         """Test handling of request timeout."""
-        with patch("aiohttp.ClientSession") as mock_session:
-            mock_session_instance = MagicMock()
-            mock_session_instance.post.side_effect = asyncio.TimeoutError()
-            mock_session_instance.__aenter__ = AsyncMock(
-                return_value=mock_session_instance
-            )
-            mock_session_instance.__aexit__ = AsyncMock(return_value=None)
-
-            mock_session.return_value = mock_session_instance
-
+        with patch(
+            "agentsociety2.skills.literature.core.call_literature_search_mcp",
+            new=AsyncMock(side_effect=asyncio.TimeoutError()),
+        ):
             result = await _search_literature_single(
                 query="test query",
                 limit=10,
@@ -242,7 +208,7 @@ class TestSearchLiteratureSingle:
                 relevant_content_limit=None,
                 max_chunks_per_article=None,
                 return_chunks=True,
-                api_url="http://test.api/search",
+                mcp_url="http://test.api/mcp/sse",
                 api_key="test-key",
                 timeout=30,
             )
@@ -376,10 +342,12 @@ class TestFormatSearchResults:
         result = format_search_results(articles, 1, "test")
         assert "..." in result
 
-    def test_format_shows_only_first_five(self):
-        """Test that only first 5 articles are shown."""
-        articles = [{"title": f"Article {i}"} for i in range(10)]
-        result = format_search_results(articles, 10, "test")
+    def test_format_truncates_display_to_ten(self):
+        """Test that at most 10 articles are shown with an overflow message."""
+        articles = [{"title": f"Article {i}"} for i in range(15)]
+        result = format_search_results(articles, 15, "test")
+        assert "Article 9" in result
+        assert "Article 10" not in result
         assert "5 more article" in result
 
 

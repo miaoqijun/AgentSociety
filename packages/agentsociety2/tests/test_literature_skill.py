@@ -2,10 +2,12 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import agentsociety2.skills.literature.search as literature_search_module
+from agentsociety2.skills.literature.full_text import entry_extra_fields, nested_dict
 from agentsociety2.skills.literature.search import search_literature_and_save
 from agentsociety2.skills.literature.core import _convert_api_response
 
@@ -195,12 +197,13 @@ async def test_search_literature_and_save_updates_index(monkeypatch, tmp_path):
 
     assert result["success"] is True
     assert len(index["entries"]) == 1
-    entry = index["entries"][0]
+    entry: dict[str, Any] = index["entries"][0]
     file_path = Path(entry["file_path"])
     assert file_path.as_posix().startswith("papers/Agent_Societies_in_Simulation_")
     assert (tmp_path / file_path).exists()
-    assert entry["extra_fields"]["authors"] == ["A. Researcher"]
-    assert entry["extra_fields"]["url"] == "https://arxiv.org/abs/2601.00001"
+    extra = entry_extra_fields(entry)
+    assert extra["authors"] == ["A. Researcher"]
+    assert extra["url"] == "https://arxiv.org/abs/2601.00001"
 
 
 def test_full_text_helper_registers_pdf_and_updates_index(tmp_path):
@@ -249,8 +252,9 @@ def test_full_text_helper_registers_pdf_and_updates_index(tmp_path):
         text=True,
     )
 
-    updated = json.loads(index_path.read_text(encoding="utf-8"))
-    full_text = updated["entries"][0]["extra_fields"]["full_text"]
+    updated: dict[str, Any] = json.loads(index_path.read_text(encoding="utf-8"))
+    entry0: dict[str, Any] = updated["entries"][0]
+    full_text = nested_dict(entry_extra_fields(entry0), "full_text")
     assert full_text["status"] == "downloaded"
     assert full_text["file_path"].startswith("papers/full_texts/")
     assert (tmp_path / full_text["file_path"]).exists()

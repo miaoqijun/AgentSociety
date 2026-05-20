@@ -121,7 +121,6 @@ extension/
 │   ├── pdf/                          # PDF 文档处理
 │   ├── pptx/                         # PPT 文档处理
 │   └── xlsx/                         # Excel 文档处理
-├── HELP.md                           # 帮助文档（Markdown 格式）
 ├── README.md                         # 项目说明
 ├── package.json                      # 插件配置
 ├── tsconfig.json                     # TypeScript 配置
@@ -151,35 +150,43 @@ extension/
 
 ### 2. 配置页面 (ConfigPageViewProvider)
 
-**文件**: `src/configPageViewProvider.ts`, `src/webview/configPage/`
+**文件**: `src/configPageViewProvider.ts`, `src/webview/configPage/`, `src/services/claudeCodeSettings.ts`
 
-提供可视化配置界面，配置保存在工作区的 `.env` 文件中：
+统一配置页（单页 Webview），配置写入工作区 `.env`；Claude Code 写入 `~/.claude/settings.json`：
 
-- **LLM API 配置**
-  - Default LLM（必填）
-  - Coder LLM（代码生成，可选）
-  - Nano LLM（高频操作，可选）
-  - Analysis LLM（数据分析，可选）
-  - Embedding 模型（可选）
+| 区域 | 说明 |
+| ---- | ---- |
+| **概览卡片** | 后端状态、高级配置验证汇总（悬停显示各项圆点状态）、Claude Code 状态；点击可跳转并触发验证 |
+| **默认 LLM** | 必填：API Key / Base / Model |
+| **高级配置**（折叠） | 四层 Tab：专用模型（Coder / Nano / Analysis / Embedding）、Python、学术文献检索（MCP）、Claude Code |
+| **底部操作** | 恢复默认、保存、保存并启动后端 |
 
-- **Python 环境配置**
-- **文献检索配置**
-- **配置验证功能**
+Webview 主要组件：
+
+```
+webview/configPage/
+├── ConfigPageApp.tsx           # 主页面
+├── AdvancedConfigSection.tsx   # 高级配置 Tab
+├── ClaudeCodeConfigSection.tsx # Claude Code 表单（嵌入高级 Tab）
+├── ValidationAction.tsx        # 验证按钮
+├── advancedValidation.ts       # 指纹与状态色
+├── claudeCodeTypes.ts          # Claude 配置类型
+└── ConfigPageErrorBoundary.tsx # 运行时错误边界
+```
+
+**验证策略**：修改某项高级配置约 1.5 秒后自动验证该项；概览「高级配置」卡片点击可验证全部；已验证且配置未变则不重复请求 API。
+
+**Claude Code 入口**：命令 `aiSocialScientist.openClaudeCodeConfig` 打开本页并定位到 Claude Tab（不再使用独立 Webview）。
 
 ### 3. 帮助页面 (HelpPageViewProvider)
 
-**文件**: `src/helpPageViewProvider.ts`, `src/webview/helpPage/`, `HELP.md`
+**文件**: `src/helpPageViewProvider.ts`, `src/webview/helpPage/`
 
-从 `HELP.md` 读取 Markdown 内容并渲染：
+默认嵌入 [ReadTheDocs](https://agentsociety2.readthedocs.io/)（中英文按 VS Code 语言切换）。iframe 加载失败时显示简短离线页（配置、技能市场等快捷入口）。
 
-- 支持命令链接跳转 (`[文字](command:命令ID)`)
-- 支持外部 URL 打开
-- 自定义 Markdown 样式适配 VSCode 主题
-
-实现要点：
-
-- Webview 通过 `window.HELP_CONTENT` 注入 `HELP.md` 文本，再由 React 渲染
-- 由于 CSP 默认禁用内联脚本，注入脚本需使用 `nonce`（见 `helpPageViewProvider.ts`）
+- 用户文档维护入口：`packages/agentsociety2/docs/`（见仓库根目录 `READTHEDOCS.md`）
+- 离线回退页支持 `command:` 链接与外部 URL
+- 注入脚本使用 CSP `nonce`（见 `helpPageViewProvider.ts`）
 
 ### 4. 后端管理器 (BackendManager)
 
@@ -219,14 +226,14 @@ extension/
 
 ### 6. 可视化查看器
 
-| 查看器 | 文件 | 功能 |
-|--------|------|------|
-| JSON Viewer | `jsonViewer.ts` | 语法高亮、折叠展开、搜索、复制 |
-| YAML Viewer | `yamlViewer.ts` | 语法高亮、复制内容、转换为 JSON |
-| Steps Viewer | `stepsViewer.ts` | 时间线视图、编辑保存 |
-| PID Status Viewer | `pidStatusViewer.ts` | 实验状态监控、自动刷新 |
-| Literature Index Viewer | `literatureIndexViewer.ts` | 文献列表、搜索、批量操作 |
-| Experiment Results Viewer | `experimentResultsViewer.ts` | 实验结果可视化 |
+| 查看器                    | 文件                         | 功能                            |
+| ------------------------- | ---------------------------- | ------------------------------- |
+| JSON Viewer               | `jsonViewer.ts`              | 语法高亮、折叠展开、搜索、复制  |
+| YAML Viewer               | `yamlViewer.ts`              | 语法高亮、复制内容、转换为 JSON |
+| Steps Viewer              | `stepsViewer.ts`             | 时间线视图、编辑保存            |
+| PID Status Viewer         | `pidStatusViewer.ts`         | 实验状态监控、自动刷新          |
+| Literature Index Viewer   | `literatureIndexViewer.ts`   | 文献列表、搜索、批量操作        |
+| Experiment Results Viewer | `experimentResultsViewer.ts` | 实验结果可视化                  |
 
 ### 7. API 客户端 (ApiClient)
 
@@ -274,59 +281,59 @@ uv run python -m agentsociety2.backend.run
 ### 主要 API 端点
 
 #### 基础接口
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/health` | GET | 健康检查 |
-| `/docs` | GET | Swagger API 文档 |
+| 端点      | 方法 | 说明             |
+| --------- | ---- | ---------------- |
+| `/health` | GET  | 健康检查         |
+| `/docs`   | GET  | Swagger API 文档 |
 
 #### Agent Skills 接口 (`/api/v1/agent-skills`)
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/list` | GET | 列出所有 Agent Skills |
-| `/scan` | POST | 扫描自定义 Skill |
-| `/import` | POST | 从路径导入 Skill |
-| `/create` | POST | 创建新 Skill |
-| `/upload` | POST | 上传 zip 包导入 Skill |
-| `/reload` | POST | 热重载 Skill |
-| `/remove` | POST | 移除自定义 Skill |
-| `/{name}/info` | GET | 获取 Skill 详情 |
+| 端点           | 方法 | 说明                  |
+| -------------- | ---- | --------------------- |
+| `/list`        | GET  | 列出所有 Agent Skills |
+| `/scan`        | POST | 扫描自定义 Skill      |
+| `/import`      | POST | 从路径导入 Skill      |
+| `/create`      | POST | 创建新 Skill          |
+| `/upload`      | POST | 上传 zip 包导入 Skill |
+| `/reload`      | POST | 热重载 Skill          |
+| `/remove`      | POST | 移除自定义 Skill      |
+| `/{name}/info` | GET  | 获取 Skill 详情       |
 
 #### 模块接口 (`/api/v1/modules`)
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/agent_classes` | GET | 获取所有 Agent 类 |
-| `/env_module_classes` | GET | 获取所有环境模块类 |
-| `/all` | GET | 获取所有模块（一次性返回） |
+| 端点                  | 方法 | 说明                       |
+| --------------------- | ---- | -------------------------- |
+| `/agent_classes`      | GET  | 获取所有 Agent 类          |
+| `/env_module_classes` | GET  | 获取所有环境模块类         |
+| `/all`                | GET  | 获取所有模块（一次性返回） |
 
 #### 预填充参数接口 (`/api/v1/prefill-params`)
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/` | GET | 获取全局预填充参数 |
-| `/{class_kind}/{class_name}` | GET | 获取特定类的预填充参数 |
+| 端点                         | 方法 | 说明                   |
+| ---------------------------- | ---- | ---------------------- |
+| `/`                          | GET  | 获取全局预填充参数     |
+| `/{class_kind}/{class_name}` | GET  | 获取特定类的预填充参数 |
 
 #### 实验数据接口 (`/api/v1/experiments`)
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/{hypothesis_id}/{experiment_id}/info` | GET | 获取实验信息 |
-| `/{hypothesis_id}/{experiment_id}/artifacts` | GET | 获取产出文件列表 |
-| `/{hypothesis_id}/{experiment_id}/artifacts/{name}` | GET | 获取产出文件内容 |
+| 端点                                                | 方法 | 说明             |
+| --------------------------------------------------- | ---- | ---------------- |
+| `/{hypothesis_id}/{experiment_id}/info`             | GET  | 获取实验信息     |
+| `/{hypothesis_id}/{experiment_id}/artifacts`        | GET  | 获取产出文件列表 |
+| `/{hypothesis_id}/{experiment_id}/artifacts/{name}` | GET  | 获取产出文件内容 |
 
 #### 回放数据接口 (`/api/v1/replay`)
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/{hypothesis_id}/{experiment_id}/info` | GET | 获取实验基本信息 |
-| `/{hypothesis_id}/{experiment_id}/timeline` | GET | 获取时间线数据 |
-| `/{hypothesis_id}/{experiment_id}/agents` | GET | 获取所有 Agent 列表 |
-| `/{hypothesis_id}/{experiment_id}/agent/{agent_id}` | GET | 获取 Agent 详情 |
+| 端点                                                | 方法 | 说明                |
+| --------------------------------------------------- | ---- | ------------------- |
+| `/{hypothesis_id}/{experiment_id}/info`             | GET  | 获取实验基本信息    |
+| `/{hypothesis_id}/{experiment_id}/timeline`         | GET  | 获取时间线数据      |
+| `/{hypothesis_id}/{experiment_id}/agents`           | GET  | 获取所有 Agent 列表 |
+| `/{hypothesis_id}/{experiment_id}/agent/{agent_id}` | GET  | 获取 Agent 详情     |
 
 #### 自定义模块接口 (`/api/v1/custom`)
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/scan` | POST | 扫描自定义模块 |
-| `/clean` | POST | 清理自定义模块配置 |
-| `/test` | POST | 测试自定义模块 |
-| `/list` | GET | 列出已注册的自定义模块 |
-| `/status` | GET | 获取自定义模块状态 |
+| 端点      | 方法 | 说明                   |
+| --------- | ---- | ---------------------- |
+| `/scan`   | POST | 扫描自定义模块         |
+| `/clean`  | POST | 清理自定义模块配置     |
+| `/test`   | POST | 测试自定义模块         |
+| `/list`   | GET  | 列出已注册的自定义模块 |
+| `/status` | GET  | 获取自定义模块状态     |
 
 ## React Webview 开发
 
@@ -388,49 +395,27 @@ const { isDark, palette, themeConfig } = useVscodeTheme();
 
 ### 可用主题颜色
 
-| 变量 | 说明 |
-|------|------|
-| `editorBackground` | 编辑器背景色 |
-| `editorForeground` | 编辑器前景色 |
-| `panelBorder` | 面板边框色 |
-| `linkForeground` | 链接颜色 |
+| 变量                    | 说明         |
+| ----------------------- | ------------ |
+| `editorBackground`      | 编辑器背景色 |
+| `editorForeground`      | 编辑器前景色 |
+| `panelBorder`           | 面板边框色   |
+| `linkForeground`        | 链接颜色     |
 | `descriptionForeground` | 描述文字颜色 |
-| `successForeground` | 成功状态颜色 |
-| `errorForeground` | 错误状态颜色 |
+| `successForeground`     | 成功状态颜色 |
+| `errorForeground`       | 错误状态颜色 |
 
 ## 帮助页面维护
 
-帮助页面内容存储在 `HELP.md` 文件中，使用 Markdown 格式。
+帮助页主内容来自 ReadTheDocs，请在 `packages/agentsociety2/docs/` 修改并发布 RTD。插件内仅保留无法联网时的简短回退文案（`helpPageViewProvider.ts` 中的 `offlineHelpContent()`）。
 
-帮助页建议保持“上手路径 + 一键入口 + 排错”这三块为主，避免把过多细节（如回放的完整说明）堆在帮助页里，必要时再拆分到独立文档。
+### 添加离线回退入口
 
-### 特殊链接语法
-
-**命令链接**：点击执行 VSCode 命令
+在 `offlineHelpContent()` 里增加 `command:` 链接即可：
 
 ```markdown
-[打开配置页面](command:aiSocialScientist.openConfigPage)
-```
-
-**外部链接**：点击在浏览器打开
-
-```markdown
-[项目文档](https://github.com/tsinghua-fib-lab/agentsociety)
-```
-
-### 更新帮助页面
-
-1. 编辑 `HELP.md` 文件
-2. 重新编译插件：`npm run compile`
-3. 刷新帮助页面即可看到更新
-
-### 添加新入口
-
-在 Markdown 中添加命令链接即可创建快捷入口：
-
-```markdown
-| 页面 | 说明 | 快捷入口 |
-|------|------|----------|
+| 页面     | 说明         | 快捷入口                                         |
+| -------- | ------------ | ------------------------------------------------ |
 | 配置页面 | 配置 LLM API | [打开](command:aiSocialScientist.openConfigPage) |
 ```
 

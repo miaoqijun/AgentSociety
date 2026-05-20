@@ -199,69 +199,12 @@
   },
   "configPage": {
     "title": "AI Social Scientist 配置",
-    "subtitle": "配置会写入当前工作区 .env；建议启动后端获得完整插件体验",
-    "description": "保存配置后启动本地后端，即可使用 Agent 技能运行时管理、模块探测、预填参数、回放 API 和 API 文档。若暂未启动后端，配置编辑和 CLI/Claude Code 实验运行仍可继续。",
-    "advancedConfig": "高级配置（可选）",
-    "resetDefaults": "恢复默认值",
-    "saveAndStart": "保存并启动后端",
-    "starting": "正在启动后端...",
-    "validationSuccess": "验证成功",
-    "validationFailed": "验证失败",
-    "analysis": {
-      "title": "数据分析 LLM",
-      "hint": "用于数据分析、洞察生成和报告撰写（API Key/API URL 可留空并沿用上方默认 LLM 配置）",
-      "apiKey": "API 密钥",
-      "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
-      "apiBase": "API URL",
-      "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
-      "model": "模型",
-      "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
-    },
-    "python": {
-      "title": "Python 环境",
-      "hint": "Python 运行环境配置",
-      "path": "Python 路径",
-      "pathPlaceholder": "python3，或留空自动检测"
-    },
-    "literature": {
-      "title": "文献检索服务",
-      "hint": "统一的学术文献检索服务",
-      "validateConfig": "验证配置",
-      "validateSuccess": "验证成功"
-    },
-    "steps": {
-      "llm": {
-        "title": "LLM 配置",
-        "description": "配置大语言模型 API"
-      },
-      "backend": {
-        "title": "后端服务",
-        "description": "配置后端服务地址"
-      },
-      "coder": {
-        "title": "代码生成 LLM",
-        "description": "代码生成专用模型（可选）"
-      },
-      "advanced": {
-        "title": "高级功能",
-        "description": "Embedding、搜索等（可选）"
-      },
-      "finish": {
-        "title": "完成",
-        "description": "完成配置"
-      }
-    },
-    "noWorkspace": "未检测到工作区",
-    "noWorkspaceHint": "请先使用菜单「文件 → 打开文件夹」打开一个项目文件夹",
-    "save": "保存",
-    "validate": "验证",
-    "validating": "验证中...",
-    "validationSuccess": "验证成功",
-    "validationFailed": "验证失败",
-    "startBackend": "启动后端服务",
-    "previous": "上一步",
-    "next": "下一步",
+    "subtitle": "配置保存至工作区 .env",
+    "advancedConfig": "高级配置",
+    "envFileLoaded": "配置文件：{{path}}",
     "llm": {
+      "cardTitle": "默认 LLM",
+      "requiredTag": "必填",
       "apiKey": "LLM API 密钥",
       "apiKeyRequired": "LLM API 密钥 *",
       "apiKeyRequiredHint": "用于默认对话、分析等核心功能",
@@ -271,14 +214,79 @@
       "modelName": "LLM 模型名称",
       "modelPlaceholder": "默认值：gpt-5.4"
     },
-    "backend": {
-      "title": "后端服务配置",
-      "hint": "建议启动以获得完整插件体验；端口将自动分配，Python 路径留空则自动检测",
-      "pythonPath": "Python 路径（可选，留空自动检测）",
-      "pythonPathPlaceholder": "python3 或 /usr/bin/python3"
+    "advancedValidation": {
+      "passedShort": "{{done}}/{{total}} 已通过",
+      "checkingShort": "验证中 {{done}}/{{total}}",
+      "statusOk": "正常",
+      "statusError": "验证失败",
+      "statusErrorShort": "失败",
+      "statusBlocked": "待填写",
+      "statusBlockedShort": "待填",
+      "notCheckedShort": "未验证",
+      "clickToValidate": "点击验证",
+      "statusIdleShort": "未验证"
     },
+    "sections": {
+      "inheritHintShort": "留空则沿用上方默认 LLM 的 API Key 与地址。",
+      "specializedModels": "专用模型"
+    },
+    "resetWorkspaceDefaults": "重置工作区配置",
+    "resetClaudeDefaults": "重置 Claude 配置",
+    "saveHint": "Claude 需同时填写 API Key 与 Base URL 才会一并保存",
+    "saveAndStart": "保存并启动后端",
+    "starting": "正在启动后端...",
+    "validationSuccess": "验证成功",
+    "validationFailed": "验证失败",
+    "analysis": {
+      "shortTitle": "数据分析",
+      "title": "数据分析 LLM",
+      "hint": "用于数据分析、洞察生成和报告撰写（API Key/API URL 可留空并沿用上方默认 LLM 配置）",
+      "apiKey": "API 密钥",
+      "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
+      "apiBase": "API URL",
+      "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
+      "model": "模型",
+      "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
+    },
+    "overview": {
+      "backend": "后端服务",
+      "backendRunning": "运行中 :{{port}}",
+      "backendStopped": "未启动",
+      "backendStoppedHint": "点击启动",
+      "startBackendOnClick": "保存配置并启动后端",
+      "backendStoppedDetail": "未启动也可保存配置，并通过 CLI / Claude Code 运行实验",
+      "advanced": "高级配置",
+      "claudeCode": "Claude Code",
+      "jumpToClaudeCode": "展开高级配置中的 Claude Code 标签",
+      "claudeConfiguredHint": "必填项已填",
+      "claudeNotConfiguredHint": "未配置（可选）"
+    },
+    "status": {
+      "configured": "已配置",
+      "default": "默认",
+      "notConfigured": "未配置"
+    },
+    "python": {
+      "title": "Python 环境",
+      "hint": "Python 运行环境配置",
+      "path": "Python 路径",
+      "pathPlaceholder": "python3，或留空自动检测"
+    },
+    "literature": {
+      "title": "学术文献检索",
+      "hint": "通过 MCP 网关连接学术文献检索服务",
+      "validateConfig": "验证配置",
+      "validateSuccess": "验证成功"
+    },
+    "noWorkspace": "未检测到工作区",
+    "noWorkspaceHint": "请先使用菜单「文件 → 打开文件夹」打开一个项目文件夹",
+    "save": "保存",
+    "validate": "验证",
+    "revalidate": "重新验证",
+    "validating": "验证中...",
     "coder": {
-      "title": "代码生成 LLM（可选）",
+      "shortTitle": "代码生成",
+      "title": "代码生成 LLM",
       "hint": "用于代码生成的专用模型，可留空并沿用上方默认 LLM 配置",
       "apiKey": "代码生成 LLM API 密钥",
       "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
@@ -289,6 +297,7 @@
     },
     "advanced": {
       "embedding": {
+        "shortTitle": "Embedding",
         "title": "Embedding 模型",
         "hint": "用于文本嵌入（API Key/API URL 可留空并沿用上方默认 LLM 配置）",
         "apiKey": "Embedding API 密钥",
@@ -301,7 +310,8 @@
         "dimsPlaceholder": "1024"
       },
       "nano": {
-        "title": "高频操作 LLM（可选）",
+        "shortTitle": "高频",
+        "title": "高频操作 LLM",
         "hint": "用于高频快速操作的轻量级模型，可留空并沿用上方默认 LLM 配置",
         "apiKey": "高频操作 LLM API 密钥",
         "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
@@ -311,19 +321,18 @@
         "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
       },
       "literature": {
-        "title": "文献检索服务（可选）",
-        "apiUrl": "文献检索 API URL",
-        "apiUrlPlaceholder": "http://localhost:8002/api/v1/search"
+        "title": "学术文献检索",
+        "apiUrl": "学术文献检索 MCP 地址",
+        "apiUrlPlaceholder": "https://llmapi.fiblab.net/mcp/",
+        "apiKey": "学术文献检索 API Key",
+        "apiKeyPlaceholder": "sk-...（需具备学术文献检索权限的 LiteLLM 虚拟密钥）"
       }
-    },
-    "finish": {
-      "title": "配置完成！",
-      "description": "所有配置已保存到工作区的 <code>.env</code> 文件中。",
-      "hint": "配置已保存。建议启动后端以启用 Agent 技能管理、模块探测、预填参数、回放 API 和 API 文档。"
     },
     "notifications": {
       "saveSuccess": "保存成功",
-      "saveSuccessDesc": "配置已保存到 .env 文件",
+      "saveSuccessDesc": "配置已保存到工作区 .env",
+      "saveSuccessDescWithClaude": "已保存到工作区 .env 与 Claude settings.json",
+      "claudePartial": "Claude 需同时填写 API Key 与 Base URL，或两项都留空后再保存",
       "saveFailed": "保存失败",
       "backendStarted": "后端服务已启动",
       "backendStartFailed": "后端服务启动失败",
@@ -343,7 +352,12 @@
       "emptyApiKey": "API Key 或 Base URL 为空",
       "needsApiKey": "请先填写当前项 API Key，或在上方填写默认 LLM API Key",
       "needsApiBase": "请先填写当前项 API URL，或在上方填写默认 LLM API URL",
-      "literatureUrlRequired": "请输入文献检索 API URL",
+      "literatureUrlRequired": "请输入学术文献检索 MCP 地址",
+      "literatureValidateSuccess": "学术文献检索配置验证成功",
+      "literatureValidateSuccessDesc": "服务已连接，数据源：{{sources}}",
+      "literatureAuthRequired": "需要输入 API Key",
+      "literatureAuthInvalid": "API Key 无效或已过期",
+      "literatureGatewayError": "学术文献检索网关不可用（HTTP {{status}}）。请确认 MCP 地址正确，且 Key 已开通学术文献检索权限。",
       "invalidKey": "API Key 无效或已过期",
       "invalidUrl": "接口地址似乎不正确，请对照服务商说明核对完整网址（含路径）",
       "serverError": "服务器错误",
@@ -577,12 +591,10 @@
     "sourcesList": "市场源列表"
   },
   "claudeCodeConfig": {
-    "title": "Claude Code 配置",
-    "subtitle": "配置 Claude Code CLI 的全局设置",
+    "subtitle": "Claude Code CLI 连接配置，保存后写入下方路径",
     "savePath": "保存路径",
     "apiConfig": "API 配置",
     "required": "必填",
-    "optional": "可选",
     "modelMapping": "模型映射",
     "modelMappingTip": "将模型提供商的模型映射到 Claude 的角色别名（sonnet/opus/haiku）",
     "defaultModel": "默认模型",
@@ -591,13 +603,19 @@
     "haikuModel": "Haiku 对应模型",
     "selectOrManual": "输入模型名称",
     "leaveEmpty": "留空则不设置",
-    "save": "保存",
-    "resetDefaults": "重置默认值",
-    "saveSuccess": "保存成功",
-    "saveSuccessDesc": "Claude Code 配置已写入 settings.json",
     "saveFailed": "保存失败",
     "apiKeyRequired": "请填写 API Key",
+    "apiKeyPlaceholder": "sk-ant-... 或第三方提供商密钥",
     "baseUrlRequired": "请填写 Base URL",
+    "baseUrlPlaceholder": "https://api.anthropic.com",
+    "baseUrlCustom": "自定义",
+    "baseUrlPresets": {
+      "anthropic": "Anthropic 官方",
+      "bigmodel": "智谱 BigModel",
+      "kimi": "Kimi Coding",
+      "minimax": "MiniMax",
+      "openrouter": "OpenRouter"
+    },
     "cliDetected": "已检测到 Claude Code CLI {{version}}",
     "cliNotInstalled": "Claude Code CLI 未安装"
   }

@@ -35,7 +35,7 @@ import { BackendManager } from './services/backendManager';
 import { WorkspaceExportManager } from './services/workspaceExportManager';
 import { filePathToAtReference } from './atReference';
 import { AIChatInvoker } from './aiChatInvoker';
-import { ClaudeCodeConfigProvider } from './claudeCodeConfigProvider';
+import { openClaudeCodeConfig } from './claudeCodeConfigProvider';
 import { LiteratureIndexViewer } from './literatureIndexViewer';
 import { StepsViewer } from './stepsViewer';
 
@@ -640,7 +640,7 @@ export function activate(context: vscode.ExtensionContext) {
   const openClaudeCodeConfigCommand = vscode.commands.registerCommand(
     'aiSocialScientist.openClaudeCodeConfig',
     () => {
-      ClaudeCodeConfigProvider.createOrShow(context, vscode.ViewColumn.Beside);
+      openClaudeCodeConfig(context, vscode.ViewColumn.Beside);
     }
   );
 

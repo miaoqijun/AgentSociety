@@ -27,7 +27,9 @@ your-project/
 
 ### 配置 Claude Code 使用的模型服务
 
-Claude Code 默认使用 Anthropic 服务。若你需要通过代理或兼容网关访问其他模型，可以在 `~/.claude/settings.json` 中配置环境变量：
+Claude Code 默认使用 Anthropic 服务。若你需要通过代理或兼容网关访问其他模型，可以在 **`~/.claude/settings.json`** 中配置环境变量；也可以在插件配置页的 **高级配置 → Claude Code** 中图形化编辑并保存到同一文件：
+
+[打开 Claude Code 配置（配置页）](command:aiSocialScientist.openClaudeCodeConfig)
 
 ![Claude Code 配置文件示例](../images/claude-settings-json.png)
 

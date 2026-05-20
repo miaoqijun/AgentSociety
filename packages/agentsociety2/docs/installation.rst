@@ -70,7 +70,7 @@ AgentSociety 2 需要 LLM API 凭证。设置以下环境变量：
    export AGENTSOCIETY_LLM_API_BASE="https://api.openai.com/v1"
    export AGENTSOCIETY_LLM_MODEL="gpt-5.5"
 
-**可选配置**
+**高级配置**
 
 对于专门的任务，您可以配置单独的 LLM 实例。如果未设置这些选项，
 它们将回退到默认 LLM 配置：

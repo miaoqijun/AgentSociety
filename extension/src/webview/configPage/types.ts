@@ -36,17 +36,30 @@ export interface ConfigValues {
   embeddingModel: string;
   embeddingDims: number;
   // Literature Search (optional, for search_literature tool)
-  literatureSearchApiUrl: string;
+  literatureSearchMcpUrl: string;
   literatureSearchApiKey: string;
+}
+
+export interface ValidationState {
+  validating: boolean;
+  valid: boolean | null;
+  error: string | null;
 }
 
 export interface WorkspaceInfo {
   hasWorkspace: boolean;
   workspacePath?: string;
+  /** Relative path to the loaded .env file, e.g. agentsociety/.env */
+  envFilePath?: string;
 }
 
 export interface BackendStatus {
   isRunning: boolean;
   port?: number;
   url?: string;
+}
+
+export interface OverviewStatusMessage {
+  backendStatus: BackendStatus;
+  claudeCodeCustomized?: boolean;
 }
