@@ -1,10 +1,18 @@
 from __future__ import annotations
 
-from agentsociety2.skills.analysis.harness.models import ClaimMode, ClaimsDocument
-from agentsociety2.skills.analysis.harness.validators._helpers import blocked, issue, passed
+from agentsociety2.skills.analysis.harness.models import (
+    ClaimMode,
+    ClaimsDocument,
+    ValidationResult,
+)
+from agentsociety2.skills.analysis.harness.validators._helpers import (
+    blocked,
+    issue,
+    passed,
+)
 
 
-def validate_claims(doc: ClaimsDocument) -> "ValidationResult":
+def validate_claims(doc: ClaimsDocument) -> ValidationResult:
     issues = []
     if not doc.claims:
         issues.append(

@@ -4,8 +4,12 @@ import sqlite3
 from pathlib import Path
 from typing import List, Optional
 
-from agentsociety2.skills.analysis.harness.models import AnalysisPlan
-from agentsociety2.skills.analysis.harness.validators._helpers import blocked, issue, passed
+from agentsociety2.skills.analysis.harness.models import AnalysisPlan, ValidationResult
+from agentsociety2.skills.analysis.harness.validators._helpers import (
+    blocked,
+    issue,
+    passed,
+)
 
 
 def _run_table_checks(db_path: Path, plan: AnalysisPlan) -> List:
@@ -65,7 +69,7 @@ def validate_explore(
     plan: AnalysisPlan,
     data_dir: Optional[Path] = None,
     recorded_artifacts: Optional[List[str]] = None,
-) -> "ValidationResult":
+) -> ValidationResult:
     issues: List = []
     if not db_path.exists():
         issues.append(
@@ -136,5 +140,7 @@ def validate_explore(
     issues.extend(_run_table_checks(db_path, plan))
 
     if issues:
-        return blocked(issues, recommended_next_step="Fix data/EDA artifacts then validate-explore")
+        return blocked(
+            issues, recommended_next_step="Fix data/EDA artifacts then validate-explore"
+        )
     return passed()

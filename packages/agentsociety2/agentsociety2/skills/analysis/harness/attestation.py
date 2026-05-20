@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Dict, List
 
 from agentsociety2.skills.analysis.harness.models import (
     AttestationStatus,

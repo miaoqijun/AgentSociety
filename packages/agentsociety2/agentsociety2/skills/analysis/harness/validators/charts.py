@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from agentsociety2.skills.analysis.harness.models import ValidationResult
 from agentsociety2.skills.analysis.harness.validators._helpers import (
     CHART_NAME_RE,
     FIGURE_NAME_RE,
@@ -12,7 +13,7 @@ from agentsociety2.skills.analysis.harness.validators._helpers import (
 )
 
 
-def validate_chart_script(code: str) -> "ValidationResult":
+def validate_chart_script(code: str) -> ValidationResult:
     issues = []
     try:
         tree = ast.parse(code)
@@ -94,7 +95,7 @@ def validate_chart_file(
     *,
     max_charts: int,
     current_count: int,
-) -> "ValidationResult":
+) -> ValidationResult:
     issues = []
     if not chart_path.exists():
         issues.append(

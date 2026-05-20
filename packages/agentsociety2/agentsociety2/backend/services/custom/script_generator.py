@@ -13,7 +13,6 @@ import io
 import sys
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, ClassVar, Optional, Type
 
 from agentsociety2.backend.path_security import (

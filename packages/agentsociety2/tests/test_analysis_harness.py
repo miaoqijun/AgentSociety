@@ -9,11 +9,6 @@ import pytest
 from agentsociety2.skills.analysis.harness import state as harness_state
 from agentsociety2.skills.analysis.harness.models import (
     AnalysisPlan,
-    Claim,
-    ClaimMode,
-    ClaimsDocument,
-    HypothesisAnalysisState,
-    ReleaseStatus,
 )
 from agentsociety2.skills.analysis.harness.review import (
     REPORT_DIMENSION_KEYS,
@@ -139,7 +134,6 @@ def test_intake_and_write_plan(workspace: Path) -> None:
     )
     from agentsociety2.skills.analysis.harness.models import (
         AttestationStatus,
-        PhaseAttestation,
     )
 
     harness_cli.cmd_record_attestation(

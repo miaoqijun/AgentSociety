@@ -16,6 +16,7 @@ from agentsociety2.skills.analysis.harness.schemas import (
     ArtifactManifest,
     ReportOutline,
 )
+from agentsociety2.skills.analysis.harness.models import ValidationResult
 from agentsociety2.skills.analysis.harness.validators._helpers import (
     blocked,
     issue,
@@ -52,7 +53,7 @@ def _load_json_model(path: Path, model, label: str) -> tuple[object | None, List
         ]
 
 
-def validate_release(presentation_dir: Path) -> "ValidationResult":
+def validate_release(presentation_dir: Path) -> ValidationResult:
     issues: List = []
     sync_report_assets_from_reports(presentation_dir)
     for raw in charts_path_refs_in_reports(presentation_dir):
@@ -103,7 +104,7 @@ def validate_release(presentation_dir: Path) -> "ValidationResult":
                     "report_missing",
                     phase="produce",
                     message=f"{label} missing or empty",
-                    fix_hint=f"Write bilingual MD + HTML reports (see references/html-export.md)",
+                    fix_hint="Write bilingual MD + HTML reports (see references/html-export.md)",
                 )
             )
         elif path.suffix.lower() == ".html":

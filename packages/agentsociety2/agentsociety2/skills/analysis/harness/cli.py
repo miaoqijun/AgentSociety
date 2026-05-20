@@ -41,7 +41,6 @@ from agentsociety2.skills.analysis.harness.review import (
 )
 from agentsociety2.skills.analysis.harness.schemas import (
     ReportQualityReview,
-    ReviewVerdict,
     SynthesisQualityReview,
 )
 from agentsociety2.skills.analysis.harness.validators import (

@@ -1181,7 +1181,6 @@ Your generated world description:"""
         :param modules_info: 按模块组织的工具信息字典。
         :returns: 格式化的 Python 代码字符串。
         """
-        import inspect as _inspect
 
         lines: List[str] = []
         lines.append("# Type definitions for environment modules")

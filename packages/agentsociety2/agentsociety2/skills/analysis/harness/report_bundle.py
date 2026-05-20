@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from agentsociety2.skills.analysis.harness.layout import hypothesis_presentation_dir
-from agentsociety2.skills.analysis.harness.models import AnalysisPhase, FigureContract
+from agentsociety2.skills.analysis.harness.models import AnalysisPhase
 from agentsociety2.skills.analysis.harness.schemas import (
     EvidenceIndex,
     EvidenceKind,

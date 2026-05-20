@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from agentsociety2.skills.analysis.harness.json_io import load_model_from_file
-from agentsociety2.skills.analysis.harness.models import ClaimMode
+from agentsociety2.skills.analysis.harness.models import ClaimMode, ValidationResult
 from agentsociety2.skills.analysis.harness.schemas import AnalysisSummary
 from agentsociety2.skills.analysis.harness.state import load_claims
 from agentsociety2.skills.analysis.harness.validators._helpers import (
@@ -54,14 +54,13 @@ def validate_report_quality(
     *,
     workspace: Optional[Path] = None,
     hypothesis_id: Optional[str] = None,
-) -> "ValidationResult":
+) -> ValidationResult:
     issues: List = []
     report_zh = presentation_dir / "report_zh.md"
     report_en = presentation_dir / "report_en.md"
     html_zh = presentation_dir / "report_zh.html"
     html_en = presentation_dir / "report_en.html"
     summary_path = presentation_dir / "data" / "analysis_summary.json"
-    outline_path = presentation_dir / "report_outline.json"
 
     missing = [
         label

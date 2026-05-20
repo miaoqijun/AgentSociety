@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import yaml
 
@@ -15,11 +15,9 @@ from agentsociety2.skills.analysis.harness.models import (
     SynthesisAnalysisState,
 )
 from agentsociety2.skills.analysis.harness.paths import (
-    hypothesis_analysis_dir,
     hypothesis_claims_path,
     hypothesis_plan_path,
     hypothesis_state_path,
-    synthesis_analysis_dir,
     synthesis_state_path,
 )
 

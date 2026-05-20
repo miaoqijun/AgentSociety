@@ -13,6 +13,7 @@ from agentsociety2.skills.analysis.harness.schemas import (
     ReviewVerdict,
     SynthesisQualityReview,
 )
+from agentsociety2.skills.analysis.harness.models import ValidationResult
 from agentsociety2.skills.analysis.harness.validators._helpers import (
     ValidationIssue,
     blocked,
@@ -106,7 +107,7 @@ def validate_report_review(
     workspace: Path,
     hypothesis_id: str,
     presentation_dir: Path,
-) -> "ValidationResult":
+) -> ValidationResult:
     issues: List[ValidationIssue] = []
     path = hypothesis_report_review_path(workspace, hypothesis_id)
     if not path.exists():
@@ -195,9 +196,7 @@ def validate_report_review(
     return passed()
 
 
-def validate_synthesis_review(
-    workspace: Path, synthesis_dir: Path
-) -> "ValidationResult":
+def validate_synthesis_review(workspace: Path, synthesis_dir: Path) -> ValidationResult:
     issues: List[ValidationIssue] = []
     path = synthesis_report_review_path(workspace)
     if not path.exists():

@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from agentsociety2.skills.analysis.harness.models import AnalysisPlan
-from agentsociety2.skills.analysis.harness.validators._helpers import blocked, issue, passed
+from agentsociety2.skills.analysis.harness.models import AnalysisPlan, ValidationResult
+from agentsociety2.skills.analysis.harness.validators._helpers import (
+    blocked,
+    issue,
+    passed,
+)
 
 
-def validate_plan(plan: AnalysisPlan, *, plan_path: Path | None = None) -> "ValidationResult":
-    from agentsociety2.skills.analysis.harness.models import ValidationResult
+def validate_plan(
+    plan: AnalysisPlan, *, plan_path: Path | None = None
+) -> ValidationResult:
 
     issues = []
     if not plan.research_question.strip():

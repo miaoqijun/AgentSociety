@@ -5,7 +5,6 @@ JSON 配置文件生成器
 """
 
 import json
-from pathlib import Path
 from typing import Dict, Any
 
 from agentsociety2.backend.path_security import (

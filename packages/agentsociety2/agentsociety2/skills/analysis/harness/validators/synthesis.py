@@ -5,6 +5,7 @@ from typing import List
 
 from agentsociety2.skills.analysis.harness.json_io import load_model_from_file
 from agentsociety2.skills.analysis.harness.schemas import SynthesisBrief
+from agentsociety2.skills.analysis.harness.models import ValidationResult
 from agentsociety2.skills.analysis.harness.validators._helpers import (
     blocked,
     issue,
@@ -40,7 +41,7 @@ def validate_synthesis(
     synthesis_dir: Path,
     scope_hypothesis_ids: List[str],
     max_synthesis_charts: int = 0,
-) -> "ValidationResult":
+) -> ValidationResult:
     issues: List = []
     report_zh = synthesis_dir / "synthesis_report_zh.md"
     report_en = synthesis_dir / "synthesis_report_en.md"

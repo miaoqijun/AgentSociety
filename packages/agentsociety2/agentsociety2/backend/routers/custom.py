@@ -20,7 +20,6 @@ API端点：
 - @packages/agentsociety2/agentsociety2/registry/ - 模块注册表
 """
 
-from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 
 from agentsociety2.backend.path_security import (
@@ -476,7 +475,6 @@ async def get_custom_modules_status():
     if not workspace_path:
         raise HTTPException(status_code=400, detail="Workspace path not set")
 
-    from pathlib import Path
 
     workspace = resolve_workspace_root(workspace_path)
     custom_dir = resolve_under_root(workspace, "custom")
