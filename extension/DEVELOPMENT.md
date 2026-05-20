@@ -117,6 +117,7 @@ extension/
 │   ├── agentsociety-paper-evidence-expansion/  # 证据缺口审计
 │   ├── agentsociety-paper-architecture/  # claim tree + manuscript drafting
 │   ├── agentsociety-paper-skeptical-review/   # 多审稿人评审轮次
+│   ├── agentsociety-analysis/        # …/v1.0.0/support/frontend-design 等分析附属包
 │   ├── docx/                         # Word 文档处理
 │   ├── pdf/                          # PDF 文档处理
 │   ├── pptx/                         # PPT 文档处理
@@ -154,12 +155,12 @@ extension/
 
 统一配置页（单页 Webview），配置写入工作区 `.env`；Claude Code 写入 `~/.claude/settings.json`：
 
-| 区域 | 说明 |
-| ---- | ---- |
-| **概览卡片** | 后端状态、高级配置验证汇总（悬停显示各项圆点状态）、Claude Code 状态；点击可跳转并触发验证 |
-| **默认 LLM** | 必填：API Key / Base / Model |
+| 区域                 | 说明                                                                                                |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| **概览卡片**         | 后端状态、高级配置验证汇总（悬停显示各项圆点状态）、Claude Code 状态；点击可跳转并触发验证          |
+| **默认 LLM**         | 必填：API Key / Base / Model                                                                        |
 | **高级配置**（折叠） | 四层 Tab：专用模型（Coder / Nano / Analysis / Embedding）、Python、学术文献检索（MCP）、Claude Code |
-| **底部操作** | 恢复默认、保存、保存并启动后端 |
+| **底部操作**         | 恢复默认、保存、保存并启动后端                                                                      |
 
 Webview 主要组件：
 

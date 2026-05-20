@@ -7,8 +7,10 @@
  * - Workspace presets stored at `<workspace>/.agentsociety/skill-presets.json`
  * - Active preset is realized by symlinking `.claude/skills/<skill>` → resolved version dir
  *
- * Office skills (docx/pdf/pptx/xlsx) are NOT versioned — they remain flat copies
- * managed by WorkspaceManager.syncClaudeCodeResources directly.
+ * Office skills (docx/pdf/pptx/xlsx) are NOT versioned — flat copies via copyOfficialOfficeSkills.
+ * Analysis support bundles (e.g. frontend-design) ship inside
+ * `agentsociety-analysis/<version>/support/` and appear in the workspace via the
+ * agentsociety-analysis skill symlink — not as separate `.claude/skills` peers.
  */
 
 import * as vscode from 'vscode';

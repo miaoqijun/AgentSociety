@@ -49,7 +49,7 @@ If the file does not exist yet, create the `.claude` folder and `settings.json` 
 }
 ```
 
-> 💡 `ANTHROPIC_AUTH_TOKEN` is sent as a Bearer token. If your provider expects `x-api-key`, use `ANTHROPIC_API_KEY` instead. Gateway compatibility varies, so follow your provider's documentation.
+> 💡 The config page writes `ANTHROPIC_AUTH_TOKEN` (Bearer) and `ANTHROPIC_BASE_URL`. If your provider requires `X-Api-Key`, set `ANTHROPIC_API_KEY` manually in `settings.json`.
 
 If your gateway supports the Anthropic Messages format and you want models to appear in `/model`, add:
 
@@ -71,10 +71,10 @@ After starting Claude Code, use `/status` to check the connection and `/model` t
 
 Common connection types:
 
-| Type | Best for | Configuration |
-|------|----------|---------------|
-| Remote HTTP | Cloud MCP, team services, external platform integrations | `claude mcp add --transport http ...` |
-| Remote SSE | Older or provider-specific services that only expose SSE | `claude mcp add --transport sse ...` |
+| Type        | Best for                                                 | Configuration                          |
+| ----------- | -------------------------------------------------------- | -------------------------------------- |
+| Remote HTTP | Cloud MCP, team services, external platform integrations | `claude mcp add --transport http ...`  |
+| Remote SSE  | Older or provider-specific services that only expose SSE | `claude mcp add --transport sse ...`   |
 | Local stdio | Local scripts, development, files, or intranet resources | `claude mcp add --transport stdio ...` |
 
 Prefer adding remote MCP servers with commands instead of hand-writing config:

@@ -51,6 +51,7 @@
     "onCommand:aiSocialScientist.copyAtReference",
     "onCommand:aiSocialScientist.viewJsonFile",
     "onCommand:aiSocialScientist.viewYamlFile",
+    "onCommand:aiSocialScientist.viewAnalysisHarnessStatus",
     "onCommand:aiSocialScientist.viewCsvFile",
     "onCommand:aiSocialScientist.openInExplorer",
     "onCommand:aiSocialScientist.copyFileName",
@@ -361,6 +362,11 @@
         "command": "aiSocialScientist.viewYamlFile",
         "title": "AI Social Scientist: View YAML",
         "icon": "$(file-code)"
+      },
+      {
+        "command": "aiSocialScientist.viewAnalysisHarnessStatus",
+        "title": "AI Social Scientist: 分析阶段状态",
+        "icon": "$(list-tree)"
       },
       {
         "command": "aiSocialScientist.openInExplorer",

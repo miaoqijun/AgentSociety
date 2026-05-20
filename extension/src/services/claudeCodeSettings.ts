@@ -3,13 +3,11 @@ import * as os from 'os';
 import * as path from 'path';
 import * as cp from 'child_process';
 import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from '../webview/configPage/claudeCodeTypes';
-
 export const CLAUDE_SETTINGS_DIR = path.join(os.homedir(), '.claude');
 export const CLAUDE_SETTINGS_PATH = path.join(CLAUDE_SETTINGS_DIR, 'settings.json');
-export const DEFAULT_ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
 
 const ENV_KEY_MAP: Record<keyof ClaudeCodeConfigValues, string> = {
-  apiKey: 'ANTHROPIC_API_KEY',
+  apiKey: 'ANTHROPIC_AUTH_TOKEN',
   baseUrl: 'ANTHROPIC_BASE_URL',
   model: 'ANTHROPIC_MODEL',
   sonnetModel: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
@@ -32,8 +30,8 @@ export function readClaudeSettingsFile(): Record<string, unknown> {
 export function extractClaudeConfig(settings: Record<string, unknown>): ClaudeCodeConfigValues {
   const env = (settings.env as Record<string, string> | undefined) ?? {};
   return {
-    apiKey: env[ENV_KEY_MAP.apiKey] || '',
-    baseUrl: env[ENV_KEY_MAP.baseUrl] || DEFAULT_ANTHROPIC_BASE_URL,
+    apiKey: (env[ENV_KEY_MAP.apiKey] ?? '').trim(),
+    baseUrl: (env[ENV_KEY_MAP.baseUrl] ?? '').trim(),
     model: env[ENV_KEY_MAP.model] || '',
     sonnetModel: env[ENV_KEY_MAP.sonnetModel] || '',
     opusModel: env[ENV_KEY_MAP.opusModel] || '',
@@ -48,11 +46,11 @@ export function readClaudeConfig(): ClaudeCodeConfigValues {
 export function isClaudeCodeEnvCustomized(): boolean {
   try {
     const env = (readClaudeSettingsFile().env as Record<string, string> | undefined) ?? {};
-    if ((env.ANTHROPIC_API_KEY ?? '').trim()) {
+    if ((env[ENV_KEY_MAP.apiKey] ?? '').trim()) {
       return true;
     }
     const base = (env.ANTHROPIC_BASE_URL ?? '').trim();
-    if (base && base !== DEFAULT_ANTHROPIC_BASE_URL) {
+    if (base) {
       return true;
     }
     return [
@@ -70,7 +68,13 @@ export function writeClaudeConfig(config: ClaudeCodeConfigValues): void {
   const existing = readClaudeSettingsFile();
   const env = { ...((existing.env as Record<string, string> | undefined) ?? {}) };
 
-  env[ENV_KEY_MAP.apiKey] = config.apiKey.trim();
+  const token = config.apiKey.trim();
+  if (token) {
+    env[ENV_KEY_MAP.apiKey] = token;
+  } else {
+    delete env[ENV_KEY_MAP.apiKey];
+  }
+  delete env.ANTHROPIC_API_KEY;
   env[ENV_KEY_MAP.baseUrl] = config.baseUrl.trim();
 
   (['model', 'sonnetModel', 'opusModel', 'haikuModel'] as const).forEach((key) => {

@@ -35,8 +35,6 @@ from .models import (
     FILE_README_MD,
     FILE_REPORT_EN_HTML,
     FILE_REPORT_EN_MD,
-    FILE_REPORT_HTML,
-    FILE_REPORT_MD,
     FILE_REPORT_ZH_HTML,
     FILE_REPORT_ZH_MD,
     FILE_SQLITE,
@@ -118,8 +116,6 @@ def presentation_paths(
         output_dir=output_dir,
         charts_dir=charts_dir,
         report_assets_dir=report_assets_dir,
-        report_md=output_dir / FILE_REPORT_MD,
-        report_html=output_dir / FILE_REPORT_HTML,
         report_zh_md=output_dir / FILE_REPORT_ZH_MD,
         report_zh_html=output_dir / FILE_REPORT_ZH_HTML,
         report_en_md=output_dir / FILE_REPORT_EN_MD,
@@ -139,8 +135,10 @@ def synthesis_paths(
     return SynthesisPaths(
         output_dir=output_dir,
         report_assets_dir=output_dir / DIR_REPORT_ASSETS,
-        report_zh_md=output_dir / f"{FILE_SYNTHESIS_REPORT_PREFIX.rstrip('_')}{FILE_SYNTHESIS_REPORT_ZH_SUFFIX}.md",
-        report_en_md=output_dir / f"{FILE_SYNTHESIS_REPORT_PREFIX.rstrip('_')}{FILE_SYNTHESIS_REPORT_EN_SUFFIX}.md",
+        report_zh_md=output_dir
+        / f"{FILE_SYNTHESIS_REPORT_PREFIX.rstrip('_')}{FILE_SYNTHESIS_REPORT_ZH_SUFFIX}.md",
+        report_en_md=output_dir
+        / f"{FILE_SYNTHESIS_REPORT_PREFIX.rstrip('_')}{FILE_SYNTHESIS_REPORT_EN_SUFFIX}.md",
     )
 
 
@@ -312,14 +310,16 @@ def _xml_element_to_value(el: ET.Element) -> Any:
 def _parse_xml_to_root(xml_str: str) -> ET.Element:
     """解析 XML 字符串为 Element，使用 elemental-xenon 修复 LLM 生成的畸形 XML。"""
     from xenon import repair_xml_safe, TrustLevel
-    
+
     # 使用 xenon 修复 XML（专为 LLM 输出设计）
     repaired = repair_xml_safe(xml_str, trust=TrustLevel.UNTRUSTED)
-    
+
     try:
         return ET.fromstring(repaired)
     except ET.ParseError as e:
-        raise XmlParseError(f"XML parse failed even after repair: {e}", raw_content=repaired) from e
+        raise XmlParseError(
+            f"XML parse failed even after repair: {e}", raw_content=repaired
+        ) from e
 
 
 def parse_llm_xml_response(content: str, root_tag: str = "result") -> Dict[str, Any]:
@@ -430,13 +430,11 @@ def parse_llm_report_response(content: str) -> Dict[str, str]:
 
     if not md_zh and not md_en:
         raise XmlParseError(
-            "Report must include markdown_zh or markdown_en",
-            raw_content=content
+            "Report must include markdown_zh or markdown_en", raw_content=content
         )
     if not html_zh and not html_en:
         raise XmlParseError(
-            "Report must include html_zh or html_en",
-            raw_content=content
+            "Report must include html_zh or html_en", raw_content=content
         )
 
     return {
@@ -503,7 +501,9 @@ def extract_database_schema(db_path: Path) -> Dict[str, Any]:
                 "entity_key": row[5],
                 "step_key": row[6],
                 "time_key": row[7],
-                "default_order": default_order if isinstance(default_order, list) else [],
+                "default_order": (
+                    default_order if isinstance(default_order, list) else []
+                ),
                 "capabilities": capabilities if isinstance(capabilities, list) else [],
             }
 
@@ -538,9 +538,7 @@ def extract_database_schema(db_path: Path) -> Dict[str, Any]:
         for table_name, meta in dataset_meta_by_table.items():
             dataset_columns = columns_by_dataset.get(meta["dataset_id"], [])
             pk_columns = {
-                key
-                for key in (meta.get("entity_key"), meta.get("step_key"))
-                if key
+                key for key in (meta.get("entity_key"), meta.get("step_key")) if key
             }
             schema[table_name] = []
             for column in dataset_columns:
@@ -564,14 +562,18 @@ def format_database_schema_markdown(
     lines = []
     for table_name, columns in schema.items():
         dataset = columns[0].get("dataset") if columns else None
-        dataset_id = dataset.get("dataset_id") if isinstance(dataset, dict) else table_name
+        dataset_id = (
+            dataset.get("dataset_id") if isinstance(dataset, dict) else table_name
+        )
         lines.append(f"### Dataset: `{dataset_id}`")
         lines.append(f"- Table: `{table_name}`")
         if isinstance(dataset, dict):
             lines.append(f"- Kind: `{dataset.get('kind', '')}`")
             capabilities = dataset.get("capabilities") or []
             if capabilities:
-                lines.append(f"- Capabilities: {', '.join(f'`{cap}`' for cap in capabilities)}")
+                lines.append(
+                    f"- Capabilities: {', '.join(f'`{cap}`' for cap in capabilities)}"
+                )
             description = dataset.get("description")
             if description:
                 lines.append(f"- Description: {description}")

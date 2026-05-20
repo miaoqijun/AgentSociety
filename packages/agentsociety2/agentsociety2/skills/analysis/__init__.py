@@ -1,7 +1,7 @@
 """Analysis tool layer: data access, execution helpers, output helpers, and path utilities."""
 
 from .data import ContextLoader, DataReader, DataStats, DataSummary, DatabaseSchema
-from .executor import ExecutionResult, ToolInfo, ToolRegistry, ToolResult
+from .executor import ExecutionResult, ToolInfo, ToolResult
 from .models import (
     AnalysisResult,
     ExperimentContext,
@@ -45,7 +45,6 @@ __all__ = [
     "ReportPaths",
     "SynthesisPaths",
     "ToolInfo",
-    "ToolRegistry",
     "ToolResult",
     "collect_experiment_files",
     "experiment_paths",

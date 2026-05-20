@@ -49,7 +49,7 @@ Claude Code 默认使用 Anthropic 服务。若你需要通过代理或兼容网
 }
 ```
 
-> 💡 `ANTHROPIC_AUTH_TOKEN` 会作为 Bearer Token 发送；如果你的服务使用 `x-api-key`，也可以使用 `ANTHROPIC_API_KEY`。不同网关的兼容程度不同，请以服务商文档为准。
+> 💡 插件配置页写入 `ANTHROPIC_AUTH_TOKEN`（Bearer）与 `ANTHROPIC_BASE_URL`。若服务商要求 `X-Api-Key`，可在 `settings.json` 中手动设置 `ANTHROPIC_API_KEY`。
 
 如果想让 Claude Code 在 `/model` 里发现网关提供的模型，并且网关支持 Anthropic Messages 格式，可以追加：
 
@@ -71,10 +71,10 @@ Claude Code 默认使用 Anthropic 服务。若你需要通过代理或兼容网
 
 常见接入方式：
 
-| 类型 | 适合场景 | 配置方式 |
-|------|----------|----------|
-| 远程 HTTP | 云端 MCP、团队共享服务、外部平台集成 | `claude mcp add --transport http ...` |
-| 远程 SSE | 旧版或特定服务只提供 SSE 端点 | `claude mcp add --transport sse ...` |
+| 类型       | 适合场景                                       | 配置方式                               |
+| ---------- | ---------------------------------------------- | -------------------------------------- |
+| 远程 HTTP  | 云端 MCP、团队共享服务、外部平台集成           | `claude mcp add --transport http ...`  |
+| 远程 SSE   | 旧版或特定服务只提供 SSE 端点                  | `claude mcp add --transport sse ...`   |
 | 本地 stdio | 本地脚本、开发调试、需要访问本机文件或内网资源 | `claude mcp add --transport stdio ...` |
 
 推荐用命令添加远程 MCP，而不是手写配置：
