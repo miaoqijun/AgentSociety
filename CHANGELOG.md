@@ -1,15 +1,228 @@
 # Changelog
 
-## [2.2.0] - 2026-04-18
+本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，记录 **AgentSociety 2** 相关组件的可见变更。
+
+| 组件 | 标识 | 说明 |
+| --- | --- | --- |
+| Python SDK | `agentsociety2` | `packages/agentsociety2`，PyPI / 私有源发版 |
+| VS Code 扩展 | `ai-social-scientist` | `extension/package.json` 中的版本号 |
+| 分析技能 | `agentsociety-analysis` | 随扩展同步至工作区 `.claude/skills/` |
+
+Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.md` 与 `.gitlab-ci.yml`）。
+
+---
+
+## [Unreleased]
+
+（无）
+
+---
+
+## [2.4.1] - 2026-05-20
+
+- **agentsociety2** `2.4.1` · **extension** `1.4.1` · 标签 `agentsociety2-v2.4.1`
+
+本版本在 [2.4.0] 基础上交付**分阶段分析 Harness**、**双语报告（MD + HTML）门禁**及扩展侧配套体验；Python 安装：`pip install agentsociety2==2.4.1`（或贵司私有源等价版本）。
 
 ### Added
-- **VS Code 扩展 `ai-social-scientist` 1.0.0**：技能市场（GitHub 源）、Agent / Claude 分栏技能管理、项目结构增强、实验状态概览、预填充参数与国际化/用户向文案等（详见扩展发版说明与 `extension/README.md`）。
+
+#### 分析 Harness（`agentsociety2` + `agentsociety-analysis`）
+
+- 假设分析五阶段流水线：`frame` → `explore` → `claims` → `refine` → `produce`；机器状态位于 `.agentsociety/analysis/hypothesis_{id}/`，与用户可见目录 `presentation/hypothesis_{id}/` 分离。
+- 结构性校验与 LLM 阶段 attestation 双层门禁；`validate-<phase>`、`record-attestation`、`gate-status`；未通过前置阶段时后续阶段阻断。
+- `refine`：`validate-refine`、`validate-chart`；`produce`：`validate-release`（四份报告必交）、`validate-report-quality`、独立 `record-report-review`。
+- 工作区综合阶段：`validate-synthesis`、`synthesis_brief.json`、双语综合报告；支持 `synthesis/charts/` 与 `synthesis/assets/`。
+- CLI：`intake`、`build-report-context`、`sync-report-assets`、`advance`、`run-loop` 等；技能脚本 `ags.py analysis` 与 harness 对齐。
+- 报告 HTML 由 LLM 按 `assets/report-shell.reference.html` 原生撰写；`support/frontend-design` 随分析技能同步至工作区。
+- 测试套件 `tests/test_analysis_harness.py`。
+
+#### VS Code 扩展
+
+- 分析阶段进度树与 Harness 状态查看器（`analysisHarnessStatusViewer`）。
+- 假设 / 综合报告树固定展示 MD、HTML 中英四件套；缺失项标记「必交 · 未生成」。
+- HTML 报告经 `aiSocialScientist.openHtmlReport` 打开 Live Preview（不可用则回退编辑器）。
+- 产物目录：`分析数据`；`报告图表`（`assets/`）；`charts/` 仅在含脚本或未同步图片时显示，避免与 `assets/` 重复列举。
+
+#### 后端与其它
+
+- `path_security`：工作区路径解析与越界访问防护，接入 custom、experiments、prefill_params、replay 等路由。
+- `env_benchmark`：`CodeGenRouter` 统一 `code_format` 参数，便于对比各 env router。
 
 ### Changed
-- **Python 包 `agentsociety2` 2.1.5 → 2.2.0**：与当前主分支能力对齐发版；若从 PyPI/私有源安装，请使用 `pip install agentsociety2==2.2.0`（或贵司实际发布渠道）。
+
+- **agentsociety-analysis**：技能文档重组为 `stages/`、`references/`（`harness-contract`、`html-export`、`report-embeddings` 等）、`subagent-prompts/`；禁止在 `presentation/` 下使用旧版 `analysis/` 布局。
+- **extension**：Claude Code 配置迁入配置页「高级配置」；读写 `ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_BASE_URL`；第三方网关预设区分 **DeepSeek**（`https://api.deepseek.com/anthropic`）与 **火山方舟**（`https://ark.cn-beijing.volces.com/api/plan`）。
+- **extension**：文献检索改为 MCP 调用；移除独立 Claude 配置 Webview 与冗余静态 HELP 页。
+- **docs**：Walkthrough 中 API / Claude Code 说明与上述环境变量保持一致。
 
 ### Fixed
-- N/A
+
+- **extension**：Claude Code 误用 `ANTHROPIC_API_KEY` 的问题。
+- **agentsociety2**：CodeQL 静态分析问题；分析 harness 与后端相关 ruff 项。
+- **extension / literature**：文献技能 lint 与 MCP 路径问题。
+
+### 升级说明
+
+- 若工作区仍存在 `presentation/hypothesis_*/analysis/`，执行 `ags.py analysis intake --workspace . --hypothesis-id <ID> --experiment-id <ID>` 可将 harness 状态迁移至 `.agentsociety/analysis/`。
+- 报告插图仅使用 `assets/` 路径；作图后运行 `sync-report-assets` 或 `collect-assets`，再执行 `validate-release`。
+
+---
+
+## [2.4.0] - 2026-05-19
+
+- **agentsociety2** `2.4.0` · **extension** `1.4.0`
+
+### Added
+
+- **agentsociety2**：`CodeGenRouterV2`；Codex 技能符号链接；论文编排与分析图表能力增强；用户指南与中英文档补全。
+- **extension**：AI Chat 多提供商集成；Claude Code 独立配置页（后续版本已并入高级配置）。
+- **agentsociety2**：工作区引导与 `create-agent` / `create-env-module` 技能加固。
+
+### Changed
+
+- **agentsociety2**：Read the Docs 在 monorepo 下的构建配置与文档结构更新。
+- **extension**：CSV 表格可视化；实验状态总览与步骤配置体验优化；项目树图标与右键菜单修正。
+
+### Fixed
+
+- **extension**：技能启动器工作区默认值；VS Code `when` 子句取反语法。
+- **agentsociety2**：Agent 运行兜底，降低实验异常中断影响。
+- **ci**：npm audit 阈值调整为 `high`，恢复流水线通过。
+
+---
+
+## [2.3.0] - 2026-05-08
+
+- **agentsociety2** `2.3.0` · **extension** `1.2.0`
+
+### Added
+
+- **agentsociety2**：LaTeX 论文编排流水线（替代 EasyPaper）；PersonAgent 技能扩展；后端 API 与实验目录布局完善。
+- **extension**：技能市场（GitHub 源）、Agent / Claude 技能分栏管理；前端 Skills 管理页。
+- **agentsociety2**：Sphinx 文档站、技能文档与英文 locale；GitHub / GitLab CI 与扩展 CI 流水线。
+
+### Changed
+
+- **extension**：HTML 分析报告预览交互修复。
+- **repo**：根目录说明、`.gitignore` 与 Docker 构建清理。
+
+### Fixed
+
+- **paper / literature**：技能与流水线若干缺陷修复。
+- **ci**：MR 与主分支流水线稳定性改进。
+
+---
+
+## [2.2.0] - 2026-04-19
+
+- **agentsociety2** `2.2.0` · **extension** `1.0.0`
+
+### Added
+
+- **extension**：技能市场；项目结构树增强；实验状态概览；环境 / 智能体预填充参数；中英国际化与用户向文案（详见 `extension/README.md`）。
+- **agentsociety2**：对话历史持久化相关能力；社区文档（行为准则、贡献指南、安全策略）。
+
+### Changed
+
+- **agentsociety2**：自 `2.1.5` 对齐主分支能力后正式发版；安装示例：`pip install agentsociety2==2.2.0`。
+- **extension**：技能管理界面重构。
+
+### Fixed
+
+- **extension**：分析报告展示问题。
+- **agentsociety2**：速率限制与 JSON 工具类重复定义等 Agent 层问题。
+
+---
+
+## [2.1.5] - 2026-04-15
+
+- **agentsociety2** `2.1.5` · **extension**（持续迭代，见同期 commit）
+
+### Added
+
+- **extension**：PID 状态可视化；文献路径复制与 @ 提及；数据集技能与树节点集成。
+- **agentsociety2**：问卷与回复流增强；文献搜索 API 切换至新服务端点。
+- **extension**：MinerU 相关能力调整为官方 Claude Office 技能方案。
+
+### Changed
+
+- **extension**：国际化与可视化查看器；构建配置与文档对齐。
+- **ci**：发布流水线与 ruff 策略调整，保障发版通过。
+
+### Fixed
+
+- **ci**：MR 流水线仅做构建验证，避免多余 registry 登录。
+
+---
+
+## [2.1.0] - 2026-03-20
+
+- **agentsociety2** `2.1.0`
+
+### Added
+
+- **agentsociety2**：分析 / 综合报告中英双语输出。
+- **extension**：文献检索后端地址写入配置页。
+- **extension**：文献库层级目录；树视图拖放导入 PDF / 文件。
+
+### Changed
+
+- **extension**：PDF 自动解析模式与状态栏开关。
+
+### Fixed
+
+- **agentsociety2**：实验启动流程；自定义模块测试脚本缩进与错误回传；`agent.init()` 调用方式。
+
+---
+
+## [2.0.2] - 2026-03-06
+
+- **agentsociety2** `2.0.2`
+
+### Added
+
+- **extension**：项目树拖放与相关 i18n。
+- **docs**：中英双语文档初版；PDF 自动解析。
+
+### Fixed
+
+- **extension**：预填充参数树图标；自定义模块集成测试错误字段。
+
+---
+
+## [2.0.1] - 2026-03-05
+
+- **agentsociety2** `2.0.1`
+
+### Added
+
+- **docs**：自定义模块文档；Read the Docs 配置拆分（v1 / AgentSociety 2）。
+
+### Changed
+
+- **docs**：站点样式与导航（含 V2 Beta 入口）。
+
+### Fixed
+
+- **agentsociety2**：线程与重试相关边缘问题。
+- **docs**：RTD 依赖路径与构建配置。
+
+---
+
+## [2.0.0] - 2026-03-05
+
+- **agentsociety2** `2.0.0` · **extension** `0.0.1`（初始集成）
+
+### Added
+
+- **agentsociety2**：面向二次开发的自定义模块（Custom Agent / Env）扫描、生成与后端集成。
+- **extension**：AI Social Scientist 工作区、项目树与实验工作流初版。
+
+---
+
+## AgentSociety 1.x 及更早版本
+
+以下条目为 **AgentSociety 1.x**（及更早标签）的逐版本记录，与 2.x 包 `agentsociety2` 产品线分离。2.x 用户通常只需阅读上文 **2.0.0** 及以上章节。
 
 ## [1.4.0a0] - 2025-05-12
 
