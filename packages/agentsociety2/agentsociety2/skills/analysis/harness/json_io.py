@@ -1,0 +1,56 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Type, TypeVar
+
+import json_repair
+from pydantic import BaseModel, ValidationError
+
+T = TypeVar("T", bound=BaseModel)
+
+
+def loads_json_text(text: str) -> Any:
+    if not text or not str(text).strip():
+        raise ValueError("empty JSON payload")
+    return json_repair.loads(text)
+
+
+def loads_json_file(path: Path) -> Any:
+    return loads_json_text(path.read_text(encoding="utf-8"))
+
+
+def load_model_from_text(text: str, model: Type[T]) -> T:
+    try:
+        raw = loads_json_text(text)
+        return model.model_validate(raw)
+    except (ValueError, ValidationError) as exc:
+        raise ValueError(f"invalid JSON for {model.__name__}: {exc}") from exc
+
+
+def load_model_from_file(path: Path, model: Type[T]) -> T:
+    try:
+        raw = loads_json_file(path)
+        return model.model_validate(raw)
+    except (json.JSONDecodeError, ValueError, ValidationError) as exc:
+        raise ValueError(f"invalid JSON file {path}: {exc}") from exc
+
+
+def save_model_to_file(path: Path, model: BaseModel) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(model.model_dump(mode="json"), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def load_dict_payload(text_or_path: str) -> dict[str, Any]:
+    path = Path(text_or_path)
+    raw = (
+        loads_json_file(path)
+        if path.exists() and path.is_file()
+        else loads_json_text(text_or_path)
+    )
+    if not isinstance(raw, dict):
+        raise ValueError("payload must be a JSON object")
+    return raw

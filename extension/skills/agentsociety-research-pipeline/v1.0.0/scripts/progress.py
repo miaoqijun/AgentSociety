@@ -91,16 +91,22 @@ def _default_progress(topic: str = "") -> dict[str, Any]:
 def _normalize_progress_data(data: dict[str, Any] | None) -> dict[str, Any]:
     normalized = _default_progress()
     if isinstance(data, dict):
-        normalized.update({k: v for k, v in data.items() if k not in {"workspace", "stages"}})
+        normalized.update(
+            {k: v for k, v in data.items() if k not in {"workspace", "stages"}}
+        )
 
         workspace = normalized["workspace"]
-        existing_workspace = data.get("workspace", {}) if isinstance(data.get("workspace"), dict) else {}
+        existing_workspace = (
+            data.get("workspace", {}) if isinstance(data.get("workspace"), dict) else {}
+        )
         workspace.update(existing_workspace)
         if workspace.get("current_stage") not in STAGE_ORDER:
             workspace["current_stage"] = "literature_search"
 
         normalized_stages = normalized["stages"]
-        existing_stages = data.get("stages", {}) if isinstance(data.get("stages"), dict) else {}
+        existing_stages = (
+            data.get("stages", {}) if isinstance(data.get("stages"), dict) else {}
+        )
         for stage in STAGE_ORDER:
             state = _make_empty_stage_state()
             state.update(existing_stages.get(stage, {}))
@@ -216,7 +222,9 @@ def cmd_update_stage(args: argparse.Namespace) -> int:
         print(f"Unknown stage: {args.stage}. Valid: {', '.join(STAGE_ORDER)}")
         return 1
     if args.status not in VALID_STATUSES:
-        print(f"Invalid status: {args.status}. Valid: {', '.join(sorted(VALID_STATUSES))}")
+        print(
+            f"Invalid status: {args.status}. Valid: {', '.join(sorted(VALID_STATUSES))}"
+        )
         return 1
 
     stage = progress["stages"][args.stage]
@@ -332,7 +340,9 @@ def _detect_stage_from_files(workspace: Path) -> str:
     if not hypothesis_dirs:
         return "hypothesis"
 
-    config_files = sorted(workspace.glob("hypothesis_*/experiment_*/init/init_config.json"))
+    config_files = sorted(
+        workspace.glob("hypothesis_*/experiment_*/init/init_config.json")
+    )
     if not config_files:
         return "experiment_config"
 
@@ -340,8 +350,11 @@ def _detect_stage_from_files(workspace: Path) -> str:
     if not db_files:
         return "run_experiment"
 
-    report_files = sorted(workspace.glob("presentation/hypothesis_*/report.md"))
-    if not report_files:
+    report_globs = (
+        "presentation/hypothesis_*/report_zh.md",
+        "presentation/hypothesis_*/report_en.md",
+    )
+    if not any(workspace.glob(pattern) for pattern in report_globs):
         return "analysis"
 
     return "generate_paper"
@@ -396,13 +409,19 @@ def cmd_where_am_i(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="AgentSociety experiment progress tracker")
-    parser.add_argument("--workspace", type=Path, default=Path("."), help="Workspace root path")
+    parser = argparse.ArgumentParser(
+        description="AgentSociety experiment progress tracker"
+    )
+    parser.add_argument(
+        "--workspace", type=Path, default=Path("."), help="Workspace root path"
+    )
     sub = parser.add_subparsers(dest="command")
 
     p_init = sub.add_parser("init", help="Initialize progress.json")
     p_init.add_argument("--topic", help="Research topic")
-    p_init.add_argument("--force", action="store_true", help="Overwrite existing progress.json")
+    p_init.add_argument(
+        "--force", action="store_true", help="Overwrite existing progress.json"
+    )
 
     p_status = sub.add_parser("status", help="Show current progress summary")
     p_status.add_argument("--json", action="store_true", help="JSON output")
@@ -418,7 +437,9 @@ def main() -> int:
         help="Optional verification status to set together with the stage update",
     )
 
-    p_verify = sub.add_parser("set-verification", help="Update a stage verification status")
+    p_verify = sub.add_parser(
+        "set-verification", help="Update a stage verification status"
+    )
     p_verify.add_argument("stage", help="Stage name")
     p_verify.add_argument("verification_status", help="Verification status")
 

@@ -106,7 +106,9 @@ class AssetManager:
             if not source_path.exists():
                 continue
 
-            dest_name = self._build_unique_dest_name(source_path, asset.asset_id, used_names)
+            dest_name = self._build_unique_dest_name(
+                source_path, asset.asset_id, used_names
+            )
             dest_path = assets_dir / dest_name
             if source_path.resolve() != dest_path.resolve():
                 shutil.copy2(source_path, dest_path)
@@ -115,7 +117,9 @@ class AssetManager:
             if source_path.suffix.lower() in SUPPORTED_IMAGE_FORMATS:
                 with open(source_path, "rb") as file_handle:
                     encoded = base64.b64encode(file_handle.read()).decode("utf-8")
-                    mime = (mimetypes.guess_type(source_path.name) or ("image/png", None))[0]
+                    mime = (
+                        mimetypes.guess_type(source_path.name) or ("image/png", None)
+                    )[0]
                     embedded = f"data:{mime};base64,{encoded}"
 
             processed[asset.asset_id] = {
@@ -189,8 +193,12 @@ class EDAGenerator:
             requested_tables.append(name)
 
         available_set = set(available_tables)
-        selected_tables = [table for table in requested_tables if table in available_set]
-        invalid_tables = [table for table in requested_tables if table not in available_set]
+        selected_tables = [
+            table for table in requested_tables if table in available_set
+        ]
+        invalid_tables = [
+            table for table in requested_tables if table not in available_set
+        ]
         return requested_tables, selected_tables, invalid_tables
 
     def _resolve_tables(self, reader, tables: Optional[List[str]]) -> List[str]:
@@ -214,7 +222,9 @@ class EDAGenerator:
         filtered_schema = DatabaseSchema(
             tables=selected_tables,
             columns={table: schema.columns.get(table, []) for table in selected_tables},
-            row_counts={table: schema.row_counts.get(table, 0) for table in selected_tables},
+            row_counts={
+                table: schema.row_counts.get(table, 0) for table in selected_tables
+            },
             markdown=schema.markdown,
         )
         stats = reader.compute_stats(filtered_schema)
@@ -275,7 +285,9 @@ class EDAGenerator:
                 msno.matrix(combined_df, ax=axes[0, 0], fontsize=8)
                 axes[0, 0].set_title("Missing Value Matrix", fontsize=12)
             except Exception:
-                axes[0, 0].text(0.5, 0.5, "Matrix plot failed", ha="center", va="center")
+                axes[0, 0].text(
+                    0.5, 0.5, "Matrix plot failed", ha="center", va="center"
+                )
                 axes[0, 0].set_title("Missing Value Matrix (Error)")
 
             try:
@@ -288,9 +300,13 @@ class EDAGenerator:
             try:
                 if len(combined_df.columns) > 1:
                     msno.heatmap(combined_df, ax=axes[1, 0], fontsize=8)
-                    axes[1, 0].set_title("Missing Value Correlation Heatmap", fontsize=12)
+                    axes[1, 0].set_title(
+                        "Missing Value Correlation Heatmap", fontsize=12
+                    )
                 else:
-                    axes[1, 0].text(0.5, 0.5, "Need >1 columns", ha="center", va="center")
+                    axes[1, 0].text(
+                        0.5, 0.5, "Need >1 columns", ha="center", va="center"
+                    )
                     axes[1, 0].set_title("Correlation Heatmap (Skipped)")
             except Exception:
                 axes[1, 0].text(0.5, 0.5, "Heatmap failed", ha="center", va="center")
@@ -301,14 +317,18 @@ class EDAGenerator:
                     msno.dendrogram(combined_df, ax=axes[1, 1], fontsize=8)
                     axes[1, 1].set_title("Missing Value Dendrogram", fontsize=12)
                 else:
-                    axes[1, 1].text(0.5, 0.5, "Need >1 columns", ha="center", va="center")
+                    axes[1, 1].text(
+                        0.5, 0.5, "Need >1 columns", ha="center", va="center"
+                    )
                     axes[1, 1].set_title("Dendrogram (Skipped)")
             except Exception:
                 axes[1, 1].text(0.5, 0.5, "Dendrogram failed", ha="center", va="center")
                 axes[1, 1].set_title("Dendrogram (Error)")
 
             plt.tight_layout()
-            plt.savefig(str(out_file).replace(".html", ".png"), dpi=150, bbox_inches="tight")
+            plt.savefig(
+                str(out_file).replace(".html", ".png"), dpi=150, bbox_inches="tight"
+            )
             plt.close()
 
             html_content = f"""<!DOCTYPE html>
@@ -406,7 +426,9 @@ class EDAGenerator:
                 )
                 ax.set_title(f"Correlation Matrix: {table_name}", fontsize=14)
 
-                safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in table_name)
+                safe_name = "".join(
+                    c if c.isalnum() or c in "_-" else "_" for c in table_name
+                )
                 out_file = output_dir / f"correlation_{safe_name}.png"
                 plt.tight_layout()
                 plt.savefig(str(out_file), dpi=150, bbox_inches="tight")
@@ -513,10 +535,14 @@ class EDAGenerator:
                 df = pd.DataFrame(data)
                 if df.empty:
                     continue
-                safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in table_name)
+                safe_name = "".join(
+                    c if c.isalnum() or c in "_-" else "_" for c in table_name
+                )
                 table_file = output_dir / f"eda_profile_{safe_name}.html"
                 try:
-                    profile = ProfileReport(df, title=f"EDA: {table_name}", minimal=True)
+                    profile = ProfileReport(
+                        df, title=f"EDA: {table_name}", minimal=True
+                    )
                     profile.to_file(str(table_file))
                     generated_files.append((table_name, table_file.name, len(df)))
                     self.logger.info(
@@ -526,15 +552,21 @@ class EDAGenerator:
                         len(df),
                     )
                 except Exception as exc:
-                    self.logger.warning("生成表 %s 的 EDA 报告失败: %s", table_name, exc)
+                    self.logger.warning(
+                        "生成表 %s 的 EDA 报告失败: %s", table_name, exc
+                    )
 
             if not generated_files:
                 return None
 
             index_file = output_dir / "eda_profile.html"
-            index_content = self._build_eda_index_html(generated_files, "ydata-profiling")
+            index_content = self._build_eda_index_html(
+                generated_files, "ydata-profiling"
+            )
             index_file.write_text(index_content, encoding="utf-8")
-            self.logger.info("生成 EDA 索引页: %s (%d 张表)", index_file, len(generated_files))
+            self.logger.info(
+                "生成 EDA 索引页: %s (%d 张表)", index_file, len(generated_files)
+            )
             return index_file
 
         except Exception as exc:
@@ -547,33 +579,38 @@ class EDAGenerator:
         tool_name: str,
     ) -> str:
         rows = "\n".join(
-            f'<tr><td><a href="{filename}">{name}</a></td><td>{row_count}</td></tr>'
+            f'<tr><td><a href="{filename}">{name}</a></td><td class="num">{row_count}</td></tr>'
             for name, filename, row_count in table_files
         )
         return f"""<!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
     <meta charset="utf-8">
-    <title>EDA Reports Index</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EDA Reports Index ({tool_name})</title>
     <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; }}
-        h1 {{ color: #333; }}
-        table {{ border-collapse: collapse; width: 100%; max-width: 600px; margin-top: 20px; }}
-        th, td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
-        th {{ background-color: #f5f5f5; }}
-        tr:hover {{ background-color: #f9f9f9; }}
-        a {{ color: #1890ff; text-decoration: none; }}
+        body {{ font-family: "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 0; background: #f4f6f8; color: #1a1a1a; }}
+        .page {{ max-width: 720px; margin: 32px auto; background: #fff; border: 1px solid #d8dee4; padding: 28px 32px; }}
+        h1 {{ font-size: 1.35rem; color: #0b3d5c; margin-bottom: 8px; }}
+        .info {{ color: #64748b; font-size: 0.9rem; margin-bottom: 20px; }}
+        table {{ border-collapse: collapse; width: 100%; font-size: 0.9rem; }}
+        th, td {{ border: 1px solid #e2e8f0; padding: 12px 14px; text-align: left; }}
+        th {{ background: #f1f5f9; color: #0b3d5c; }}
+        tr:hover {{ background: #f8fafc; }}
+        a {{ color: #0369a1; font-weight: 600; text-decoration: none; }}
         a:hover {{ text-decoration: underline; }}
-        .info {{ color: #666; margin-top: 10px; }}
+        td.num {{ text-align: right; font-variant-numeric: tabular-nums; }}
     </style>
 </head>
 <body>
-    <h1>EDA Reports Index ({tool_name})</h1>
-    <p class="info">Click on a table name to view its EDA report.</p>
-    <table>
-        <tr><th>Table</th><th>Rows</th></tr>
+    <div class="page">
+        <h1>交互式 EDA 索引 ({tool_name})</h1>
+        <p class="info">选择表名打开完整交互画像；分析报告 HTML 可通过 iframe 嵌入本页。</p>
+        <table>
+            <tr><th>表</th><th class="num">行数</th></tr>
 {rows}
-    </table>
+        </table>
+    </div>
 </body>
 </html>"""
 
@@ -636,7 +673,9 @@ class EDAGenerator:
                 df = pd.DataFrame(data)
                 if df.empty:
                     continue
-                safe_name = "".join(c if c.isalnum() or c in "_-" else "_" for c in table_name)
+                safe_name = "".join(
+                    c if c.isalnum() or c in "_-" else "_" for c in table_name
+                )
                 table_file = output_dir / f"eda_sweetviz_{safe_name}.html"
                 try:
                     report = sv.analyze(df)
@@ -650,7 +689,9 @@ class EDAGenerator:
                             len(df),
                         )
                 except Exception as exc:
-                    self.logger.warning("生成表 %s 的 Sweetviz 报告失败: %s", table_name, exc)
+                    self.logger.warning(
+                        "生成表 %s 的 Sweetviz 报告失败: %s", table_name, exc
+                    )
 
             if not generated_files:
                 return None

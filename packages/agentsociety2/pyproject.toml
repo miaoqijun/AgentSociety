@@ -94,6 +94,7 @@ Changelog = "https://github.com/tsinghua-fib-lab/agentsociety/blob/main/CHANGELO
 
 [project.optional-dependencies]
 analysis = [
+    "pandera>=0.22.0",
     "ydata-profiling>=4.6.0",
     "sweetviz>=2.3.0",
     "missingno>=0.5.0",

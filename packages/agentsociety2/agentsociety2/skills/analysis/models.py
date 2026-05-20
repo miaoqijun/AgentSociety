@@ -15,14 +15,14 @@ DIR_ARTIFACTS = "artifacts"  # run/artifacts: 实验执行产物
 DIR_PRESENTATION = "presentation"
 DIR_SYNTHESIS = "synthesis"
 DIR_DATA = "data"  # presentation/hypothesis_<id>/data: 分析子智能体写入的分析数据
-DIR_CHARTS = "charts"  # presentation/hypothesis_<id>/charts: generated visualization files
+DIR_CHARTS = (
+    "charts"  # presentation/hypothesis_<id>/charts: generated visualization files
+)
 DIR_REPORT_ASSETS = "assets"  # presentation 或 synthesis 下 assets: 报告嵌入资源（复制自 charts + run/artifacts），包括图表、报告、分析数据等
 FILE_SQLITE = "sqlite.db"
 FILE_PID = "pid.json"
 FILE_HYPOTHESIS_MD = "HYPOTHESIS.md"
 FILE_EXPERIMENT_MD = "EXPERIMENT.md"
-FILE_REPORT_MD = "report.md"
-FILE_REPORT_HTML = "report.html"
 FILE_ANALYSIS_SUMMARY_JSON = "analysis_summary.json"
 FILE_README_MD = "README.md"
 FILE_SYNTHESIS_REPORT_PREFIX = "synthesis_report_"
@@ -64,22 +64,17 @@ class PresentationPaths(BaseModel):
 
     典型产物包括：
 
-    - ``output_dir/`` 下的双语报告、兼容别名报告、``README.md`` 与
-      ``data/analysis_summary.json``。
+    - ``output_dir/`` 下的双语报告、``README.md`` 与 ``data/analysis_summary.json``。
     - ``charts/`` 下的生成图表，以及复制到 ``assets/`` 的报告引用资源。
     """
 
-    output_dir: Path = Field(
-        ..., description="presentation/hypothesis_<id>"
-    )
+    output_dir: Path = Field(..., description="presentation/hypothesis_<id>")
     charts_dir: Path = Field(
         ..., description="Charts output directory for generated visualizations"
     )
     report_assets_dir: Path = Field(
         ..., description="Report assets directory (assets/, referenced by report)"
     )
-    report_md: Path = Field(..., description="Markdown report path (compat alias)")
-    report_html: Path = Field(..., description="HTML report path (compat alias)")
     report_zh_md: Path = Field(..., description="Chinese markdown report path")
     report_zh_html: Path = Field(..., description="Chinese HTML report path")
     report_en_md: Path = Field(..., description="English markdown report path")
@@ -95,8 +90,12 @@ class SynthesisPaths(BaseModel):
 
     output_dir: Path = Field(..., description="synthesis")
     report_assets_dir: Path = Field(..., description="Synthesis assets directory")
-    report_zh_md: Path = Field(..., description="Chinese synthesis markdown report path")
-    report_en_md: Path = Field(..., description="English synthesis markdown report path")
+    report_zh_md: Path = Field(
+        ..., description="Chinese synthesis markdown report path"
+    )
+    report_en_md: Path = Field(
+        ..., description="English synthesis markdown report path"
+    )
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -226,6 +225,7 @@ class ReportAsset(BaseModel):
     dimensions: Optional[Dict[str, int]] = Field(None, description="Dimensions")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
 
 class HypothesisSummary(BaseModel):
     """跨多个实验的分析结果"""

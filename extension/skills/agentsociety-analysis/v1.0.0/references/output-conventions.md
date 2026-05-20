@@ -1,69 +1,73 @@
 # Output Conventions
 
-Single-experiment outputs live under:
+## Single hypothesis (`presentation/hypothesis_{id}/`)
+
+User-visible artifacts only:
 
 ```text
-presentation/
-  hypothesis_{id}/
-    report_zh.md
-    report_zh.html
-    report_en.md
-    report_en.html
-    report.md
-    report.html
-    assets/
-    charts/
-    data/
-    artifact_manifest.json
+presentation/hypothesis_{id}/
+  report_zh.md              # required (validate-release)
+  report_en.md              # required
+  report_zh.html            # required; LLM-authored (see html-export.md)
+  report_en.html            # required; LLM-authored
+  artifact_manifest.json
+  report_outline.json
+  data/                     # EDA + analysis_summary.json only
+  charts/                   # scripts + chart_*.png + figure_*.png (+ sidecar json)
+  assets/                   # report-embedded copies (from collect-assets)
 ```
 
-Cross-experiment synthesis outputs live under:
+**Do not create** under `presentation/hypothesis_{id}/`:
+
+| Forbidden   | Use instead                                               |
+| ----------- | --------------------------------------------------------- |
+| `analysis/` | `.agentsociety/analysis/hypothesis_{id}/` (harness state) |
+| `figures/`  | `charts/`                                                 |
+| `eda/`      | `data/` (e.g. `eda_quick_stats.md`, `eda_profile.html`)   |
+
+## Harness state (machine-readable, hidden from presentation tree)
+
+```text
+.agentsociety/analysis/hypothesis_{id}/
+  state.yaml
+  analysis_plan.yaml
+  claims.json
+
+.agentsociety/analysis/synthesis/
+  state.yaml
+```
+
+Run `analysis intake` to create dirs and migrate legacy `presentation/.../analysis/*.yaml` if present.
+
+## Synthesis (`synthesis/`)
 
 ```text
 synthesis/
   synthesis_report_zh.md
   synthesis_report_en.md
-  assets/
-  artifact_manifest.json
+  synthesis_report_zh.html
+  synthesis_report_en.html
+  synthesis_brief.json
+  charts/                   # optional cross-hypothesis figures (scripts + png)
+  assets/                   # report embeds (sync from charts when needed)
+  data/                     # optional supporting tables/json
+  artifact_manifest.json    # optional
 ```
 
-## Naming Rules
+No `synthesis/analysis/` — synthesis harness state lives under `.agentsociety/analysis/synthesis/`.
 
-- Chart filenames: `chart_{nn}_{description}.png`
-- Optional companion vector export: `chart_{nn}_{description}.svg`
-- Matching plotting scripts may live beside them as `chart_{nn}_{description}.py`
-- Composite figure filenames: `figure_{nn}_{description}.png`
-- Composite figure metadata sidecar: `figure_{nn}_{description}.json`
-- EDA outputs: `eda_{type}_{table}.html` or similar type-specific names
-- Keep only report-referenced charts in `assets/`
-- Keep intermediate plotting scripts, atomic charts, and composite figure specs under `charts/`
-- When `collect-assets` filters a referenced chart PNG, sibling same-stem vector exports are preserved automatically.
-- When `collect-assets` filters a referenced composite figure PNG, its same-stem JSON sidecar should remain under `charts/` as production metadata rather than being copied into `assets/`.
-- Do not write synthesis outputs under `presentation/`; they belong directly in `synthesis/`.
-- Do not store temporary EDA screenshots in `assets/` unless the report explicitly references them.
+Also under `data/` after `build-report-context`:
 
-## Report References
+- `evidence_index.json`
+- `report_context.md`
 
-- Reference charts or composite figures as `![Title](assets/chart_01_example.png)` or `![Title](assets/figure_01_example.png)`.
-- Put a one-line description immediately below each chart or composite figure.
-- Keep `artifact_manifest.json` aligned with the final report and asset set.
+## Naming
 
-## Artifact Manifest
+- Charts: `chart_{nn}_{slug}.png` (+ optional `.svg`, `.py` in `charts/`)
+- Composites: `figure_{nn}_{slug}.png` (+ `.json` metadata in `charts/`)
+- EDA: `data/eda_quick_stats.md`, `data/eda_profile.html`, etc.
+- Report embed: `![caption](assets/chart_01_slug.png)` with one-line caption below
 
-Claude Code writes and updates `artifact_manifest.json` directly. Keep it consistent with the appendix artifact table in `report_zh.md`.
+## References in reports
 
-```json
-{
-  "hypothesis_id": "1",
-  "generated_at": "2026-04-16T15:30:00",
-  "artifacts": [
-    {
-      "filename": "chart_01_distribution.png",
-      "type": "chart",
-      "description": "Distribution plot for finding 1",
-      "finding_number": 1,
-      "included_in_report": true
-    }
-  ]
-}
-```
+See `artifact_manifest.json` template at bottom of prior versions; keep aligned with `report_zh.md` appendix table.

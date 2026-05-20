@@ -127,7 +127,9 @@ def _json_default(value: Any) -> Any:
 
 def _emit(payload: dict[str, Any]) -> None:
     sys.stdout.write(
-        json.dumps(payload, default=_json_default, ensure_ascii=False, separators=(",", ":"))
+        json.dumps(
+            payload, default=_json_default, ensure_ascii=False, separators=(",", ":")
+        )
     )
     sys.stdout.write("\n")
 
@@ -177,6 +179,8 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["ydata", "sweetviz", "missingno", "correlation", "quick-stats"],
     )
     run_eda_parser.add_argument("--tables")
+    run_eda_parser.add_argument("--workspace", default=workspace_default)
+    run_eda_parser.add_argument("--hypothesis-id")
 
     collect_assets_parser = subparsers.add_parser("collect-assets")
     collect_assets_parser.add_argument("--workspace", default=workspace_default)
@@ -188,6 +192,141 @@ def _build_parser() -> argparse.ArgumentParser:
 
     compose_figure_parser = subparsers.add_parser("compose-figure")
     compose_figure_parser.add_argument("--spec", required=True)
+
+    def _add_harness_workspace(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--workspace", default=workspace_default)
+
+    intake_parser = subparsers.add_parser("intake")
+    _add_harness_workspace(intake_parser)
+    intake_parser.add_argument("--hypothesis-id", required=True)
+    intake_parser.add_argument("--experiment-id", required=True)
+
+    write_plan_parser = subparsers.add_parser("write-plan")
+    _add_harness_workspace(write_plan_parser)
+    write_plan_parser.add_argument("--hypothesis-id", required=True)
+    write_plan_parser.add_argument(
+        "--payload", required=True, help="JSON object or path to JSON file"
+    )
+
+    validate_plan_parser = subparsers.add_parser("validate-plan")
+    _add_harness_workspace(validate_plan_parser)
+    validate_plan_parser.add_argument("--hypothesis-id", required=True)
+
+    validate_explore_parser = subparsers.add_parser("validate-explore")
+    _add_harness_workspace(validate_explore_parser)
+    validate_explore_parser.add_argument("--hypothesis-id", required=True)
+    validate_explore_parser.add_argument("--experiment-id", required=True)
+
+    record_claim_parser = subparsers.add_parser("record-claim")
+    _add_harness_workspace(record_claim_parser)
+    record_claim_parser.add_argument("--hypothesis-id", required=True)
+    record_claim_parser.add_argument("--payload", required=True)
+
+    validate_claims_parser = subparsers.add_parser("validate-claims")
+    _add_harness_workspace(validate_claims_parser)
+    validate_claims_parser.add_argument("--hypothesis-id", required=True)
+
+    record_contract_parser = subparsers.add_parser("record-contract")
+    _add_harness_workspace(record_contract_parser)
+    record_contract_parser.add_argument("--hypothesis-id", required=True)
+    record_contract_parser.add_argument("--payload", required=True)
+
+    validate_chart_parser = subparsers.add_parser("validate-chart")
+    _add_harness_workspace(validate_chart_parser)
+    validate_chart_parser.add_argument("--hypothesis-id", required=True)
+    validate_chart_parser.add_argument("--chart-path")
+    validate_chart_parser.add_argument("--code")
+
+    validate_refine_parser = subparsers.add_parser(
+        "validate-refine",
+        help="Holistic refine gate (contracts + chart files on disk)",
+    )
+    _add_harness_workspace(validate_refine_parser)
+    validate_refine_parser.add_argument("--hypothesis-id", required=True)
+
+    sync_assets_parser = subparsers.add_parser(
+        "sync-report-assets",
+        help="Copy report-referenced images from charts/ into assets/",
+    )
+    _add_harness_workspace(sync_assets_parser)
+    sync_assets_parser.add_argument("--hypothesis-id", required=True)
+    sync_assets_parser.add_argument("--experiment-id", required=True)
+
+    validate_release_parser = subparsers.add_parser("validate-release")
+    _add_harness_workspace(validate_release_parser)
+    validate_release_parser.add_argument("--hypothesis-id", required=True)
+    validate_release_parser.add_argument("--experiment-id", required=True)
+
+    validate_rq_parser = subparsers.add_parser(
+        "validate-report-quality",
+        help="Mechanical narrative quality checks (no independent review file)",
+    )
+    _add_harness_workspace(validate_rq_parser)
+    validate_rq_parser.add_argument("--hypothesis-id", required=True)
+    validate_rq_parser.add_argument("--experiment-id", required=True)
+
+    record_rr_parser = subparsers.add_parser(
+        "record-report-review",
+        help="Store independent LLM review (report_review.json)",
+    )
+    _add_harness_workspace(record_rr_parser)
+    record_rr_parser.add_argument("--hypothesis-id", required=True)
+    record_rr_parser.add_argument("--experiment-id", required=True)
+    record_rr_parser.add_argument("--payload", required=True)
+
+    record_sr_parser = subparsers.add_parser(
+        "record-synthesis-review",
+        help="Store independent synthesis review (synthesis_review.json)",
+    )
+    _add_harness_workspace(record_sr_parser)
+    record_sr_parser.add_argument("--payload", required=True)
+
+    validate_synthesis_parser = subparsers.add_parser("validate-synthesis")
+    _add_harness_workspace(validate_synthesis_parser)
+
+    validate_parser = subparsers.add_parser("validate")
+    _add_harness_workspace(validate_parser)
+    validate_parser.add_argument("--hypothesis-id", required=True)
+    validate_parser.add_argument("--experiment-id", required=True)
+
+    advance_parser = subparsers.add_parser("advance")
+    _add_harness_workspace(advance_parser)
+    advance_parser.add_argument("--hypothesis-id", required=True)
+    advance_parser.add_argument("--experiment-id", required=True)
+    advance_parser.add_argument("--phase", required=True)
+
+    status_parser = subparsers.add_parser("status")
+    _add_harness_workspace(status_parser)
+    status_parser.add_argument("--hypothesis-id")
+
+    run_loop_parser = subparsers.add_parser("run-loop")
+    _add_harness_workspace(run_loop_parser)
+    run_loop_parser.add_argument("--hypothesis-id", required=True)
+    run_loop_parser.add_argument("--experiment-id", required=True)
+
+    record_att_parser = subparsers.add_parser("record-attestation")
+    _add_harness_workspace(record_att_parser)
+    record_att_parser.add_argument("--hypothesis-id")
+    record_att_parser.add_argument("--payload", required=True)
+
+    build_ctx_parser = subparsers.add_parser(
+        "build-report-context",
+        help="Aggregate EDA/charts/claims into data/evidence_index.json and report_context.md",
+    )
+    _add_harness_workspace(build_ctx_parser)
+    build_ctx_parser.add_argument("--hypothesis-id", required=True)
+
+    record_art_parser = subparsers.add_parser("record-phase-artifacts")
+    _add_harness_workspace(record_art_parser)
+    record_art_parser.add_argument("--hypothesis-id", required=True)
+    record_art_parser.add_argument("--phase", required=True)
+    record_art_parser.add_argument(
+        "--artifacts", required=True, help="JSON array of file paths"
+    )
+
+    gate_status_parser = subparsers.add_parser("gate-status")
+    _add_harness_workspace(gate_status_parser)
+    gate_status_parser.add_argument("--hypothesis-id")
 
     return parser
 
@@ -214,7 +353,9 @@ def _read_code_payload(code_arg: str) -> tuple[str, Path]:
     return code_path.read_text(encoding="utf-8"), code_path.parent
 
 
-def _copy_into_work_dir(source: Path, destination_dir: Path, name: str | None = None) -> Path:
+def _copy_into_work_dir(
+    source: Path, destination_dir: Path, name: str | None = None
+) -> Path:
     target = destination_dir / (name or source.name)
     shutil.copy2(source, target)
     return target
@@ -225,14 +366,27 @@ def _collect_artifacts(
     output_dir: Path,
     artifact_paths: list[str],
 ) -> list[str]:
-    allowed_suffixes = {".png", ".jpg", ".jpeg", ".svg", ".pdf", ".webp", ".csv", ".json", ".txt"}
+    allowed_suffixes = {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".svg",
+        ".pdf",
+        ".webp",
+        ".csv",
+        ".json",
+        ".txt",
+    }
     output_dir.mkdir(parents=True, exist_ok=True)
 
     collected: list[str] = []
     for artifact in artifact_paths:
         rel_path = Path(artifact)
         source_path = work_dir / rel_path
-        if source_path.suffix.lower() not in allowed_suffixes or not source_path.exists():
+        if (
+            source_path.suffix.lower() not in allowed_suffixes
+            or not source_path.exists()
+        ):
             continue
 
         destination_path = output_dir / rel_path
@@ -313,8 +467,10 @@ def _validate_legend_language(code: str) -> None:
             continue
 
         func = node.func
-        func_name = func.attr if isinstance(func, ast.Attribute) else (
-            func.id if isinstance(func, ast.Name) else ""
+        func_name = (
+            func.attr
+            if isinstance(func, ast.Attribute)
+            else (func.id if isinstance(func, ast.Name) else "")
         )
 
         for keyword in node.keywords:
@@ -325,9 +481,7 @@ def _validate_legend_language(code: str) -> None:
 
             for literal in _extract_string_literals(keyword.value):
                 if _contains_cjk(literal):
-                    violations.append(
-                        f"{keyword.arg}={literal!r}"
-                    )
+                    violations.append(f"{keyword.arg}={literal!r}")
 
         if func_name != "legend":
             continue
@@ -423,7 +577,9 @@ def _validate_plotting_conventions(code: str) -> None:
                     agg_configured = True
 
             rcparams_update_aliases = pyplot_aliases | matplotlib_aliases
-            if any(path == f"{alias}.rcParams.update" for alias in rcparams_update_aliases):
+            if any(
+                path == f"{alias}.rcParams.update" for alias in rcparams_update_aliases
+            ):
                 dict_nodes = [arg for arg in node.args if isinstance(arg, ast.Dict)]
                 dict_nodes.extend(
                     keyword.value
@@ -434,7 +590,10 @@ def _validate_plotting_conventions(code: str) -> None:
                     for key_node, value_node in zip(dict_node.keys, dict_node.values):
                         key_strings = _extract_constant_strings(key_node)
                         value_strings = _extract_constant_strings(value_node)
-                        if "font.family" in key_strings and "sans-serif" in value_strings:
+                        if (
+                            "font.family" in key_strings
+                            and "sans-serif" in value_strings
+                        ):
                             font_family_configured = True
                         if "font.sans-serif" in key_strings:
                             sans_serif_configured = True
@@ -466,7 +625,7 @@ def _validate_plotting_conventions(code: str) -> None:
     if not font_family_configured:
         missing_requirements.append('`plt.rcParams["font.family"] = "sans-serif"`')
     if not sans_serif_configured:
-        missing_requirements.append('a `font.sans-serif` rcParams setting')
+        missing_requirements.append("a `font.sans-serif` rcParams setting")
     if not svg_fonttype_configured:
         missing_requirements.append('`svg.fonttype = "none"` for editable SVG text')
 
@@ -611,7 +770,9 @@ def _manual_boxes(panels: list[dict[str, Any]]) -> list[dict[str, int]]:
             {
                 "x": _ensure_non_negative_int(box.get("x"), f"panels[{index}].box.x"),
                 "y": _ensure_non_negative_int(box.get("y"), f"panels[{index}].box.y"),
-                "width": _ensure_positive_int(box.get("width"), f"panels[{index}].box.width"),
+                "width": _ensure_positive_int(
+                    box.get("width"), f"panels[{index}].box.width"
+                ),
                 "height": _ensure_positive_int(
                     box.get("height"), f"panels[{index}].box.height"
                 ),
@@ -657,7 +818,9 @@ def _compose_figure(spec_path: Path) -> dict[str, Any]:
     if not isinstance(canvas_spec, dict):
         raise ValueError('"canvas" must be an object when provided')
     canvas_width = _ensure_positive_int(canvas_spec.get("width", 2400), "canvas.width")
-    canvas_height = _ensure_positive_int(canvas_spec.get("height", 1400), "canvas.height")
+    canvas_height = _ensure_positive_int(
+        canvas_spec.get("height", 1400), "canvas.height"
+    )
     background = canvas_spec.get("background", "#FFFFFF")
     if not isinstance(background, str) or not background.strip():
         raise ValueError("canvas.background must be a non-empty color string")
@@ -751,7 +914,10 @@ def _compose_figure(spec_path: Path) -> dict[str, Any]:
             "height": canvas_height,
             "background": background,
         },
-        "layout": {"type": layout_type, **{k: v for k, v in layout.items() if k != "type"}},
+        "layout": {
+            "type": layout_type,
+            **{k: v for k, v in layout.items() if k != "type"},
+        },
         "panels": panel_summaries,
     }
     metadata_path.write_text(
@@ -768,7 +934,9 @@ def _compose_figure(spec_path: Path) -> dict[str, Any]:
 def _run_load_context(args: argparse.Namespace) -> int:
     _ensure_analysis_dependencies()
     workspace = Path(args.workspace)
-    context = ContextLoader(workspace).load_context(args.hypothesis_id, args.experiment_id)
+    context = ContextLoader(workspace).load_context(
+        args.hypothesis_id, args.experiment_id
+    )
     db_path = (
         workspace
         / f"hypothesis_{context.hypothesis_id}"
@@ -844,7 +1012,9 @@ def _run_code(args: argparse.Namespace) -> int:
                 timeout=args.timeout,
             )
         )
-        artifacts = _collect_artifacts(work_dir, persistent_output_dir, result.artifacts)
+        artifacts = _collect_artifacts(
+            work_dir, persistent_output_dir, result.artifacts
+        )
         _emit(
             {
                 "success": result.success,
@@ -867,22 +1037,28 @@ def _run_eda(args: argparse.Namespace) -> int:
     tables = _parse_csv_list(args.tables)
     generator = EDAGenerator()
     reader = DataReader(db_path)
-    requested_tables, selected_tables, invalid_tables = generator.resolve_table_selection(
-        reader,
-        tables,
+    requested_tables, selected_tables, invalid_tables = (
+        generator.resolve_table_selection(
+            reader,
+            tables,
+        )
     )
 
     if requested_tables and not selected_tables:
         requested = ", ".join(requested_tables)
-        return _error(f"run-eda: none of the requested tables are available: {requested}")
+        return _error(
+            f"run-eda: none of the requested tables are available: {requested}"
+        )
 
     if args.type == "quick-stats":
         content = generator.generate_quick_stats(db_path, tables=selected_tables)
         quick_stats_path = output_dir / "eda_quick_stats.md"
         quick_stats_path.write_text(content or "", encoding="utf-8")
+        files = [str(quick_stats_path)]
+        _maybe_record_eda_artifacts(args, files)
         return _ok(
             type=args.type,
-            files=[str(quick_stats_path)],
+            files=files,
             content=content or "",
             requested_tables=requested_tables,
             selected_tables=selected_tables,
@@ -897,12 +1073,27 @@ def _run_eda(args: argparse.Namespace) -> int:
     }
     output_path = method_map[args.type](db_path, output_dir, tables=selected_tables)
     files = [str(output_path)] if output_path else []
+    _maybe_record_eda_artifacts(args, files)
     return _ok(
         type=args.type,
         files=files,
         requested_tables=requested_tables,
         selected_tables=selected_tables,
         invalid_tables=invalid_tables,
+    )
+
+
+def _maybe_record_eda_artifacts(args: argparse.Namespace, files: list[str]) -> None:
+    if not files or not getattr(args, "hypothesis_id", None):
+        return
+    workspace = Path(args.workspace).resolve()
+    from agentsociety2.skills.analysis.harness import cli as harness_cli
+
+    harness_cli.cmd_record_phase_artifacts(
+        workspace,
+        args.hypothesis_id,
+        "explore",
+        files,
     )
 
 
@@ -917,7 +1108,10 @@ def _run_collect_assets(args: argparse.Namespace) -> int:
     if args.charts_dir:
         charts_dir = Path(args.charts_dir)
         for file_path in sorted(charts_dir.rglob("*")):
-            if not file_path.is_file() or file_path.suffix.lower() not in SUPPORTED_IMAGE_FORMATS:
+            if (
+                not file_path.is_file()
+                or file_path.suffix.lower() not in SUPPORTED_IMAGE_FORMATS
+            ):
                 continue
             relative_path = file_path.relative_to(charts_dir)
             assets.append(
@@ -945,6 +1139,152 @@ def _run_compose_figure(args: argparse.Namespace) -> int:
     return _ok(**result)
 
 
+def _load_json_payload(raw: str) -> dict[str, Any]:
+    from agentsociety2.skills.analysis.harness.json_io import load_dict_payload
+
+    return load_dict_payload(raw)
+
+
+def _dispatch_harness(args: argparse.Namespace) -> int:
+    from agentsociety2.skills.analysis.harness import cli as harness_cli
+
+    workspace = Path(args.workspace)
+    cmd = args.command
+    if cmd == "intake":
+        return _ok(
+            **harness_cli.cmd_intake(workspace, args.hypothesis_id, args.experiment_id)
+        )
+    if cmd == "write-plan":
+        return _ok(
+            **harness_cli.cmd_write_plan(
+                workspace, args.hypothesis_id, _load_json_payload(args.payload)
+            )
+        )
+    if cmd == "validate-plan":
+        return _ok(**harness_cli.cmd_validate_plan(workspace, args.hypothesis_id))
+    if cmd == "validate-explore":
+        return _ok(
+            **harness_cli.cmd_validate_explore(
+                workspace, args.hypothesis_id, args.experiment_id
+            )
+        )
+    if cmd == "record-claim":
+        return _ok(
+            **harness_cli.cmd_record_claim(
+                workspace, args.hypothesis_id, _load_json_payload(args.payload)
+            )
+        )
+    if cmd == "validate-claims":
+        return _ok(**harness_cli.cmd_validate_claims(workspace, args.hypothesis_id))
+    if cmd == "record-contract":
+        return _ok(
+            **harness_cli.cmd_record_contract(
+                workspace, args.hypothesis_id, _load_json_payload(args.payload)
+            )
+        )
+    if cmd == "validate-chart":
+        return _ok(
+            **harness_cli.cmd_validate_chart(
+                workspace,
+                args.hypothesis_id,
+                chart_path=args.chart_path,
+                code=(
+                    Path(args.code).read_text(encoding="utf-8")
+                    if args.code and Path(args.code).exists()
+                    else args.code
+                ),
+            )
+        )
+    if cmd == "validate-refine":
+        return _ok(**harness_cli.cmd_validate_refine(workspace, args.hypothesis_id))
+    if cmd == "build-report-context":
+        return _ok(
+            **harness_cli.cmd_build_report_context(workspace, args.hypothesis_id)
+        )
+    if cmd == "validate-report-quality":
+        return _ok(
+            **harness_cli.cmd_validate_report_quality(
+                workspace, args.hypothesis_id, args.experiment_id
+            )
+        )
+    if cmd == "record-report-review":
+        return _ok(
+            **harness_cli.cmd_record_report_review(
+                workspace,
+                args.hypothesis_id,
+                args.experiment_id,
+                _load_json_payload(args.payload),
+            )
+        )
+    if cmd == "record-synthesis-review":
+        return _ok(
+            **harness_cli.cmd_record_synthesis_review(
+                workspace,
+                _load_json_payload(args.payload),
+            )
+        )
+    if cmd == "sync-report-assets":
+        return _ok(
+            **harness_cli.cmd_sync_report_assets(
+                workspace, args.hypothesis_id, args.experiment_id
+            )
+        )
+    if cmd == "validate-release":
+        return _ok(
+            **harness_cli.cmd_validate_release(
+                workspace, args.hypothesis_id, args.experiment_id
+            )
+        )
+    if cmd == "validate-synthesis":
+        return _ok(**harness_cli.cmd_validate_synthesis(workspace))
+    if cmd == "validate":
+        return _ok(
+            **harness_cli.cmd_validate(
+                workspace, args.hypothesis_id, args.experiment_id
+            )
+        )
+    if cmd == "advance":
+        result = harness_cli.cmd_advance(
+            workspace, args.hypothesis_id, args.experiment_id, args.phase
+        )
+        if result.get("error"):
+            return _error(result["error"])
+        return _ok(**result)
+    if cmd == "status":
+        return _ok(
+            **harness_cli.cmd_status(workspace, getattr(args, "hypothesis_id", None))
+        )
+    if cmd == "run-loop":
+        return _ok(
+            **harness_cli.cmd_run_loop(
+                workspace, args.hypothesis_id, args.experiment_id
+            )
+        )
+    if cmd == "record-attestation":
+        return _ok(
+            **harness_cli.cmd_record_attestation(
+                workspace,
+                getattr(args, "hypothesis_id", None),
+                _load_json_payload(args.payload),
+            )
+        )
+    if cmd == "record-phase-artifacts":
+        artifacts = _load_json_payload(args.artifacts)
+        if not isinstance(artifacts, list):
+            return _error("artifacts must be a JSON array of paths")
+        return _ok(
+            **harness_cli.cmd_record_phase_artifacts(
+                workspace, args.hypothesis_id, args.phase, artifacts
+            )
+        )
+    if cmd == "gate-status":
+        return _ok(
+            **harness_cli.cmd_gate_status(
+                workspace, getattr(args, "hypothesis_id", None)
+            )
+        )
+    return _error(f"unknown harness command: {cmd}")
+
 
 def main() -> int:
     try:
@@ -967,6 +1307,33 @@ def main() -> int:
             return _run_collect_assets(args)
         if args.command == "compose-figure":
             return _run_compose_figure(args)
+        harness_commands = {
+            "intake",
+            "write-plan",
+            "validate-plan",
+            "validate-explore",
+            "record-claim",
+            "validate-claims",
+            "record-contract",
+            "validate-chart",
+            "validate-refine",
+            "sync-report-assets",
+            "validate-release",
+            "validate-report-quality",
+            "record-report-review",
+            "record-synthesis-review",
+            "validate-synthesis",
+            "validate",
+            "advance",
+            "status",
+            "run-loop",
+            "record-attestation",
+            "record-phase-artifacts",
+            "build-report-context",
+            "gate-status",
+        }
+        if args.command in harness_commands:
+            return _dispatch_harness(args)
         return _error(f"unknown command: {args.command}")
     except _ArgumentParseError as exc:
         return _error(str(exc))

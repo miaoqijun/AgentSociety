@@ -449,7 +449,7 @@ export class WorkspaceManager {
     if (applyResult.errors.length > 0) {
       this.log(
         `applyPreset[${applyResult.preset}] reported ${applyResult.errors.length} error(s): ` +
-          applyResult.errors.map((e) => `${e.skill}: ${e.message}`).join('; '),
+        applyResult.errors.map((e) => `${e.skill}: ${e.message}`).join('; '),
       );
     }
     if (applyResult.fallbacks.length > 0) {
@@ -457,6 +457,8 @@ export class WorkspaceManager {
         `applyPreset[${applyResult.preset}] fell back to defaults for: ${applyResult.fallbacks.join(', ')}`,
       );
     }
+
+    this.pruneLegacyAnalysisSkillLayouts(workspacePath);
 
     created.push(...this.ensureCodexSkillsLink(workspacePath, targetDir));
 
@@ -637,11 +639,7 @@ export class WorkspaceManager {
   }
 
   /**
-   * Copy official Anthropic office skills (pdf, docx, xlsx, pptx)
-   * from extension bundle to .claude/skills/
-   *
-   * This replaces MinerU with official Claude Code skills for document processing.
-   * Skills are bundled with the extension for offline installation.
+   * Copy bundled Claude Office skills (pdf, docx, xlsx, pptx) to .claude/skills/
    */
   public async copyOfficialOfficeSkills(
     workspacePath?: string
@@ -755,6 +753,22 @@ export class WorkspaceManager {
       downloaded,
     };
   }
+
+  /** Remove obsolete analysis-support layouts (bundles now live under agentsociety-analysis/support/). */
+  private pruneLegacyAnalysisSkillLayouts(workspacePath: string): void {
+    const legacyPaths = [
+      path.join(workspacePath, '.agentsociety', 'analysis-support'),
+      path.join(workspacePath, '.claude', 'skills', 'frontend-design'),
+    ];
+    for (const legacy of legacyPaths) {
+      if (!fs.existsSync(legacy)) {
+        continue;
+      }
+      fs.rmSync(legacy, { recursive: true, force: true });
+      this.log(`Removed legacy analysis skill layout: ${legacy}`);
+    }
+  }
+
   /**
    * Recursively copy a directory tree.
    */

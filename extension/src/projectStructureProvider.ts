@@ -22,6 +22,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as yaml from 'js-yaml';
 import { localize } from './i18n';
 import { ApiClient } from './apiClient';
 import { WorkspaceManager } from './workspaceManager';
@@ -178,13 +179,85 @@ function listDirEntriesSafe(dirPath: string): string[] {
   }
 }
 
-function isPresentationChartsDirectory(dirPath: string): boolean {
+const REPORT_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i;
+
+function listReportImageFilenames(dirPath: string): Set<string> {
+  if (!fs.existsSync(dirPath)) {
+    return new Set();
+  }
+  const dirStat = safeStatSync(dirPath);
+  if (!dirStat?.isDirectory()) {
+    return new Set();
+  }
+  const names = new Set<string>();
+  for (const entry of listDirEntriesSafe(dirPath)) {
+    const full = path.join(dirPath, entry);
+    const entStat = safeStatSync(full);
+    if (entStat?.isFile() && REPORT_IMAGE_EXT.test(entry)) {
+      names.add(entry.toLowerCase());
+    }
+  }
+  return names;
+}
+
+function chartsDirHasNonImageEntries(chartsDir: string): boolean {
+  if (!fs.existsSync(chartsDir)) {
+    return false;
+  }
+  for (const entry of listDirEntriesSafe(chartsDir)) {
+    const full = path.join(chartsDir, entry);
+    const entStat = safeStatSync(full);
+    if (!entStat) {
+      continue;
+    }
+    if (entStat.isDirectory()) {
+      return true;
+    }
+    if (entStat.isFile() && !REPORT_IMAGE_EXT.test(entry)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Hide charts/ in the tree when assets/ already contains the same report images (and charts has no scripts/json-only extras). */
+function shouldShowChartsOutputDir(baseDir: string): boolean {
+  const chartsDir = path.join(baseDir, 'charts');
+  if (!fs.existsSync(chartsDir)) {
+    return false;
+  }
+  if (chartsDirHasNonImageEntries(chartsDir)) {
+    return true;
+  }
+  const chartImages = listReportImageFilenames(chartsDir);
+  if (chartImages.size === 0) {
+    return true;
+  }
+  const assetImages = listReportImageFilenames(path.join(baseDir, 'assets'));
+  if (assetImages.size === 0) {
+    return true;
+  }
+  for (const name of chartImages) {
+    if (!assetImages.has(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isAnalysisChartsDirectory(dirPath: string): boolean {
   const normalized = path.normalize(dirPath);
   if (path.basename(normalized) !== 'charts') {
     return false;
   }
-  const experimentDir = path.basename(path.dirname(normalized));
-  if (!/^experiment_\d+$/i.test(experimentDir)) {
+  const parentName = path.basename(path.dirname(normalized));
+  if (parentName === 'synthesis') {
+    return true;
+  }
+  if (/^hypothesis_\d+$/i.test(parentName)) {
+    return path.basename(path.dirname(path.dirname(normalized))) === 'presentation';
+  }
+  if (!/^experiment_\d+$/i.test(parentName)) {
     return false;
   }
   const hypothesisDir = path.basename(path.dirname(path.dirname(normalized)));
@@ -193,6 +266,393 @@ function isPresentationChartsDirectory(dirPath: string): boolean {
   }
   const presentationDir = path.basename(path.dirname(path.dirname(path.dirname(normalized))));
   return presentationDir === 'presentation';
+}
+
+function collectPresentationReportFiles(dirPath: string): Record<string, string> {
+  const reportFiles: Record<string, string> = {};
+  if (!fs.existsSync(dirPath)) {
+    return reportFiles;
+  }
+  for (const entry of fs.readdirSync(dirPath)) {
+    const fullPath = path.join(dirPath, entry);
+    const stat = safeStatSync(fullPath);
+    if (stat?.isFile()) {
+      reportFiles[entry] = fullPath;
+    }
+  }
+  return reportFiles;
+}
+
+type RequiredBilingualReportSpec = {
+  fileName: string;
+  labelKey: string;
+  itemType: 'reportMd' | 'reportHtml';
+  preview: boolean;
+};
+
+const REQUIRED_HYPOTHESIS_REPORTS: RequiredBilingualReportSpec[] = [
+  { fileName: 'report_zh.md', labelKey: 'projectStructure.reportMdZh', itemType: 'reportMd', preview: true },
+  { fileName: 'report_en.md', labelKey: 'projectStructure.reportMdEn', itemType: 'reportMd', preview: true },
+  { fileName: 'report_zh.html', labelKey: 'projectStructure.reportHtmlZh', itemType: 'reportHtml', preview: false },
+  { fileName: 'report_en.html', labelKey: 'projectStructure.reportHtmlEn', itemType: 'reportHtml', preview: false },
+];
+
+const REQUIRED_SYNTHESIS_REPORTS: RequiredBilingualReportSpec[] = [
+  {
+    fileName: 'synthesis_report_zh.md',
+    labelKey: 'projectStructure.reportMdZh',
+    itemType: 'reportMd',
+    preview: true,
+  },
+  {
+    fileName: 'synthesis_report_en.md',
+    labelKey: 'projectStructure.reportMdEn',
+    itemType: 'reportMd',
+    preview: true,
+  },
+  {
+    fileName: 'synthesis_report_zh.html',
+    labelKey: 'projectStructure.reportHtmlZh',
+    itemType: 'reportHtml',
+    preview: false,
+  },
+  {
+    fileName: 'synthesis_report_en.html',
+    labelKey: 'projectStructure.reportHtmlEn',
+    itemType: 'reportHtml',
+    preview: false,
+  },
+];
+
+function hypothesisReportsComplete(reportFiles: Record<string, string>): boolean {
+  return REQUIRED_HYPOTHESIS_REPORTS.every((r) => Boolean(reportFiles[r.fileName]));
+}
+
+function presentationDirHasReports(dirPath: string): boolean {
+  return hypothesisReportsComplete(collectPresentationReportFiles(dirPath));
+}
+
+function countHypothesisPresentationReports(hypothesisDir: string): number {
+  const reportFiles = collectPresentationReportFiles(hypothesisDir);
+  const present = REQUIRED_HYPOTHESIS_REPORTS.filter((r) => reportFiles[r.fileName]).length;
+  return present;
+}
+
+function appendRequiredBilingualReportTreeItems(
+  items: ProjectItem[],
+  specs: RequiredBilingualReportSpec[],
+  reportFiles: Record<string, string>,
+  baseDir: string
+): void {
+  for (const spec of specs) {
+    const fullPath = reportFiles[spec.fileName] || path.join(baseDir, spec.fileName);
+    const exists = Boolean(reportFiles[spec.fileName]);
+    const item = new ProjectItem(
+      localize(spec.labelKey),
+      vscode.TreeItemCollapsibleState.None,
+      spec.itemType,
+      exists ? fullPath : undefined
+    );
+    if (!exists) {
+      item.description = localize('projectStructure.reportRequiredMissing');
+      item.iconPath = makeThemeIcon('warning', 'problemsWarningIcon.foreground');
+    } else if (spec.preview) {
+      item.command = {
+        command: 'markdown.showPreview',
+        title: 'Open Preview',
+        arguments: [vscode.Uri.file(fullPath)]
+      };
+    } else if (spec.itemType === 'reportHtml') {
+      item.command = {
+        command: 'aiSocialScientist.openHtmlReport',
+        title: 'Open HTML Report',
+        arguments: [vscode.Uri.file(fullPath)]
+      };
+    }
+    items.push(item);
+  }
+}
+
+function appendPresentationReportTreeItems(
+  items: ProjectItem[],
+  reportFiles: Record<string, string>,
+  baseDir: string
+): void {
+  appendRequiredBilingualReportTreeItems(
+    items,
+    REQUIRED_HYPOTHESIS_REPORTS,
+    reportFiles,
+    baseDir
+  );
+}
+
+function collectSynthesisReportFiles(synthesisDir: string): Record<string, string> {
+  return collectPresentationReportFiles(synthesisDir);
+}
+
+function countSynthesisReports(synthesisDir: string): number {
+  const reportFiles = collectSynthesisReportFiles(synthesisDir);
+  const present = REQUIRED_SYNTHESIS_REPORTS.filter((r) => reportFiles[r.fileName]).length;
+  return present;
+}
+
+const HYPOTHESIS_PHASE_ORDER = ['frame', 'explore', 'claims', 'refine', 'produce'] as const;
+
+const ANALYSIS_PHASE_LABEL_KEYS: Record<(typeof HYPOTHESIS_PHASE_ORDER)[number], string> = {
+  frame: 'projectStructure.analysisPhase.frame',
+  explore: 'projectStructure.analysisPhase.explore',
+  claims: 'projectStructure.analysisPhase.claims',
+  refine: 'projectStructure.analysisPhase.refine',
+  produce: 'projectStructure.analysisPhase.produce',
+};
+
+function resolveHypothesisHarnessStatePath(
+  workspacePath: string,
+  hypothesisDir: string
+): string | undefined {
+  const match = path.basename(hypothesisDir).match(/^hypothesis_(\d+)$/i);
+  if (!match) {
+    return undefined;
+  }
+  const canonical = path.join(
+    workspacePath,
+    '.agentsociety',
+    'analysis',
+    `hypothesis_${match[1]}`,
+    'state.yaml'
+  );
+  if (fs.existsSync(canonical)) {
+    return canonical;
+  }
+  const legacy = path.join(hypothesisDir, 'analysis', 'state.yaml');
+  if (fs.existsSync(legacy)) {
+    return legacy;
+  }
+  return undefined;
+}
+
+function resolveSynthesisHarnessStatePath(workspacePath: string): string | undefined {
+  const canonical = path.join(
+    workspacePath,
+    '.agentsociety',
+    'analysis',
+    'synthesis',
+    'state.yaml'
+  );
+  if (fs.existsSync(canonical)) {
+    return canonical;
+  }
+  const legacy = path.join(workspacePath, 'synthesis', 'analysis', 'state.yaml');
+  if (fs.existsSync(legacy)) {
+    return legacy;
+  }
+  return undefined;
+}
+
+function readHarnessStateFile(statePath: string): Record<string, unknown> | undefined {
+  try {
+    const raw = yaml.load(fs.readFileSync(statePath, 'utf8'));
+    return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+type PhaseCheckpointView = {
+  structural_pass?: boolean;
+  attestation_pass?: boolean;
+  gate_pass?: boolean;
+};
+
+function resolvePhaseStepKind(
+  phase: string,
+  currentPhase: string,
+  checkpoint: PhaseCheckpointView
+): 'pass' | 'current' | 'attestation' | 'blocked' | 'pending' {
+  if (checkpoint.gate_pass) {
+    return 'pass';
+  }
+  const cur = HYPOTHESIS_PHASE_ORDER.indexOf(currentPhase as (typeof HYPOTHESIS_PHASE_ORDER)[number]);
+  const idx = HYPOTHESIS_PHASE_ORDER.indexOf(phase as (typeof HYPOTHESIS_PHASE_ORDER)[number]);
+  if (phase === currentPhase) {
+    if (checkpoint.structural_pass && !checkpoint.attestation_pass) {
+      return 'attestation';
+    }
+    return 'current';
+  }
+  if (idx >= 0 && cur >= 0 && idx < cur) {
+    return 'blocked';
+  }
+  return 'pending';
+}
+
+function phaseStepStatusLabel(
+  phase: string,
+  currentPhase: string,
+  checkpoints: Record<string, PhaseCheckpointView>
+): string {
+  const kind = resolvePhaseStepKind(phase, currentPhase, checkpoints[phase] || {});
+  switch (kind) {
+    case 'pass':
+      return localize('projectStructure.phaseStatus.pass');
+    case 'current':
+      return localize('projectStructure.phaseStatus.current');
+    case 'attestation':
+      return localize('projectStructure.phaseStatus.attestationPending');
+    case 'blocked':
+      return localize('projectStructure.phaseStatus.blocked');
+    default:
+      return localize('projectStructure.phaseStatus.pending');
+  }
+}
+
+function assignHarnessStatusCommand(
+  item: ProjectItem,
+  statePath: string,
+  scope: 'hypothesis' | 'synthesis',
+  focusPhase?: string
+): void {
+  item.command = {
+    command: 'aiSocialScientist.viewAnalysisHarnessStatus',
+    title: localize('extension.viewAnalysisHarness.commandTitle'),
+    arguments: [{ statePath, scope, focusPhase }],
+  };
+}
+
+function phaseStepIcon(kind: ReturnType<typeof resolvePhaseStepKind>): vscode.ThemeIcon {
+  switch (kind) {
+    case 'pass':
+      return new vscode.ThemeIcon('pass-filled', new vscode.ThemeColor('charts.green'));
+    case 'attestation':
+      return new vscode.ThemeIcon('checklist', new vscode.ThemeColor('charts.yellow'));
+    case 'current':
+      return new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.yellow'));
+    case 'blocked':
+      return new vscode.ThemeIcon('warning', new vscode.ThemeColor('charts.red'));
+    default:
+      return new vscode.ThemeIcon('circle-large-outline');
+  }
+}
+
+function appendHypothesisPhaseProgress(
+  items: ProjectItem[],
+  workspacePath: string,
+  hypothesisDir: string
+): void {
+  const statePath = resolveHypothesisHarnessStatePath(workspacePath, hypothesisDir);
+  if (!statePath) {
+    return;
+  }
+  const state = readHarnessStateFile(statePath);
+  if (!state) {
+    return;
+  }
+  const currentPhase = String(state.current_phase || 'frame');
+  const checkpoints = (state.phase_checkpoints || {}) as Record<string, PhaseCheckpointView>;
+  const passed = HYPOTHESIS_PHASE_ORDER.filter((p) => checkpoints[p]?.gate_pass).length;
+  const group = new ProjectItem(
+    localize('projectStructure.analysisProgress'),
+    vscode.TreeItemCollapsibleState.Collapsed,
+    'analysisPhaseGroup',
+    statePath
+  );
+  group.iconPath = makeThemeIcon('list-tree', 'charts.green');
+  const phaseKey = ANALYSIS_PHASE_LABEL_KEYS[currentPhase as keyof typeof ANALYSIS_PHASE_LABEL_KEYS];
+  const currentLabel = phaseKey ? localize(phaseKey) : currentPhase;
+  group.description = `${passed}/${HYPOTHESIS_PHASE_ORDER.length} · ${currentLabel}`;
+  group.tooltip = localize('projectStructure.analysisProgressTooltip');
+  items.push(group);
+}
+
+function buildHypothesisPhaseStepItems(statePath: string): ProjectItem[] {
+  const state = readHarnessStateFile(statePath);
+  if (!state) {
+    return [];
+  }
+  const currentPhase = String(state.current_phase || 'frame');
+  const checkpoints = (state.phase_checkpoints || {}) as Record<string, PhaseCheckpointView>;
+  return HYPOTHESIS_PHASE_ORDER.map((phase) => {
+    const label = localize(ANALYSIS_PHASE_LABEL_KEYS[phase]);
+    const kind = resolvePhaseStepKind(phase, currentPhase, checkpoints[phase] || {});
+    const item = new ProjectItem(
+      label,
+      vscode.TreeItemCollapsibleState.None,
+      'analysisPhaseStep'
+    );
+    item.description = phaseStepStatusLabel(phase, currentPhase, checkpoints);
+    item.iconPath = phaseStepIcon(kind);
+    item.tooltip = `${label} — ${item.description}`;
+    assignHarnessStatusCommand(item, statePath, 'hypothesis', phase);
+    return item;
+  });
+}
+
+function appendAnalysisOutputDirs(
+  items: ProjectItem[],
+  baseDir: string,
+  options?: { includeData?: boolean }
+): void {
+  if (options?.includeData !== false) {
+    const dataDir = path.join(baseDir, 'data');
+    if (fs.existsSync(dataDir)) {
+      const dataItem = new ProjectItem(
+        localize('projectStructure.analysisData'),
+        vscode.TreeItemCollapsibleState.Collapsed,
+        'file',
+        dataDir
+      );
+      dataItem.iconPath = makeThemeIcon('database', 'descriptionForeground');
+      dataItem.resourceUri = undefined;
+      items.push(dataItem);
+    }
+  }
+
+  if (shouldShowChartsOutputDir(baseDir)) {
+    const chartsDir = path.join(baseDir, 'charts');
+    const chartsItem = new ProjectItem(
+      localize('projectStructure.reportCharts'),
+      vscode.TreeItemCollapsibleState.Collapsed,
+      'file',
+      chartsDir
+    );
+    chartsItem.tooltip = localize('projectStructure.reportChartsTooltip');
+    chartsItem.iconPath = makeThemeIcon('graph-line', 'charts.blue');
+    chartsItem.resourceUri = undefined;
+    items.push(chartsItem);
+  }
+
+  const assetsDir = path.join(baseDir, 'assets');
+  if (fs.existsSync(assetsDir)) {
+    const assetsItem = new ProjectItem(
+      localize('projectStructure.reportAssets'),
+      vscode.TreeItemCollapsibleState.Collapsed,
+      'file',
+      assetsDir
+    );
+    assetsItem.tooltip = localize('projectStructure.reportAssetsTooltip');
+    assetsItem.iconPath = makeThemeIcon('file-media', 'charts.yellow');
+    assetsItem.resourceUri = undefined;
+    items.push(assetsItem);
+  }
+}
+
+function appendPresentationOutputDirs(items: ProjectItem[], baseDir: string): void {
+  appendAnalysisOutputDirs(items, baseDir);
+}
+
+function appendSynthesisOutputDirs(items: ProjectItem[], synthesisDir: string): void {
+  appendAnalysisOutputDirs(items, synthesisDir, { includeData: true });
+}
+
+function appendPresentationMetadataFiles(items: ProjectItem[], baseDir: string): void {
+  for (const name of ['artifact_manifest.json', 'report_outline.json']) {
+    const fullPath = path.join(baseDir, name);
+    if (fs.existsSync(fullPath) && safeStatSync(fullPath)?.isFile()) {
+      items.push(
+        new ProjectItem(name, vscode.TreeItemCollapsibleState.None, 'file', fullPath)
+      );
+    }
+  }
 }
 
 function presentationChartsEntryRank(entryName: string, isDir: boolean): number {
@@ -283,7 +743,7 @@ export class ProjectItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-    public readonly type: 'initWorkspace' | 'configureEnv' | 'fixWorkspace' | 'aiChat' | 'topic' | 'hypothesis' | 'experiment' | 'paper' | 'file' | 'papers' | 'userdata' | 'prefillParams' | 'prefillParamsGroup' | 'prefillParamsEnv' | 'prefillParamsAgent' | 'settings' | 'custom' | 'customScan' | 'customTest' | 'customClean' | 'customAgentItem' | 'customEnvItem' | 'customAgentsGroup' | 'customEnvsGroup' | 'customWorkspace' | 'presentation' | 'presentationHypothesis' | 'presentationExperiment' | 'synthesis' | 'reportHtml' | 'reportMd' | 'skillManagement' | 'datasets' | 'datasetItem' | 'paperPdfGroup' | 'paperMdGroup' | 'paperJsonGroup' | 'pidJson' | 'experimentInitGroup' | 'experimentRunGroup' | 'projectStats' | 'projectStatsMetric',
+    public readonly type: 'initWorkspace' | 'configureEnv' | 'fixWorkspace' | 'aiChat' | 'topic' | 'hypothesis' | 'experiment' | 'paper' | 'file' | 'papers' | 'userdata' | 'prefillParams' | 'prefillParamsGroup' | 'prefillParamsEnv' | 'prefillParamsAgent' | 'settings' | 'custom' | 'customScan' | 'customTest' | 'customClean' | 'customAgentItem' | 'customEnvItem' | 'customAgentsGroup' | 'customEnvsGroup' | 'customWorkspace' | 'presentation' | 'presentationHypothesis' | 'presentationExperiment' | 'synthesis' | 'analysisPhaseGroup' | 'analysisPhaseStep' | 'synthesisPhaseGroup' | 'reportHtml' | 'reportMd' | 'skillManagement' | 'datasets' | 'datasetItem' | 'paperPdfGroup' | 'paperMdGroup' | 'paperJsonGroup' | 'pidJson' | 'experimentInitGroup' | 'experimentRunGroup' | 'projectStats' | 'projectStatsMetric',
     public readonly filePath?: string
   ) {
     // 调用父类构造函数，初始化树节点
@@ -377,6 +837,9 @@ export class ProjectItem extends vscode.TreeItem {
       'presentation': 'graph-line', // 分析报告（图表/结果展示）
       'presentationHypothesis': 'folder', // 假设文件夹
       'presentationExperiment': 'folder', // 实验文件夹
+      'analysisPhaseGroup': 'list-tree',
+      'analysisPhaseStep': 'circle-filled',
+      'synthesisPhaseGroup': 'list-tree',
       'synthesis': 'notebook', // 综合报告（汇总文档）
       'reportHtml': 'file-code', // HTML 报告图标
       'reportMd': 'file-text', // Markdown 报告图标
@@ -463,11 +926,15 @@ export class ProjectItem extends vscode.TreeItem {
     // 如果提供了文件路径，设置点击命令
     // 当用户点击这个节点时，会执行相应的命令打开文件
     // 注意：可展开的目录节点不应设置 command，否则点击会执行命令而非展开
-    if (filePath && collapsibleState === vscode.TreeItemCollapsibleState.None) {
+    const isHarnessStatusNode =
+      type === 'analysisPhaseStep' ||
+      type === 'analysisPhaseGroup' ||
+      type === 'synthesisPhaseGroup';
+
+    if (filePath && collapsibleState === vscode.TreeItemCollapsibleState.None && !isHarnessStatusNode) {
       if (type === 'reportHtml' || (ext === 'html' && (type === 'presentationExperiment' || type === 'synthesis'))) {
-        // HTML 报告：使用 Live Preview 扩展在 VSCode 内部预览
         this.command = {
-          command: 'livePreview.start.preview.atFile',
+          command: 'aiSocialScientist.openHtmlReport',
           title: 'Open HTML Report',
           arguments: [vscode.Uri.file(filePath)]
         };
@@ -1442,13 +1909,21 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       // 查找synthesis目录（综合报告）
       const synthesisDir = path.join(workspacePath, 'synthesis');
       if (fs.existsSync(synthesisDir)) {
-        items.push(new ProjectItem(
+        const synItem = new ProjectItem(
           localize('projectStructure.synthesis'),
           vscode.TreeItemCollapsibleState.Collapsed,
           'synthesis',
           undefined
-        ));
-        items[items.length - 1].tooltip = localize('projectStructure.synthesis.tooltip');
+        );
+        synItem.tooltip = localize('projectStructure.synthesis.tooltip');
+        const synReportCount = countSynthesisReports(synthesisDir);
+        if (synReportCount > 0) {
+          synItem.description = localize(
+            'projectStructure.presentationReportsAvailable',
+            synReportCount
+          );
+        }
+        items.push(synItem);
       }
 
       return items;
@@ -1840,7 +2315,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
         const items: ProjectItem[] = [];
         let entries = listDirEntriesSafe(filePath).filter(entry => !shouldHideFsEntry(entry));
-        const chartsDir = isPresentationChartsDirectory(filePath);
+        const chartsDir = isAnalysisChartsDirectory(filePath);
         if (chartsDir) {
           entries = [...entries].sort((a, b) => comparePresentationChartsEntries(a, b, filePath));
         }
@@ -2290,17 +2765,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
             // 提取假设ID，转换为友好显示名称
             const match = entry.match(/^hypothesis_(\d+)$/);
 
-            // 统计报告数量
-            let reportCount = 0;
-            const expDirs = this.findDirectories(fullPath, /^experiment_\d+$/);
-            for (const expDir of expDirs) {
-              const reportHtml = path.join(expDir, 'report.html');
-              const reportZhHtml = path.join(expDir, 'report_zh.html');
-              const reportEnHtml = path.join(expDir, 'report_en.html');
-              if (fs.existsSync(reportHtml) || fs.existsSync(reportZhHtml) || fs.existsSync(reportEnHtml)) {
-                reportCount++;
-              }
-            }
+            const reportCount = countHypothesisPresentationReports(fullPath);
 
             const displayName = match
               ? `${localize('projectStructure.hypothesis')} ${match[1]}`
@@ -2322,177 +2787,62 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       return items;
     }
 
-    // PresentationHypothesis节点的子节点：显示所有实验目录
+    // PresentationHypothesis：展示 hypothesis 根目录下的分析产物（harness 约定）
     if (element.type === 'presentationHypothesis' && element.filePath) {
       const items: ProjectItem[] = [];
 
       if (fs.existsSync(element.filePath) && fs.statSync(element.filePath).isDirectory()) {
-        const entries = fs.readdirSync(element.filePath);
-        for (const entry of entries) {
-          const fullPath = path.join(element.filePath, entry);
-          const stat = fs.statSync(fullPath);
+        const hypothesisDir = element.filePath;
+        const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+        const hasHypothesisLevel =
+          presentationDirHasReports(hypothesisDir) ||
+          ['data', 'charts', 'assets'].some((name) =>
+            fs.existsSync(path.join(hypothesisDir, name))
+          ) ||
+          ['artifact_manifest.json', 'report_outline.json'].some((name) =>
+            fs.existsSync(path.join(hypothesisDir, name))
+          ) ||
+          Boolean(resolveHypothesisHarnessStatePath(workspacePath, hypothesisDir));
 
-          if (stat.isDirectory() && entry.startsWith('experiment_')) {
-            // 提取实验ID，转换为友好显示名称
-            const match = entry.match(/^experiment_(\d+)$/);
-            const displayName = match
-              ? `${localize('projectStructure.experiment')} ${match[1]}`
-              : entry;
-            items.push(new ProjectItem(
-              displayName,
-              vscode.TreeItemCollapsibleState.Collapsed,
-              'presentationExperiment',
-              fullPath
-            ));
-          }
+        if (hasHypothesisLevel) {
+          appendHypothesisPhaseProgress(items, workspacePath, hypothesisDir);
+          appendPresentationReportTreeItems(
+            items,
+            collectPresentationReportFiles(hypothesisDir),
+            hypothesisDir
+          );
+          appendPresentationOutputDirs(items, hypothesisDir);
+          appendPresentationMetadataFiles(items, hypothesisDir);
         }
       }
 
       return items;
     }
 
-    // PresentationExperiment节点的子节点：显示报告文件和数据目录
-    if (element.type === 'presentationExperiment' && element.filePath) {
-      const items: ProjectItem[] = [];
+    if (element.type === 'analysisPhaseGroup' && element.filePath) {
+      return buildHypothesisPhaseStepItems(element.filePath);
+    }
 
-      if (fs.existsSync(element.filePath) && fs.statSync(element.filePath).isDirectory()) {
-        const entries = fs.readdirSync(element.filePath);
-
-        // 按优先级查找报告文件：语言特定版本优先于通用版本
-        const reportFiles: { [key: string]: string } = {};
-        for (const entry of entries) {
-          const fullPath = path.join(element.filePath, entry);
-          const stat = fs.statSync(fullPath);
-          if (stat.isFile()) {
-            reportFiles[entry] = fullPath;
-          }
-        }
-
-        // 添加中文 HTML 报告
-        if (reportFiles['report_zh.html']) {
-          const item = new ProjectItem(
-            localize('projectStructure.reportHtmlZh'),
-            vscode.TreeItemCollapsibleState.None,
-            'reportHtml',
-            reportFiles['report_zh.html']
-          );
-          items.push(item);
-        }
-
-        // 添加英文 HTML 报告
-        if (reportFiles['report_en.html']) {
-          const item = new ProjectItem(
-            localize('projectStructure.reportHtmlEn'),
-            vscode.TreeItemCollapsibleState.None,
-            'reportHtml',
-            reportFiles['report_en.html']
-          );
-          items.push(item);
-        }
-
-        // 如果没有语言特定版本，添加通用 HTML 报告
-        if (!reportFiles['report_zh.html'] && !reportFiles['report_en.html'] && reportFiles['report.html']) {
-          const item = new ProjectItem(
-            localize('projectStructure.reportHtml'),
-            vscode.TreeItemCollapsibleState.None,
-            'reportHtml',
-            reportFiles['report.html']
-          );
-          items.push(item);
-        }
-
-        // 添加中文 Markdown 报告
-        if (reportFiles['report_zh.md']) {
-          const item = new ProjectItem(
-            localize('projectStructure.reportMdZh'),
-            vscode.TreeItemCollapsibleState.None,
-            'reportMd',
-            reportFiles['report_zh.md']
-          );
-          item.command = {
-            command: 'markdown.showPreview',
-            title: 'Open Preview',
-            arguments: [vscode.Uri.file(reportFiles['report_zh.md'])]
-          };
-          items.push(item);
-        }
-
-        // 添加英文 Markdown 报告
-        if (reportFiles['report_en.md']) {
-          const item = new ProjectItem(
-            localize('projectStructure.reportMdEn'),
-            vscode.TreeItemCollapsibleState.None,
-            'reportMd',
-            reportFiles['report_en.md']
-          );
-          item.command = {
-            command: 'markdown.showPreview',
-            title: 'Open Preview',
-            arguments: [vscode.Uri.file(reportFiles['report_en.md'])]
-          };
-          items.push(item);
-        }
-
-        // 如果没有语言特定版本，添加通用 Markdown 报告
-        if (!reportFiles['report_zh.md'] && !reportFiles['report_en.md'] && reportFiles['report.md']) {
-          const item = new ProjectItem(
-            localize('projectStructure.reportMd'),
-            vscode.TreeItemCollapsibleState.None,
-            'reportMd',
-            reportFiles['report.md']
-          );
-          item.command = {
-            command: 'markdown.showPreview',
-            title: 'Open Preview',
-            arguments: [vscode.Uri.file(reportFiles['report.md'])]
-          };
-          items.push(item);
-        }
-
-        // 添加 data 目录（分析数据）
-        const dataDir = path.join(element.filePath, 'data');
-        if (fs.existsSync(dataDir)) {
-          const dataItem = new ProjectItem(
-            localize('projectStructure.analysisData'),
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'file',
-            dataDir
-          );
-          dataItem.iconPath = makeThemeIcon('database', 'descriptionForeground');
-          dataItem.resourceUri = undefined;
-          items.push(dataItem);
-        }
-
-        const chartsDir = path.join(element.filePath, 'charts');
-        if (fs.existsSync(chartsDir)) {
-          const chartsItem = new ProjectItem(
-            localize('projectStructure.reportCharts'),
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'file',
-            chartsDir,
-          );
-          chartsItem.tooltip = localize('projectStructure.reportChartsTooltip');
-          chartsItem.iconPath = makeThemeIcon('graph-line', 'charts.blue');
-          chartsItem.resourceUri = undefined;
-          items.push(chartsItem);
-        }
-
-        // 添加 assets 目录（资源）
-        const assetsDir = path.join(element.filePath, 'assets');
-        if (fs.existsSync(assetsDir)) {
-          const assetsItem = new ProjectItem(
-            localize('projectStructure.reportAssets'),
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'file',
-            assetsDir
-          );
-          assetsItem.iconPath = makeThemeIcon('file-media', 'charts.yellow');
-          assetsItem.resourceUri = undefined;
-          items.push(assetsItem);
-        }
-      }
-
-      return items;
+    if (element.type === 'synthesisPhaseGroup' && element.filePath) {
+      const state = readHarnessStateFile(element.filePath);
+      const release = state?.workspace_release;
+      const status =
+        release === 'ready'
+          ? localize('projectStructure.phaseStatus.pass')
+          : localize('projectStructure.phaseStatus.pending');
+      const item = new ProjectItem(
+        localize('projectStructure.analysisPhase.synthesis'),
+        vscode.TreeItemCollapsibleState.None,
+        'analysisPhaseStep'
+      );
+      item.description = status;
+      item.iconPath =
+        release === 'ready'
+          ? new vscode.ThemeIcon('pass-filled', new vscode.ThemeColor('charts.green'))
+          : new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.yellow'));
+      item.tooltip = `${localize('projectStructure.analysisPhase.synthesis')} — ${status}`;
+      assignHarnessStatusCommand(item, element.filePath, 'synthesis', 'synthesis');
+      return [item];
     }
 
 
@@ -2507,9 +2857,82 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       const items: ProjectItem[] = [];
 
       if (fs.existsSync(synthesisDir)) {
-        const entries = fs.readdirSync(synthesisDir);
+        const synthesisStatePath = resolveSynthesisHarnessStatePath(workspacePath);
+        if (synthesisStatePath) {
+          const group = new ProjectItem(
+            localize('projectStructure.synthesisProgress'),
+            vscode.TreeItemCollapsibleState.Collapsed,
+            'synthesisPhaseGroup',
+            synthesisStatePath
+          );
+          group.iconPath = makeThemeIcon('list-tree', 'charts.green');
+          items.push(group);
+        }
 
-        // 分组报告：按基础名称和时间戳分组，支持双语版本
+        const entries = fs.readdirSync(synthesisDir);
+        const shownReportPaths = new Set<string>();
+
+        const synthesisReportFiles = collectSynthesisReportFiles(synthesisDir);
+        for (const spec of REQUIRED_SYNTHESIS_REPORTS) {
+          const p = synthesisReportFiles[spec.fileName];
+          if (p) {
+            shownReportPaths.add(p);
+          }
+        }
+        appendRequiredBilingualReportTreeItems(
+          items,
+          REQUIRED_SYNTHESIS_REPORTS,
+          synthesisReportFiles,
+          synthesisDir
+        );
+
+        const pushLegacySynthesisReportItem = (
+          label: string,
+          filePath: string,
+          kind: 'reportHtml' | 'reportMd'
+        ) => {
+          if (shownReportPaths.has(filePath)) {
+            return;
+          }
+          shownReportPaths.add(filePath);
+          const item = new ProjectItem(
+            label,
+            vscode.TreeItemCollapsibleState.None,
+            kind,
+            filePath
+          );
+          item.tooltip = workspaceRelativeTreeTooltip(workspacePath, filePath);
+          if (kind === 'reportMd') {
+            item.command = {
+              command: 'markdown.showPreview',
+              title: 'Open Preview',
+              arguments: [vscode.Uri.file(filePath)]
+            };
+          } else {
+            item.command = {
+              command: 'aiSocialScientist.openHtmlReport',
+              title: 'Open HTML Report',
+              arguments: [vscode.Uri.file(filePath)]
+            };
+          }
+          items.push(item);
+        };
+
+        const briefPath = path.join(synthesisDir, 'synthesis_brief.json');
+        if (fs.existsSync(briefPath) && fs.statSync(briefPath).isFile()) {
+          items.push(
+            new ProjectItem(
+              'synthesis_brief.json',
+              vscode.TreeItemCollapsibleState.None,
+              'file',
+              briefPath
+            )
+          );
+        }
+
+        appendSynthesisOutputDirs(items, synthesisDir);
+
+        // Legacy 时间戳命名：synthesis_report_YYYYMMDD_HHMMSS_(zh|en).(html|md)
         const reportGroups: { [key: string]: { [lang: string]: string } } = {};
 
         for (const entry of entries) {
@@ -2517,9 +2940,10 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           const stat = fs.statSync(fullPath);
 
           if (stat.isFile() && entry.startsWith('synthesis_report_')) {
-            // 匹配带语言后缀的文件: synthesis_report_YYYYMMDD_HHMMSS_(zh|en).(html|md)
+            if (shownReportPaths.has(fullPath)) {
+              continue;
+            }
             const langMatch = entry.match(/^synthesis_report_([\d_]+)_(zh|en)\.(html|md)$/);
-            // 匹配通用文件: synthesis_report_YYYYMMDD_HHMMSS.(html|md)
             const genericMatch = entry.match(/^synthesis_report_([\d_]+)\.(html|md)$/);
 
             if (langMatch) {
@@ -2557,90 +2981,23 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
           if (isHtml) {
             if (paths.zh) {
-              const item = new ProjectItem(
-                timestamp,
-                vscode.TreeItemCollapsibleState.None,
-                'reportHtml',
-                paths.zh
-              );
-              item.description = localize('projectStructure.synthesisRowDesc.htmlZh');
-              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.zh);
-              items.push(item);
+              pushLegacySynthesisReportItem(timestamp, paths.zh, 'reportHtml');
             }
-
             if (paths.en) {
-              const item = new ProjectItem(
-                timestamp,
-                vscode.TreeItemCollapsibleState.None,
-                'reportHtml',
-                paths.en
-              );
-              item.description = localize('projectStructure.synthesisRowDesc.htmlEn');
-              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.en);
-              items.push(item);
+              pushLegacySynthesisReportItem(timestamp, paths.en, 'reportHtml');
             }
-
             if (!paths.zh && !paths.en && paths.generic) {
-              const item = new ProjectItem(
-                timestamp,
-                vscode.TreeItemCollapsibleState.None,
-                'reportHtml',
-                paths.generic
-              );
-              item.description = localize('projectStructure.synthesisRowDesc.html');
-              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.generic);
-              items.push(item);
+              pushLegacySynthesisReportItem(timestamp, paths.generic, 'reportHtml');
             }
           } else {
             if (paths.zh) {
-              const item = new ProjectItem(
-                timestamp,
-                vscode.TreeItemCollapsibleState.None,
-                'reportMd',
-                paths.zh
-              );
-              item.description = localize('projectStructure.synthesisRowDesc.mdZh');
-              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.zh);
-              item.command = {
-                command: 'markdown.showPreview',
-                title: 'Open Preview',
-                arguments: [vscode.Uri.file(paths.zh)]
-              };
-              items.push(item);
+              pushLegacySynthesisReportItem(timestamp, paths.zh, 'reportMd');
             }
-
             if (paths.en) {
-              const item = new ProjectItem(
-                timestamp,
-                vscode.TreeItemCollapsibleState.None,
-                'reportMd',
-                paths.en
-              );
-              item.description = localize('projectStructure.synthesisRowDesc.mdEn');
-              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.en);
-              item.command = {
-                command: 'markdown.showPreview',
-                title: 'Open Preview',
-                arguments: [vscode.Uri.file(paths.en)]
-              };
-              items.push(item);
+              pushLegacySynthesisReportItem(timestamp, paths.en, 'reportMd');
             }
-
             if (!paths.zh && !paths.en && paths.generic) {
-              const item = new ProjectItem(
-                timestamp,
-                vscode.TreeItemCollapsibleState.None,
-                'reportMd',
-                paths.generic
-              );
-              item.description = localize('projectStructure.synthesisRowDesc.md');
-              item.tooltip = workspaceRelativeTreeTooltip(workspacePath, paths.generic);
-              item.command = {
-                command: 'markdown.showPreview',
-                title: 'Open Preview',
-                arguments: [vscode.Uri.file(paths.generic)]
-              };
-              items.push(item);
+              pushLegacySynthesisReportItem(timestamp, paths.generic, 'reportMd');
             }
           }
         }
@@ -3183,7 +3540,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
   /**
    * Update extension-bundled skills by re-syncing to workspace .claude/skills/
-   * This includes both AgentSociety skills and official Claude Code office skills (pdf, docx, xlsx, pptx).
+   * AgentSociety skills (incl. analysis support under agentsociety-analysis/support/) and Office skills.
    */
   syncBundledClaudeSkillToWorkspace(skillName: string): { success: boolean; message: string } {
     return this.workspaceManager.syncSingleBundledSkill(skillName);
@@ -3237,7 +3594,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         }
       );
 
-      // Step 2: Copy official Claude Code office skills from extension (pdf, docx, xlsx, pptx)
+      // Step 2: Office document skills (pdf, docx, xlsx, pptx)
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -3245,15 +3602,11 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           cancellable: false
         },
         async (progress) => {
-          // Immediately report progress to ensure notification shows up
           progress.report({ increment: 50 });
-
-          // Yield to event loop so progress notification can render
           await new Promise(resolve => setTimeout(resolve, 10));
 
           const officeSkillsResult = await this.workspaceManager.copyOfficialOfficeSkills();
 
-          // Combine results for user message
           const agentSocietyCount = syncResult.synced.length;
           const officeSkillsCount = officeSkillsResult.downloaded.length;
           const totalSkills = agentSocietyCount + officeSkillsCount;
@@ -3265,7 +3618,6 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           ];
 
           if (officeSkillsCount === 0) {
-            // All office skills failed - critical issue
             message = localize('projectStructure.updateSkills.partialIssues');
             message += localize('projectStructure.updateSkills.agentsociety', agentSocietyCount);
             message += localize('projectStructure.updateSkills.officeFailed');
@@ -3276,13 +3628,11 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
               localize('projectStructure.updateSkills.close')
             ];
           } else if (!officeSkillsResult.success && officeSkillsResult.downloaded.length > 0) {
-            // Partial success
             message = localize('projectStructure.updateSkills.partialSuccess');
             message += localize('projectStructure.updateSkills.agentsociety', agentSocietyCount);
             message += localize('projectStructure.updateSkills.partialOffice', officeSkillsCount);
             message += `⚠️ ${officeSkillsResult.message}`;
           } else {
-            // Full success
             message = localize('projectStructure.updateSkills.success');
             message += localize('projectStructure.updateSkills.agentsociety', agentSocietyCount);
             message += localize('projectStructure.updateSkills.office', officeSkillsCount);
@@ -3291,7 +3641,6 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
           progress.report({ increment: 100 });
 
-          // Show final result with action button to view output
           const result = await vscode.window.showInformationMessage(
             message,
             ...buttons
@@ -3299,7 +3648,6 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
           if (result === localize('projectStructure.updateSkills.viewDetails') ||
             result === localize('projectStructure.updateSkills.viewInstructions')) {
-            // Show the Workspace Manager output channel
             this.workspaceManager.showOutput();
           }
 

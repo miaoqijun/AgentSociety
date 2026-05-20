@@ -27,13 +27,22 @@ import io
 import os
 import shutil
 import zipfile
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 
 from agentsociety2.agent.skills import get_skill_registry
+from agentsociety2.backend.path_security import (
+    custom_skills_root,
+    extract_zip_under,
+    require_safe_skill_name,
+    resolve_existing_directory,
+    resolve_path_under_directory,
+    resolve_skill_relative,
+    resolve_under_root,
+    skill_install_dir,
+)
 from agentsociety2.logger import get_logger
 
 logger = get_logger()
@@ -102,14 +111,29 @@ class SimpleResponse(BaseModel):
     message: str
 
 
+def _skill_has_skill_md(path_str: str) -> bool:
+    try:
+        root = resolve_existing_directory(path_str)
+    except HTTPException:
+        return False
+    return resolve_under_root(root, "SKILL.md").is_file()
+
+
+def _require_workspace(workspace_path: str | None) -> str:
+    workspace = workspace_path or os.getenv("WORKSPACE_PATH")
+    if not workspace:
+        raise HTTPException(
+            400, "workspace_path not provided and WORKSPACE_PATH not set"
+        )
+    return workspace
+
+
 # ── API 端点 ──
 
 
 @router.get("/list", response_model=ListResponse)
 async def list_skills():
     """列出所有已发现的 Agent Skill（builtin + custom + env）。"""
-    from pathlib import Path as PathLib
-
     reg = get_skill_registry()
     _ensure_custom_scanned(reg)
     _ensure_env_skills_scanned(reg)
@@ -121,7 +145,7 @@ async def list_skills():
             source=s.source,
             enabled=s.enabled,
             path=s.path,
-            has_skill_md=(PathLib(s.path) / "SKILL.md").exists(),
+            has_skill_md=_skill_has_skill_md(s.path),
             script=s.script,
         )
         for s in reg.list_all()
@@ -157,12 +181,7 @@ async def disable_skill(req: NameRequest):
 @router.post("/scan", response_model=ScanResponse)
 async def scan_custom_skills(req: ScanRequest):
     """扫描工作区的自定义 Agent Skill（{workspace}/custom/skills/）。"""
-    workspace = req.workspace_path or os.getenv("WORKSPACE_PATH")
-    if not workspace:
-        raise HTTPException(
-            400, "workspace_path not provided and WORKSPACE_PATH not set"
-        )
-
+    workspace = _require_workspace(req.workspace_path)
     reg = get_skill_registry()
     new_names = reg.scan_custom(workspace)
 
@@ -177,22 +196,17 @@ async def scan_custom_skills(req: ScanRequest):
 @router.post("/import", response_model=ImportResponse)
 async def import_skill(req: ImportRequest):
     """从外部路径导入 Agent Skill（复制到 custom/skills/）。"""
-    source = Path(req.source_path)
-    if not source.is_dir():
-        raise HTTPException(400, f"Source path is not a directory: {source}")
-
-    if not (source / "SKILL.md").exists() and not (source / "scripts").is_dir():
+    source = resolve_existing_directory(req.source_path)
+    skill_md = resolve_under_root(source, "SKILL.md")
+    scripts_dir = resolve_under_root(source, "scripts")
+    if not skill_md.is_file() and not scripts_dir.is_dir():
         raise HTTPException(
             400, "Directory does not look like a skill (missing SKILL.md and scripts/)"
         )
 
-    workspace = req.workspace_path or os.getenv("WORKSPACE_PATH")
-    if not workspace:
-        raise HTTPException(
-            400, "workspace_path not provided and WORKSPACE_PATH not set"
-        )
-
-    dest = Path(workspace) / "custom" / "skills" / source.name
+    workspace = _require_workspace(req.workspace_path)
+    skill_name = require_safe_skill_name(source.name)
+    dest = skill_install_dir(workspace, skill_name)
     if dest.exists():
         shutil.rmtree(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -201,11 +215,11 @@ async def import_skill(req: ImportRequest):
     reg = get_skill_registry()
     reg.scan_custom(workspace)
 
-    logger.info(f"[Skills] Imported skill '{source.name}' from {source} → {dest}")
+    logger.info(f"[Skills] Imported skill '{skill_name}' from {source} → {dest}")
     return ImportResponse(
         success=True,
-        name=source.name,
-        message=f"Skill '{source.name}' imported to {dest}",
+        name=skill_name,
+        message=f"Skill '{skill_name}' imported to {dest}",
     )
 
 
@@ -215,17 +229,13 @@ async def create_skill(req: CreateRequest):
 
     在 custom/skills/{name}/ 下生成 SKILL.md（+ 可选脚本文件）。
     """
-    workspace = req.workspace_path or os.getenv("WORKSPACE_PATH")
-    if not workspace:
-        raise HTTPException(
-            400, "workspace_path not provided and WORKSPACE_PATH not set"
-        )
+    workspace = _require_workspace(req.workspace_path)
 
-    safe_name = req.name.strip().replace("/", "_").replace("\\", "_").replace("..", "_")
-    if not safe_name:
-        raise HTTPException(400, "Invalid skill name")
+    safe_name = require_safe_skill_name(
+        req.name.strip().replace("/", "_").replace("\\", "_").replace("..", "_")
+    )
 
-    dest = Path(workspace) / "custom" / "skills" / safe_name
+    dest = skill_install_dir(workspace, safe_name)
     if dest.exists():
         raise HTTPException(
             400,
@@ -233,7 +243,6 @@ async def create_skill(req: CreateRequest):
         )
     dest.mkdir(parents=True, exist_ok=True)
 
-    # 生成 SKILL.md
     frontmatter_lines = ["---", f"name: {safe_name}", f"description: {req.description}"]
     if req.script:
         frontmatter_lines.append(f"script: {req.script}")
@@ -241,11 +250,10 @@ async def create_skill(req: CreateRequest):
 
     body = req.body.strip() or f"# {safe_name}\n\nCustom skill."
     skill_md_content = "\n".join(frontmatter_lines) + "\n\n" + body + "\n"
-    (dest / "SKILL.md").write_text(skill_md_content, encoding="utf-8")
+    resolve_under_root(dest, "SKILL.md").write_text(skill_md_content, encoding="utf-8")
 
-    # 写脚本文件
     if req.script and req.script_content:
-        script_path = dest / req.script
+        script_path = resolve_skill_relative(dest, req.script)
         script_path.parent.mkdir(parents=True, exist_ok=True)
         script_path.write_text(req.script_content, encoding="utf-8")
 
@@ -267,11 +275,7 @@ async def upload_skill(
 
     zip 包应包含一个顶层目录，内含 SKILL.md。
     """
-    workspace = workspace_path or os.getenv("WORKSPACE_PATH")
-    if not workspace:
-        raise HTTPException(
-            400, "workspace_path not provided and WORKSPACE_PATH not set"
-        )
+    workspace = _require_workspace(workspace_path)
 
     data = await file.read()
     try:
@@ -279,11 +283,10 @@ async def upload_skill(
     except zipfile.BadZipFile as e:
         raise HTTPException(400, "Invalid zip file") from e
 
-    # 找到顶层目录名
     top_dirs = {n.split("/")[0] for n in zf.namelist() if "/" in n}
     if len(top_dirs) != 1:
         raise HTTPException(400, "Zip should contain exactly one top-level directory")
-    skill_dir_name = top_dirs.pop()
+    skill_dir_name = require_safe_skill_name(top_dirs.pop())
 
     has_skill_md = any(
         n == f"{skill_dir_name}/SKILL.md" or n.endswith("/SKILL.md")
@@ -292,11 +295,11 @@ async def upload_skill(
     if not has_skill_md:
         raise HTTPException(400, "Zip does not contain a SKILL.md file")
 
-    dest = Path(workspace) / "custom" / "skills" / skill_dir_name
+    skills_dir = custom_skills_root(workspace)
+    dest = skill_install_dir(workspace, skill_dir_name)
     if dest.exists():
         shutil.rmtree(dest)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    zf.extractall(str(Path(workspace) / "custom" / "skills"))
+    extract_zip_under(skills_dir, zf)
     zf.close()
 
     reg = get_skill_registry()
@@ -353,7 +356,8 @@ async def remove_custom_skill(req: NameRequest):
     if info.source != "custom":
         raise HTTPException(400, f"Cannot remove builtin skill '{req.name}'")
 
-    skill_path = Path(info.path)
+    workspace = _require_workspace(None)
+    skill_path = resolve_path_under_directory(custom_skills_root(workspace), info.path)
     if skill_path.exists():
         shutil.rmtree(skill_path)
 

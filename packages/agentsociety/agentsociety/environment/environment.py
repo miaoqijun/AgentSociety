@@ -638,9 +638,9 @@ class EnvironmentStarter(Environment):
         if self._s3config.enabled:
             client = S3Client(self._s3config)
             map_bytes = client.download(self._map_config.file_path)
-            file_path = tempfile.mktemp()
-            with open(file_path, "wb") as f:
-                f.write(map_bytes)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".map") as tmp:
+                tmp.write(map_bytes)
+                file_path = tmp.name
 
         config_base64 = encode_to_base64(_generate_yaml_config(file_path))
         self._server_addr = f"localhost:{sim_port}"
@@ -705,15 +705,16 @@ class EnvironmentStarter(Environment):
         - **Returns**:
             - `List[Tuple[str, float, int]]`: A list of tuples, each containing the metric name, value, and step.
         """
-        if self._last_metric_tick + self._environment_config.metric_interval > self._tick:
+        if (
+            self._last_metric_tick + self._environment_config.metric_interval
+            > self._tick
+        ):
             return []
 
         # Add mobility metrics
         # 1. cumulative travel distance
         # 2. cumulative number of trips
-        stat = await self._city_client.person_service.GetGlobalStatistics(
-            {}, True
-        )
+        stat = await self._city_client.person_service.GetGlobalStatistics({}, True)
         num_completed_trips = stat["num_completed_trips"]
         total_travel_time = stat["running_total_travel_time"]
         total_travel_distance = stat["running_total_travel_distance"]

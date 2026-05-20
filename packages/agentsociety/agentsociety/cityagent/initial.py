@@ -89,16 +89,25 @@ async def bind_agent_info(simulation: AgentSociety):
         nbs_ids = await simulation.filter(types=(NBSAgent,))
     except Exception:
         nbs_ids = []
-    if len(firm_ids) == 0 or len(government_ids) == 0 or len(bank_ids) == 0 or len(nbs_ids) == 0:
-        get_logger().warning("No firm, government, bank or NBS found, skipping economy binding")
+    if (
+        len(firm_ids) == 0
+        or len(government_ids) == 0
+        or len(bank_ids) == 0
+        or len(nbs_ids) == 0
+    ):
+        get_logger().warning(
+            "No firm, government, bank or NBS found, skipping economy binding"
+        )
         return
     random.shuffle(citizen_ids)
     employee_sizes = zipf_distribution(len(citizen_ids), len(firm_ids))
 
     orig_citizen_ids = deepcopy(citizen_ids)
-    get_logger().debug(f"citizen_ids: {citizen_ids}")
-    get_logger().debug(f"firm_ids: {firm_ids}")
-    get_logger().debug(f"employee_sizes: {employee_sizes}")
+    get_logger().debug(
+        "economy binding: citizens=%d firms=%d",
+        len(citizen_ids),
+        len(firm_ids),
+    )
     for firm_id, size in zip(firm_ids, employee_sizes):
         await simulation.economy_update(firm_id, "employees", citizen_ids[:size])
         await simulation.update(citizen_ids[:size], "firm_id", firm_id)
@@ -108,7 +117,7 @@ async def bind_agent_info(simulation: AgentSociety):
         "firm_id",
         orig_citizen_ids,
     )
-    get_logger().debug(f"Gathered firm_ids: {gathered_firm_ids}")
+    get_logger().debug("Gathered firm assignments: %d", len(gathered_firm_ids))
     for government_id in government_ids:
         await simulation.economy_update(government_id, "citizen_ids", citizen_ids)
     for bank_id in bank_ids:

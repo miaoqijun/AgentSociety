@@ -42,6 +42,7 @@ import { StepsViewer } from './stepsViewer';
 import { PidStatusViewer } from './pidStatusViewer';
 import { JsonViewer } from './jsonViewer';
 import { YamlViewer } from './yamlViewer';
+import { AnalysisHarnessStatusViewer } from './analysisHarnessStatusViewer';
 import { CsvViewer } from './csvViewer';
 import { hasConfiguredLlmApiKey, migrateLegacySettingsToEnv } from './runtimeConfig';
 import { SkillMarketplacePanel } from './skillMarketplaceProvider';
@@ -333,6 +334,23 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.window.showTextDocument(fileUri);
       } catch (error: any) {
         vscode.window.showErrorMessage(localize('extension.openMarkdown.failed'));
+      }
+    }
+  );
+
+  const openHtmlReportCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.openHtmlReport',
+    async (uri: vscode.Uri) => {
+      if (!uri) {
+        return;
+      }
+      try {
+        await vscode.commands.executeCommand(
+          'livePreview.start.preview.atFile',
+          uri
+        );
+      } catch {
+        await vscode.commands.executeCommand('vscode.open', uri);
       }
     }
   );
@@ -1074,6 +1092,21 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const viewAnalysisHarnessStatusCommand = vscode.commands.registerCommand(
+    'aiSocialScientist.viewAnalysisHarnessStatus',
+    async (args: { statePath?: string; scope?: 'hypothesis' | 'synthesis'; focusPhase?: string }) => {
+      if (!args?.statePath) {
+        vscode.window.showErrorMessage(localize('extension.noFilePath'));
+        return;
+      }
+      await AnalysisHarnessStatusViewer.show({
+        statePath: args.statePath,
+        scope: args.scope || 'hypothesis',
+        focusPhase: args.focusPhase,
+      });
+    }
+  );
+
   const viewCsvFileCommand = vscode.commands.registerCommand(
     'aiSocialScientist.viewCsvFile',
     async (filePathOrItem: string | any) => {
@@ -1133,6 +1166,7 @@ export function activate(context: vscode.ExtensionContext) {
     deleteLiteratureCommand,
     renameLiteratureCommand,
     openMarkdownInEditorCommand,
+    openHtmlReportCommand,
     openTreeFileInEditorCommand,
     openChatCommand,
     selectAiChatCommand,
@@ -1168,6 +1202,7 @@ export function activate(context: vscode.ExtensionContext) {
     viewPidStatusCommand,
     viewJsonFileCommand,
     viewYamlFileCommand,
+    viewAnalysisHarnessStatusCommand,
     viewCsvFileCommand,
     openInExplorerCommand,
     copyFileNameCommand,

@@ -18,7 +18,7 @@ SQLite query or aggregation rule, and a final report reference.
 
 - Define the analysis question and finding before choosing a chart form.
 - Define the evidence source before writing plotting code.
-- Keep a single-experiment analysis to at most 5 charts by default.
+- Charts are driven by claims and contracts, not a fixed count (optional `max_charts` cap in harness state).
 - Build composite figures from atomic charts first, then assemble them with `compose-figure`.
 - Keep output directories, naming rules, report assets, and `artifact_manifest.json` aligned.
 
@@ -42,6 +42,7 @@ agentsociety-analysis/
 ├── manifest.json
 └── v1.0.0/
     ├── SKILL.md
+    ├── support/          # bundled report/UI helpers (e.g. frontend-design)
     ├── assets/
     │   └── layout-atlas/
     ├── checklists/

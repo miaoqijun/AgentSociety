@@ -15,7 +15,7 @@ def find_free_ports(num_ports: int = 1) -> List[int]:
 
     for _ in range(num_ports):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(("", 0))
+        s.bind(("127.0.0.1", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         ports.append(s.getsockname()[1])
         sockets.append(s)
@@ -24,15 +24,17 @@ def find_free_ports(num_ports: int = 1) -> List[int]:
     return ports
 
 
-def wait_for_port(host: str, port: int, timeout: float = 30.0, check_interval: float = 0.5) -> bool:
+def wait_for_port(
+    host: str, port: int, timeout: float = 30.0, check_interval: float = 0.5
+) -> bool:
     """
     Wait for a port to become available (listening).
-    
+
     :param host: The host to check (e.g., "localhost" or "127.0.0.1")
     :param port: The port number to check
     :param timeout: Maximum time to wait in seconds (default: 30.0)
     :param check_interval: Time between checks in seconds (default: 0.5)
-    
+
     :returns: True if the port becomes available within the timeout, False otherwise
     """
     start_time = time.time()

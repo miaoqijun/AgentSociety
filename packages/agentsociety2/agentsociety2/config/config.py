@@ -56,11 +56,15 @@ def _disable_mem0_capture_event() -> None:
 _disable_mem0_capture_event()
 
 
+def _router_model_names(model_list: list[dict[str, Any]]) -> list[str]:
+    return [str(entry.get("model_name", "")) for entry in model_list]
+
+
 def _redact_router_config_for_log(obj: Any) -> Any:
     if isinstance(obj, dict):
         out: dict[str, Any] = {}
         for k, v in obj.items():
-            if k == "api_key" and isinstance(v, str) and v:
+            if k in ("api_key", "api_base") and isinstance(v, str) and v:
                 out[k] = (v[:4] + "…") if len(v) > 4 else "****"
             else:
                 out[k] = _redact_router_config_for_log(v)
@@ -428,12 +432,7 @@ class Config:
             # Configure fallback chain: analysis -> default -> nano
             fallbacks = [{analysis_model: [default_model, nano_model]}]
 
-            logger.debug(
-                "Model list for analysis (with fallbacks): %s",
-                _redact_router_config_for_log(model_list),
-            )
-            logger.debug("Fallbacks: %s", fallbacks)
-
+            logger.debug("Analysis router models: %s", _router_model_names(model_list))
             return Router(
                 model_list=model_list,
                 fallbacks=fallbacks,
@@ -502,12 +501,7 @@ class Config:
             # fallbacks should be a list of dicts, where each dict maps primary model to fallback models
             fallbacks = [{coder_model: [default_model, nano_model]}]
 
-            logger.debug(
-                "Model list for coder (with fallbacks): %s",
-                _redact_router_config_for_log(model_list),
-            )
-            logger.debug("Fallbacks: %s", fallbacks)
-
+            logger.debug("Coder router models: %s", _router_model_names(model_list))
             return Router(
                 model_list=model_list,
                 fallbacks=fallbacks,
@@ -558,12 +552,7 @@ class Config:
             # Configure fallback chain: default -> nano
             fallbacks = [{default_model: [nano_model]}]
 
-            logger.debug(
-                "Model list for default (with fallbacks): %s",
-                _redact_router_config_for_log(model_list),
-            )
-            logger.debug("Fallbacks: %s", fallbacks)
-
+            logger.debug("Default router models: %s", _router_model_names(model_list))
             return Router(
                 model_list=model_list,
                 fallbacks=fallbacks,
@@ -591,10 +580,7 @@ class Config:
                     },
                 },
             ]
-            logger.info("Nano LLM configured: model=%s api_base=%s", model, api_base)
-            logger.debug(
-                "Nano model_list: %s", _redact_router_config_for_log(model_list)
-            )
+            logger.info("Nano LLM configured: model=%s", model)
             return Router(
                 model_list=model_list,
                 cache_responses=True,

@@ -56,6 +56,7 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
 
   const handlePresetChange = (presetId: string) => {
     if (presetId === CUSTOM_BASE_URL_PRESET) {
+      form.setFieldValue('baseUrl', '');
       return;
     }
     const preset = CLAUDE_BASE_URL_PRESETS.find((item) => item.id === presetId);
@@ -63,6 +64,11 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
       form.setFieldValue('baseUrl', preset.url);
     }
   };
+
+  const baseUrlPlaceholder =
+    matchedPresetId === CUSTOM_BASE_URL_PRESET
+      ? t('claudeCodeConfig.baseUrlCustomPlaceholder')
+      : t('claudeCodeConfig.baseUrlPresetPlaceholder');
 
   return (
     <div style={tabBodyStyle}>
@@ -106,7 +112,7 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
           label={
             <Space size={4}>
               <span>API Key</span>
-              <Tooltip title="ANTHROPIC_API_KEY">
+              <Tooltip title="ANTHROPIC_AUTH_TOKEN">
                 <QuestionCircleOutlined style={{ color: palette.descriptionForeground, fontSize: 12 }} />
               </Tooltip>
             </Space>
@@ -142,7 +148,7 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
               rules={[{ required: true, message: t('claudeCodeConfig.baseUrlRequired') }]}
               style={{ flex: 1, minWidth: 0 }}
             >
-              <Input placeholder={t('claudeCodeConfig.baseUrlPlaceholder')} />
+              <Input placeholder={baseUrlPlaceholder} />
             </Form.Item>
           </Space.Compact>
         </Form.Item>

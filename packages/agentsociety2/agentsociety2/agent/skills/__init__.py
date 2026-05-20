@@ -180,7 +180,9 @@ class SkillRegistry:
         :param workspace_path: Root path containing ``custom/skills/`` directory.
         :returns: List of skill names that were added.
         """
-        custom_root = Path(workspace_path) / "custom" / "skills"
+        from agentsociety2.backend.path_security import custom_skills_root
+
+        custom_root = custom_skills_root(str(workspace_path))
         if not custom_root.is_dir():
             return []
         new_names: list[str] = []
@@ -503,9 +505,7 @@ def _script_from_meta_or_convention(
         root = skill_root.resolve()
         if candidate.is_file() and (candidate == root or root in candidate.parents):
             return raw.replace("\\", "/")
-        logger.warning(
-            "Ignoring invalid script path for skill '%s': %s", name, raw
-        )
+        logger.warning("Ignoring invalid script path for skill '%s': %s", name, raw)
     conventional = skill_root / "scripts" / f"{name}.py"
     if conventional.is_file():
         return f"scripts/{name}.py"

@@ -4,13 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import MetaData, Table, inspect as sa_inspect, text
+from sqlalchemy import (
+    MetaData,
+    Table,
+    and_,
+    asc,
+    desc,
+    func,
+    inspect as sa_inspect,
+    select,
+    text,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 from agentsociety2.storage.replay_metadata import (
     COLUMN_CATALOG_TABLE,
@@ -22,10 +34,13 @@ _REQUEST_REFLECTION_CACHE_KEY = "__replay_reflected_tables"
 _PROCESS_CACHE_LOCK = asyncio.Lock()
 _DATASET_CATALOG_CACHE: dict[tuple[str, int], List[Dict[str, Any]]] = {}
 _REFLECTED_TABLE_CACHE: dict[tuple[str, int, str], Table] = {}
+_SQL_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
-def _quote_identifier(name: str) -> str:
-    return '"' + name.replace('"', '""') + '"'
+def _assert_sql_identifier(name: str) -> str:
+    if not _SQL_IDENTIFIER_RE.fullmatch(name):
+        raise HTTPException(status_code=500, detail=f"Invalid SQL identifier: {name}")
+    return name
 
 
 def _loads_json(raw: Any, default: Any) -> Any:
@@ -55,11 +70,12 @@ def _get_session_db_cache_key(session: AsyncSession) -> tuple[str, int]:
 
     mtime_ns = session.info.get("replay_db_mtime_ns")
     if mtime_ns is None:
-        try:
-            mtime_ns = Path(str(db_path)).stat().st_mtime_ns
-        except FileNotFoundError:
+        resolved_db = Path(db_path).resolve()
+        if not resolved_db.is_file():
             mtime_ns = 0
-    return (str(db_path), int(mtime_ns))
+        else:
+            mtime_ns = resolved_db.stat().st_mtime_ns
+    return (str(Path(db_path).resolve()), int(mtime_ns))
 
 
 def _get_column_map(dataset: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -83,7 +99,9 @@ def _normalize_dataset_value(column: Optional[Dict[str, Any]], value: Any) -> An
     return jsonable_encoder(value)
 
 
-def normalize_dataset_row(dataset: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_dataset_row(
+    dataset: Dict[str, Any], row: Dict[str, Any]
+) -> Dict[str, Any]:
     """Normalize a raw dataset row into a JSON-safe dict."""
 
     column_map = _get_column_map(dataset)
@@ -141,7 +159,8 @@ def _validate_order_columns(
     return order_columns
 
 
-def _build_filter_clauses(
+def _build_filter_criteria(
+    table: Table,
     dataset: Dict[str, Any],
     *,
     step: Optional[int] = None,
@@ -149,12 +168,11 @@ def _build_filter_clauses(
     start_step: Optional[int] = None,
     end_step: Optional[int] = None,
     max_step: Optional[int] = None,
-) -> tuple[List[str], Dict[str, Any]]:
+) -> list[Any]:
     available = set(_get_column_names(dataset))
     step_key = dataset.get("step_key")
     entity_key = dataset.get("entity_key")
-    clauses: List[str] = []
-    params: Dict[str, Any] = {}
+    criteria: list[Any] = []
 
     if entity_id is not None:
         if not entity_key or entity_key not in available:
@@ -162,8 +180,7 @@ def _build_filter_clauses(
                 status_code=400,
                 detail=f"Dataset '{dataset['dataset_id']}' does not support entity_id filtering",
             )
-        clauses.append(f"{_quote_identifier(entity_key)} = :entity_id")
-        params["entity_id"] = entity_id
+        criteria.append(table.c[entity_key] == entity_id)
 
     if step is not None:
         if not step_key or step_key not in available:
@@ -171,9 +188,8 @@ def _build_filter_clauses(
                 status_code=400,
                 detail=f"Dataset '{dataset['dataset_id']}' does not support step filtering",
             )
-        clauses.append(f"{_quote_identifier(step_key)} = :step")
-        params["step"] = step
-        return clauses, params
+        criteria.append(table.c[step_key] == step)
+        return criteria
 
     if start_step is not None:
         if not step_key or step_key not in available:
@@ -181,8 +197,7 @@ def _build_filter_clauses(
                 status_code=400,
                 detail=f"Dataset '{dataset['dataset_id']}' does not support step filtering",
             )
-        clauses.append(f"{_quote_identifier(step_key)} >= :start_step")
-        params["start_step"] = start_step
+        criteria.append(table.c[step_key] >= start_step)
 
     if end_step is not None:
         if not step_key or step_key not in available:
@@ -190,8 +205,7 @@ def _build_filter_clauses(
                 status_code=400,
                 detail=f"Dataset '{dataset['dataset_id']}' does not support step filtering",
             )
-        clauses.append(f"{_quote_identifier(step_key)} <= :end_step")
-        params["end_step"] = end_step
+        criteria.append(table.c[step_key] <= end_step)
 
     if max_step is not None:
         if not step_key or step_key not in available:
@@ -199,24 +213,23 @@ def _build_filter_clauses(
                 status_code=400,
                 detail=f"Dataset '{dataset['dataset_id']}' does not support step filtering",
             )
-        clauses.append(f"{_quote_identifier(step_key)} <= :max_step")
-        params["max_step"] = max_step
+        criteria.append(table.c[step_key] <= max_step)
 
-    return clauses, params
+    return criteria
 
 
-def _build_select_sql(
+async def _build_dataset_select(
+    session: AsyncSession,
     dataset: Dict[str, Any],
     *,
     selected_columns: List[str],
-    where_clauses: List[str],
+    criteria: list[Any],
     order_by: Optional[str],
-    desc: bool,
+    desc_order: bool,
     latest_per_entity: bool,
-) -> tuple[str, str, Dict[str, Any]]:
-    quoted_name = _quote_identifier(dataset["table_name"])
-    select_columns_sql = ", ".join(_quote_identifier(column) for column in selected_columns)
-    where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+) -> Select:
+    table = await reflect_dataset_table(session, dataset)
+    cols = [table.c[column] for column in selected_columns]
     order_columns = _validate_order_columns(dataset, order_by)
     entity_key = dataset.get("entity_key")
     step_key = dataset.get("step_key")
@@ -229,24 +242,30 @@ def _build_select_sql(
                     f"Dataset '{dataset['dataset_id']}' does not support latest_per_entity"
                 ),
             )
-        inner_sql = (
-            f"SELECT {select_columns_sql}, "
-            f"ROW_NUMBER() OVER (PARTITION BY {_quote_identifier(entity_key)} "
-            f"ORDER BY {_quote_identifier(step_key)} DESC) AS __row_num "
-            f"FROM {quoted_name}{where_sql}"
+        row_num = (
+            func.row_number()
+            .over(
+                partition_by=table.c[entity_key],
+                order_by=desc(table.c[step_key]),
+            )
+            .label("__row_num")
         )
-        from_sql = f"FROM ({inner_sql}) AS filtered WHERE __row_num = 1"
-        order_sql = (
-            f" ORDER BY {_quote_identifier(entity_key)} {'DESC' if desc else 'ASC'}"
-        )
-        return select_columns_sql, from_sql, {"order_sql": order_sql}
+        inner_stmt = select(*cols, row_num)
+        if criteria:
+            inner_stmt = inner_stmt.where(and_(*criteria))
+        inner = inner_stmt.subquery("filtered")
+        projected = [inner.c[column] for column in selected_columns]
+        stmt = select(*projected).where(inner.c.__row_num == 1)
+        order_col = inner.c[entity_key]
+        return stmt.order_by(desc(order_col) if desc_order else asc(order_col))
 
-    order_sql = ", ".join(
-        f"{_quote_identifier(column)} {'DESC' if desc else 'ASC'}"
-        for column in order_columns
-    )
-    from_sql = f"FROM {quoted_name}{where_sql}"
-    return select_columns_sql, from_sql, {"order_sql": f" ORDER BY {order_sql}"}
+    stmt = select(*cols)
+    if criteria:
+        stmt = stmt.where(and_(*criteria))
+    for column_name in order_columns:
+        column_expr = table.c[column_name]
+        stmt = stmt.order_by(desc(column_expr) if desc_order else asc(column_expr))
+    return stmt
 
 
 async def ensure_replay_catalog_exists(session: AsyncSession) -> None:
@@ -353,8 +372,10 @@ async def find_dataset_by_capability(
     return matches[0]
 
 
-async def reflect_dataset_table(session: AsyncSession, dataset: Dict[str, Any]) -> Table:
-    table_name = dataset["table_name"]
+async def reflect_dataset_table(
+    session: AsyncSession, dataset: Dict[str, Any]
+) -> Table:
+    table_name = _assert_sql_identifier(str(dataset["table_name"]))
     request_cache = session.info.setdefault(_REQUEST_REFLECTION_CACHE_KEY, {})
     if table_name in request_cache:
         return request_cache[table_name]
@@ -396,7 +417,9 @@ async def fetch_dataset_rows(
     """Fetch dataset rows with metadata-driven filtering and JSON-safe values."""
 
     selected_columns = _validate_selected_columns(dataset, columns)
-    where_clauses, params = _build_filter_clauses(
+    table = await reflect_dataset_table(session, dataset)
+    criteria = _build_filter_criteria(
+        table,
         dataset,
         step=step,
         entity_id=entity_id,
@@ -404,30 +427,26 @@ async def fetch_dataset_rows(
         end_step=end_step,
         max_step=max_step,
     )
-    select_columns_sql, from_sql, extras = _build_select_sql(
+    stmt = await _build_dataset_select(
+        session,
         dataset,
         selected_columns=selected_columns,
-        where_clauses=where_clauses,
+        criteria=criteria,
         order_by=order_by,
-        desc=desc,
+        desc_order=desc,
         latest_per_entity=latest_per_entity,
     )
-
-    sql = f"SELECT {select_columns_sql} {from_sql}{extras['order_sql']}"
-    query_params = dict(params)
     if limit is not None:
-        sql += " LIMIT :limit"
-        query_params["limit"] = limit
+        stmt = stmt.limit(limit)
         if offset:
-            sql += " OFFSET :offset"
-            query_params["offset"] = offset
+            stmt = stmt.offset(offset)
     elif offset:
         raise HTTPException(
             status_code=400,
             detail="offset requires a finite limit",
         )
 
-    result = await session.execute(text(sql), query_params)
+    result = await session.execute(stmt)
     rows = [normalize_dataset_row(dataset, dict(row._mapping)) for row in result.all()]
     return {
         "columns": selected_columns,
@@ -449,7 +468,9 @@ async def count_dataset_rows(
     """Count dataset rows using the same filtering semantics as fetch_dataset_rows."""
 
     selected_columns = _validate_selected_columns(dataset, None)
-    where_clauses, params = _build_filter_clauses(
+    table = await reflect_dataset_table(session, dataset)
+    criteria = _build_filter_criteria(
+        table,
         dataset,
         step=step,
         entity_id=entity_id,
@@ -457,15 +478,24 @@ async def count_dataset_rows(
         end_step=end_step,
         max_step=max_step,
     )
-    _, from_sql, _ = _build_select_sql(
-        dataset,
-        selected_columns=selected_columns,
-        where_clauses=where_clauses,
-        order_by=None,
-        desc=False,
-        latest_per_entity=latest_per_entity,
-    )
-    result = await session.execute(text(f"SELECT COUNT(*) {from_sql}"), params)
+    if latest_per_entity:
+        latest_stmt = await _build_dataset_select(
+            session,
+            dataset,
+            selected_columns=selected_columns,
+            criteria=criteria,
+            order_by=None,
+            desc_order=False,
+            latest_per_entity=True,
+        )
+        count_stmt = select(func.count()).select_from(
+            latest_stmt.subquery("latest_rows")
+        )
+    else:
+        count_stmt = select(func.count()).select_from(table)
+        if criteria:
+            count_stmt = count_stmt.where(and_(*criteria))
+    result = await session.execute(count_stmt)
     return int(result.scalar() or 0)
 
 

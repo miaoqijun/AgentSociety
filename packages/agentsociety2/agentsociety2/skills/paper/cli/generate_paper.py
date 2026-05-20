@@ -174,13 +174,26 @@ def _emit(payload: Dict[str, Any]) -> None:
 
 def _ok(envelope_kwargs: Optional[Dict[str, Any]] = None, **payload: Any) -> int:
     env = _envelope.build_envelope("DONE", **(envelope_kwargs or {}))
-    _emit({"success": True, "envelope": json.loads(_envelope.envelope_to_json(env)), **payload})
+    _emit(
+        {
+            "success": True,
+            "envelope": json.loads(_envelope.envelope_to_json(env)),
+            **payload,
+        }
+    )
     return 0
 
 
 def _error(message: str, *, status: str = "BLOCKED", **payload: Any) -> int:
     env = _envelope.build_envelope(status, blocking_reason=message, severity="fatal")
-    _emit({"success": False, "error": message, "envelope": json.loads(_envelope.envelope_to_json(env)), **payload})
+    _emit(
+        {
+            "success": False,
+            "error": message,
+            "envelope": json.loads(_envelope.envelope_to_json(env)),
+            **payload,
+        }
+    )
     return 1
 
 
@@ -191,7 +204,14 @@ def _missing_prereq(message: str, **payload: Any) -> int:
         recommended_next_step=payload.get("recommended_next_step"),
         severity="warning",
     )
-    _emit({"success": False, "error": message, "envelope": json.loads(_envelope.envelope_to_json(env)), **payload})
+    _emit(
+        {
+            "success": False,
+            "error": message,
+            "envelope": json.loads(_envelope.envelope_to_json(env)),
+            **payload,
+        }
+    )
     return 2
 
 
@@ -359,7 +379,9 @@ def cmd_intake(args: argparse.Namespace) -> int:
     return _ok(
         {
             "artifacts_written": [str(_paper_paths.paper_state_path(workspace))],
-            "key_findings": [f"paper_state initialized at phase={state.current_phase.value}"],
+            "key_findings": [
+                f"paper_state initialized at phase={state.current_phase.value}"
+            ],
             "recommended_next_step": "run `paper-orchestrator build-pack` (paper-adapter)",
         },
         current_phase=state.current_phase.value,
@@ -371,6 +393,27 @@ def cmd_intake(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _require_analysis_synthesis_gate(workspace: Path) -> Optional[int]:
+    pres_root = workspace / "presentation"
+    if not pres_root.is_dir() or not any(
+        d.is_dir() and d.name.startswith("hypothesis_") for d in pres_root.iterdir()
+    ):
+        return None
+    from agentsociety2.skills.analysis.harness import cli as analysis_harness
+
+    gate = analysis_harness.cmd_validate_synthesis(workspace)
+    if gate.get("status") == "PASS":
+        return None
+    return _missing_prereq(
+        "analysis synthesis gate not passed (validate-synthesis)",
+        recommended_next_step=(
+            "Complete agentsociety-analysis Stage 6, then run "
+            "`ags.py analysis validate-synthesis --workspace .`"
+        ),
+        analysis_gate=gate,
+    )
+
+
 @_workspace_command
 def cmd_build_pack(args: argparse.Namespace) -> int:
     workspace = _resolve_workspace(args.workspace)
@@ -379,6 +422,9 @@ def cmd_build_pack(args: argparse.Namespace) -> int:
             "paper_state.yaml missing; run `paper-orchestrator intake` first.",
             recommended_next_step="paper-orchestrator intake --workspace .",
         )
+    analysis_block = _require_analysis_synthesis_gate(workspace)
+    if analysis_block is not None:
+        return analysis_block
     try:
         previous_pack = _existing_research_pack_for_workspace(workspace)
         pack = _adapter_research_pack_builder.build_research_pack(
@@ -388,7 +434,9 @@ def cmd_build_pack(args: argparse.Namespace) -> int:
         pack = _state.research_pack.refresh_reference_pool(pack, previous_pack)
         _state.research_pack.save(workspace, pack)
     except Exception as exc:
-        return _error(f"failed to build research pack: {exc}", traceback=traceback.format_exc())
+        return _error(
+            f"failed to build research pack: {exc}", traceback=traceback.format_exc()
+        )
 
     state = _state.paper_state.load(workspace)
     if state.current_phase == _models.PaperPhase.intake:
@@ -415,7 +463,9 @@ def cmd_build_pack(args: argparse.Namespace) -> int:
             "analyses": len(pack.analyses),
             "figures": len(pack.figures),
             "literature": len(pack.literature),
-            "supplemental_literature": len(pack.reference_pool.supplemental_refs) if pack.reference_pool else 0,
+            "supplemental_literature": (
+                len(pack.reference_pool.supplemental_refs) if pack.reference_pool else 0
+            ),
         },
         current_phase=state.current_phase.value,
     )
@@ -523,8 +573,10 @@ def _mark_review_in_progress(
 def _route_from_review_round(
     review_round: "_models.ReviewRound",
 ) -> "_models.PaperPhase":
-    if review_round.reviews and not review_round.unresolved_fatal and all(
-        review.verdict == "accept" for review in review_round.reviews
+    if (
+        review_round.reviews
+        and not review_round.unresolved_fatal
+        and all(review.verdict == "accept" for review in review_round.reviews)
     ):
         return _models.PaperPhase.release_gate
     return _models.PaperPhase.revision_router
@@ -554,7 +606,9 @@ def _manuscript_exists(workspace: Path) -> bool:
         _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_ABSTRACT_FILENAME)
         or _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_MAIN_FILENAME)
         or _read_manuscript_results(workspace)
-        or _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_DISCUSSION_FILENAME)
+        or _read_manuscript_section(
+            workspace, _paper_paths.MANUSCRIPT_DISCUSSION_FILENAME
+        )
     )
 
 
@@ -571,7 +625,11 @@ def _open_review_round(
     workspace: Path,
 ) -> tuple[int, Optional["_models.ReviewRound"]]:
     latest_round, review_round = _latest_review_round(workspace)
-    if latest_round == 0 or review_round is None or review_round.completed_at is not None:
+    if (
+        latest_round == 0
+        or review_round is None
+        or review_round.completed_at is not None
+    ):
         return 0, None
     return latest_round, review_round
 
@@ -579,7 +637,11 @@ def _open_review_round(
 def _review_target_phase(review: "_models.Review") -> Optional["_models.PaperPhase"]:
     route = (review.reroute_target or "").strip()
     default_route = (_state.reviews.route_for(review.verdict) or "").strip()
-    if route in {"human_gate"} or review.human_gate_flag or default_route == "human_gate":
+    if (
+        route in {"human_gate"}
+        or review.human_gate_flag
+        or default_route == "human_gate"
+    ):
         return None
     if not route:
         route = (review.target_layer or "").strip()
@@ -641,12 +703,18 @@ def _source_consistency_problems(
         )
 
     source_subscription = re.search(r"\bsubscrib(?:e|ed|ing|ers?|tion)\b", source_lower)
-    manuscript_subscription = re.search(r"\bsubscrib(?:e|ed|ing|ers?|tion)\b", manuscript_lower)
+    manuscript_subscription = re.search(
+        r"\bsubscrib(?:e|ed|ing|ers?|tion)\b", manuscript_lower
+    )
     manuscript_follow_accounts = re.search(
         r"\bfollow(?:ing|ed|s)?\s+(?:accounts?|outlets?)\b",
         manuscript_lower,
     )
-    if source_subscription and manuscript_follow_accounts and not manuscript_subscription:
+    if (
+        source_subscription
+        and manuscript_follow_accounts
+        and not manuscript_subscription
+    ):
         problems.append(
             "source materials describe a subscription intervention, but the manuscript describes a follow-based intervention"
         )
@@ -674,7 +742,13 @@ def _phase_from_gate(gate: "_models.HumanGate") -> "_models.PaperPhase":
         return _models.PaperPhase.framing
     if proposed in {"evidence", "evidence-audit", "expansion-plan"}:
         return _models.PaperPhase.evidence_audit
-    if proposed in {"wording", "paragraph", "section", "figure-plan", "manuscript-build"}:
+    if proposed in {
+        "wording",
+        "paragraph",
+        "section",
+        "figure-plan",
+        "manuscript-build",
+    }:
         return _models.PaperPhase.manuscript_build
     if proposed in {"release-gate"}:
         return _models.PaperPhase.release_gate
@@ -742,7 +816,9 @@ def _round_constraint_slot_types_for_review(review: "_models.Review") -> List[st
     if _extract_figure_ids(raw_text):
         slot_types.append("FIG_SLOT")
     if "[[" in raw_text:
-        slot_types.extend(_slot_types_from_markers(re.findall(r"\[\[[A-Z_]+:[^\]]+\]\]", raw_text)))
+        slot_types.extend(
+            _slot_types_from_markers(re.findall(r"\[\[[A-Z_]+:[^\]]+\]\]", raw_text))
+        )
     if "metric" in raw_lower or "effect size" in raw_lower:
         slot_types.append("METRIC_SLOT")
     if "claim" in raw_lower or "overclaim" in raw_lower:
@@ -787,13 +863,18 @@ def _build_round_constraint_from_review(
         return None
 
     issue_token = _normalize_router_token(review.issue_type) or "draft_instability"
-    target_layer = review.target_layer if review.target_layer in {"paragraph", "section"} else "paragraph"
+    target_layer = (
+        review.target_layer
+        if review.target_layer in {"paragraph", "section"}
+        else "paragraph"
+    )
     return _models.RoundConstraint(
         constraint_id=f"review-{round_num}-{review.reviewer_profile}-{issue_token}-{target_layer}",
         target_layer=target_layer,
         generation_mode="template_slots",
         issue_type=issue_token,
-        rationale=(review.raw_text or "").strip() or "review requested evidence-bound degraded generation",
+        rationale=(review.raw_text or "").strip()
+        or "review requested evidence-bound degraded generation",
         source_round=round_num,
         source_reviewer=review.reviewer_profile,
         required_slot_types=_round_constraint_slot_types_for_review(review),
@@ -826,7 +907,9 @@ def _persist_compile_constraint(
     _state.paper_state.save(workspace, state)
 
 
-def _build_round_constraint_from_slot_markers(markers: List[str]) -> Optional["_models.RoundConstraint"]:
+def _build_round_constraint_from_slot_markers(
+    markers: List[str],
+) -> Optional["_models.RoundConstraint"]:
     slot_types = _slot_types_from_markers(markers)
     if not slot_types:
         return None
@@ -841,9 +924,14 @@ def _build_round_constraint_from_slot_markers(markers: List[str]) -> Optional["_
     )
 
 
-def _build_round_constraint_from_claim_binding_issue(issue: str) -> Optional["_models.RoundConstraint"]:
+def _build_round_constraint_from_claim_binding_issue(
+    issue: str,
+) -> Optional["_models.RoundConstraint"]:
     lowered = issue.lower()
-    if "manuscript-visible evidence anchor" not in lowered and "unsupported_gaps" not in lowered:
+    if (
+        "manuscript-visible evidence anchor" not in lowered
+        and "unsupported_gaps" not in lowered
+    ):
         return None
 
     anchors: List[str] = []
@@ -912,7 +1000,8 @@ def _is_analysis_gap(item: "_models.EvidenceGap") -> bool:
     return (
         tool == "agentsociety-analysis"
         or category in {"analysis", "robustness", "figure", "alternative"}
-        or gap_type in {
+        or gap_type
+        in {
             "missing_analysis",
             "missing_robustness",
             "missing_figure",
@@ -1082,10 +1171,18 @@ def _route_revision_round(
         findings.append(finding)
         skill_map = {
             _models.PaperPhase.framing: ("agentsociety-paper-framing", "producer"),
-            _models.PaperPhase.evidence_audit: ("agentsociety-paper-evidence-expansion", "producer"),
-            _models.PaperPhase.manuscript_build: ("agentsociety-paper-architecture", "producer"),
+            _models.PaperPhase.evidence_audit: (
+                "agentsociety-paper-evidence-expansion",
+                "producer",
+            ),
+            _models.PaperPhase.manuscript_build: (
+                "agentsociety-paper-architecture",
+                "producer",
+            ),
         }
-        target_skill, target_subagent = skill_map.get(target_phase, ("paper-orchestrator", None))
+        target_skill, target_subagent = skill_map.get(
+            target_phase, ("paper-orchestrator", None)
+        )
         if external_skill is not None:
             target_skill = external_skill
             target_subagent = None
@@ -1113,7 +1210,9 @@ def _route_revision_round(
                 target_skill="paper-orchestrator",
                 target_subagent="release-gate-judge",
                 notes="all unresolved issues cleared; route to release-gate",
-                recommended_next_step=_phase_recommended_next_step(_models.PaperPhase.release_gate),
+                recommended_next_step=_phase_recommended_next_step(
+                    _models.PaperPhase.release_gate
+                ),
             )
         )
         return _models.PaperPhase.release_gate, findings, gate_ids, dispatch_paths
@@ -1217,7 +1316,9 @@ def _route_expansion_plan(
         _state.paper_state.save(workspace, state)
         return _models.PaperPhase.expansion_plan, findings, gate_ids, dispatch_paths
 
-    findings.append("no high-priority evidence gaps require external dispatch; advance to manuscript-build")
+    findings.append(
+        "no high-priority evidence gaps require external dispatch; advance to manuscript-build"
+    )
     state.last_blocker = None
     _state.paper_state.save(workspace, state)
     return _models.PaperPhase.manuscript_build, findings, gate_ids, dispatch_paths
@@ -1241,16 +1342,28 @@ def _release_gate_verdict(
     )
     discussion_md = _normalize_manuscript_markdown(
         "discussion",
-        _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_DISCUSSION_FILENAME),
+        _read_manuscript_section(
+            workspace, _paper_paths.MANUSCRIPT_DISCUSSION_FILENAME
+        ),
     )
 
     meta = _interactive_meta.load_meta(workspace)
-    criterion_1 = bool(meta.title.strip() and meta.affils and any(a.corresponding for a in meta.authors))
+    criterion_1 = bool(
+        meta.title.strip()
+        and meta.affils
+        and any(a.corresponding for a in meta.authors)
+    )
     findings.append(f"criterion_1={'pass' if criterion_1 else 'fail'}")
     if not criterion_1:
-        return "BLOCKED", findings, "paper_meta.yaml does not satisfy release-gate criterion_1"
+        return (
+            "BLOCKED",
+            findings,
+            "paper_meta.yaml does not satisfy release-gate criterion_1",
+        )
 
-    storyline = _state.storyline.load(workspace) if _state.storyline.exists(workspace) else None
+    storyline = (
+        _state.storyline.load(workspace) if _state.storyline.exists(workspace) else None
+    )
     criterion_2 = bool(
         storyline
         and storyline.current_angle.strip()
@@ -1258,10 +1371,22 @@ def _release_gate_verdict(
     )
     findings.append(f"criterion_2={'pass' if criterion_2 else 'fail'}")
     if not criterion_2:
-        return "BLOCKED", findings, "storyline_map.json does not satisfy release-gate criterion_2"
+        return (
+            "BLOCKED",
+            findings,
+            "storyline_map.json does not satisfy release-gate criterion_2",
+        )
 
-    claim_ledger = _state.claim_ledger.load(workspace) if _state.claim_ledger.exists(workspace) else None
-    research_pack = _state.research_pack.load(workspace) if _state.research_pack.exists(workspace) else None
+    claim_ledger = (
+        _state.claim_ledger.load(workspace)
+        if _state.claim_ledger.exists(workspace)
+        else None
+    )
+    research_pack = (
+        _state.research_pack.load(workspace)
+        if _state.research_pack.exists(workspace)
+        else None
+    )
     claim_binding_issues: List[str] = []
     criterion_3 = claim_ledger is not None and research_pack is not None
     if criterion_3:
@@ -1279,32 +1404,55 @@ def _release_gate_verdict(
         else f"criterion_3=fail: {(claim_binding_issues[0] if claim_binding_issues else 'claim evidence binding could not be verified')}"
     )
     if not criterion_3:
-        return "BLOCKED", findings, "claim_ledger.json does not satisfy release-gate criterion_3"
+        return (
+            "BLOCKED",
+            findings,
+            "claim_ledger.json does not satisfy release-gate criterion_3",
+        )
 
-    fmap = _state.figure_argument.load(workspace) if _state.figure_argument.exists(workspace) else None
+    fmap = (
+        _state.figure_argument.load(workspace)
+        if _state.figure_argument.exists(workspace)
+        else None
+    )
     criterion_4 = fmap is not None
     bad_figure = None
     if fmap is not None:
         for figure in fmap.figures:
-            if figure.claim_supported and not figure.panels and figure.status not in {"rendered", "final"}:
+            if (
+                figure.claim_supported
+                and not figure.panels
+                and figure.status not in {"rendered", "final"}
+            ):
                 criterion_4 = False
                 bad_figure = figure.figure_id
                 break
     findings.append(
-        "criterion_4=pass" if criterion_4 else f"criterion_4=fail: figure {bad_figure or 'unknown'} lacks panels/status"
+        "criterion_4=pass"
+        if criterion_4
+        else f"criterion_4=fail: figure {bad_figure or 'unknown'} lacks panels/status"
     )
     if not criterion_4:
-        return "BLOCKED", findings, "figure_argument_map.json does not satisfy release-gate criterion_4"
+        return (
+            "BLOCKED",
+            findings,
+            "figure_argument_map.json does not satisfy release-gate criterion_4",
+        )
 
     closed_rounds = [
         rd
         for num in _state.reviews.list_rounds(workspace)
-        if (rd := _state.reviews.load_round(workspace, num)) is not None and rd.completed_at is not None
+        if (rd := _state.reviews.load_round(workspace, num)) is not None
+        and rd.completed_at is not None
     ]
     criterion_5 = any(not rd.unresolved_fatal for rd in closed_rounds)
     findings.append(f"criterion_5={'pass' if criterion_5 else 'fail'}")
     if not criterion_5:
-        return "BLOCKED", findings, "no closed review round satisfies release-gate criterion_5"
+        return (
+            "BLOCKED",
+            findings,
+            "no closed review round satisfies release-gate criterion_5",
+        )
 
     pending_gates = _state.human_gates.pending(workspace)
     criterion_6 = not pending_gates
@@ -1313,11 +1461,19 @@ def _release_gate_verdict(
         return "HUMAN_GATE_REQUIRED", findings, "pending human gates remain open"
 
     latest_run = _state.runs.latest_run(workspace)
-    latest_pdf = _paper_paths.pdf_output_path(workspace, latest_run) if latest_run else None
-    criterion_7 = bool(latest_pdf and latest_pdf.exists() and latest_pdf.stat().st_size >= 10 * 1024)
+    latest_pdf = (
+        _paper_paths.pdf_output_path(workspace, latest_run) if latest_run else None
+    )
+    criterion_7 = bool(
+        latest_pdf and latest_pdf.exists() and latest_pdf.stat().st_size >= 10 * 1024
+    )
     findings.append(f"criterion_7={'pass' if criterion_7 else 'fail'}")
     if not criterion_7:
-        return "BLOCKED", findings, "latest compiled PDF does not satisfy release-gate criterion_7"
+        return (
+            "BLOCKED",
+            findings,
+            "latest compiled PDF does not satisfy release-gate criterion_7",
+        )
 
     return "DONE", findings, None
 
@@ -1358,7 +1514,9 @@ def cmd_architecture(args: argparse.Namespace) -> int:
             "architecture requires --artifact claim_ledger | figure_argument_map.",
         )
     if not args.payload:
-        return _missing_prereq(f"architecture --artifact {artifact} requires --payload <JSON>.")
+        return _missing_prereq(
+            f"architecture --artifact {artifact} requires --payload <JSON>."
+        )
     try:
         payload = _read_payload(args.payload)
     except (ValueError, OSError, json.JSONDecodeError) as exc:
@@ -1370,7 +1528,9 @@ def cmd_architecture(args: argparse.Namespace) -> int:
 def cmd_review(args: argparse.Namespace) -> int:
     workspace = _resolve_workspace(args.workspace)
     if not args.payload:
-        return _missing_prereq("review requires --payload <Review JSON> | <ReviewRound JSON>.")
+        return _missing_prereq(
+            "review requires --payload <Review JSON> | <ReviewRound JSON>."
+        )
     try:
         payload = _read_payload(args.payload)
     except (ValueError, OSError, json.JSONDecodeError) as exc:
@@ -1401,7 +1561,9 @@ def cmd_review(args: argparse.Namespace) -> int:
         return _ok(
             {
                 "artifacts_written": [str(out_path)],
-                "key_findings": [f"review_round_{round_num:03d} saved with {len(rd.reviews)} entries"],
+                "key_findings": [
+                    f"review_round_{round_num:03d} saved with {len(rd.reviews)} entries"
+                ],
             },
             round_num=round_num,
             path=str(out_path),
@@ -1682,7 +1844,9 @@ def _claim_binding_issues(
         for entry in _state.research_pack.effective_literature(research_pack)
         if entry.cite_key
     }
-    valid_analyses = {entry.analysis_id for entry in research_pack.analyses if entry.analysis_id}
+    valid_analyses = {
+        entry.analysis_id for entry in research_pack.analyses if entry.analysis_id
+    }
     valid_figures: set[str] = set()
     if fmap is not None:
         for figure in fmap.figures:
@@ -1742,20 +1906,34 @@ def _claim_binding_issues(
                 continue
 
             if support.startswith("[CITE:") or support.lower().startswith("cite:"):
-                issues.append(f"claim {claim.claim_id} references unknown citation support '{support}'")
-            elif support.startswith("[FIG:") or support.lower().startswith("fig:") or figure_id:
-                issues.append(f"claim {claim.claim_id} references unknown figure support '{support}'")
+                issues.append(
+                    f"claim {claim.claim_id} references unknown citation support '{support}'"
+                )
+            elif (
+                support.startswith("[FIG:")
+                or support.lower().startswith("fig:")
+                or figure_id
+            ):
+                issues.append(
+                    f"claim {claim.claim_id} references unknown figure support '{support}'"
+                )
             elif support.lower().startswith("analysis:"):
-                issues.append(f"claim {claim.claim_id} references unknown analysis support '{support}'")
+                issues.append(
+                    f"claim {claim.claim_id} references unknown analysis support '{support}'"
+                )
             else:
-                issues.append(f"claim {claim.claim_id} references unknown evidence pointer '{support}'")
+                issues.append(
+                    f"claim {claim.claim_id} references unknown evidence pointer '{support}'"
+                )
 
         for linked_figure in claim.linked_figures:
             figure_id = _normalize_figure_pointer(linked_figure)
             if not figure_id:
                 continue
             if figure_id not in valid_figures:
-                issues.append(f"claim {claim.claim_id} links unknown figure '{linked_figure}'")
+                issues.append(
+                    f"claim {claim.claim_id} links unknown figure '{linked_figure}'"
+                )
                 continue
             candidate = f"[FIG:{figure_id}]"
             if candidate not in seen_visible_candidates:
@@ -1826,7 +2004,10 @@ def _validate_figures_for_compile(
             problems.append(
                 f"figure {fig.figure_id} is marked {fig.status} but has no title"
             )
-        if fig.status in {"rendered", "final"} and not (fig.question_answered or "").strip():
+        if (
+            fig.status in {"rendered", "final"}
+            and not (fig.question_answered or "").strip()
+        ):
             problems.append(
                 f"figure {fig.figure_id} is marked {fig.status} but has no question_answered"
             )
@@ -1907,9 +2088,13 @@ def cmd_compile(args: argparse.Namespace) -> int:
             recommended_next_step="populate paper_meta.yaml with a code availability statement or URL",
         )
 
-    abstract_md = _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_ABSTRACT_FILENAME)
+    abstract_md = _read_manuscript_section(
+        workspace, _paper_paths.MANUSCRIPT_ABSTRACT_FILENAME
+    )
     main_md = _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_MAIN_FILENAME)
-    discussion_md = _read_manuscript_section(workspace, _paper_paths.MANUSCRIPT_DISCUSSION_FILENAME)
+    discussion_md = _read_manuscript_section(
+        workspace, _paper_paths.MANUSCRIPT_DISCUSSION_FILENAME
+    )
     results_md = _read_manuscript_results(workspace)
 
     abstract_md = _normalize_manuscript_markdown("abstract", abstract_md)
@@ -1985,7 +2170,9 @@ def cmd_compile(args: argparse.Namespace) -> int:
         manuscript_texts=[abstract_md, main_md, results_md, discussion_md],
     )
     if claim_binding_issues:
-        constraint = _build_round_constraint_from_claim_binding_issue(claim_binding_issues[0])
+        constraint = _build_round_constraint_from_claim_binding_issue(
+            claim_binding_issues[0]
+        )
         if constraint is not None:
             _persist_compile_constraint(
                 workspace,
@@ -2041,7 +2228,10 @@ def cmd_compile(args: argparse.Namespace) -> int:
     compose_dir.mkdir(parents=True, exist_ok=True)
 
     written_refs = _write_compile_bibliography(workspace, timestamp, research_pack)
-    if _extract_citation_keys(abstract_md, main_md, results_md, discussion_md) and written_refs == 0:
+    if (
+        _extract_citation_keys(abstract_md, main_md, results_md, discussion_md)
+        and written_refs == 0
+    ):
         return _missing_prereq(
             "manuscript contains citations, but research_pack literature is empty.",
             recommended_next_step="re-run `paper-orchestrator build-pack` after literature intake",
@@ -2195,7 +2385,9 @@ def cmd_run_loop(args: argparse.Namespace) -> int:
                 "storyline_map.json missing for framing phase.",
                 recommended_next_step=_phase_recommended_next_step(state.current_phase),
             )
-        _state.paper_state.advance_phase(state, target=_models.PaperPhase.evidence_audit)
+        _state.paper_state.advance_phase(
+            state, target=_models.PaperPhase.evidence_audit
+        )
         _state.paper_state.save(workspace, state)
 
     if state.current_phase in {
@@ -2208,7 +2400,9 @@ def cmd_run_loop(args: argparse.Namespace) -> int:
                 recommended_next_step=_phase_recommended_next_step(state.current_phase),
             )
         if state.current_phase == _models.PaperPhase.evidence_audit:
-            _state.paper_state.advance_phase(state, target=_models.PaperPhase.expansion_plan)
+            _state.paper_state.advance_phase(
+                state, target=_models.PaperPhase.expansion_plan
+            )
             _state.paper_state.save(workspace, state)
         state = _state.paper_state.load(workspace)
 
@@ -2317,7 +2511,9 @@ def cmd_run_loop(args: argparse.Namespace) -> int:
                 f"review_round_{latest_round:03d} could not be loaded.",
                 recommended_next_step="recreate the latest review round file",
             )
-        next_phase, findings, gate_ids, dispatch_paths = _route_revision_round(workspace, state, review_round)
+        next_phase, findings, gate_ids, dispatch_paths = _route_revision_round(
+            workspace, state, review_round
+        )
         if gate_ids:
             return _human_gate_required(
                 "revision-router opened human gates for unresolved major issues.",
@@ -2353,7 +2549,9 @@ def cmd_run_loop(args: argparse.Namespace) -> int:
 
     if state.current_phase == _models.PaperPhase.release_gate:
         latest_run = _state.runs.latest_run(workspace)
-        latest_pdf = _paper_paths.pdf_output_path(workspace, latest_run) if latest_run else None
+        latest_pdf = (
+            _paper_paths.pdf_output_path(workspace, latest_run) if latest_run else None
+        )
         if latest_pdf is None or not latest_pdf.exists():
             compile_rc = cmd_compile(args)
             if compile_rc != 0:
@@ -2455,14 +2653,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_init = sub.add_parser("init-meta", help="Write paper_meta.yaml from JSON args.")
     _add_workspace(p_init)
-    p_init.add_argument("--payload", help="JSON object or path to JSON file with title/authors/affils.")
+    p_init.add_argument(
+        "--payload", help="JSON object or path to JSON file with title/authors/affils."
+    )
     p_init.set_defaults(func=cmd_init_meta)
 
-    p_intake = sub.add_parser("intake", help="Initialize <ws>/paper/ tree and state machine.")
+    p_intake = sub.add_parser(
+        "intake", help="Initialize <ws>/paper/ tree and state machine."
+    )
     _add_workspace(p_intake)
     p_intake.set_defaults(func=cmd_intake)
 
-    p_pack = sub.add_parser("build-pack", help="Run paper-adapter -> research_pack.json.")
+    p_pack = sub.add_parser(
+        "build-pack", help="Run paper-adapter -> research_pack.json."
+    )
     _add_workspace(p_pack)
     p_pack.add_argument(
         "--research-objective",
@@ -2470,17 +2674,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_pack.set_defaults(func=cmd_build_pack)
 
-    p_framing = sub.add_parser("framing", help="Persist a storyline_map produced by paper-framing.")
+    p_framing = sub.add_parser(
+        "framing", help="Persist a storyline_map produced by paper-framing."
+    )
     _add_workspace(p_framing)
     p_framing.add_argument("--payload", help="storyline_map JSON | JSON file.")
     p_framing.set_defaults(func=cmd_framing)
 
-    p_evidence = sub.add_parser("evidence", help="Persist an evidence_backlog produced by paper-evidence-expansion.")
+    p_evidence = sub.add_parser(
+        "evidence",
+        help="Persist an evidence_backlog produced by paper-evidence-expansion.",
+    )
     _add_workspace(p_evidence)
     p_evidence.add_argument("--payload", help="evidence_backlog JSON | JSON file.")
     p_evidence.set_defaults(func=cmd_evidence)
 
-    p_arch = sub.add_parser("architecture", help="Persist claim_ledger or figure_argument_map.")
+    p_arch = sub.add_parser(
+        "architecture", help="Persist claim_ledger or figure_argument_map."
+    )
     _add_workspace(p_arch)
     p_arch.add_argument(
         "--artifact",
@@ -2490,10 +2701,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_arch.add_argument("--payload", help="JSON | JSON file.")
     p_arch.set_defaults(func=cmd_architecture)
 
-    p_review = sub.add_parser("review", help="Append a Review entry (or full ReviewRound) to a round.")
+    p_review = sub.add_parser(
+        "review", help="Append a Review entry (or full ReviewRound) to a round."
+    )
     _add_workspace(p_review)
     p_review.add_argument("--payload", help="Review or ReviewRound JSON.")
-    p_review.add_argument("--round", type=int, default=None, help="Round number (defaults to current).")
+    p_review.add_argument(
+        "--round", type=int, default=None, help="Round number (defaults to current)."
+    )
     p_review.set_defaults(func=cmd_review)
 
     p_gate = sub.add_parser(
@@ -2501,7 +2716,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Record a decision for a pending human gate and route state forward.",
     )
     _add_workspace(p_gate)
-    p_gate.add_argument("--gate-id", required=True, help="Gate id from paper/state/human_gates.yaml.")
+    p_gate.add_argument(
+        "--gate-id", required=True, help="Gate id from paper/state/human_gates.yaml."
+    )
     p_gate.add_argument("--decision", required=True, help="accept | reject | modify")
     p_gate.add_argument(
         "--accepted-version",
@@ -2510,11 +2727,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_gate.add_argument("--note", help="Optional decision note.")
     p_gate.set_defaults(func=cmd_human_gate_decide)
 
-    p_compile = sub.add_parser("compile", help="Build LaTeX and run latexmk -> paper.pdf.")
+    p_compile = sub.add_parser(
+        "compile", help="Build LaTeX and run latexmk -> paper.pdf."
+    )
     _add_workspace(p_compile)
     p_compile.set_defaults(func=cmd_compile)
 
-    p_run = sub.add_parser("run-loop", help="Smoke pipeline: adapter -> compose -> compile (no review).")
+    p_run = sub.add_parser(
+        "run-loop", help="Smoke pipeline: adapter -> compose -> compile (no review)."
+    )
     _add_workspace(p_run)
     p_run.add_argument(
         "--max-rounds",

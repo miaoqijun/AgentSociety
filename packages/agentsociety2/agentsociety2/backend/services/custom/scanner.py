@@ -16,6 +16,10 @@ from agentsociety2.backend.services.custom.compatibility import (
     build_env_scan_diagnostic,
     build_import_error_diagnostic,
 )
+from agentsociety2.backend.path_security import (
+    resolve_under_root,
+    resolve_workspace_root,
+)
 from agentsociety2.backend.services.custom.models import (
     CompatibilityIssue,
     ScanDiagnostic,
@@ -26,8 +30,8 @@ class CustomModuleScanner:
     """自定义模块扫描服务"""
 
     def __init__(self, workspace_path: str):
-        self.workspace_path = Path(workspace_path).resolve()
-        self.custom_dir = self.workspace_path / "custom"
+        self.workspace_path = resolve_workspace_root(workspace_path)
+        self.custom_dir = resolve_under_root(self.workspace_path, "custom")
 
     def scan_all(self) -> dict[str, Any]:
         """扫描所有自定义模块。"""
@@ -160,9 +164,7 @@ class CustomModuleScanner:
 
         return {"modules": agents, "diagnostics": diagnostics, "errors": errors}
 
-    def _scan_envs(
-        self, envs_dir: Path, skip_examples: bool = True
-    ) -> dict[str, Any]:
+    def _scan_envs(self, envs_dir: Path, skip_examples: bool = True) -> dict[str, Any]:
         """扫描环境模块目录。"""
 
         envs: list[dict[str, Any]] = []

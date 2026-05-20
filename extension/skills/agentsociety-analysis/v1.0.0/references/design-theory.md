@@ -27,7 +27,7 @@ That means an analysis chart should also satisfy:
 
 ## Chart Count Discipline
 
-The default limit for a single-experiment report is 5 charts. The goal is not compression for its own sake,
+There is no default chart quota. The goal is not compression for its own sake,
 but clear role assignment:
 
 - a main finding chart
