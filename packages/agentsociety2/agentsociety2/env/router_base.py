@@ -1172,6 +1172,77 @@ Your generated world description:"""
             get_logger().warning(f"Failed to format trimmed pyi code with black: {e}")
             return code
 
+    def _format_tools_pyi_ratio(
+        self, modules_info: ToolsInfoDict, ratio: float
+    ) -> str:
+        """将工具信息格式化为按比例保留函数体的代码。
+
+        :param modules_info: 按模块组织的工具信息字典。
+        :param ratio: 代码保留比例 (0.0 ~ 1.0)。
+            0.0 = 仅签名 + docstring；1.0 = 完整函数体。
+        """
+        pydantic_models = self.get_collected_pydantic_models()
+
+        lines: List[str] = []
+        lines.append("# Type definitions for environment modules")
+        lines.append("from pydantic import BaseModel, Field")
+        lines.append(
+            "from typing import Any, Optional, Union, List, Dict, Literal, Tuple"
+        )
+        lines.append("from datetime import datetime")
+        lines.append("")
+
+        if pydantic_models:
+            lines.append("# Pydantic BaseModel definitions")
+            for source_code in pydantic_models.values():
+                lines.append("")
+                lines.append(source_code)
+            lines.append("")
+            lines.append("")
+
+        if len(modules_info) > 0:
+            lines.append("# Environment modules")
+            lines.append(
+                "# These are what you can call to interact with the environment."
+            )
+            lines.append(
+                f"# NOTE: Function bodies are trimmed to ~{ratio:.0%} for brevity."
+            )
+        else:
+            lines.append("# No environment modules")
+            lines.append("# You can't interact with the environment.")
+        lines.append("")
+
+        for module_name, module_data in modules_info.items():
+            lines.append(f"class {module_name}:")
+            description = module_data.description
+            if description:
+                lines.append(f'    """{description}"""')
+            lines.append("")
+
+            for tool_info in module_data.tools:
+                function_parts = tool_info.function_parts
+                sig_str = function_parts.signature
+
+                lines.append(f"    {sig_str}")
+                if function_parts.docstring:
+                    lines.append(f'        """{function_parts.docstring}"""')
+                body = function_parts.body_code
+                keep = max(1, round(len(body) * ratio)) if body else 0
+                for line in body[:keep]:
+                    lines.append(f"        {line}")
+                if body and len(body) > keep:
+                    lines.append("        # ... (trimmed)")
+                lines.append("        ...")
+                lines.append("")
+
+        code = "\n".join(lines)
+        try:
+            return black.format_str(code, mode=black.Mode())
+        except Exception as e:
+            get_logger().warning(f"Failed to format ratio pyi code with black: {e}")
+            return code
+
     def _format_tools_raw_code(self, modules_info: ToolsInfoDict) -> str:
         """将工具信息格式化为原始 Python 代码（不使用 AST/pyi 解析，直接输出完整源码）。
 

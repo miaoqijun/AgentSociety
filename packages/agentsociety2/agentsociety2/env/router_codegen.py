@@ -20,6 +20,8 @@ import pickle
 import random
 import re
 import sys
+import time
+import types
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import StringIO
@@ -922,12 +924,33 @@ class CodeStage:
                 "input",
             }
 
+            TRUTHY_CONSTANTS = (
+                ast.Constant,
+            )
+
             def is_dangerous_module(name: str) -> bool:
                 if name in router.ALLOWED_MODULES:
                     return False
                 return name in router.DANGEROUS_MODULES or (
                     name.startswith("_") and name != "__future__"
                 )
+
+            def _is_truthy_constant(node: ast.expr) -> bool:
+                """Check if an AST node is a compile-time truthy constant."""
+                if isinstance(node, ast.Constant):
+                    return bool(node.value)
+                if isinstance(node, ast.Name) and node.id in {"True", "__debug__"}:
+                    return True
+                if isinstance(node, ast.Num):
+                    return bool(node.n)
+                return False
+
+            def _loop_has_break(node: ast.AST) -> bool:
+                """Check if a while/for loop body contains a reachable break."""
+                for child in ast.walk(node):
+                    if isinstance(child, ast.Break):
+                        return True
+                return False
 
             for node in ast.walk(tree):
                 if type(node) in router.FORBIDDEN_AST_NODES:
@@ -956,6 +979,11 @@ class CodeStage:
                     violations.append(
                         f"Dangerous import: from {node.module} import ..."
                     )
+                elif isinstance(node, ast.While) and _is_truthy_constant(node.test):
+                    if not _loop_has_break(node):
+                        violations.append(
+                            "Potential infinite loop: while True without break"
+                        )
 
             if violations:
                 return (
@@ -1015,7 +1043,7 @@ class CodeStage:
         exec_globals = {
             "__builtins__": restricted_builtins,
             "ctx": ctx,
-            "modules": router._modules,
+            "modules": types.MappingProxyType(router._modules),
             "results": results,
             "print": print,
             **allowed_modules,
@@ -1035,8 +1063,9 @@ class CodeStage:
         try:
             is_async = "async" in code or "await" in code
 
-            async def run():
-                if is_async:
+            if is_async:
+
+                async def run_async():
                     indented = "\n".join(
                         "    " + line if line.strip() else ""
                         for line in code.split("\n")
@@ -1048,12 +1077,24 @@ class CodeStage:
                         exec_locals,
                     )
                     await exec_locals["_generated_main"]()
-                else:
-                    exec(
-                        compile(code, "<generated>", "exec"), exec_globals, exec_locals
-                    )
 
-            await asyncio.wait_for(run(), timeout=10)
+                await asyncio.wait_for(run_async(), timeout=10)
+            else:
+                deadline = time.monotonic() + 10
+
+                def _timeout_tracer(frame, event, arg):
+                    if time.monotonic() > deadline:
+                        raise TimeoutError(
+                            "Code execution timeout: exceeded 10 seconds limit"
+                        )
+                    return _timeout_tracer
+
+                compiled = compile(code, "<generated>", "exec")
+                sys.settrace(_timeout_tracer)
+                try:
+                    exec(compiled, exec_globals, exec_locals)
+                finally:
+                    sys.settrace(None)
             output = captured_output.getvalue()
             print_outputs = [
                 line.strip() for line in output.split("\n") if line.strip()
@@ -1066,6 +1107,8 @@ class CodeStage:
             }
         except asyncio.TimeoutError:
             raise TimeoutError("Code execution timeout: exceeded 10 seconds limit") from None
+        except TimeoutError:
+            raise
         except Exception as e:
             return {
                 "results": results,
@@ -1489,6 +1532,9 @@ class CodeGenRouter(RouterBase):
             return self._format_tools_pyi_trimmed(
                 tools_info, self._max_body_code_lines
             )
+        elif self._code_format.startswith("ratio:"):
+            ratio = float(self._code_format.split(":", 1)[1])
+            return self._format_tools_pyi_ratio(tools_info, ratio)
         else:  # "pyi"
             return self._format_tools_pyi(tools_info, self._max_body_code_lines)
 

@@ -48,7 +48,6 @@ from .base import (
 )
 from .router_base import RouterBase
 from .router_codegen import CodeGenRouter
-from .router_codegen_v2 import CodeGenRouterV2
 from .router_react import ReActRouter
 from .router_plan_execute import PlanExecuteRouter
 from .router_two_tier_react import TwoTierReActRouter
@@ -58,7 +57,6 @@ from .benchmark import EnvRouterBenchmarkData
 
 __all__ = [
     "CodeGenRouter",
-    "CodeGenRouterV2",
     "EnvBase",
     "EnvRouterBenchmarkData",
     "PersonStepConstraints",
