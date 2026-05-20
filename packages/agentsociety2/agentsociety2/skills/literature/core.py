@@ -19,6 +19,8 @@ from litellm.router import Router
 
 logger = get_logger()
 
+LiteratureSource = Literal["local", "arxiv", "crossref", "openalex"]
+
 
 def is_chinese_text(text: str) -> bool:
     """
@@ -238,7 +240,7 @@ Subtopic array:"""
 
 def merge_literature_results(
     results: List[Dict[str, Any]], query: str
-) -> Dict[str, Any]:
+) -> Optional[Dict[str, Any]]:
     """
     合并多个文献搜索结果，去重并合并
 
@@ -251,7 +253,7 @@ def merge_literature_results(
         return None
 
     # 使用标题和DOI作为唯一标识符进行去重
-    seen_articles = {}
+    seen_articles: dict[str, dict[str, Any]] = {}
     all_articles = []
 
     for result in results:
@@ -330,7 +332,7 @@ async def search_literature(
     router: Optional[Router] = None,
     year_from: Optional[int] = None,
     year_to: Optional[int] = None,
-    sources: Optional[List[Literal["local", "arxiv", "crossref", "openalex"]]] = None,
+    sources: Optional[List[LiteratureSource]] = None,
     similarity_threshold: Optional[float] = None,
     vector_similarity_weight: Optional[float] = None,
     chunk_content_limit: Optional[int] = None,
@@ -438,11 +440,11 @@ async def search_literature(
     results = await asyncio.gather(*search_tasks, return_exceptions=True)
 
     # 过滤掉异常结果
-    valid_results = []
+    valid_results: list[dict[str, Any]] = []
     for i, result in enumerate(results):
         if isinstance(result, Exception):
             logger.warning(f"子主题 '{subtopics[i]}' 搜索失败: {result}")
-        elif result is not None:
+        elif isinstance(result, dict):
             valid_results.append(result)
 
     if not valid_results:
@@ -458,7 +460,7 @@ async def _search_literature_single(
     limit: int,
     year_from: Optional[int],
     year_to: Optional[int],
-    sources: Optional[List[str]],
+    sources: Optional[List[LiteratureSource]],
     similarity_threshold: Optional[float],
     vector_similarity_weight: Optional[float],
     chunk_content_limit: Optional[int],

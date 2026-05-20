@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -10,12 +11,14 @@ from agentsociety2.skills.literature.full_text import (
     candidate_urls,
     download_entry_pdf,
     download_open_access_pdfs,
+    entry_extra_fields,
+    nested_dict,
 )
 from agentsociety2.skills.literature.search import search_literature_and_save
 
 
 def test_candidate_urls_resolves_arxiv_abs_to_pdf():
-    entry = {
+    entry: dict[str, Any] = {
         "extra_fields": {"url": "https://arxiv.org/abs/2601.00001"},
     }
     urls = candidate_urls(entry)
@@ -23,7 +26,7 @@ def test_candidate_urls_resolves_arxiv_abs_to_pdf():
 
 
 def test_download_entry_pdf_writes_file(tmp_path: Path):
-    entry = {
+    entry: dict[str, Any] = {
         "title": "Test Paper",
         "file_path": "papers/Test_Paper.md",
         "extra_fields": {"url": "https://arxiv.org/abs/2601.00001"},
@@ -37,7 +40,9 @@ def test_download_entry_pdf_writes_file(tmp_path: Path):
         outcome = download_entry_pdf(tmp_path, entry)
 
     assert outcome == "downloaded"
-    rel = entry["extra_fields"]["full_text"]["file_path"]
+    full_text = entry_extra_fields(entry)["full_text"]
+    assert isinstance(full_text, dict)
+    rel = full_text["file_path"]
     assert (tmp_path / rel).read_bytes() == pdf_bytes
 
 
@@ -78,10 +83,11 @@ async def test_search_literature_and_save_downloads_open_access(
     assert result["success"] is True
     assert result["full_text_stats"]["downloaded"] == 1
 
-    index = json.loads(
+    index: dict[str, Any] = json.loads(
         (tmp_path / "papers" / "literature_index.json").read_text(encoding="utf-8")
     )
-    full_text = index["entries"][0]["extra_fields"]["full_text"]
+    entry0: dict[str, Any] = index["entries"][0]
+    full_text = nested_dict(entry_extra_fields(entry0), "full_text")
     assert full_text["status"] == "downloaded"
     assert (tmp_path / full_text["file_path"]).exists()
 

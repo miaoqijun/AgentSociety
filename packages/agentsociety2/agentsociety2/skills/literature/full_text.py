@@ -110,6 +110,12 @@ def entry_extra_fields(entry: dict[str, Any]) -> dict[str, Any]:
     return extra
 
 
+def nested_dict(parent: dict[str, Any], key: str) -> dict[str, Any]:
+    """Return a nested dict value on ``parent``, or an empty dict if missing or wrong type."""
+    value = parent.get(key)
+    return value if isinstance(value, dict) else {}
+
+
 def add_candidate_url(candidates: list[str], value: Any) -> None:
     if not isinstance(value, str):
         return
@@ -142,11 +148,12 @@ def candidate_urls(entry: dict[str, Any]) -> list[str]:
     :returns: De-duplicated list of candidate URLs (arxiv abs URLs normalized to PDF).
     """
     candidates: list[str] = []
-    extra = (
-        entry.get("extra_fields") if isinstance(entry.get("extra_fields"), dict) else {}
-    )
+    extra_fields = nested_dict(entry, "extra_fields")
+    sources: list[dict[str, Any]] = [entry]
+    if extra_fields:
+        sources.append(extra_fields)
 
-    for source in (entry, extra):
+    for source in sources:
         for field in (
             "pdf_url",
             "pdf",
@@ -167,7 +174,7 @@ def candidate_urls(entry: dict[str, Any]) -> list[str]:
                     resolved = arxiv_pdf_url(value)
                     add_candidate_url(candidates, resolved or value)
 
-    doi = entry.get("doi") or extra.get("doi")
+    doi = entry.get("doi") or extra_fields.get("doi")
     resolved = arxiv_pdf_url(doi)
     if resolved:
         add_candidate_url(candidates, resolved)
@@ -272,12 +279,7 @@ def full_text_status(entry: dict[str, Any]) -> str:
     :param entry: Literature index entry.
     :returns: Status string such as ``downloaded`` or ``failed``.
     """
-    extra = (
-        entry.get("extra_fields") if isinstance(entry.get("extra_fields"), dict) else {}
-    )
-    full_text = (
-        extra.get("full_text") if isinstance(extra.get("full_text"), dict) else {}
-    )
+    full_text = nested_dict(nested_dict(entry, "extra_fields"), "full_text")
     return str(full_text.get("status", ""))
 
 
@@ -386,12 +388,7 @@ def is_enrichable(entry: dict[str, Any]) -> bool:
     :param entry: Literature index entry.
     :returns: ``True`` if status is ``failed`` or ``no_candidate`` and ``enriched`` is false.
     """
-    extra = (
-        entry.get("extra_fields") if isinstance(entry.get("extra_fields"), dict) else {}
-    )
-    full_text = (
-        extra.get("full_text") if isinstance(extra.get("full_text"), dict) else {}
-    )
+    full_text = nested_dict(nested_dict(entry, "extra_fields"), "full_text")
     status = full_text.get("status", "")
     enriched = full_text.get("enriched", False)
     return status in ("failed", "no_candidate") and not enriched
@@ -498,7 +495,7 @@ def command_enrich(args: argparse.Namespace) -> int:
         for i, entry in enumerate(entries, 1):
             if is_enrichable(entry):
                 title = entry.get("title", "Untitled")
-                ft = (entry.get("extra_fields") or {}).get("full_text") or {}
+                ft = nested_dict(nested_dict(entry, "extra_fields"), "full_text")
                 status = ft.get("status", "")
                 reason = ft.get("reason", "")
                 found.append(i)
@@ -514,9 +511,7 @@ def command_enrich(args: argparse.Namespace) -> int:
     if args.entry:
         entry = pick_index_entry(data, args.entry)
         extra = entry_extra_fields(entry)
-        full_text = (
-            extra.get("full_text") if isinstance(extra.get("full_text"), dict) else {}
-        )
+        full_text = nested_dict(extra, "full_text")
         full_text["enriched"] = True
         full_text["enriched_at"] = datetime.now(timezone.utc).isoformat()
         extra["full_text"] = full_text
