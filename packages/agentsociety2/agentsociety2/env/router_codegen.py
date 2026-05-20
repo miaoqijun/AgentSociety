@@ -1127,8 +1127,7 @@ class CodeStage:
             context.execution_attempted = True
             context.code_source = "builtin"
             try:
-                async with router._execute_lock:
-                    execution_result = await router._run_builtin_observe(context.ctx)
+                execution_result = await router._run_builtin_observe(context.ctx)
             except Exception as e:
                 execution_result = {
                     "success": False,

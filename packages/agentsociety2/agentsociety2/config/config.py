@@ -219,7 +219,7 @@ class Config:
     response times.
     """
 
-    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or "gpt-5.5"
+    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or LLM_MODEL
     """
     Model identifier for high-frequency, low-latency operations.
 
@@ -331,6 +331,19 @@ class Config:
     can capture more nuanced semantic information but require more storage and computation.
     The value must match the actual output dimensionality of the selected embedding model.
     Common values are 384, 512, 768, 1024, or 1536 depending on the model.
+    """
+
+    # Adaptive concurrency control for LLM requests
+    LLM_MAX_CONCURRENT: int = int(os.getenv("AGENTSOCIETY_LLM_MAX_CONCURRENT", "100"))
+    """
+    Initial concurrency limit for LLM API requests with AIMD adaptive control.
+
+    Environment variable: AGENTSOCIETY_LLM_MAX_CONCURRENT
+    Default: 100
+
+    When > 0, an adaptive semaphore wraps all RouterBase.acompletion() calls.
+    The AIMD algorithm auto-tunes concurrency between max(N//4, 1) and N*8.
+    Set to 0 to disable adaptive concurrency control entirely.
     """
 
     # Web Search API settings

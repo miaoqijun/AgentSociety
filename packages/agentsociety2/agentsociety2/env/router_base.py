@@ -29,6 +29,7 @@ Example::
 """
 
 import asyncio
+import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import (
@@ -42,6 +43,7 @@ from typing import (
     TYPE_CHECKING,
     Type,
     TypeVar,
+    ClassVar,
 )
 from pathlib import Path
 
@@ -90,6 +92,180 @@ def _is_rate_limit_like_error(error: Exception) -> bool:
         or "no deployments available for selected model" in err_text
         or "try again in" in err_text
     )
+
+
+# ═══════════════════════════════════════════════════════════
+# 自适应并发控制
+# ═══════════════════════════════════════════════════════════
+
+
+class _AdjustableSemaphore:
+    """容量可动态调整的 asyncio 信号量（基于 Condition）。"""
+
+    def __init__(self, capacity: int) -> None:
+        self._capacity = capacity
+        self._available = capacity
+        self._cond = asyncio.Condition()
+
+    @property
+    def capacity(self) -> int:
+        return self._capacity
+
+    async def acquire(self) -> None:
+        async with self._cond:
+            while self._available <= 0:
+                await self._cond.wait()
+            self._available -= 1
+
+    async def release(self) -> None:
+        async with self._cond:
+            self._available += 1
+            self._cond.notify(1)
+
+    async def set_capacity(self, new_capacity: int) -> int:
+        if new_capacity < 0:
+            new_capacity = 0
+        async with self._cond:
+            old = self._capacity
+            delta = new_capacity - old
+            self._capacity = new_capacity
+            if delta > 0:
+                self._available += delta
+                self._cond.notify(delta)
+            elif delta < 0:
+                self._available = max(0, self._available + delta)
+            return old
+
+
+class AdaptiveSemaphore:
+    """TCP AIMD 式自适应并发信号量。
+
+    过载信号来源：
+    1. 429/rate-limit 错误
+    2. 延迟超过基线 2x（API 排队/过载）
+
+    每轮（max(round_size, limit) 个请求完成后评估）：
+    - combined_overload > threshold → 乘法降窗 + 3 轮冷却
+    - combined_overload ≤ threshold → 加法增窗（步长指数增长）
+    """
+
+    def __init__(
+        self,
+        initial: int = 10,
+        min_limit: int = 1,
+        max_limit: int = 100,
+        decrease_factor: float = 0.7,
+        overload_threshold: float = 0.1,
+        min_round_size: int = 20,
+        latency_degrade_factor: float = float("inf"),
+    ) -> None:
+        self._sem = _AdjustableSemaphore(initial)
+        self._limit = initial
+        self._min = min_limit
+        self._max = max_limit
+        self._decrease_factor = decrease_factor
+        self._overload_threshold = overload_threshold
+        self._min_round_size = min_round_size
+        self._latency_degrade_factor = latency_degrade_factor
+
+        self._step = 1
+        self._round_finished = 0
+        self._round_overloaded = 0
+        self._round_slow = 0
+        self._adjust_lock = asyncio.Lock()
+        self._cooldown_remaining = 0
+
+        self._baseline_latency_ms: float | None = None
+        self._baseline_samples: list[float] = []
+        self._baseline_target = 10
+
+    @property
+    def limit(self) -> int:
+        return self._limit
+
+    async def acquire(self) -> None:
+        await self._sem.acquire()
+
+    async def release(self, overloaded: bool = False) -> None:
+        self._round_finished += 1
+        if overloaded:
+            self._round_overloaded += 1
+
+        await self._sem.release()
+
+        window = max(self._min_round_size, self._limit)
+        if self._round_finished >= window:
+            await self._adjust()
+
+    def record_latency(self, latency_ms: float, is_error: bool = False) -> None:
+        """记录请求延迟，更新基线和慢请求计数。"""
+        if is_error:
+            return
+
+        # 收集基线样本
+        if self._baseline_latency_ms is None:
+            self._baseline_samples.append(latency_ms)
+            if len(self._baseline_samples) >= self._baseline_target:
+                self._baseline_samples.sort()
+                self._baseline_latency_ms = self._baseline_samples[
+                    len(self._baseline_samples) // 2
+                ]
+
+        # 检测延迟退化
+        if (
+            self._baseline_latency_ms is not None
+            and latency_ms > self._baseline_latency_ms * self._latency_degrade_factor
+        ):
+            self._round_slow += 1
+
+    async def _adjust(self) -> None:
+        async with self._adjust_lock:
+            finished = self._round_finished
+            overloaded = self._round_overloaded
+            slow = self._round_slow
+            self._round_finished = 0
+            self._round_overloaded = 0
+            self._round_slow = 0
+
+            if finished == 0:
+                return
+
+            combined = (overloaded + slow) / finished
+            old_limit = self._limit
+
+            if combined > self._overload_threshold:
+                new_limit = max(
+                    self._min, int(self._limit * self._decrease_factor)
+                )
+                self._step = 1
+                self._cooldown_remaining = 3
+                get_logger().info(
+                    "[AdaptiveSem] ↓ DECREASE: 429=%d/%d slow=%d/%d "
+                    "→ %d → %d (cooldown=3)",
+                    overloaded, finished, slow, finished,
+                    old_limit, new_limit,
+                )
+            else:
+                if self._cooldown_remaining > 0:
+                    self._cooldown_remaining -= 1
+                    get_logger().debug(
+                        "[AdaptiveSem] ─ COOLDOWN: left=%d, stays %d",
+                        self._cooldown_remaining, old_limit,
+                    )
+                    return
+
+                new_limit = min(self._max, self._limit + self._step)
+                next_step = min(self._step * 2, 16)
+                get_logger().info(
+                    "[AdaptiveSem] ↑ INCREASE: → %d → %d (next_step=%d)",
+                    old_limit, new_limit, next_step,
+                )
+                self._step = next_step
+
+            if new_limit != old_limit:
+                await self._sem.set_capacity(new_limit)
+
+            self._limit = new_limit
 
 
 class TokenUsageStats(BaseModel):
@@ -164,6 +340,21 @@ class RouterBase(ABC):
     - 生成 world description（可选，用于 PersonAgent 的提示词）
     """
 
+    _adaptive_sem: ClassVar[AdaptiveSemaphore | None] = None
+
+    @classmethod
+    def configure_llm_concurrency(cls, max_concurrent: int) -> None:
+        """配置全局 LLM 自适应并发控制。
+
+        :param max_concurrent: 初始并发上限。``> 0`` 启用 AIMD 自适应控制；``0`` 禁用。
+        """
+        if max_concurrent > 0:
+            cls._adaptive_sem = AdaptiveSemaphore(
+                initial=max_concurrent,
+                min_limit=max(1, max_concurrent // 4),
+                max_limit=max_concurrent * 8,
+            )
+
     def __init__(
         self,
         env_modules: list[EnvBase],
@@ -207,6 +398,11 @@ class RouterBase(ABC):
         # World Description
         self._world_description = None
         self._generate_world_description_lock = asyncio.Lock()
+
+        # Configure adaptive LLM concurrency control
+        from agentsociety2.config import Config
+
+        self.configure_llm_concurrency(Config.LLM_MAX_CONCURRENT)
 
     def _add_current_time_to_ctx(self, ctx: dict) -> None:
         """向 ctx 注入当前时间信息（原地修改）。"""
@@ -348,7 +544,7 @@ class RouterBase(ABC):
         max_delay: float = 60.0,
         **kwargs: Any,
     ):
-        """封装 LiteLLM Router 的 acompletion（含重试与 token 统计）。
+        """封装 LiteLLM Router 的 acompletion（含自适应并发控制、重试与 token 统计）。
 
         :param model: ``coder`` 或 ``summary``。
         :param messages: 消息列表（不自动追加 system prompt；若需要请用 :meth:`acompletion_with_system_prompt`）。
@@ -359,6 +555,40 @@ class RouterBase(ABC):
         :returns: LLM 响应对象（stream=False 时为 :class:`litellm.types.utils.ModelResponse`）。
         :raises ValueError: 超过重试次数仍失败时抛出。
         """
+        sem = self.__class__._adaptive_sem
+        if sem is None:
+            return await self._do_acompletion_inner(
+                model, messages, stream, max_retries, base_delay, max_delay, **kwargs
+            )
+
+        await sem.acquire()
+        t0 = time.monotonic()
+        try:
+            result = await self._do_acompletion_inner(
+                model, messages, stream, max_retries, base_delay, max_delay, **kwargs
+            )
+            latency_ms = (time.monotonic() - t0) * 1000
+            sem.record_latency(latency_ms, is_error=False)
+            await sem.release(overloaded=False)
+            return result
+        except Exception as e:
+            latency_ms = (time.monotonic() - t0) * 1000
+            overloaded = _is_rate_limit_like_error(e)
+            sem.record_latency(latency_ms, is_error=overloaded)
+            await sem.release(overloaded=overloaded)
+            raise
+
+    async def _do_acompletion_inner(
+        self,
+        model: Literal["coder", "summary"],
+        messages: list[AllMessageValues],
+        stream: bool = False,
+        max_retries: int | None = None,
+        base_delay: float = 1.0,
+        max_delay: float = 60.0,
+        **kwargs: Any,
+    ):
+        """acompletion 的内部实现（重试循环 + token 统计），不含并发控制。"""
         logger = get_logger()
 
         if max_retries is None:
