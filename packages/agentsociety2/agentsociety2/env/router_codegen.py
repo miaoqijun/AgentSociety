@@ -1373,12 +1373,13 @@ class CodeGenRouter(RouterBase):
     def __init__(
         self,
         env_modules: list[EnvBase],
-        max_body_code_lines: int = 10,
+        max_body_code_lines: int = 15,
         max_steps: int = 10,
         max_llm_call_retry: int = 10,
         log_path: str = "logs/instruction_log.pkl",
         replay_writer: Optional["ReplayWriter"] = None,
         final_summary_enabled: bool = True,
+        code_format: str = "raw_code",
         # Template cache configuration
         template_cache_enabled: bool = True,  # 是否启用模板缓存
         template_cache_similarity_threshold: float = 0.85,  # 缓存相似度阈值
@@ -1394,46 +1395,17 @@ class CodeGenRouter(RouterBase):
             replay_writer=replay_writer,
         )
 
-        # Pre-generate all tools pyi code in a dictionary: key is (readonly, kind)
+        # Pre-generate all tools code in a dictionary: key is (readonly, kind)
         # kind can be None, "observe", "statistics", etc.
         self._tools_pyi_dict: Dict[Tuple[bool, str | None], str] = {}
         self._log_path = log_path
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
-        # Collect all tools info once
-        all_tools_info = self._collect_tools_info()
+        self._code_format = code_format
+        self._max_body_code_lines = max_body_code_lines
 
-        # Generate writable tools pyi code (kind=None)
-        all_tools_info = self._filter_tools_info(
-            all_tools_info, readonly=None, kind=None
-        )
-        self._tools_pyi_dict[(False, None)] = self._format_tools_pyi(
-            all_tools_info, max_body_code_lines
-        )
-
-        # Generate readonly tools pyi code (kind=None)
-        readonly_tools_info = self._filter_tools_info(
-            all_tools_info, readonly=True, kind=None
-        )
-        self._tools_pyi_dict[(True, None)] = self._format_tools_pyi(
-            readonly_tools_info, max_body_code_lines
-        )
-
-        # Generate readonly observe tools pyi code
-        readonly_observe_tools_info = self._filter_tools_info(
-            all_tools_info, readonly=True, kind="observe"
-        )
-        self._tools_pyi_dict[(True, "observe")] = self._format_tools_pyi(
-            readonly_observe_tools_info, max_body_code_lines
-        )
-
-        # Generate readonly statistics tools pyi code
-        readonly_statistics_tools_info = self._filter_tools_info(
-            all_tools_info, readonly=True, kind="statistics"
-        )
-        self._tools_pyi_dict[(True, "statistics")] = self._format_tools_pyi(
-            readonly_statistics_tools_info, max_body_code_lines
-        )
+        # Collect all tools info once and populate _tools_pyi_dict
+        self._populate_tools_pyi_dict()
 
         self._modules = {module.name: module for module in self.env_modules}
 
@@ -1509,6 +1481,42 @@ class CodeGenRouter(RouterBase):
             CacheCodeProvider(),
             LLMCodegenProvider(),
         ]
+
+    def _get_tools_code(self, tools_info) -> str:
+        if self._code_format == "raw_code":
+            return self._format_tools_raw_code(tools_info)
+        elif self._code_format == "trimmed":
+            return self._format_tools_pyi_trimmed(
+                tools_info, self._max_body_code_lines
+            )
+        else:  # "pyi"
+            return self._format_tools_pyi(tools_info, self._max_body_code_lines)
+
+    def _populate_tools_pyi_dict(self) -> None:
+        all_tools_info = self._collect_tools_info()
+        all_tools_info = self._filter_tools_info(
+            all_tools_info, readonly=None, kind=None
+        )
+        self._tools_pyi_dict[(False, None)] = self._get_tools_code(all_tools_info)
+
+        readonly_tools_info = self._filter_tools_info(
+            all_tools_info, readonly=True, kind=None
+        )
+        self._tools_pyi_dict[(True, None)] = self._get_tools_code(readonly_tools_info)
+
+        readonly_observe_tools_info = self._filter_tools_info(
+            all_tools_info, readonly=True, kind="observe"
+        )
+        self._tools_pyi_dict[(True, "observe")] = self._get_tools_code(
+            readonly_observe_tools_info
+        )
+
+        readonly_statistics_tools_info = self._filter_tools_info(
+            all_tools_info, readonly=True, kind="statistics"
+        )
+        self._tools_pyi_dict[(True, "statistics")] = self._get_tools_code(
+            readonly_statistics_tools_info
+        )
 
     @staticmethod
     def _resolve_subject_id_from_ctx(ctx: dict) -> Optional[int]:

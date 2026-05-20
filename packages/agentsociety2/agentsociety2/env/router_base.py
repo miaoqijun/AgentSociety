@@ -1099,6 +1099,137 @@ Your generated world description:"""
             get_logger().warning(f"Failed to format pyi code with black: {e}")
             return pyi_code
 
+    def _format_tools_pyi_trimmed(
+        self, modules_info: ToolsInfoDict, max_body_code_lines: int
+    ) -> str:
+        """将工具信息格式化为保留缩减函数体的 pyi 代码。
+
+        与 ``_format_tools_pyi`` 不同，函数体以实际代码形式呈现（非注释），
+        超出 ``max_body_code_lines`` 的部分用 ``...`` 裁剪标记替代。
+        在工具描述头部添加裁剪说明。
+        """
+        pydantic_models = self.get_collected_pydantic_models()
+
+        lines: List[str] = []
+        lines.append("# Type definitions for environment modules")
+        lines.append("from pydantic import BaseModel, Field")
+        lines.append(
+            "from typing import Any, Optional, Union, List, Dict, Literal, Tuple"
+        )
+        lines.append("from datetime import datetime")
+        lines.append("")
+
+        if pydantic_models:
+            lines.append("# Pydantic BaseModel definitions")
+            for source_code in pydantic_models.values():
+                lines.append("")
+                lines.append(source_code)
+            lines.append("")
+            lines.append("")
+
+        if len(modules_info) > 0:
+            lines.append("# Environment modules")
+            lines.append(
+                "# These are what you can call to interact with the environment."
+            )
+            lines.append(
+                "# NOTE: Function bodies are trimmed for brevity. The '...' at the end "
+                "indicates omitted implementation details."
+            )
+        else:
+            lines.append("# No environment modules")
+            lines.append("# You can't interact with the environment.")
+        lines.append("")
+
+        for module_name, module_data in modules_info.items():
+            lines.append(f"class {module_name}:")
+            description = module_data.description
+            if description:
+                lines.append(f'    """{description}"""')
+            lines.append("")
+
+            for tool_info in module_data.tools:
+                function_parts = tool_info.function_parts
+                sig_str = function_parts.signature
+
+                lines.append(f"    {sig_str}")
+                if function_parts.docstring:
+                    lines.append(f'        """{function_parts.docstring}"""')
+                # Show body as actual code, not commented out
+                body = function_parts.body_code
+                trimmed = body[:max_body_code_lines]
+                for line in trimmed:
+                    lines.append(f"        {line}")
+                if len(body) > max_body_code_lines:
+                    lines.append("        # ... (trimmed)")
+                lines.append("        ...")
+                lines.append("")
+
+        code = "\n".join(lines)
+        try:
+            return black.format_str(code, mode=black.Mode())
+        except Exception as e:
+            get_logger().warning(f"Failed to format trimmed pyi code with black: {e}")
+            return code
+
+    def _format_tools_raw_code(self, modules_info: ToolsInfoDict) -> str:
+        """将工具信息格式化为原始 Python 代码（不使用 AST/pyi 解析，直接输出完整源码）。
+
+        与 ``_format_tools_pyi`` 不同，此方法直接使用 ``inspect.getsource``
+        获取每个工具函数的完整源码，不做类型存根提取。
+
+        :param modules_info: 按模块组织的工具信息字典。
+        :returns: 格式化的 Python 代码字符串。
+        """
+        import inspect as _inspect
+
+        lines: List[str] = []
+        lines.append("# Type definitions for environment modules")
+        lines.append("from pydantic import BaseModel, Field")
+        lines.append("from typing import Any, Optional, Union, List, Dict, Literal, Tuple")
+        lines.append("from datetime import datetime")
+        lines.append("")
+
+        pydantic_models = self.get_collected_pydantic_models()
+        if pydantic_models:
+            lines.append("# Pydantic BaseModel definitions")
+            for source_code in pydantic_models.values():
+                lines.append("")
+                lines.append(source_code)
+            lines.append("")
+            lines.append("")
+
+        if len(modules_info) > 0:
+            lines.append("# Environment modules (raw source code)")
+            lines.append("# These are what you can call to interact with the environment.")
+        else:
+            lines.append("# No environment modules")
+        lines.append("")
+
+        for module_name, module_data in modules_info.items():
+            lines.append(f"class {module_name}:")
+            description = module_data.description
+            if description:
+                lines.append(f'    """{description}"""')
+            lines.append("")
+
+            for tool_info in module_data.tools:
+                fp = tool_info.function_parts
+                lines.append(f"    {fp.signature}")
+                if fp.docstring:
+                    lines.append(f'        """{fp.docstring}"""')
+                for body_line in fp.body_code:
+                    lines.append(f"        {body_line}")
+                lines.append("")
+
+        raw_code = "\n".join(lines)
+        try:
+            formatted_code = black.format_str(raw_code, mode=black.Mode())
+            return formatted_code
+        except Exception as e:
+            get_logger().warning(f"Failed to format raw code with black: {e}")
+            return raw_code
+
     async def generate_final_answer(
         self,
         ctx: dict,
