@@ -22,6 +22,11 @@ API端点：
 
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
+
+from agentsociety2.backend.path_security import (
+    resolve_under_root,
+    resolve_workspace_root,
+)
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import os
@@ -267,9 +272,13 @@ async def test_custom_modules(request: TestRequest):
     try:
         # 记录测试请求
         if module_kind and module_class_name:
-            logger.info(f"[Custom Modules] Testing specific module: {module_kind}.{module_class_name}")
+            logger.info(
+                f"[Custom Modules] Testing specific module: {module_kind}.{module_class_name}"
+            )
         else:
-            logger.info(f"[Custom Modules] Starting test of workspace: {workspace_path}")
+            logger.info(
+                f"[Custom Modules] Starting test of workspace: {workspace_path}"
+            )
 
         builder = ScriptGenerator(workspace_path)
 
@@ -351,7 +360,9 @@ async def test_custom_modules(request: TestRequest):
             status = "PASSED" if module_result["success"] else "FAILED"
             logger.info(f"[Custom Modules] Test {status}: {module_result['name']}")
             if module_result.get("error"):
-                logger.error(f"[Custom Modules] Test error for {module_result['name']}: {module_result['error']}")
+                logger.error(
+                    f"[Custom Modules] Test error for {module_result['name']}: {module_result['error']}"
+                )
 
         output = result.get("stdout", "")
         stderr = result.get("stderr", "")
@@ -362,7 +373,9 @@ async def test_custom_modules(request: TestRequest):
         total = result.get("total_tests", 0)
         passed = result.get("passed_tests", 0)
         failed = result.get("failed_tests", 0)
-        logger.info(f"[Custom Modules] Test complete: {passed}/{total} passed, {failed} failed")
+        logger.info(
+            f"[Custom Modules] Test complete: {passed}/{total} passed, {failed} failed"
+        )
 
         return TestResponse(
             success=result["success"],
@@ -395,7 +408,9 @@ async def list_custom_modules():
         workspace_path = os.getenv("WORKSPACE_PATH")
         if workspace_path and not registry._custom_loaded:
             try:
-                scan_and_register_custom_modules(Path(workspace_path), registry)
+                scan_and_register_custom_modules(
+                    resolve_workspace_root(workspace_path), registry
+                )
             except Exception as exc:
                 logger.warning(f"[Custom Modules] Auto-load before list failed: {exc}")
 
@@ -409,12 +424,14 @@ async def list_custom_modules():
                 except Exception:
                     description = f"{agent_class.__name__}: {agent_class.__doc__ or 'No description available'}"
 
-                result["agents"].append({
-                    "type": agent_type,
-                    "class_name": agent_class.__name__,
-                    "description": description,
-                    "is_custom": True,
-                })
+                result["agents"].append(
+                    {
+                        "type": agent_type,
+                        "class_name": agent_class.__name__,
+                        "description": description,
+                        "is_custom": True,
+                    }
+                )
 
         # 从注册表获取自定义环境模块
         for module_type, env_class in get_registered_env_modules():
@@ -424,12 +441,14 @@ async def list_custom_modules():
                 except Exception:
                     description = f"{env_class.__name__}: {env_class.__doc__ or 'No description available'}"
 
-                result["envs"].append({
-                    "type": module_type,
-                    "class_name": env_class.__name__,
-                    "description": description,
-                    "is_custom": True,
-                })
+                result["envs"].append(
+                    {
+                        "type": module_type,
+                        "class_name": env_class.__name__,
+                        "description": description,
+                        "is_custom": True,
+                    }
+                )
 
         return ListResponse(
             success=True,
@@ -459,7 +478,8 @@ async def get_custom_modules_status():
 
     from pathlib import Path
 
-    custom_dir = Path(workspace_path) / "custom"
+    workspace = resolve_workspace_root(workspace_path)
+    custom_dir = resolve_under_root(workspace, "custom")
     status = {
         "custom_dir_exists": custom_dir.exists(),
         "agents_dir_exists": (custom_dir / "agents").exists(),
@@ -526,7 +546,9 @@ async def list_available_classes(
         # 扫描自定义模块（如果请求）
         if include_custom:
             try:
-                scan_and_register_custom_modules(Path(workspace_path), registry)
+                scan_and_register_custom_modules(
+                    resolve_workspace_root(workspace_path), registry
+                )
             except Exception as e:
                 logger.warning(f"Failed to scan custom modules: {e}")
 
@@ -561,7 +583,10 @@ async def list_available_classes(
             }
 
         # 加载预填充参数，标记哪些类已配置
-        prefill_file = Path(workspace_path) / ".agentsociety" / "prefill_params.json"
+        workspace = resolve_workspace_root(workspace_path)
+        prefill_file = resolve_under_root(
+            workspace, ".agentsociety", "prefill_params.json"
+        )
         env_prefill = {}
         agent_prefill = {}
 
@@ -622,7 +647,9 @@ async def rescan_custom_modules(
         registry.clear_custom_modules()
 
         # 扫描新的自定义模块
-        scan_result = scan_and_register_custom_modules(Path(workspace_path), registry)
+        scan_result = scan_and_register_custom_modules(
+            resolve_workspace_root(workspace_path), registry
+        )
 
         return {
             "success": True,

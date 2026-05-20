@@ -8,6 +8,11 @@ import json
 from pathlib import Path
 from typing import Dict, Any
 
+from agentsociety2.backend.path_security import (
+    resolve_under_root,
+    resolve_workspace_root,
+)
+
 
 class CustomModuleJsonGenerator:
     """为自定义模块生成 .agentsociety JSON 配置文件"""
@@ -18,9 +23,13 @@ class CustomModuleJsonGenerator:
 
         :param workspace_path: 工作区路径
         """
-        self.workspace_path = Path(workspace_path).resolve()
-        self.agent_classes_dir = self.workspace_path / ".agentsociety/agent_classes"
-        self.env_modules_dir = self.workspace_path / ".agentsociety/env_modules"
+        self.workspace_path = resolve_workspace_root(workspace_path)
+        self.agent_classes_dir = resolve_under_root(
+            self.workspace_path, ".agentsociety", "agent_classes"
+        )
+        self.env_modules_dir = resolve_under_root(
+            self.workspace_path, ".agentsociety", "env_modules"
+        )
 
     def generate_all(self, scan_result: Dict[str, Any]) -> Dict[str, int]:
         """

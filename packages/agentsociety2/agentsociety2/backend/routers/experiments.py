@@ -23,6 +23,12 @@ from typing import Any, Dict, List, Optional, Tuple
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from agentsociety2.backend.path_security import (
+    resolve_artifact_path,
+    resolve_experiment_dir,
+    resolve_experiment_db,
+    resolve_under_root,
+)
 from agentsociety2.logger import get_logger
 from agentsociety2.storage.replay_metadata import (
     AGENT_PROFILE_DATASET_CAPABILITY,
@@ -65,23 +71,19 @@ class ExperimentInfo(BaseModel):
 
 
 def _get_experiment_path(
-    workspace_path: Path,
+    workspace_path: str,
     hypothesis_id: str,
     experiment_id: str,
 ) -> Path:
-    """获取实验目录路径"""
-    return (
-        workspace_path / f"hypothesis_{hypothesis_id}" / f"experiment_{experiment_id}"
-    )
+    return resolve_experiment_dir(workspace_path, hypothesis_id, experiment_id)
 
 
-def _get_db_connection(db_path: Path) -> sqlite3.Connection:
-    """获取数据库连接"""
-    if not db_path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Database not found: {db_path}. The experiment may not have been run yet.",
-        )
+def _get_db_connection(
+    workspace_path: str,
+    hypothesis_id: str,
+    experiment_id: str,
+) -> sqlite3.Connection:
+    db_path = resolve_experiment_db(workspace_path, hypothesis_id, experiment_id)
     return sqlite3.connect(db_path)
 
 
@@ -165,7 +167,9 @@ def _load_dataset_catalog(cursor: sqlite3.Cursor) -> List[Dict[str, Any]]:
                 "entity_key": entity_key,
                 "step_key": step_key,
                 "time_key": time_key,
-                "default_order": default_order if isinstance(default_order, list) else [],
+                "default_order": (
+                    default_order if isinstance(default_order, list) else []
+                ),
                 "capabilities": capabilities if isinstance(capabilities, list) else [],
             }
         )
@@ -509,8 +513,7 @@ async def get_experiment_info(
     :raises HTTPException: 404 - 实验目录不存在
     :raises HTTPException: 500 - 数据库查询失败
     """
-    workspace = Path(workspace_path)
-    exp_path = _get_experiment_path(workspace, hypothesis_id, experiment_id)
+    exp_path = _get_experiment_path(workspace_path, hypothesis_id, experiment_id)
 
     if not exp_path.exists():
         raise HTTPException(status_code=404, detail="Experiment not found")
@@ -537,9 +540,9 @@ async def get_experiment_info(
     agent_count = 0
     step_count = 0
 
-    if db_file.exists():
+    if db_file.is_file():
         try:
-            conn = _get_db_connection(db_file)
+            conn = _get_db_connection(workspace_path, hypothesis_id, experiment_id)
             cursor = conn.cursor()
 
             profiles = _load_agent_profiles_compat(cursor)
@@ -592,11 +595,10 @@ async def list_artifacts(
 
     :returns: List[Dict[str, str]]: 产出文件列表，每个文件包含： - name: 文件名 - path: 文件绝对路径 - type: 文件类型 (ask/intervene)
     """
-    workspace = Path(workspace_path)
-    exp_path = _get_experiment_path(workspace, hypothesis_id, experiment_id)
-    artifacts_dir = exp_path / "run" / "artifacts"
+    exp_path = _get_experiment_path(workspace_path, hypothesis_id, experiment_id)
+    artifacts_dir = resolve_under_root(exp_path, "run", "artifacts")
 
-    if not artifacts_dir.exists():
+    if not artifacts_dir.is_dir():
         return []
 
     artifacts = []
@@ -632,12 +634,9 @@ async def get_artifact(
     :returns: Dict[str, str]: 文件内容，包含： - name: 文件名 - content: 文件完整内容（Markdown格式）
     :raises HTTPException: 404 - 文件不存在
     """
-    workspace = Path(workspace_path)
-    exp_path = _get_experiment_path(workspace, hypothesis_id, experiment_id)
-    artifact_path = exp_path / "run" / "artifacts" / artifact_name
-
-    if not artifact_path.exists():
-        raise HTTPException(status_code=404, detail="Artifact not found")
+    artifact_path = resolve_artifact_path(
+        workspace_path, hypothesis_id, experiment_id, artifact_name
+    )
 
     content = artifact_path.read_text(encoding="utf-8")
 

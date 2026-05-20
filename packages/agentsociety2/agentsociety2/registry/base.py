@@ -9,6 +9,7 @@ import os
 
 from agentsociety2.agent.base import AgentBase
 from agentsociety2.env.base import EnvBase
+from agentsociety2.backend.path_security import resolve_workspace_root
 from agentsociety2.logger import get_logger
 
 logger = get_logger()
@@ -161,7 +162,7 @@ class ModuleRegistry:
 
         :param workspace_path: workspace 目录。
         """
-        self._workspace_path = workspace_path.resolve()
+        self._workspace_path = resolve_workspace_root(str(workspace_path))
         # Reset custom loaded flag so modules will be discovered on next access
         self._custom_loaded = False
         logger.debug(f"Registry workspace set to: {self._workspace_path}")
@@ -174,16 +175,22 @@ class ModuleRegistry:
 
         env_workspace = os.getenv("WORKSPACE_PATH")
         if env_workspace:
-            self._workspace_path = Path(env_workspace).resolve()
-            logger.debug(f"Registry workspace inferred from WORKSPACE_PATH: {self._workspace_path}")
+            self._workspace_path = resolve_workspace_root(env_workspace)
+            logger.debug(
+                f"Registry workspace inferred from WORKSPACE_PATH: {self._workspace_path}"
+            )
             return self._workspace_path
 
         cwd = Path.cwd().resolve()
         candidates = [cwd, *cwd.parents]
         for candidate in candidates:
-            if (candidate / "custom" / "envs").exists() or (candidate / "custom" / "agents").exists():
+            if (candidate / "custom" / "envs").exists() or (
+                candidate / "custom" / "agents"
+            ).exists():
                 self._workspace_path = candidate
-                logger.debug(f"Registry workspace inferred from cwd: {self._workspace_path}")
+                logger.debug(
+                    f"Registry workspace inferred from cwd: {self._workspace_path}"
+                )
                 return self._workspace_path
 
         return None
@@ -203,14 +210,16 @@ class ModuleRegistry:
     def clear_custom_modules(self) -> None:
         """清除 registry 中所有 custom 模块。"""
         to_remove = [
-            mt for mt, mc in self._env_modules.items()
+            mt
+            for mt, mc in self._env_modules.items()
             if getattr(mc, "_is_custom", False)
         ]
         for mt in to_remove:
             del self._env_modules[mt]
 
         to_remove = [
-            at for at, ac in self._agent_modules.items()
+            at
+            for at, ac in self._agent_modules.items()
             if getattr(ac, "_is_custom", False)
         ]
         for at in to_remove:
@@ -257,12 +266,16 @@ class ModuleRegistry:
             sig = inspect.signature(cls.__init__)
             for name, param in list(sig.parameters.items())[1:]:  # Skip 'self'
                 params[name] = {
-                    "annotation": str(param.annotation)
-                    if param.annotation != inspect.Parameter.empty
-                    else "Any",
-                    "default": str(param.default)
-                    if param.default != inspect.Parameter.empty
-                    else None,
+                    "annotation": (
+                        str(param.annotation)
+                        if param.annotation != inspect.Parameter.empty
+                        else "Any"
+                    ),
+                    "default": (
+                        str(param.default)
+                        if param.default != inspect.Parameter.empty
+                        else None
+                    ),
                     "kind": str(param.kind),
                 }
         except Exception:

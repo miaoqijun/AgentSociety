@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import func, select
 
+from ...backend.path_security import resolve_experiment_db
 from ...backend.services.replay_catalog import (
     fetch_dataset_rows,
     get_dataset_by_id,
@@ -138,20 +139,11 @@ class ReplayStepBundle(BaseModel):
 
 
 def get_db_path(workspace_path: str, hypothesis_id: str, experiment_id: str) -> Path:
-    return (
-        Path(workspace_path)
-        / f"hypothesis_{hypothesis_id}"
-        / f"experiment_{experiment_id}"
-        / "run"
-        / "sqlite.db"
-    )
+    return resolve_experiment_db(workspace_path, hypothesis_id, experiment_id)
 
 
 async def _get_cached_sessionmaker(db_path: Path) -> tuple[sessionmaker, int]:
     resolved_path = db_path.resolve()
-    if not resolved_path.exists():
-        raise HTTPException(status_code=404, detail=f"Database not found: {db_path}")
-
     cache_key = str(resolved_path)
     mtime_ns = resolved_path.stat().st_mtime_ns
 
@@ -178,8 +170,9 @@ async def _get_cached_sessionmaker(db_path: Path) -> tuple[sessionmaker, int]:
 
 async def get_db_session(db_path: Path):
     async_session, mtime_ns = await _get_cached_sessionmaker(db_path)
+    resolved_path = db_path.resolve()
     async with async_session() as session:
-        session.info["replay_db_path"] = str(db_path.resolve())
+        session.info["replay_db_path"] = str(resolved_path)
         session.info["replay_db_mtime_ns"] = mtime_ns
         yield session
 
@@ -382,7 +375,9 @@ def _parse_profile_payload(raw_profile: Any) -> Dict[str, Any]:
     return {}
 
 
-def _resolve_agent_name(agent_id: int, row: Dict[str, Any], profile: Dict[str, Any]) -> str:
+def _resolve_agent_name(
+    agent_id: int, row: Dict[str, Any], profile: Dict[str, Any]
+) -> str:
     name = row.get("name")
     if isinstance(name, str) and name.strip():
         return name
@@ -495,7 +490,9 @@ async def get_experiment_info(
         )
 
 
-@router.get("/{hypothesis_id}/{experiment_id}/datasets", response_model=ReplayDatasetList)
+@router.get(
+    "/{hypothesis_id}/{experiment_id}/datasets", response_model=ReplayDatasetList
+)
 async def get_replay_datasets(
     hypothesis_id: str,
     experiment_id: str,
@@ -545,7 +542,9 @@ async def get_replay_dataset_rows(
     start_step: Optional[int] = Query(None, description="Start step (inclusive)"),
     end_step: Optional[int] = Query(None, description="End step (inclusive)"),
     max_step: Optional[int] = Query(None, description="Maximum step (inclusive)"),
-    columns: Optional[str] = Query(None, description="Comma-separated column whitelist"),
+    columns: Optional[str] = Query(
+        None, description="Comma-separated column whitelist"
+    ),
     latest_per_entity: bool = Query(
         False,
         description="Return only the latest row per entity",
@@ -688,7 +687,9 @@ async def get_replay_step_bundle(
         )
 
 
-@router.get("/{hypothesis_id}/{experiment_id}/timeline", response_model=List[TimelinePoint])
+@router.get(
+    "/{hypothesis_id}/{experiment_id}/timeline", response_model=List[TimelinePoint]
+)
 async def get_timeline(
     hypothesis_id: str,
     experiment_id: str,

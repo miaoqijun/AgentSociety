@@ -24,6 +24,8 @@ from typing import Dict, Any
 
 from fastapi import APIRouter, Query, HTTPException
 
+from agentsociety2.backend.path_security import resolve_workspace_root
+
 from agentsociety2.logger import get_logger
 from agentsociety2.registry import (
     get_registry,
@@ -56,7 +58,9 @@ def _load_custom_modules_if_needed() -> None:
             registry = get_registry()
             # Only scan if not already loaded
             if not registry._custom_loaded:
-                scan_and_register_custom_modules(Path(workspace_path), registry)
+                scan_and_register_custom_modules(
+                    resolve_workspace_root(workspace_path), registry
+                )
     except Exception as e:
         logger.warning(f"Failed to load custom modules: {e}")
 

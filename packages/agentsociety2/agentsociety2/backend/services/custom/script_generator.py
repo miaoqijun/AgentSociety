@@ -16,6 +16,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Optional, Type
 
+from agentsociety2.backend.path_security import (
+    resolve_workspace_relative,
+    resolve_workspace_root,
+)
 from agentsociety2.backend.services.custom.compatibility import (
     get_registered_tool_names,
     overrides_base_method,
@@ -62,14 +66,16 @@ class SafeModuleTester:
     ]
 
     def __init__(self, workspace_path: str):
-        self.workspace_path = Path(workspace_path).resolve()
+        self.workspace_path = resolve_workspace_root(workspace_path)
         workspace_str = str(self.workspace_path)
         if workspace_str not in sys.path:
             sys.path.insert(0, workspace_str)
 
     def _validate_module_path(self, module_path: str) -> bool:
         clean_path = module_path.replace(".py", "").replace("/", ".")
-        return any(clean_path.startswith(prefix) for prefix in self.ALLOWED_PATH_PREFIXES)
+        return any(
+            clean_path.startswith(prefix) for prefix in self.ALLOWED_PATH_PREFIXES
+        )
 
     def _safe_import_class(self, module_path: str, class_name: str) -> Optional[Type]:
         if not self._validate_module_path(module_path):
@@ -83,7 +89,7 @@ class SafeModuleTester:
         module_import_path = module_path.replace(".py", "").replace("/", ".")
         try:
             if module_import_path.startswith("custom."):
-                file_path = self.workspace_path / module_path
+                file_path = resolve_workspace_relative(self.workspace_path, module_path)
                 module_name = f"_custom_test_{class_name}_{id(file_path)}"
                 spec = importlib.util.spec_from_file_location(module_name, file_path)
                 if spec is None or spec.loader is None:
@@ -103,7 +109,9 @@ class SafeModuleTester:
         except AttributeError as exc:
             raise AttributeError(f"模块中没有类 {class_name}: {exc}") from exc
 
-    def _check(self, name: str, passed: bool, message: str, **details: Any) -> ValidationCheck:
+    def _check(
+        self, name: str, passed: bool, message: str, **details: Any
+    ) -> ValidationCheck:
         return ValidationCheck(
             name=name,
             passed=passed,
@@ -137,14 +145,18 @@ class SafeModuleTester:
         checks: list[ValidationCheck] = []
 
         required_methods = ["ask", "step", "dump", "load"]
-        missing_methods = [method for method in required_methods if not hasattr(cls, method)]
+        missing_methods = [
+            method for method in required_methods if not hasattr(cls, method)
+        ]
         checks.append(
             self._check(
                 "required_methods",
                 not missing_methods,
-                "Agent 必需方法检查通过"
-                if not missing_methods
-                else f"缺少必需方法: {missing_methods}",
+                (
+                    "Agent 必需方法检查通过"
+                    if not missing_methods
+                    else f"缺少必需方法: {missing_methods}"
+                ),
                 missing_methods=missing_methods,
             )
         )
@@ -190,7 +202,9 @@ class SafeModuleTester:
             except Exception as exc:
                 output_lines.append(f"✗ mcp_description() 调用失败: {exc}")
                 checks.append(
-                    self._check("mcp_description", False, f"mcp_description() 调用失败: {exc}")
+                    self._check(
+                        "mcp_description", False, f"mcp_description() 调用失败: {exc}"
+                    )
                 )
 
         for method in required_methods:
@@ -202,7 +216,9 @@ class SafeModuleTester:
                     f"{method}() 方法存在" if exists else f"{method}() 方法不存在",
                 )
             )
-            output_lines.append(f"{'✓' if exists else '✗'} {method}() 方法{'存在' if exists else '不存在'}")
+            output_lines.append(
+                f"{'✓' if exists else '✗'} {method}() 方法{'存在' if exists else '不存在'}"
+            )
 
         return self._finalize_result(
             name=class_name,
@@ -222,7 +238,9 @@ class SafeModuleTester:
             checks.append(self._check("instantiation", True, "cls() 实例化成功"))
         except Exception as exc:
             output_lines.append(f"✗ 创建实例失败: {exc}")
-            checks.append(self._check("instantiation", False, f"cls() 实例化失败: {exc}"))
+            checks.append(
+                self._check("instantiation", False, f"cls() 实例化失败: {exc}")
+            )
             return self._finalize_result(
                 name=class_name,
                 module_kind="env_module",
@@ -247,7 +265,9 @@ class SafeModuleTester:
             except Exception as exc:
                 output_lines.append(f"✗ mcp_description() 调用失败: {exc}")
                 checks.append(
-                    self._check("mcp_description", False, f"mcp_description() 调用失败: {exc}")
+                    self._check(
+                        "mcp_description", False, f"mcp_description() 调用失败: {exc}"
+                    )
                 )
 
         tool_names = get_registered_tool_names(env)
@@ -347,10 +367,14 @@ class SafeModuleTester:
 
                     asyncio.run(agent.init(router))
                     output_lines.append("✓ Agent 环境初始化成功")
-                    checks.append(self._check("agent_init", True, "Agent 环境初始化成功"))
+                    checks.append(
+                        self._check("agent_init", True, "Agent 环境初始化成功")
+                    )
                 except Exception as exc:
                     output_lines.append(f"✗ Agent 环境初始化失败: {exc}")
-                    checks.append(self._check("agent_init", False, f"Agent 环境初始化失败: {exc}"))
+                    checks.append(
+                        self._check("agent_init", False, f"Agent 环境初始化失败: {exc}")
+                    )
         except Exception as exc:
             output_lines.append(f"✗ 集成测试失败: {exc}")
             checks.append(self._check("integration", False, f"集成测试失败: {exc}"))
@@ -434,7 +458,9 @@ class SafeModuleTester:
                     "success": result.success,
                     "output": result.output,
                     "error": result.error,
-                    "checks": [check.model_dump(mode="json") for check in result.checks],
+                    "checks": [
+                        check.model_dump(mode="json") for check in result.checks
+                    ],
                     "metadata": result.metadata,
                 }
                 for result in results
@@ -442,7 +468,11 @@ class SafeModuleTester:
             "total_tests": len(results),
             "passed_tests": passed,
             "failed_tests": failed,
-            "error": error if error is not None else (None if failed == 0 else f"{failed} 个测试失败"),
+            "error": (
+                error
+                if error is not None
+                else (None if failed == 0 else f"{failed} 个测试失败")
+            ),
         }
 
     async def run_test(self, scan_result: dict[str, Any]) -> dict[str, Any]:
@@ -524,7 +554,8 @@ class SafeModuleTester:
                         agent_info = agents[0]
                         env_info = envs[0]
                         agent_cls = self._safe_import_class(
-                            agent_info.get("path", "") or agent_info.get("module_path", ""),
+                            agent_info.get("path", "")
+                            or agent_info.get("module_path", ""),
                             agent_info.get("class_name", ""),
                         )
                         env_cls = self._safe_import_class(

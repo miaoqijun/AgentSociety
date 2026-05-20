@@ -18,6 +18,10 @@ from typing import Dict, Any, Literal
 from fastapi import APIRouter, Query, HTTPException
 from fastapi import Path as PathParam
 
+from agentsociety2.backend.path_security import (
+    resolve_under_root,
+    resolve_workspace_root,
+)
 from agentsociety2.logger import get_logger
 
 logger = get_logger()
@@ -27,9 +31,10 @@ router = APIRouter(prefix="/api/v1/prefill-params", tags=["prefill-params"])
 
 def _load_prefill_params_file(workspace_path: str) -> Dict[str, Any]:
     """加载全局预填充参数文件"""
-    prefill_file = Path(workspace_path) / ".agentsociety" / "prefill_params.json"
+    workspace = resolve_workspace_root(workspace_path)
+    prefill_file = resolve_under_root(workspace, ".agentsociety", "prefill_params.json")
 
-    if not prefill_file.exists():
+    if not prefill_file.is_file():
         return {"version": "1.0", "env_modules": {}, "agents": {}}
 
     try:
