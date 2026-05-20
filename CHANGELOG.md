@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.4.1] - 2026-05-20
+
+### Added
+
+- **分析 Harness**：分阶段门禁、双语报告（MD+HTML）、图表 `assets/` 同步、`sync-report-assets`、独立报告评审与综合报告校验。
+- **VS Code 扩展 1.4.1**：分析阶段进度树、HTML Live Preview、Claude Base URL 预设（DeepSeek / 火山方舟分离）、假设与综合报告树统一展示。
+
+### Changed
+
+- **`agentsociety2` 2.4.0 → 2.4.1**：与 `main` 上已合并的分析 Harness 及扩展改动对齐发版。
+
+### Fixed
+
+- Claude Code 配置使用 `ANTHROPIC_AUTH_TOKEN`；修复 ruff / CI 与路径安全相关小问题。
+
 ## [2.2.0] - 2026-04-18
 
 ### Added
