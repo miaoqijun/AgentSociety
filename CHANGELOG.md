@@ -2,52 +2,18 @@
 
 ## [2.4.1] - 2026-05-20
 
-本版本在 `2.4.0` 基础上合并分析 Harness、扩展与技能包的一轮大更新；Python 包版本 `agentsociety2==2.4.1`，VS Code 扩展 `ai-social-scientist` **1.4.1**。
-
 ### Added
 
-#### 分析 Harness（`agentsociety2` + `agentsociety-analysis` 技能）
-
-- **五阶段假设分析流水线**（`frame` → `explore` → `claims` → `refine` → `produce`），状态与计划写入 `.agentsociety/analysis/hypothesis_{id}/`（`state.yaml`、`analysis_plan.yaml`、`claims.json`），与 `presentation/hypothesis_{id}/` 用户可见产物分离。
-- **结构性校验 + 阶段 attestation 双层门禁**：`validate-<phase>`、`record-attestation`、`gate-status`；前置阶段未 `gate_pass` 时后续阶段阻断（`prior_phase_gate_issues`）。
-- **`refine` 整体验证**：`validate-refine` 检查 figure contract 与 `charts/` 落盘；`validate-chart` 校验作图脚本命名与安全约束。
-- **`produce` 发布校验**：`validate-release` 要求四份报告（`report_zh/en.md` + `report_zh/en.html`）、`report_outline.json`、`artifact_manifest.json`、`data/analysis_summary.json`；校验报告内 `assets/` 引用与磁盘一致，禁止正文引用 `charts/`；发布前自动 `sync-report-assets`（从 `charts/` 补齐 `assets/`）。
-- **报告质量与独立评审**：`validate-report-quality`（篇幅、图表说明、主张对齐等机械检查）；`record-report-review` / `record-synthesis-review` + `validate_report_review`，未通过或指纹过期则 `validate-release` / `validate-synthesis` 阻断。
-- **综合阶段（Stage 6）**：`synthesis_brief.json`、双语综合报告（MD+HTML）、`validate-synthesis`；支持 `synthesis/charts/` 与 `synthesis/assets/`。
-- **CLI / `ags.py analysis` 子命令**：`intake`、`write-plan`、`build-report-context`、`sync-report-assets`、`record-claim`、`record-contract`、`record-phase-artifacts`、`advance`、`run-loop` 等；技能内 `scripts/analysis.py` 与 harness 对齐。
-- **HTML 报告规范**：LLM 按 `assets/report-shell.reference.html` 原生撰写双语 HTML（非 Markdown 机械转换）；`support/frontend-design` 随分析技能同步到工作区。
-- **测试**：`tests/test_analysis_harness.py`（门禁、release、图表同步、前置阶段阻断等）。
-
-#### VS Code 扩展 `ai-social-scientist` 1.4.1
-
-- **分析进度树**：假设下展示五阶段进度（`analysisHarnessStatusViewer`）；点击可查看 harness 状态与校验摘要。
-- **报告节点**：固定展示四份必交报告；缺失显示「必交 · 未生成」；Markdown 预览、HTML 经 `aiSocialScientist.openHtmlReport` 走 Live Preview（失败回退编辑器）。
-- **产物目录**：`分析数据`；`报告图表`（`assets/`）；`charts/` 仅在含脚本或未同步图片时显示，避免与 `assets/` 重复列表。
-- **综合报告树**：与假设分析相同的四报告位 + `x/4 份报告` 计数；支持 `charts/` / `assets/` / `data/`。
-- **Claude Code 配置**（高级配置 Tab）：读写 `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL`；预设网关含 **DeepSeek**（`api.deepseek.com/anthropic`）与 **火山方舟**（`ark.cn-beijing.volces.com/api/plan`）分列；自定义预设不再默认填入 Anthropic 官方 URL。
-
-#### 后端与其它
-
-- **`path_security`**：工作区路径解析与越界访问防护，接入 custom / experiments / prefill_params / replay 等路由。
-- **`env_benchmark.py`**：`CodeGenRouter` 统一 `code_format` 参数，便于对比各 env router。
-- **文献检索**：扩展侧文献能力改为 MCP 调用路径（配合技能与后端调整）。
+- **分析 Harness**：分阶段门禁、双语报告（MD+HTML）、图表 `assets/` 同步、`sync-report-assets`、独立报告评审与综合报告校验。
+- **VS Code 扩展 1.4.1**：分析阶段进度树、HTML Live Preview、Claude Base URL 预设（DeepSeek / 火山方舟分离）、假设与综合报告树统一展示。
 
 ### Changed
 
-- **`agentsociety-analysis` v1.0.0**：技能文档拆分为 `stages/`、`references/`（`harness-contract`、`html-export`、`report-embeddings`、`phase-attestation` 等）、`subagent-prompts/`（report/synthesis producer & reviewer）；`output-conventions` 明确禁止 `presentation/.../analysis/` 旧布局。
-- **扩展配置页**：原独立 Claude Code Webview 并入主配置页「高级配置」；删除冗余 HELP 静态页，说明迁入 walkthrough / README。
-- **Walkthrough**：API 配置与 Claude Code 章节更新（第三方 Base URL、Token 变量名）。
+- **`agentsociety2` 2.4.0 → 2.4.1**：与 `main` 上已合并的分析 Harness 及扩展改动对齐发版。
 
 ### Fixed
 
-- **Claude Code**：修复误用 `ANTHROPIC_API_KEY` 的问题，与官方环境变量 `ANTHROPIC_AUTH_TOKEN` 一致。
-- **CodeQL**：修复路径拼接、SQL 与相关静态分析问题（`b345d34f`）。
-- **CI**：修复 analysis harness / 后端等文件的 ruff 未使用导入与 `ValidationResult` 类型注解（`F821`/`F401`）。
-
-### 升级提示
-
-- 已有工作区若仍含 `presentation/hypothesis_*/analysis/`，运行 `ags.py analysis intake` 可迁移 harness 状态至 `.agentsociety/analysis/`。
-- 发版标签：`agentsociety2-v2.4.1`（GitLab `generate-changelog` / `create-release` 流水线依赖该命名）。
+- Claude Code 配置使用 `ANTHROPIC_AUTH_TOKEN`；修复 ruff / CI 与路径安全相关小问题。
 
 ## [2.2.0] - 2026-04-18
 
