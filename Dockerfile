@@ -88,7 +88,8 @@ RUN uv pip install --system \
     openpyxl \
     python-pptx \
     Pillow \
-    python-docx
+    python-docx \
+    python-dotenv
 
 # Copy the vsix file from builder stage
 COPY --from=extension-builder /app/extension.vsix /app/extension.vsix
