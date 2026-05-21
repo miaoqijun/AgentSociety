@@ -68,8 +68,14 @@ class Map:
 
         if map_data is None:
             logging.debug("No cache file found, start parse pb file")
-            with open(pb_path, "rb") as f:
-                pb = map_pb2.Map().FromString(f.read())
+            try:
+                with open(pb_path, "rb") as f:
+                    pb = map_pb2.Map().FromString(f.read())
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    f"Map file not found: {pb_path}. "
+                    f"You can try downloading it via `agentsociety-use-dataset skill`."
+                ) from None
             jsons = []
             for field in pb.DESCRIPTOR.fields:
                 class_name = stringcase.spinalcase(field.message_type.name)
