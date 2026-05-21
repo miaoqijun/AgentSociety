@@ -18,6 +18,36 @@ Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.
 
 ---
 
+## [2.5.1] - 2026-05-21
+
+- **agentsociety2** `2.5.1` · **extension** `1.5.1` · 标签 `agentsociety2-v2.5.1`
+
+本版本在 [2.4.1] 基础上交付**自适应 LLM 并发控制**、**Agent 技能与认知增强**、**CodeGenRouter 安全加固**及 VS Code 扩展多项体验改进；Python 安装：`pip install agentsociety2==2.5.1`。
+
+### Added
+
+- **agentsociety2**：自适应 LLM 并发控制，优化大规模智能体仿真吞吐量。
+- **agentsociety2**：Agent 技能（agent-skill）重构改善；认知（cognition）模块增强情绪与意图状态管理。
+- **agentsociety2**：mobility_space 模块在地图文件缺失时给出下载提示。
+- **extension**：Claude Code 权限模式配置页面；移除 Stop hook。
+- **extension**：HYPOTHESIS.md 与 EXPERIMENT.md 作为树节点固定展示。
+- **extension**：工作区文件变更时强制 git 追踪。
+- **docker**：运行时依赖新增 `python-dotenv`。
+
+### Changed
+
+- **agentsociety2**：时间上下文移至 prompt 末尾以提升缓存命中率。
+- **ci**：配置变更时始终构建 Docker 镜像并运行完整 CI；无 Python 代码变更时跳过 lint/test。
+
+### Fixed
+
+- **docker**：统一 `python3` 路径，修复 apt 拉入不同版本后命令不可用的问题；确保 `python` 命令指向系统 Python。
+- **extension**：autoCommit 因缺少 git identity 静默失败的问题。
+- **agentsociety2**：mobility_space 缺少 `json` 和 `Path` 导入。
+- **agentsociety2**：CodeGenRouter 沙箱加固与安全基准测试。
+
+---
+
 ## [2.4.1] - 2026-05-20
 
 - **agentsociety2** `2.4.1` · **extension** `1.4.1` · 标签 `agentsociety2-v2.4.1`
