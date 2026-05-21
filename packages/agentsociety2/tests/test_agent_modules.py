@@ -29,7 +29,7 @@ class TestSkillRegistry:
         registry = SkillRegistry()
         scripts = {info.name: info.script for info in registry.list_all()}
 
-        assert scripts["cognition"] == "scripts/update_cognition.py"
+        assert scripts["cognition"] == ""
         assert scripts["memory"] == "scripts/memory_maintenance.py"
 
     @pytest.mark.asyncio

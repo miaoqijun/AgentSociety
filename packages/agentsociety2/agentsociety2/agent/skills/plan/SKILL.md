@@ -1,213 +1,84 @@
 ---
 name: plan
-description: Execute intentions through the environment.
+description: Execute the current intention via codegen. Use when acting on state/intention.json against the environment.
 ---
 
 # Plan
 
-Execute intentions by generating environment actions via `codegen`.
+Convert the current intention into exactly one concrete environment action for this tick via `codegen`.
 
-## Activation
+This skill is a tick-level action controller. It does not complete the whole goal at once. After one meaningful action, stop.
 
-Activate this skill when you have an intention to execute.
+## Inputs
 
-## Dual-Process Decision Making
+| File                    | Use                                     |
+| ----------------------- | --------------------------------------- |
+| `state/intention.json`  | Current goal or intention               |
+| `state/observation.txt` | Available actions, context, affordances |
+| `state/plan_state.json` | Multi-step progress, System 2 only      |
 
-Human decisions arise from two systems:
+## Core rules
 
-### System 1: Fast, Habitual
+- Produce at most one meaningful environment action per tick.
+- Actions must match available actions in `state/observation.txt`.
+- Never invent unavailable actions.
+- After `codegen` returns `success` or `in_progress`, stop with `done`.
+- Do not observe again in the same tick.
+- `done` means the current tick is complete, not necessarily that the intention is complete.
 
-- Triggered by: routine situations, familiar contexts
-- Characteristics: quick, automatic, low cognitive load
-- Output: single-step action, no plan_state needed
-- Use when:
-  - Routine activity (eating, sleeping, commuting)
-  - Time pressure
-  - Low stakes
-  - Strong habit exists
+## Priority override
 
-### System 2: Deliberate, Planned
+If `safety`, `energy`, or `satiety` is below `0.2`, address the critical need first when possible.
 
-- Triggered by: novel situations, complex goals, conflicts
-- Characteristics: slow, analytical, requires attention
-- Output: multi-step plan_state.json
-- Use when:
-  - New or unfamiliar goal
-  - Multiple steps required
-  - High stakes or uncertainty
-  - Conflicting options
+Priority:
 
-### System Selection
+1. Safety
+2. Energy
+3. Satiety
 
-| Condition | System |
-|-----------|--------|
-| Routine time + routine action | System 1 |
-| Familiar location + known action | System 1 |
-| New intention + complex goal | System 2 |
-| Multiple options + uncertainty | System 2 |
-| Urgent need + known solution | System 1 |
-| Conflict detected | System 2 |
+If an existing multi-step plan can be resumed later, mark it as `interrupted`, not `failed`.
 
-## Input Files
+## Mode selection
 
-| File | Use |
-|------|-----|
-| `state/intention.json` | Current goal |
-| `state/observation.txt` | Environment context |
-| `state/plan_state.json` | Ongoing multi-step plan |
+Default to System 1.
 
-## Output Files
+Use System 1 when the next action is routine, obvious, or urgent.
 
-### state/plan_state.json
+Use System 2 only when the goal requires multiple ticks, has uncertainty, involves conflict, or needs step tracking.
 
-```json
-{
-  "goal": "Buy groceries at the supermarket",
-  "steps": ["walk to supermarket", "enter store", "pick items", "pay"],
-  "current_step": 1,
-  "started_tick": 42,
-  "status": "in_progress",
-  "decision_mode": "system2",
-  "estimated_ticks": 4
-}
-```
+## System 1
 
-## Single-Step Actions (System 1)
+For simple goals:
 
-Most routine intentions execute in one `codegen` call:
+1. Read intention and observation.
+2. Choose one available action.
+3. Call `codegen` once.
+4. Stop with `done`.
 
-```text
-Move to the café on Main Street.
-```
+Do not create `state/plan_state.json`.
 
-No `plan_state.json` needed for single-step actions.
+## System 2
 
-## Multi-Step Plans (System 2)
+For multi-step goals:
 
-For complex goals, maintain `state/plan_state.json`:
+1. Read or create `state/plan_state.json`.
+2. Keep the plan within 6 steps.
+3. Execute only the current step via `codegen`.
+4. Update plan status if needed.
+5. Stop after one action.
 
-1. Check if `state/plan_state.json` exists
-2. If new intention, generate steps (max 6)
-3. Execute current step via `codegen`
-4. Update `state/plan_state.json` with progress
-5. When all steps complete, write `status: "completed"` and a short completion note to `state/plan_state.json`
+Advance `current_step` only when the latest observation confirms the previous step is complete.
 
-### Step Status
+## Failure handling
 
-| Status | Meaning |
-|--------|---------|
-| `pending` | Not started |
-| `in_progress` | Currently executing |
-| `completed` | Successfully finished |
-| `failed` | Cannot complete |
+If `codegen` fails:
 
-### Step Complexity
+- Retry at most once with a clearly different available action.
+- If still blocked, stop with `done` and record the failure.
+- After 3 consecutive failures on the same step, mark the plan as `failed`.
 
-| Steps | Use Case |
-|-------|----------|
-| 1-2 | Simple location change, simple interaction |
-| 3-4 | Multi-location trip, task with preparation |
-| 5-6 | Complex project, event with multiple phases |
+For details, use:
 
-## Need-Driven Plan Adjustment
-
-Plans adapt to changing physiological states.
-
-### Adjustment Triggers
-
-| Trigger | Action |
-|---------|--------|
-| `satiety < 0.2` | Pause plan, find food |
-| `energy < 0.2` | Pause plan, rest |
-| `safety < 0.2` | Pause plan, seek safety |
-| Need satisfied mid-plan | Resume original plan |
-
-### Plan State for Interruption
-
-```json
-{
-  "goal": "Work on project",
-  "status": "interrupted",
-  "interrupted_at_step": 2,
-  "interrupt_reason": "satiety_critical",
-  "resumable": true,
-  "resume_conditions": ["satiety > 0.5"]
-}
-```
-
-### Resume Logic
-
-1. Check `resumable` flag
-2. Verify all `resume_conditions` met
-3. Continue from `interrupted_at_step`
-4. Update status to `in_progress`
-
-## Plan Interruption
-
-Interrupt ongoing plan when:
-- New urgent need emerges (satiety/energy < 0.2)
-- Current intention differs significantly
-- Environment makes plan impossible
-- External event requires attention
-
-### Forced vs Voluntary
-
-| Type | Condition | Recovery |
-|------|-----------|----------|
-| `forced` | Critical need | Resume when satisfied |
-| `voluntary` | Better option | May abandon plan |
-
-## Habit Integration
-
-When a plan becomes routine, convert to habit.
-
-### Habit Formation
-
-| Repetitions | Status |
-|-------------|--------|
-| 1-2 | Novel (System 2) |
-| 3-5 | Learning (mix) |
-| 6+ | Habit (System 1) |
-
-### Habit Output
-
-For habitual actions, add to `intention.json`:
-
-```json
-{
-  "intention": "Morning commute to work",
-  "is_habit": true,
-  "habit_strength": 0.8,
-  "automatic": true
-}
-```
-
-## Workflow
-
-1. Read `state/intention.json` and `state/plan_state.json`
-2. Determine decision mode (System 1 or 2)
-3. Check for need-based interrupts
-4. Generate or continue plan execution
-5. Call `codegen` with action instruction
-6. Update `plan_state.json`
-7. End the step after one meaningful environment action; observe on the next tick.
-
-## Guidelines
-
-- One meaningful action per tick
-- Actions must match AVAILABLE ACTIONS from observation
-- If `codegen` returns `status: "success"` or `status: "in_progress"` after an environment action, call `done`
-- If `codegen` returns `status: "fail"`, either try one clearly different correction or call `done` with the failure summary
-- Handle idle gracefully with `done`
-- Mark plan as `failed` after 3 consecutive failures
-- Prefer System 1 for routines, System 2 for novel goals
-- Always check needs before executing plan step
-
-## Re-observation
-
-After each `codegen` action:
-
-1. Check the result
-2. If the action was accepted or is pending, call `done`
-3. Observe on the next tick
-4. Continue only when the result failed and there is a specific correction to try
+- `references/decision_rules.md`
+- `references/plan_state_schema.json`
+- `references/examples.md`
