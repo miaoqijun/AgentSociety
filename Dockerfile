@@ -58,6 +58,15 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
+# apt packages (libreoffice, etc.) may pull in a newer Python into /usr/bin/,
+# creating a mismatch with the base image's Python in /usr/local/bin/.
+# Overwrite /usr/bin/python* symlinks so every path resolves to the same interpreter.
+RUN ln -sf /usr/local/bin/python3 /usr/bin/python3 \
+    && ln -sf /usr/local/bin/python3-config /usr/bin/python3-config \
+    && if [ -f /usr/local/bin/python3.12 ]; then \
+        ln -sf /usr/local/bin/python3.12 /usr/bin/python3.12; \
+    fi
+
 WORKDIR /app
 
 # Install uv
