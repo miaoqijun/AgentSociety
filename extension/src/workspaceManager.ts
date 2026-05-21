@@ -93,6 +93,13 @@ export class WorkspaceManager {
       const gitInitResult = this.ensureWorkspaceGitRepository(workspacePath);
       if (gitInitResult.initialized) {
         filesCreated.push('.git/');
+        // Make an initial commit so the repo is not empty
+        try {
+          execFileSync('git', ['add', '-A'], { cwd: workspacePath, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+          execFileSync('git', ['commit', '-m', 'init: bootstrap research workspace', '--allow-empty'], { cwd: workspacePath, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+        } catch (error) {
+          this.log(`Initial git commit failed (non-fatal): ${error}`);
+        }
       }
 
       // Create/update .gitignore to exclude .env
@@ -241,8 +248,6 @@ export class WorkspaceManager {
       if (syncResult.created.length > 0) {
         filesCreated.push(...syncResult.created);
       }
-
-      this.ensureClaudeProjectHookFiles(workspacePath, filesCreated);
 
       reportProgress('正在安装官方 Office 文档处理技能...');
 
@@ -897,8 +902,6 @@ export class WorkspaceManager {
       '.claude/skills/',
       '.claude/settings.local.json',
       '!.claude/settings.json',
-      '!.claude/hooks/',
-      '!.claude/hooks/**',
       '.codex/*',
       '.codex/skills/',
       '# Python cache files in custom/',
@@ -1067,9 +1070,7 @@ Prefer updating pipeline state through \`.agentsociety/bin/ags.py research-pipel
 ├── AGENTS.md
 ├── .env
 ├── .claude/
-│   ├── settings.json           # Project-level Claude Code hook configuration
-│   ├── hooks/
-│   │   └── commit-skill-files.mjs
+│   ├── settings.json           # Project-level Claude Code settings
 │   └── skills/                 # Claude Code skill bundle for this workspace
 ├── .agentsociety/
 │   ├── progress.json
@@ -1130,7 +1131,6 @@ Do:
 - Match the user's language.
 - Explain the current pipeline stage when it matters to the next action.
 - Prefer \`.agentsociety/bin/ags.py\` over ad hoc helper scripts for workflow operations.
-- Expect eligible workspace files to be committed automatically after Claude Code finishes a turn.
 - Update pipeline state after completing a stage or resolving a meaningful blocker.
 - Read relevant state files before asking the user for information that may already exist in the workspace.
 - Resolve the simulation scale budget before configuration or custom module creation; if it is missing, ask clarifying questions and compare 2-3 approaches with trade-offs.
@@ -1143,229 +1143,6 @@ Do not:
 - Edit \`.agentsociety/*.json\` or \`.jsonl\` manually unless there is a clear reason not to use the CLI.
 - Start analysis before experiment outputs exist.
 - Start paper generation before analysis outputs and claim review are in place.
-`;
-  }
-
-  private ensureClaudeProjectHookFiles(
-    workspacePath: string,
-    filesCreated: string[]
-  ): void {
-    const claudeDir = path.join(workspacePath, '.claude');
-    const hooksDir = path.join(claudeDir, 'hooks');
-    const settingsPath = path.join(claudeDir, 'settings.json');
-    const scriptPath = path.join(hooksDir, 'commit-skill-files.mjs');
-    const hookCommand = '${CLAUDE_PROJECT_DIR}/.claude/hooks/commit-skill-files.mjs';
-
-    if (!fs.existsSync(claudeDir)) {
-      fs.mkdirSync(claudeDir, { recursive: true });
-      filesCreated.push('.claude/');
-      this.log(`Created: ${claudeDir}`);
-    }
-
-    if (!fs.existsSync(hooksDir)) {
-      fs.mkdirSync(hooksDir, { recursive: true });
-      filesCreated.push('.claude/hooks/');
-      this.log(`Created: ${hooksDir}`);
-    }
-
-    if (!fs.existsSync(scriptPath)) {
-      fs.writeFileSync(scriptPath, this.getClaudeAutoCommitHookScript(), 'utf-8');
-      filesCreated.push('.claude/hooks/commit-skill-files.mjs');
-      this.log(`Created: ${scriptPath}`);
-    }
-    try {
-      fs.chmodSync(scriptPath, 0o755);
-    } catch (error) {
-      this.log(`Failed to mark Claude hook script executable: ${error}`);
-    }
-
-    let settings: Record<string, any> = {};
-    if (fs.existsSync(settingsPath)) {
-      try {
-        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-      } catch (error) {
-        this.log(`Failed to parse existing Claude settings, recreating hook section: ${error}`);
-        settings = {};
-      }
-    }
-
-    const hooks = settings.hooks && typeof settings.hooks === 'object'
-      ? settings.hooks
-      : {};
-    const rawStopHooks = Array.isArray(hooks.Stop) ? hooks.Stop : [];
-    const stopHooks = rawStopHooks.filter((group: any) => {
-      if (!Array.isArray(group?.hooks)) {
-        return true;
-      }
-      const remainingHooks = group.hooks.filter((hook: any) => {
-        if (hook?.type !== 'command') {
-          return true;
-        }
-        const legacyNodeHook = hook?.command === 'node'
-          && Array.isArray(hook?.args)
-          && hook.args.includes(hookCommand);
-        const directHook = hook?.command === hookCommand;
-        return !legacyNodeHook && !directHook;
-      });
-      group.hooks = remainingHooks;
-      return remainingHooks.length > 0;
-    });
-
-    stopHooks.push({
-      hooks: [
-        {
-          type: 'command',
-          command: hookCommand,
-        },
-      ],
-    });
-    hooks.Stop = stopHooks;
-    settings.hooks = hooks;
-    fs.writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf-8');
-    if (!filesCreated.includes('.claude/settings.json')) {
-      filesCreated.push('.claude/settings.json');
-    }
-    this.log(`Updated Claude project settings: ${settingsPath}`);
-  }
-
-  private getClaudeAutoCommitHookScript(): string {
-    return `#!/usr/bin/env node
-import { execFileSync } from 'node:child_process';
-import path from 'node:path';
-
-const input = await readHookInput();
-
-const TEXT_ARTIFACT_EXTENSIONS = new Set([
-  '.md',
-  '.txt',
-  '.json',
-  '.jsonl',
-  '.yaml',
-  '.yml',
-  '.csv',
-  '.tsv',
-  '.py',
-  '.ipynb',
-  '.tex',
-  '.bib',
-]);
-
-function readHookInput() {
-  return new Promise((resolve) => {
-    let raw = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', (chunk) => {
-      raw += chunk;
-    });
-    process.stdin.on('end', () => {
-      try {
-        resolve(raw.trim() ? JSON.parse(raw) : {});
-      } catch {
-        resolve({});
-      }
-    });
-    process.stdin.on('error', () => resolve({}));
-  });
-}
-
-function normalize(filePath) {
-  return filePath.replace(/\\\\/g, '/');
-}
-
-function git(args, options = {}) {
-  return execFileSync('git', args, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    ...options,
-  }).trim();
-}
-
-function gitList(args) {
-  const output = execFileSync('git', args, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  return output ? output.split('\\0').filter(Boolean).map(normalize) : [];
-}
-
-function isEligibleArtifact(filePath) {
-  const normalized = normalize(filePath);
-
-  if (
-    normalized === '.env'
-    || normalized === '.claude/settings.local.json'
-    || normalized.startsWith('.claude/skills/')
-    || normalized.startsWith('.git/')
-  ) {
-    return false;
-  }
-
-  if (
-    normalized === '.claude/settings.json'
-    || normalized.startsWith('.claude/hooks/')
-    || normalized.startsWith('custom/')
-    || normalized.startsWith('hypothesis_')
-    || normalized.startsWith('paper/')
-    || normalized.startsWith('presentation/')
-    || normalized.startsWith('synthesis/')
-    || normalized === '.agentsociety/progress.json'
-    || normalized === 'papers/literature_index.json'
-  ) {
-    return true;
-  }
-
-  if (normalized.startsWith('papers/') || normalized.startsWith('datasets/')) {
-    return TEXT_ARTIFACT_EXTENSIONS.has(path.extname(normalized).toLowerCase());
-  }
-
-  return false;
-}
-
-try {
-  git(['rev-parse', '--is-inside-work-tree']);
-} catch {
-  process.exit(0);
-}
-
-const repoRoot = git(['rev-parse', '--show-toplevel']);
-if (!repoRoot) {
-  process.exit(0);
-}
-
-process.chdir(repoRoot);
-
-const unstaged = gitList(['diff', '--name-only', '-z']);
-const staged = gitList(['diff', '--cached', '--name-only', '-z']);
-const untracked = gitList(['ls-files', '--others', '--exclude-standard', '-z']);
-const changed = Array.from(new Set([...unstaged, ...staged, ...untracked]));
-const selected = changed.filter(isEligibleArtifact);
-
-if (selected.length === 0) {
-  process.exit(0);
-}
-
-const stagedOutsideSelection = staged.filter((filePath) => !selected.includes(filePath));
-if (stagedOutsideSelection.length > 0) {
-  process.exit(0);
-}
-
-execFileSync('git', ['add', '--', ...selected], {
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
-
-const stagedSelected = gitList(['diff', '--cached', '--name-only', '-z', '--', ...selected]);
-if (stagedSelected.length === 0) {
-  process.exit(0);
-}
-
-const sessionSuffix = typeof input.session_id === 'string' && input.session_id
-  ? \` [\${input.session_id.slice(0, 8)}]\`
-  : '';
-const commitMessage = \`chore(skill): save workspace updates\${sessionSuffix}\`;
-
-execFileSync('git', ['commit', '--only', '-m', commitMessage, '--', ...selected], {
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
 `;
   }
 

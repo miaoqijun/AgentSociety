@@ -42,6 +42,46 @@ $PYTHON_PATH .agentsociety/bin/ags.py research-pipeline where-am-i --json
 
 This reads `.agentsociety/progress.json` to determine the current stage. If the file does not exist, fall back to file-existence detection and then bootstrap tracking with `init`.
 
+## Git Checkpoint Discipline
+
+Every pipeline transition must be persisted with an explicit git commit. Hook-based auto-commit approaches are unreliable — always commit manually.
+
+### Workspace Initialization
+
+When bootstrapping a new workspace with `research-pipeline init`:
+
+```bash
+# 1. Init the workspace directory if not already a git repo
+git init
+# 2. Create progress tracking
+$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline init --topic "TOPIC"
+# 3. Initial commit
+git add -A && git commit -m "init: bootstrap research pipeline"
+```
+
+### Stage Transitions
+
+After **every** call to `research-pipeline update-stage`, commit the current iteration's changes:
+
+```bash
+$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline update-stage STAGE STATUS
+git add -A && git commit -m "pipeline: STAGE → STATUS"
+```
+
+For example:
+
+```bash
+$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline update-stage literature_search completed
+git add -A && git commit -m "pipeline: literature_search → completed"
+```
+
+### Rules
+
+- If `git` is not initialized in the workspace, run `git init` first.
+- Commit messages follow the pattern: `pipeline: STAGE → STATUS`.
+- Use `git add -A` to capture all changes produced by the current stage.
+- Do **not** rely on git hooks (pre-commit, post-commit, etc.) for this — they are unreliable in this context. Commit explicitly.
+
 ## Entry Conditions
 
 Use `where-am-i --json` whenever the current stage is unclear.
@@ -64,10 +104,10 @@ Use `where-am-i --json` whenever the current stage is unclear.
 
 | Command | Purpose |
 |---------|---------|
-| `$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline init --topic "TEXT"` | Bootstrap `progress.json` |
+| `$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline init --topic "TEXT"` | Bootstrap `progress.json` (also `git init` + initial commit if needed) |
 | `$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline status` | Show progress summary |
 | `$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline where-am-i --json` | Get current stage as JSON |
-| `$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline update-stage STAGE STATUS` | Update stage status |
+| `$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline update-stage STAGE STATUS` | Update stage status (then `git add -A && git commit`) |
 | `$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline set-verification STAGE STATUS` | Update stage verification status |
 | `$PYTHON_PATH .agentsociety/bin/ags.py research-pipeline next-action --json` | Get the recommended next action |
 
@@ -179,3 +219,6 @@ digraph research_pipeline {
 - Always run `experiment-config check` before `run-experiment`
 - `agentsociety-paper-orchestrator` requires analysis reports to exist
 - Always call `research-pipeline update-stage` after completing a pipeline stage
+- Always git commit after `research-pipeline update-stage` — see **Git Checkpoint Discipline**
+- On workspace init, run `git init` (if needed) followed by an initial commit
+- Do not rely on git hooks for auto-commit; commit explicitly after every stage transition

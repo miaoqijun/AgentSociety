@@ -41,7 +41,7 @@ const DEFAULT_VALUES: ConfigValues = {
   llmApiKey: '',
   backendHost: '127.0.0.1',
   backendPort: 8001,
-  pythonPath: '',
+  pythonPath: '/usr/local/bin/python3',
   llmApiBase: 'https://api.openai.com/v1',
   llmModel: 'gpt-5.4',
   backendLogLevel: 'info',
@@ -69,6 +69,7 @@ const DEFAULT_CLAUDE_VALUES: ClaudeCodeConfigValues = {
   sonnetModel: '',
   opusModel: '',
   haikuModel: '',
+  permissionMode: '',
 };
 
 interface ConfigPageAppProps {

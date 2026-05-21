@@ -620,6 +620,11 @@
       "openrouter": "OpenRouter"
     },
     "cliDetected": "已检测到 Claude Code CLI {{version}}",
-    "cliNotInstalled": "Claude Code CLI 未安装"
+    "cliNotInstalled": "Claude Code CLI 未安装",
+    "permissionMode": "默认运行模式",
+    "permissionModeTip": "控制 Claude Code 启动时的权限模式。「跳过权限确认」将自动批准所有工具调用，适合自动化场景。",
+    "permissionModePlaceholder": "选择运行模式",
+    "permissionModeDefault": "默认（需要权限确认）",
+    "permissionModeBypass": "跳过权限确认"
   }
 }

@@ -745,17 +745,31 @@ class MobilitySpace(EnvBase):
         return poi_obj
 
     async def close(self):
-        """
-        Terminate the simulation process if it's running.
-        """
+        """Terminate the simulation process and export trajectory data."""
+        self._export_trajectory_data()
         if self._routing_proc is not None and self._routing_proc.poll() is None:
             get_logger().info(
                 f"Terminating routing at {self._server_addr}, PID={self._routing_proc.pid}, please ignore the PANIC message"
             )
             self._routing_proc.kill()
-            # wait for the process to terminate
             self._routing_proc.wait()
         self._routing_proc = None
+
+    def _export_trajectory_data(self) -> None:
+        """Export trajectories and visited AOIs to run directory."""
+        if not self._home_dir:
+            return
+        export_path = Path(self._home_dir).parent / "mobility_metrics_export.json"
+        trajs = self.get_all_person_trajectories()
+        vis = self.get_all_persons_visited_aois()
+        if not trajs:
+            return
+        data = {
+            "trajectories": {str(k): v for k, v in trajs.items()},
+            "visited_aois": {str(k): sorted(v) for k, v in vis.items()},
+        }
+        export_path.write_text(json.dumps(data), encoding="utf-8")
+        get_logger().info(f"Exported mobility data to {export_path} ({len(trajs)} agents)")
 
     async def step(self, tick: int, t: datetime):
         """

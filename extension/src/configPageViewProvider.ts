@@ -198,9 +198,11 @@ export class ConfigPageViewProvider {
 
   private async _sendClaudeInitialConfig(): Promise<void> {
     const cliStatus = await detectClaudeCli();
+    const claudeConfig = readClaudeConfig();
+    claudeConfig.permissionMode = vscode.workspace.getConfiguration('claudeCode').get<string>('initialPermissionMode', '');
     this._panel.webview.postMessage({
       command: 'initialClaudeConfig',
-      config: readClaudeConfig(),
+      config: claudeConfig,
       settingsPath: CLAUDE_SETTINGS_PATH,
       cliStatus,
     });
@@ -209,6 +211,17 @@ export class ConfigPageViewProvider {
   private async _handleSaveClaudeConfig(config: ClaudeCodeConfigValues): Promise<void> {
     try {
       writeClaudeConfig(config);
+
+      const mode = (config.permissionMode || '').trim();
+      const claudeCfg = vscode.workspace.getConfiguration('claudeCode');
+      if (mode === 'bypassPermissions') {
+        await claudeCfg.update('allowDangerouslySkipPermissions', true, vscode.ConfigurationTarget.Workspace);
+        await claudeCfg.update('initialPermissionMode', 'bypassPermissions', vscode.ConfigurationTarget.Workspace);
+      } else {
+        await claudeCfg.update('allowDangerouslySkipPermissions', undefined, vscode.ConfigurationTarget.Workspace);
+        await claudeCfg.update('initialPermissionMode', undefined, vscode.ConfigurationTarget.Workspace);
+      }
+
       this._panel.webview.postMessage({ command: 'claudeSaveResult', success: true });
       await this._postOverviewStatus();
     } catch (err: unknown) {

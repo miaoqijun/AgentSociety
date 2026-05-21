@@ -6,7 +6,8 @@ import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from '../webview/con
 export const CLAUDE_SETTINGS_DIR = path.join(os.homedir(), '.claude');
 export const CLAUDE_SETTINGS_PATH = path.join(CLAUDE_SETTINGS_DIR, 'settings.json');
 
-const ENV_KEY_MAP: Record<keyof ClaudeCodeConfigValues, string> = {
+type EnvMappedKeys = Exclude<keyof ClaudeCodeConfigValues, 'permissionMode'>;
+const ENV_KEY_MAP: Record<EnvMappedKeys, string> = {
   apiKey: 'ANTHROPIC_AUTH_TOKEN',
   baseUrl: 'ANTHROPIC_BASE_URL',
   model: 'ANTHROPIC_MODEL',
@@ -36,6 +37,7 @@ export function extractClaudeConfig(settings: Record<string, unknown>): ClaudeCo
     sonnetModel: env[ENV_KEY_MAP.sonnetModel] || '',
     opusModel: env[ENV_KEY_MAP.opusModel] || '',
     haikuModel: env[ENV_KEY_MAP.haikuModel] || '',
+    permissionMode: '',
   };
 }
 

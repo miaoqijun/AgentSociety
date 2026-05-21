@@ -620,6 +620,11 @@
       "openrouter": "OpenRouter"
     },
     "cliDetected": "Claude Code CLI detected {{version}}",
-    "cliNotInstalled": "Claude Code CLI not installed"
+    "cliNotInstalled": "Claude Code CLI not installed",
+    "permissionMode": "Default Run Mode",
+    "permissionModeTip": "Controls the permission mode when Claude Code starts. 'Bypass Permissions' auto-approves all tool calls, suitable for automation.",
+    "permissionModePlaceholder": "Select run mode",
+    "permissionModeDefault": "Default (prompts for permissions)",
+    "permissionModeBypass": "Bypass Permissions"
   }
 }

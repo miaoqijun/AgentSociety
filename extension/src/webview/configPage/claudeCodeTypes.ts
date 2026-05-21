@@ -5,6 +5,7 @@ export interface ClaudeCodeConfigValues {
   sonnetModel: string;
   opusModel: string;
   haikuModel: string;
+  permissionMode: string;
 }
 
 export interface ClaudeCodeCliStatus {

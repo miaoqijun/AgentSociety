@@ -183,6 +183,27 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
             <Input placeholder={t('claudeCodeConfig.selectOrManual')} />
           </Form.Item>
         ))}
+        <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8, marginTop: 8 }}>
+          {t('claudeCodeConfig.permissionMode')}
+          <Tooltip title={t('claudeCodeConfig.permissionModeTip')}>
+            <QuestionCircleOutlined
+              style={{ color: palette.descriptionForeground, fontSize: 12, marginLeft: 6 }}
+            />
+          </Tooltip>
+        </Text>
+        <Form.Item
+          name="permissionMode"
+          style={{ marginBottom: 10 }}
+        >
+          <Select
+            placeholder={t('claudeCodeConfig.permissionModePlaceholder')}
+            allowClear
+            options={[
+              { value: '', label: t('claudeCodeConfig.permissionModeDefault') },
+              { value: 'bypassPermissions', label: t('claudeCodeConfig.permissionModeBypass') },
+            ]}
+          />
+        </Form.Item>
       </Form>
       <Button icon={<ReloadOutlined />} onClick={onReset} style={{ marginTop: 8 }}>
         {t('configPage.resetClaudeDefaults')}
