@@ -19,11 +19,13 @@ lint:
         - packages/agentsociety2/**/*
         - pyproject.toml
         - uv.lock
+        - .gitlab-ci.yml
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         - packages/agentsociety2/**/*
         - pyproject.toml
         - uv.lock
+        - .gitlab-ci.yml
   before_script:
     - pip install uv
     - cd packages/agentsociety2 && uv sync --extra dev
@@ -41,11 +43,13 @@ test:
         - packages/agentsociety2/**/*
         - pyproject.toml
         - uv.lock
+        - .gitlab-ci.yml
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         - packages/agentsociety2/**/*
         - pyproject.toml
         - uv.lock
+        - .gitlab-ci.yml
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11", "3.12", "3.13"]
@@ -74,22 +78,9 @@ build-docker-image:
   tags:
     - dind
   stage: build
-  needs: [test]
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - packages/**/*
-        - extension/**/*
-        - Dockerfile
-        - pyproject.toml
-        - uv.lock
     - if: $CI_COMMIT_BRANCH == "main"
-      changes:
-        - packages/**/*
-        - extension/**/*
-        - Dockerfile
-        - pyproject.toml
-        - uv.lock
   script:
     - export TIME=$(date +%s)
     - |
