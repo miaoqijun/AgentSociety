@@ -1,226 +1,133 @@
-#!/usr/bin/env python3
-"""Apply forgetting-curve and ACT-R style maintenance to state/memory.jsonl."""
-
 from __future__ import annotations
 
-import argparse
 import json
 import math
 import os
-import time
+import sys
 from pathlib import Path
 from typing import Any
 
 
-def clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
-    return max(lower, min(upper, value))
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--memory-file", default=None)
-    parser.add_argument("--current-tick", type=int, default=None)
-    parser.add_argument("--strength", type=float, default=None)
-    parser.add_argument("--decay", type=float, default=None)
-    parser.add_argument("--retrieval-threshold", type=float, default=None)
-    parser.add_argument("--max-entries", type=int, default=None)
-    parser.add_argument("--args-json", default="{}")
-    return parser.parse_args()
-
-
-def runtime_args(raw: str) -> dict[str, Any]:
-    payload = json.loads(raw)
-    if not isinstance(payload, dict):
-        raise TypeError("--args-json must decode to an object")
-    return payload
+IMPORTANCE_BOOST: dict[str, float] = {
+    "high": 2.0,
+    "medium": 1.0,
+    "low": 0.6,
+}
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    """Read a JSONL memory file."""
     if not path.exists():
         return []
-    out: list[dict[str, Any]] = []
+
+    entries: list[dict[str, Any]] = []
     for line in path.read_text(encoding="utf-8").splitlines():
-        s = line.strip()
-        if not s:
+        if not line.strip():
             continue
-        try:
-            obj = json.loads(s)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(obj, dict):
-            out.append(obj)
-    return out
+        item = json.loads(line)
+        if isinstance(item, dict):
+            entries.append(item)
+
+    return entries
 
 
-def importance_multiplier(importance: str) -> float:
-    if importance == "high":
-        return 1.5
-    if importance == "low":
-        return 0.5
-    return 1.0
+def write_jsonl(path: Path, entries: list[dict[str, Any]]) -> None:
+    """Write memory entries as JSONL."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    content = "\n".join(json.dumps(entry, ensure_ascii=False, separators=(",", ":")) for entry in entries)
+    if content:
+        content += "\n"
+    path.write_text(content, encoding="utf-8")
 
 
-def _presentations(item: dict[str, Any]) -> list[int]:
-    raw = item.get("_presentations")
-    if isinstance(raw, list):
-        out: list[int] = []
-        for value in raw:
-            try:
-                out.append(int(value))
-            except (TypeError, ValueError):
-                continue
-        if out:
-            return out
-    try:
-        return [int(item.get("tick", 0))]
-    except (TypeError, ValueError):
-        return [0]
+def get_tick(entry: dict[str, Any]) -> int | None:
+    """Return an integer tick from a memory entry if available."""
+    tick = entry.get("tick")
+    return tick if isinstance(tick, int) else None
 
 
-def base_retention(current_tick: int, item: dict[str, Any], strength: float) -> float:
-    item_tick = int(item.get("tick", current_tick))
-    age = max(0, current_tick - item_tick)
-    imp = str(item.get("importance", "medium")).lower()
-    mult = importance_multiplier(imp)
-    denom = max(1.0, strength * mult)
-    return math.exp(-(age / denom))
+def estimate_retention(entry: dict[str, Any], current_tick: int) -> float:
+    """Estimate retention using decay with importance and repetition boosts."""
+    strength = float(os.getenv("AGENT_MEMORY_STRENGTH", "20.0"))
+    decay = float(os.getenv("AGENT_MEMORY_ACTR_DECAY", "0.5"))
+
+    tick = get_tick(entry)
+    age = max(0, current_tick - tick) if tick is not None else 0
+
+    importance = str(entry.get("importance", "medium"))
+    importance_boost = IMPORTANCE_BOOST.get(importance, 1.0)
+
+    repetitions = entry.get("_repetitions", 1)
+    if not isinstance(repetitions, int) or repetitions < 1:
+        repetitions = 1
+
+    repetition_boost = 1.0 + math.log1p(repetitions)
+    effective_strength = strength * importance_boost * repetition_boost
+
+    return effective_strength / (effective_strength + (age + 1) ** decay)
 
 
-def base_level_activation(
-    current_tick: int,
-    item: dict[str, Any],
-    decay: float,
-    retrieval_threshold: float,
-) -> tuple[float, float]:
-    """Return ACT-R style base-level activation and retrieval probability."""
-    terms: list[float] = []
-    for presented_at in _presentations(item):
-        lag = max(1, current_tick - presented_at)
-        terms.append(lag ** (-decay))
+def maintain_memory(memory_file: Path, current_tick: int) -> list[dict[str, Any]]:
+    """Apply retention scoring and prune weak memory entries."""
+    threshold = float(os.getenv("AGENT_MEMORY_RETRIEVAL_THRESHOLD", "0.25"))
+    max_entries = int(os.getenv("AGENT_MEMORY_MAX_ENTRIES", "200"))
 
-    activation = math.log(sum(terms)) if terms else -10.0
+    entries = read_jsonl(memory_file)
+    maintained: list[dict[str, Any]] = []
 
-    imp = str(item.get("importance", "medium")).lower()
-    activation += math.log(max(0.1, importance_multiplier(imp)))
+    for entry in entries:
+        retention = estimate_retention(entry, current_tick)
+        entry["_retention"] = round(retention, 4)
+        entry["_faded"] = retention < threshold
 
-    access_count = int(item.get("_access_count", 0))
-    activation += 0.08 * min(10, access_count)
+        if retention >= threshold or entry.get("importance") == "high":
+            maintained.append(entry)
 
-    # Logistic mapping keeps a continuous retrieval signal while preserving a
-    # readable activation value for debugging.
-    retrieval_probability = 1.0 / (1.0 + math.exp(-(activation - retrieval_threshold)))
-    return activation, clamp(retrieval_probability)
-
-
-def retention_value(
-    current_tick: int,
-    item: dict[str, Any],
-    strength: float,
-    decay: float,
-    retrieval_threshold: float,
-) -> tuple[float, float, float, float]:
-    ebbinghaus = base_retention(current_tick, item, strength)
-    activation, retrieval_probability = base_level_activation(
-        current_tick,
-        item,
-        decay,
-        retrieval_threshold,
+    maintained.sort(
+        key=lambda item: (
+            0 if item.get("importance") == "high" else 1,
+            -float(item.get("_retention", 0.0)),
+            -(get_tick(item) or 0),
+        )
     )
-    # Keep the Ebbinghaus curve as a conservative forgetting floor, while ACT-R
-    # activation lets repeated presentation or retrieval preserve useful facts.
-    combined = max(ebbinghaus, retrieval_probability)
-    return clamp(combined, 0.0, 0.98), ebbinghaus, activation, retrieval_probability
+
+    maintained = maintained[:max_entries]
+    maintained.sort(key=lambda item: get_tick(item) if get_tick(item) is not None else -1)
+
+    write_jsonl(memory_file, maintained)
+    return maintained
+
+
+def parse_args() -> tuple[Path, int]:
+    """Parse CLI arguments (SkillRegistry uses ``--args-json``)."""
+    if len(sys.argv) >= 3 and sys.argv[1] == "--args-json":
+        payload = json.loads(sys.argv[2])
+        if not isinstance(payload, dict):
+            raise SystemExit("--args-json must decode to a JSON object")
+        memory_file = Path(str(payload.get("memory_file", "state/memory.jsonl")))
+        tick = payload.get("current_tick", payload.get("tick", 0))
+        return memory_file, int(tick)
+
+    if len(sys.argv) == 2 and sys.argv[1].strip().startswith("{"):
+        payload = json.loads(sys.argv[1])
+        memory_file = Path(str(payload.get("memory_file", "state/memory.jsonl")))
+        tick = payload.get("current_tick", payload.get("tick", 0))
+        return memory_file, int(tick)
+
+    if len(sys.argv) >= 3:
+        return Path(sys.argv[1]), int(sys.argv[2])
+
+    raise SystemExit(
+        "Usage: memory_maintenance.py --args-json '{\"memory_file\":...,\"current_tick\":N}' "
+        "or memory_maintenance.py <memory_file> <current_tick>"
+    )
 
 
 def main() -> int:
-    args = parse_args()
-    payload = runtime_args(args.args_json)
-    memory_file = args.memory_file or payload.get("memory_file") or "state/memory.jsonl"
-    current_tick = (
-        args.current_tick
-        if args.current_tick is not None
-        else payload.get("current_tick")
-    )
-    current_tick = int(
-        current_tick if current_tick is not None else payload.get("tick", 0)
-    )
-    path = Path(str(memory_file))
-
-    strength = args.strength
-    if strength is None:
-        try:
-            strength = float(os.getenv("AGENT_MEMORY_STRENGTH", "100"))
-        except ValueError:
-            strength = 100.0
-
-    max_entries = args.max_entries
-    if max_entries is None:
-        try:
-            max_entries = int(os.getenv("AGENT_MEMORY_MAX_ENTRIES", "1000"))
-        except ValueError:
-            max_entries = 1000
-
-    decay = args.decay
-    if decay is None:
-        try:
-            decay = float(os.getenv("AGENT_MEMORY_ACTR_DECAY", "0.5"))
-        except ValueError:
-            decay = 0.5
-
-    retrieval_threshold = args.retrieval_threshold
-    if retrieval_threshold is None:
-        try:
-            retrieval_threshold = float(
-                os.getenv("AGENT_MEMORY_RETRIEVAL_THRESHOLD", "-2.5")
-            )
-        except ValueError:
-            retrieval_threshold = -2.5
-
-    rows = read_jsonl(path)
-    processed: list[dict[str, Any]] = []
-
-    for row in rows:
-        r, ebbinghaus, activation, retrieval_probability = retention_value(
-            current_tick,
-            row,
-            strength,
-            decay,
-            retrieval_threshold,
-        )
-        if r < 0.1:
-            continue
-        row.setdefault("_presentations", _presentations(row))
-        row["_retention"] = round(r, 4)
-        row["_ebbinghaus_retention"] = round(ebbinghaus, 4)
-        row["_activation"] = round(activation, 4)
-        row["_retrieval_probability"] = round(retrieval_probability, 4)
-        row["_faded"] = bool(0.1 < r < 0.5)
-        row["_maintained_at_unix"] = int(time.time())
-        processed.append(row)
-
-    if len(processed) > max_entries:
-        processed.sort(key=lambda x: float(x.get("_retention", 0.0)), reverse=True)
-        processed = processed[:max_entries]
-        processed.sort(key=lambda x: int(x.get("tick", 0)))
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    lines = [json.dumps(row, ensure_ascii=False) for row in processed]
-    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
-
-    print(
-        json.dumps(
-            {
-                "ok": True,
-                "entries_before": len(rows),
-                "entries_after": len(processed),
-                "strength": strength,
-                "actr_decay": decay,
-                "retrieval_threshold": retrieval_threshold,
-                "max_entries": max_entries,
-            },
-            ensure_ascii=False,
-        )
-    )
+    """Run memory maintenance."""
+    memory_file, current_tick = parse_args()
+    maintained = maintain_memory(memory_file, current_tick)
+    print(f"Maintained {len(maintained)} memory entries.")
     return 0
 
 

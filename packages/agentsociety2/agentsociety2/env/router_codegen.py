@@ -924,10 +924,6 @@ class CodeStage:
                 "input",
             }
 
-            TRUTHY_CONSTANTS = (
-                ast.Constant,
-            )
-
             def is_dangerous_module(name: str) -> bool:
                 if name in router.ALLOWED_MODULES:
                     return False
