@@ -2441,6 +2441,17 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
       const items: ProjectItem[] = [];
 
+      // Show HYPOTHESIS.md as the first child for quick access
+      if (element.filePath && fs.existsSync(element.filePath)) {
+        const hypItem = new ProjectItem(
+          'HYPOTHESIS.md',
+          vscode.TreeItemCollapsibleState.None,
+          'file',
+          element.filePath,
+        );
+        items.push(hypItem);
+      }
+
       // 为每个实验目录创建节点
       for (const dir of experimentDirs) {
         const experimentFile = path.join(dir, 'EXPERIMENT.md');
@@ -2518,6 +2529,17 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           ? element.experimentRoot
           : path.dirname(element.filePath || '');
       const items: ProjectItem[] = [];
+
+      // Show EXPERIMENT.md as the first child for quick access
+      const experimentMdPath = path.join(experimentDir, 'EXPERIMENT.md');
+      if (fs.existsSync(experimentMdPath)) {
+        items.push(new ProjectItem(
+          'EXPERIMENT.md',
+          vscode.TreeItemCollapsibleState.None,
+          'file',
+          experimentMdPath,
+        ));
+      }
 
       // 检查init目录（配置文件分组）
       const initDir = path.join(experimentDir, 'init');
