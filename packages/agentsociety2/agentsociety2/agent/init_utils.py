@@ -34,19 +34,31 @@ class PersonInitConfig:
         }
 
 
-def init_needs_state(*, satiety: float = 0.5, energy: float = 0.5) -> dict[str, Any]:
+def init_needs_state(
+    *,
+    safety: float = 0.8,
+    satiety: float = 0.5,
+    energy: float = 0.5,
+) -> dict[str, Any]:
     """生成 needs.json 的最小结构（用于测试）。
 
+    :param safety: 安全度（0~1）。
     :param satiety: 饱腹度（0~1）。
     :param energy: 精力（0~1）。
     :returns: needs.json 对象。
     """
-    current_need = "satiety" if satiety < energy else "energy"
-    return {
+    levels = {
+        "safety": float(safety),
         "satiety": float(satiety),
         "energy": float(energy),
+    }
+    current_need = min(levels, key=levels.get)
+    return {
+        "safety": levels["safety"],
+        "satiety": levels["satiety"],
+        "energy": levels["energy"],
         "current_need": current_need,
-        "thresholds": {"satiety": 0.3, "energy": 0.3},
+        "thresholds": {"safety": 0.2, "satiety": 0.2, "energy": 0.2},
         "can_interrupt": True,
     }
 
@@ -70,33 +82,48 @@ def init_personality_state(
 
 
 def init_emotion_state(
-    *, primary: str = "Hope", valence: float = 0.0, arousal: float = 0.5
+    *,
+    mood: str = "calm",
+    needs: dict[str, float] | None = None,
+    drivers: list[str] | None = None,
+    tick: int | None = None,
 ) -> dict[str, Any]:
-    """生成 emotion.json 的最小结构（用于测试）。
+    """生成 emotion.json 的最小结构（用于测试），与 cognition skill schema 一致。
 
-    :param primary: 主导情绪标签。
-    :param valence: 效价（-1~1）。
-    :param arousal: 唤醒度（0~1）。
+    :param mood: 情绪摘要标签。
+    :param needs: 需求快照（通常与 needs.json 对齐）。
+    :param drivers: 驱动因素说明。
+    :param tick: 可选 tick。
     :returns: emotion.json 对象。
     """
-    return {
-        "primary": str(primary),
-        "valence": float(valence),
-        "arousal": float(arousal),
-        "mood": {
-            "valence": float(valence),
-            "arousal": float(arousal),
-            "stability": 0.7,
-        },
-        "intensities": {
-            "joy": 3,
-            "sadness": 3,
-            "fear": 3,
-            "disgust": 3,
-            "anger": 3,
-            "surprise": 3,
-        },
+    payload: dict[str, Any] = {
+        "mood": str(mood),
+        "needs": dict(needs or {"safety": 0.8, "energy": 0.5, "satiety": 0.5}),
+        "drivers": list(drivers or ["baseline state"]),
     }
+    if tick is not None:
+        payload["tick"] = int(tick)
+    return payload
+
+
+def init_intention_state(
+    *,
+    goal: str = "explore surroundings",
+    reason: str = "default intention for test seed",
+    priority: str = "medium",
+    source: str = "profile",
+    tick: int | None = None,
+) -> dict[str, Any]:
+    """生成 intention.json 的最小结构（用于测试），与 cognition skill schema 一致."""
+    payload: dict[str, Any] = {
+        "goal": str(goal),
+        "reason": str(reason),
+        "priority": str(priority),
+        "source": str(source),
+    }
+    if tick is not None:
+        payload["tick"] = int(tick)
+    return payload
 
 
 def discover_skill_schemas() -> dict[str, list[str]]:
@@ -108,7 +135,7 @@ def discover_skill_schemas() -> dict[str, list[str]]:
     return {
         "needs": ["needs.json"],
         "personality": ["personality.json"],
-        "cognition": ["emotion.json"],
+        "cognition": ["emotion.json", "intention.json"],
     }
 
 

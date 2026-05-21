@@ -43,8 +43,12 @@ Skill 目录结构
    │       └── observation.py
    ├── cognition/
    │   ├── SKILL.md
+   │   ├── references/
+   │   │   ├── emotion_schema.json
+   │   │   ├── intention_schema.json
+   │   │   └── ...
    │   └── scripts/
-   │       └── update_cognition.py
+   │       └── validate_cognition.py
    ├── plan/
    │   ├── SKILL.md
    │   └── scripts/
@@ -125,7 +129,7 @@ SKILL.md 格式
    * - ``description``
      - 给模型选择器看的功能描述，尽量具体、可判别。这是模型决定是否激活该技能的关键依据。
    * - ``script``
-     - 可选。子进程脚本相对路径（如 ``scripts/update_cognition.py``）。未声明时会尝试自动检测 ``scripts/<skill_name>.py``。
+     - 可选。子进程脚本相对路径（如 ``scripts/memory_maintenance.py``）。未声明时会尝试自动检测 ``scripts/<skill_name>.py``。
 
 脚本路径必须位于 skill 目录内；运行时仍会做路径越界检查。
 
@@ -224,20 +228,18 @@ PersonAgent.step() 的工具循环流程如下：
 ``cognition``
 ^^^^^^^^^^^^^
 
-``cognition`` 负责把当前上下文转换为内在状态。其脚本 ``scripts/update_cognition.py`` 提供确定性 baseline：读取已有 workspace 文件，计算 appraisal 变量，生成有连续性约束的情绪强度、mood 层，以及一个基于 TPB 评分的意图。
+``cognition`` 负责把当前上下文转换为内在状态，由模型按 ``SKILL.md`` 与 ``references/*_schema.json`` 写入 workspace 文件；可选运行 ``scripts/validate_cognition.py`` 做结构自检。
 
 核心输出：
 
-* ``state/emotion.json``：包含 ``primary``、``mood``、六维强度（``joy``、``sadness``、``fear``、``disgust``、``anger``、``surprise``）、``valence``、``arousal`` 等字段。
-* ``state/intention.json``：当前最高优先级目标，包含 ``attitude``、``subjective_norm``、``perceived_control`` 等 Theory of Planned Behavior 字段。
+* ``state/emotion.json``：``mood``、``needs`` 快照、``drivers``（若存在 ``state/needs.json`` 则以其为需求真相源）。
+* ``state/intention.json``：``goal``、``reason``、``priority``、``source``。
 
-它的理论映射有三层：
+设计要点：
 
-* **Appraisal / CPM**：用 novelty、pleasantness、goal conduciveness、urgency、control、norm pressure 等评价变量解释情绪如何从事件意义中产生。
-* **OCC/离散情绪标签**：用固定 label 集合给主导情绪命名，方便实验分析和 replay 比较。
-* **TPB 意图选择**：把态度、主观规范和感知控制作为候选目标评分的核心项，再让当前情绪影响行动倾向和控制感。
-
-实现上采用保守更新：每个 tick 的情绪强度变化有上限，mood 慢速漂移，profile 中的 personality 可调节反应幅度。这适合仿真，因为它避免 LLM 在相邻 tick 间产生不连续的人格和情绪跳变。
+* **需求单一真相源**：环境或状态管理器维护 ``state/needs.json``；cognition 将其合并进 ``emotion.needs``，不另写冲突副本。
+* **意图稳定**：无重大事件时不每 tick 替换 ``goal``；临界需求（safety/energy/satiety < 0.2）优先。
+* **与 plan 分工**：cognition 只产出目标；具体 ``codegen`` 指令由 ``plan`` 生成。
 
 ``plan``
 ^^^^^^^^
@@ -455,7 +457,7 @@ SkillInfo 数据类
    class SkillInfo:
        name: str               # 技能名称
        description: str        # 功能描述
-       script: str             # 脚本相对路径（如 scripts/update_cognition.py）
+       script: str             # 脚本相对路径（如 scripts/memory_maintenance.py）
        source: str             # 来源: builtin | custom | env:<name>
        path: str               # 技能目录的绝对路径
        enabled: bool           # 是否启用

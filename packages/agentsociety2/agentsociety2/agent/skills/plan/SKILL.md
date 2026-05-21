@@ -11,11 +11,13 @@ This skill is a tick-level action controller. It does not complete the whole goa
 
 ## Inputs
 
-| File                    | Use                                     |
-| ----------------------- | --------------------------------------- |
-| `state/intention.json`  | Current goal or intention               |
-| `state/observation.txt` | Available actions, context, affordances |
-| `state/plan_state.json` | Multi-step progress, System 2 only      |
+| File                    | Use                                             |
+| ----------------------- | ----------------------------------------------- |
+| `state/intention.json`  | Current goal or intention                       |
+| `state/observation.txt` | Available actions, context, affordances         |
+| `state/needs.json`      | Optional authoritative need levels              |
+| `state/emotion.json`    | Optional `needs` snapshot if needs.json missing |
+| `state/plan_state.json` | Multi-step progress, System 2 only              |
 
 ## Core rules
 
@@ -28,7 +30,7 @@ This skill is a tick-level action controller. It does not complete the whole goa
 
 ## Priority override
 
-If `safety`, `energy`, or `satiety` is below `0.2`, address the critical need first when possible.
+If `safety`, `energy`, or `satiety` is below `0.2`, address the critical need first when possible. Read levels from `state/needs.json` when present; otherwise use `state/emotion.json` → `needs` or need hints in `state/observation.txt`.
 
 Priority:
 
@@ -76,6 +78,8 @@ If `codegen` fails:
 - Retry at most once with a clearly different available action.
 - If still blocked, stop with `done` and record the failure.
 - After 3 consecutive failures on the same step, mark the plan as `failed`.
+
+Self-check (optional): `python scripts/validate_plan_state.py state/plan_state.json`
 
 For details, use:
 

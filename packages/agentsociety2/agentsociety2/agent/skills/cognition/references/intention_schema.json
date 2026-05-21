@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "required": ["goal", "reason", "priority", "source"],
+  "properties": {
+    "tick": {
+      "type": "integer"
+    },
+    "goal": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "source": {
+      "type": "string",
+      "enum": ["need", "observation", "memory", "plan", "social", "profile", "user"]
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "expires_when": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}
