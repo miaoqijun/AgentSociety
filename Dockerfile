@@ -63,6 +63,9 @@ WORKDIR /app
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
+# Ensure both `python` and `python3` point to the system Python where uv installs packages
+RUN ln -sf /usr/local/bin/python3 /usr/local/bin/python
+
 # Copy dependency files
 COPY README.md LICENSE ./
 COPY pyproject.toml uv.lock ./
