@@ -15,7 +15,15 @@ lint:
   image: python:3.12
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - packages/agentsociety2/**/*
+        - pyproject.toml
+        - uv.lock
     - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - packages/agentsociety2/**/*
+        - pyproject.toml
+        - uv.lock
   before_script:
     - pip install uv
     - cd packages/agentsociety2 && uv sync --extra dev
@@ -29,7 +37,15 @@ test:
   needs: [lint]
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - packages/agentsociety2/**/*
+        - pyproject.toml
+        - uv.lock
     - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - packages/agentsociety2/**/*
+        - pyproject.toml
+        - uv.lock
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11", "3.12", "3.13"]
@@ -61,7 +77,19 @@ build-docker-image:
   needs: [test]
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - packages/**/*
+        - extension/**/*
+        - Dockerfile
+        - pyproject.toml
+        - uv.lock
     - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - packages/**/*
+        - extension/**/*
+        - Dockerfile
+        - pyproject.toml
+        - uv.lock
   script:
     - export TIME=$(date +%s)
     - |
