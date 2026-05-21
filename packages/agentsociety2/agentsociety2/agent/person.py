@@ -533,11 +533,12 @@ class PersonAgent(AgentBase):
         catalog = self._skill_runtime.skill_list(catalog_names)
         builder.add_skill_catalog(catalog)
 
-    def _build_prompt_dynamic_segment(self, builder: PromptBuilder, tick: int) -> None:
+    def _build_prompt_dynamic_segment(self, builder: PromptBuilder, tick: int, t: datetime) -> None:
         """构建 prompt 动态段（每次重建）。
 
         :param builder: PromptBuilder 实例。
         :param tick: 当前仿真步时间跨度（秒）。
+        :param t: 当前仿真时间。
         """
         builder.add_identity(
             self.id, self._name, self._agent_identity_json_for_prompt()
@@ -576,11 +577,19 @@ class PersonAgent(AgentBase):
             if parts:
                 builder.add_constraints(" ".join(parts))
 
+        # 时间信息放在最后，避免破坏前序静态段的缓存
+        builder.add_section(
+            "Simulation Time",
+            self.get_time_context(tick, t),
+            priority=10,
+            is_static=False,
+        )
+
     def get_system_prompt(self, tick: int, t: datetime) -> str:
         """构建本步 system prompt。
 
         注入 world description、agent identity、工具协议、skill catalog、已激活技能列表。
-        使用分段缓存机制优化 Token 消耗。
+        使用分段缓存机制优化 Token 消耗。时间信息放在末尾以最大化缓存命中率。
 
         :param tick: 当前仿真步时间跨度（秒）。
         :param t: 当前仿真时间。
@@ -592,11 +601,11 @@ class PersonAgent(AgentBase):
         ):
             return self._prompt_cache
 
-        base = super().get_system_prompt(tick, t)
+        base = self.get_system_prompt_base()
         builder = PromptBuilder()
 
         self._build_prompt_static_segment(builder)
-        self._build_prompt_dynamic_segment(builder, tick)
+        self._build_prompt_dynamic_segment(builder, tick, t)
 
         result = base + builder.build()
 
@@ -609,16 +618,17 @@ class PersonAgent(AgentBase):
         """分段构建 system prompt，支持 Prompt Caching。
 
         返回静态段和动态段，静态段可添加 cache_control 实现 Token 缓存。
+        时间信息放在动态段末尾以保持静态段跨步不变。
 
         :param tick: 当前仿真步时间跨度（秒）。
         :param t: 当前仿真时间。
         :return: (静态段, 动态段) 元组。
         """
-        base = super().get_system_prompt(tick, t)
+        base = self.get_system_prompt_base()
         builder = PromptBuilder()
         self._build_prompt_static_segment(builder)
         static_part, _ = self._prompt_cache_manager.get_or_build_static(builder, base)
-        self._build_prompt_dynamic_segment(builder, tick)
+        self._build_prompt_dynamic_segment(builder, tick, t)
         dynamic_part = builder.build_dynamic()
         return static_part, dynamic_part
 

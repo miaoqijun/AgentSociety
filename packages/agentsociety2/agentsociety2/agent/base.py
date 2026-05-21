@@ -521,76 +521,62 @@ class AgentBase(ABC):
         )
         return response
 
+    def get_system_prompt_base(self) -> str:
+        """获取智能体的静态系统提示词（不含时间信息）。
+
+        此部分可跨步缓存。时间上下文由 :meth:`get_time_context` 单独提供，
+        在 prompt 末尾注入以最大化缓存命中率。
+
+        :returns: 静态行为指南文本。
+        """
+        return """You are simulating a real person in AgentSociety. Behave authentically — make realistic decisions based on your profile, needs, and environment.
+
+## Environment Interaction
+- Query the environment for info (weather, location, time) via the text interface.
+- Request actions (movement, social, economic); the environment returns feedback.
+- Respect environmental constraints and realistic limitations.
+
+## Guidelines
+1. **Time-aware**: Act appropriately for time of day, day of week, and season.
+2. **Realistic**: Follow your profile, personality, and background. Consider basic needs (hunger, rest, social, safety).
+3. **Consistent**: Build on previous actions and ongoing plans.
+4. **Autonomous**: Take initiative based on your goals and current situation."""
+
+    @staticmethod
+    def get_time_context(tick: int, t: datetime) -> str:
+        """获取动态时间上下文（每次调用变化）。
+
+        :param tick: 当前仿真步的时间尺度（秒）。
+        :param t: 当前仿真步结束后的时间。
+        :returns: 时间上下文文本。
+        """
+        if tick < 3600:
+            time_scale_desc = f"{tick // 60} minutes"
+        elif tick < 86400:
+            time_scale_desc = f"{tick // 3600} hours"
+        elif tick < 2592000:
+            time_scale_desc = f"{tick // 86400} days"
+        else:
+            time_scale_desc = f"{tick // 2592000} months"
+        return (
+            f"Current Time: {t.strftime('%Y-%m-%d %H:%M:%S')} ({t.strftime('%A')}), "
+            f"Tick: {time_scale_desc} ({tick}s/cycle). "
+            f"Scale actions to tick duration; actions can span multiple steps."
+        )
+
     def get_system_prompt(self, tick: int, t: datetime) -> str:
         """获取智能体的系统提示词。
 
         生成的提示词将预置到 LLM 消息中，使 LLM 理解自身作为 AgentSociety
         仿真环境中模拟真实人类行为的智能体角色。
 
+        默认实现将时间信息附在末尾；子类可覆盖以自定义布局。
+
         :param tick: 当前仿真步的时间尺度（秒）。范围从 60 秒（1分钟）到约一个月。
         :param t: 当前仿真步结束后的时间。
-        :returns: 完整的系统提示词字符串，包含时间上下文、仿真环境说明和行为指南。
+        :returns: 完整的系统提示词字符串，包含行为指南和时间上下文。
         """
-        # Format time scale description
-        if tick < 3600:  # Less than 1 hour
-            time_scale_desc = f"{tick // 60} minutes"
-        elif tick < 86400:  # Less than 1 day
-            time_scale_desc = f"{tick // 3600} hours"
-        elif tick < 2592000:  # Less than 30 days
-            time_scale_desc = f"{tick // 86400} days"
-        else:  # More than 30 days
-            time_scale_desc = f"{tick // 2592000} months"
-
-        return f"""You are an intelligent agent simulating a real-world person in AgentSociety. Your role is to behave authentically as a human being, making decisions and taking actions that reflect realistic human behavior, motivations, and responses to your environment.
-
-## Time and Simulation Context
-
-You are operating in a discrete-time simulation environment:
-- **Current Time (t)**: {t.strftime("%Y-%m-%d %H:%M:%S")} (Weekday: {t.strftime("%A")})
-- **Time Scale (tick)**: {time_scale_desc} ({tick} seconds)
-  - This represents the duration of ONE decision cycle/iteration
-  - Your actions and decisions in each step should be appropriate for this time scale
-  - For example:
-    * If tick is 60 seconds (1 minute): Focus on immediate, short-term actions
-    * If tick is 3600 seconds (1 hour): You can plan and execute activities that take about an hour
-    * If tick is 86400 seconds (1 day): Consider daily routines, work schedules, and day-long activities
-    * If tick is longer (weeks/months): Think about longer-term plans, seasonal activities, and monthly routines
-Besides, the simulation environment will iterate step by step, so you can also do actions and decisions that span multiple steps.
-
-## Environment Interaction
-
-You interact with the world built by multiple environment modules through an environment text interface:
-- You can query the environment for information (weather, location, time, etc.) through asking the environment.
-- You can request actions from the environment (movement, social interactions, economic activities, etc.)
-- The environment provides feedback on your actions and the current state of the world
-- Always consider environmental constraints and realistic limitations when making decisions
-
-## Behavioral Guidelines
-
-1. **Time-Aware Behavior**: Your actions should be appropriate for the current time (if you know) and time scale (tick):
-   - Consider time of day (morning routines vs. evening activities)
-   - Consider day of week (workdays vs. weekends)
-   - Consider season and date (holidays, weather-appropriate activities)
-   - Actions should match the time scale (for example, don't plan a week-long trip if tick is 1 minute)
-
-2. **Realistic Human Behavior**: 
-   - Act according to your profile, personality, and background
-   - Consider basic human needs (hunger, rest, social interaction, safety) under the current time and time scale (tick)
-   - Query the current time from the environment when needed to make time-appropriate decisions
-   - Make decisions that reflect realistic priorities and constraints
-   - Respond naturally to environmental stimuli and events
-
-3. **Consistency**: 
-   - Maintain consistency with your previous actions and decisions
-   - Remember past experiences and learn from them
-   - Build upon your ongoing plans and goals
-
-4. **Autonomy**: 
-   - You are an autonomous agent making your own decisions
-   - Act proactively based on your needs, goals, and current situation
-   - Don't wait for explicit instructions - take initiative when appropriate
-
-Remember: You are simulating a real person living in a simulated world. Your behavior should be natural, time-appropriate, and consistent with human psychology and social norms."""
+        return self.get_system_prompt_base() + "\n\n" + self.get_time_context(tick, t)
 
     async def ask_env(
         self, ctx: dict, message: str, readonly: bool, template_mode: bool = False
