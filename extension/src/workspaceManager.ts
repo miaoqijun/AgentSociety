@@ -1006,8 +1006,8 @@ export class WorkspaceManager {
     const git = (...args: string[]) => {
       try {
         execFileSync('git', args, { cwd: workspacePath, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
-      } catch {
-        // best-effort
+      } catch (error) {
+        this.log(`git ${args.join(' ')} failed: ${error}`);
       }
     };
 
@@ -1016,10 +1016,18 @@ export class WorkspaceManager {
       return;
     }
 
+    // Ensure repo-local git identity so commits don't fail on fresh workspaces
+    try {
+      execFileSync('git', ['config', 'user.name'], { cwd: workspacePath, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch {
+      git('config', 'user.name', 'AgentSociety');
+      git('config', 'user.email', 'agent@agentsociety.dev');
+    }
+
     git('add', '-A');
     // Check whether there is anything staged before committing
     try {
-      const diff = execFileSync('git', ['diff', '--cached', '--quiet'], {
+      execFileSync('git', ['diff', '--cached', '--quiet'], {
         cwd: workspacePath,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'pipe'],
