@@ -269,10 +269,10 @@ class StateConfig:
 
     builtin_states: dict[str, tuple[str, str]] = field(
         default_factory=lambda: {
-            "emotion": ("emotion.json", "primary"),
-            "intention": ("intention.json", "intention"),
+            "emotion": ("emotion.json", "mood"),
+            "intention": ("intention.json", "goal"),
             "needs": ("needs.json", "current_need"),
-            "plan": ("plan_state.json", "target"),
+            "plan": ("plan_state.json", "goal"),
         }
     )
     extra_states: dict[str, tuple[str, str]] = field(default_factory=dict)

@@ -206,4 +206,4 @@ packages/agentsociety2/docs/locale/gettext/
 
 # Allow JSON configs (but not generated JSON data)
 # Note: *.json and *.jsonl are ignored by default for generated data
-# Add explicit exceptions if needed for config files
+!packages/agentsociety2/agentsociety2/agent/skills/**/references/*.json

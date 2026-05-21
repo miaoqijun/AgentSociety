@@ -44,6 +44,7 @@ class TestSkillRegistry:
                     "tick": 1,
                     "type": "event",
                     "summary": "Met Alice.",
+                    "tags": ["social", "alice"],
                     "importance": "high",
                 }
             )

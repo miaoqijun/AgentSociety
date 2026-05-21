@@ -38,14 +38,14 @@ Append one JSON object per line:
 
 Required fields:
 
-| Field | Notes |
-| --- | --- |
-| `tick` | Current tick, if available |
-| `time` | ISO timestamp, if available |
-| `type` | `need`, `emotion`, `cognition`, `intention`, `plan`, `plan_execution`, `react`, `event`, `observation`, `social`, `decision`, `discovery`, or `plan_outcome` |
-| `summary` | 1 factual sentence; 2 only if necessary |
-| `tags` | 2-5 keywords, such as names, places, topics, or goals |
-| `importance` | `high`, `medium`, or `low`; default is `medium` |
+| Field        | Notes                                                                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tick`       | Current tick, if available                                                                                                                                   |
+| `time`       | ISO timestamp, if available                                                                                                                                  |
+| `type`       | `need`, `emotion`, `cognition`, `intention`, `plan`, `plan_execution`, `react`, `event`, `observation`, `social`, `decision`, `discovery`, or `plan_outcome` |
+| `summary`    | 1 factual sentence; 2 only if necessary                                                                                                                      |
+| `tags`       | 2-5 keywords, such as names, places, topics, or goals                                                                                                        |
+| `importance` | `high`, `medium`, or `low`; default is `medium`                                                                                                              |
 
 ## Workflow
 
@@ -78,6 +78,8 @@ Tune via environment variables described in `references/forgetting.md`.
 - Do not duplicate the latest memory line.
 - Use `importance: high` only for facts that should persist across the simulation.
 - Keep summaries concrete, factual, and grounded in current state.
+
+Self-check (optional): `python scripts/validate_memory.py state/memory.jsonl`
 
 For details, use:
 

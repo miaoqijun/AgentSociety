@@ -11,21 +11,21 @@ This skill thinks and chooses goals. It does not execute environment actions.
 
 ## Inputs
 
-| File | Use |
-| --- | --- |
-| `state/observation.txt` | Current world context and available affordances |
-| `state/observation_ctx.json` | Structured observation, optional |
-| `state/needs.json` | Authoritative need values when present |
-| `state/memory.jsonl` | Recent and relevant past facts |
-| `state/plan_state.json` | Current multi-step plan status, optional |
-| Agent profile/state | Stable traits, preferences, role, and identity |
+| File                         | Use                                             |
+| ---------------------------- | ----------------------------------------------- |
+| `state/observation.txt`      | Current world context and available affordances |
+| `state/observation_ctx.json` | Structured observation, optional                |
+| `state/needs.json`           | Authoritative need values when present          |
+| `state/memory.jsonl`         | Recent and relevant past facts                  |
+| `state/plan_state.json`      | Current multi-step plan status, optional        |
+| Agent profile/state          | Stable traits, preferences, role, and identity  |
 
 ## Outputs
 
-| File | Use |
-| --- | --- |
-| `state/emotion.json` | Current emotion plus a copied or inferred need assessment |
-| `state/intention.json` | Current goal for planning/action |
+| File                   | Use                                                       |
+| ---------------------- | --------------------------------------------------------- |
+| `state/emotion.json`   | Current emotion plus a copied or inferred need assessment |
+| `state/intention.json` | Current goal for planning/action                          |
 
 `state/needs.json` remains the source of truth for needs when it exists. `emotion.needs` is a snapshot used for reasoning and debugging, not a second independent needs store.
 
@@ -101,6 +101,8 @@ If `safety`, `energy`, or `satiety` is below `0.2`, set an intention to address 
 - Do not invent unavailable facts.
 - Avoid long explanations in JSON fields.
 - Keep `goal` actionable but not an environment command.
+
+Self-check (optional): `python scripts/validate_cognition.py state`
 
 For details, use:
 
