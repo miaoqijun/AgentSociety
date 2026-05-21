@@ -258,9 +258,12 @@ export class WorkspaceManager {
       } else {
         filesCreated.push(...officeSkillsResult.downloaded.map(s => `.claude/skills/${s}/`));
         this.log(`Copied official office skills: ${officeSkillsResult.downloaded.join(', ')}`);
+        this.autoCommit(workspacePath, `init: office skills (${officeSkillsResult.downloaded.join(', ')})`);
       }
 
       reportProgress('正在完成初始化...');
+
+      this.autoCommit(workspacePath, 'init: workspace initialized');
 
       return {
         success: true,
@@ -466,6 +469,8 @@ export class WorkspaceManager {
     this.pruneLegacyAnalysisSkillLayouts(workspacePath);
 
     created.push(...this.ensureCodexSkillsLink(workspacePath, targetDir));
+
+    this.autoCommit(workspacePath, `sync: Claude Code resources (${synced.length} items)`);
 
     if (synced.length === 0) {
       return {
@@ -994,6 +999,42 @@ export class WorkspaceManager {
   }
 
   /**
+   * Ensure the workspace is under git and commit all pending changes.
+   * If no git repo exists yet, one is created first.
+   */
+  private autoCommit(workspacePath: string, message: string): void {
+    const git = (...args: string[]) => {
+      try {
+        execFileSync('git', args, { cwd: workspacePath, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch {
+        // best-effort
+      }
+    };
+
+    const repo = this.ensureWorkspaceGitRepository(workspacePath);
+    if (!repo.repoRoot) {
+      return;
+    }
+
+    git('add', '-A');
+    // Check whether there is anything staged before committing
+    try {
+      const diff = execFileSync('git', ['diff', '--cached', '--quiet'], {
+        cwd: workspacePath,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      // diff --cached --quiet exits 0 when nothing staged → skip commit
+      return;
+    } catch {
+      // Non-zero exit means there ARE staged changes → proceed to commit
+    }
+
+    git('commit', '-m', message);
+    this.log(`Auto-commit: ${message}`);
+  }
+
+  /**
    * Get CLAUDE.md content - AI Social Scientist workspace guide
    */
   private getClaudeMdContent(): string {
@@ -1135,6 +1176,7 @@ Do:
 - Read relevant state files before asking the user for information that may already exist in the workspace.
 - Resolve the simulation scale budget before configuration or custom module creation; if it is missing, ask clarifying questions and compare 2-3 approaches with trade-offs.
 - If external data is needed, search or inspect datasets before building new assumptions; guide dataset upload when the input should be shared or reused.
+- **Commit every meaningful change**: after creating, editing, or deleting files, always run \`git add -A && git commit -m "<descriptive message>"\` to keep a full audit trail. This includes config files, experiment outputs, analysis results, and any workspace state changes.
 
 Do not:
 
@@ -1143,6 +1185,7 @@ Do not:
 - Edit \`.agentsociety/*.json\` or \`.jsonl\` manually unless there is a clear reason not to use the CLI.
 - Start analysis before experiment outputs exist.
 - Start paper generation before analysis outputs and claim review are in place.
+- Skip git commits after making file changes — every modification must be tracked.
 `;
   }
 
