@@ -108,21 +108,6 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
           </Tag>
         </Text>
         <Form.Item
-          name="apiKey"
-          label={
-            <Space size={4}>
-              <span>API Key</span>
-              <Tooltip title="ANTHROPIC_AUTH_TOKEN">
-                <QuestionCircleOutlined style={{ color: palette.descriptionForeground, fontSize: 12 }} />
-              </Tooltip>
-            </Space>
-          }
-          rules={[{ required: true, message: t('claudeCodeConfig.apiKeyRequired') }]}
-          style={{ marginBottom: 12 }}
-        >
-          <Input.Password placeholder={t('claudeCodeConfig.apiKeyPlaceholder')} autoComplete="off" />
-        </Form.Item>
-        <Form.Item
           label={
             <Space size={4}>
               <span>Base URL</span>
@@ -132,7 +117,7 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
             </Space>
           }
           required
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 12 }}
         >
           <Space.Compact style={{ width: '100%' }}>
             <Select
@@ -151,6 +136,21 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
               <Input placeholder={baseUrlPlaceholder} />
             </Form.Item>
           </Space.Compact>
+        </Form.Item>
+        <Form.Item
+          name="apiKey"
+          label={
+            <Space size={4}>
+              <span>API Key</span>
+              <Tooltip title="ANTHROPIC_AUTH_TOKEN">
+                <QuestionCircleOutlined style={{ color: palette.descriptionForeground, fontSize: 12 }} />
+              </Tooltip>
+            </Space>
+          }
+          rules={[{ required: true, message: t('claudeCodeConfig.apiKeyRequired') }]}
+          style={{ marginBottom: 16 }}
+        >
+          <Input.Password placeholder={t('claudeCodeConfig.apiKeyPlaceholder')} autoComplete="off" />
         </Form.Item>
 
         <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>

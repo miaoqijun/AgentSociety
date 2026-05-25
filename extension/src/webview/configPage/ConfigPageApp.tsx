@@ -1220,6 +1220,9 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
               style={glassCardStyle(isDark, palette)}
               styles={{ body: { padding: '16px 20px' } }}
             >
+              <Form.Item name="llmApiBase" label={t('configPage.llm.apiBase')}>
+                <Input placeholder={t('configPage.llm.apiBasePlaceholder')} />
+              </Form.Item>
               <Form.Item
                 name="llmApiKey"
                 label={t('configPage.llm.apiKeyRequired')}
@@ -1227,9 +1230,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                 tooltip={t('configPage.llm.apiKeyRequiredHint')}
               >
                 <Input.Password placeholder={t('configPage.llm.apiKeyPlaceholder')} autoComplete="off" />
-              </Form.Item>
-              <Form.Item name="llmApiBase" label={t('configPage.llm.apiBase')}>
-                <Input placeholder={t('configPage.llm.apiBasePlaceholder')} />
               </Form.Item>
               <Form.Item name="llmModel" label={t('configPage.llm.modelName')}>
                 <Input placeholder={t('configPage.llm.modelPlaceholder')} />

@@ -189,8 +189,8 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
       key: 'coder',
       label: tabLabelWithStatus(t('configPage.coder.shortTitle'), 'coder'),
       children: renderLlmFields('coder', 'configPage.coder.hint', [
-        { key: 'coderLlmApiKey', label: t('configPage.coder.apiKey') },
         { key: 'coderLlmApiBase', label: t('configPage.coder.apiBase'), placeholder: linkedBasePlaceholder },
+        { key: 'coderLlmApiKey', label: t('configPage.coder.apiKey') },
         {
           key: 'coderLlmModel',
           label: t('configPage.coder.model'),
@@ -202,8 +202,8 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
       key: 'nano',
       label: tabLabelWithStatus(t('configPage.advanced.nano.shortTitle'), 'nano'),
       children: renderLlmFields('nano', 'configPage.advanced.nano.hint', [
-        { key: 'nanoLlmApiKey', label: t('configPage.advanced.nano.apiKey') },
         { key: 'nanoLlmApiBase', label: t('configPage.advanced.nano.apiBase'), placeholder: linkedBasePlaceholder },
+        { key: 'nanoLlmApiKey', label: t('configPage.advanced.nano.apiKey') },
         {
           key: 'nanoLlmModel',
           label: t('configPage.advanced.nano.model'),
@@ -215,8 +215,8 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
       key: 'analysis',
       label: tabLabelWithStatus(t('configPage.analysis.shortTitle'), 'analysis'),
       children: renderLlmFields('analysis', 'configPage.analysis.hint', [
-        { key: 'analysisLlmApiKey', label: t('configPage.analysis.apiKey') },
         { key: 'analysisLlmApiBase', label: t('configPage.analysis.apiBase'), placeholder: linkedBasePlaceholder },
+        { key: 'analysisLlmApiKey', label: t('configPage.analysis.apiKey') },
         {
           key: 'analysisLlmModel',
           label: t('configPage.analysis.model'),
@@ -232,11 +232,11 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
           <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
             {t('configPage.advanced.embedding.hint')}
           </Text>
-          <Form.Item name="embeddingApiKey" label={t('configPage.advanced.embedding.apiKey')}>
-            <Input.Password placeholder={linkedKeyPlaceholder} autoComplete="off" />
-          </Form.Item>
           <Form.Item name="embeddingApiBase" label={t('configPage.advanced.embedding.apiBase')}>
             <Input placeholder={linkedBasePlaceholder} />
+          </Form.Item>
+          <Form.Item name="embeddingApiKey" label={t('configPage.advanced.embedding.apiKey')}>
+            <Input.Password placeholder={linkedKeyPlaceholder} autoComplete="off" />
           </Form.Item>
           <Form.Item name="embeddingModel" label={t('configPage.advanced.embedding.model')}>
             <Input placeholder={t('configPage.advanced.embedding.modelPlaceholder')} />
