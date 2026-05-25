@@ -28,7 +28,15 @@ export const EasyPaperConfigSection: React.FC<EasyPaperConfigSectionProps> = ({
   defaultLlmModel,
   onSave,
 }) => {
-  const vlmEnabled = Form.useWatch('vlmEnabled', form) ?? false;
+  const [vlmEnabled, setVlmEnabled] = React.useState(false);
+
+  // Sync from form when initial config loads
+  React.useEffect(() => {
+    const val = form.getFieldValue('vlmEnabled');
+    if (typeof val === 'boolean') {
+      setVlmEnabled(val);
+    }
+  }, [form]);
 
   const handleCopyFromAgentSociety = () => {
     form.setFieldsValue({
@@ -98,7 +106,7 @@ export const EasyPaperConfigSection: React.FC<EasyPaperConfigSectionProps> = ({
         {/* VLM Config (optional) */}
         <div style={{ marginTop: 8, marginBottom: 8 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Switch size="small" checked={vlmEnabled} onChange={(v) => form.setFieldValue('vlmEnabled', v)} />
+            <Switch size="small" checked={vlmEnabled} onChange={(v) => { setVlmEnabled(v); form.setFieldValue('vlmEnabled', v); }} />
             <Text strong style={{ fontSize: 13 }}>{t('easyPaperConfig.vlmSection')}</Text>
             <Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>
               {t('easyPaperConfig.vlmOptional')}
