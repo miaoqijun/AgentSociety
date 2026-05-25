@@ -221,7 +221,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   const [claudeCliStatus, setClaudeCliStatus] = React.useState<ClaudeCodeCliStatus>({ installed: false });
   const [claudeSettingsPath, setClaudeSettingsPath] = React.useState('~/.claude/settings.json');
   const [claudeCodeCustomized, setClaudeCodeCustomized] = React.useState(false);
-  const [advancedOpen, setAdvancedOpen] = React.useState<string[]>([]);
   const [advancedTopTab, setAdvancedTopTab] = React.useState<AdvancedTopTab>('models');
   const advancedSectionRef = React.useRef<HTMLDivElement>(null);
   const pythonSectionRef = React.useRef<HTMLDivElement>(null);
@@ -296,7 +295,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     scrollTarget?: React.RefObject<HTMLDivElement | null>
   ) => {
     setAdvancedTopTab(tab);
-    setAdvancedOpen(['advanced']);
     window.setTimeout(() => {
       scrollToRef(scrollTarget ?? advancedSectionRef);
     }, 200);
@@ -1249,14 +1247,14 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
             <div ref={advancedSectionRef}>
               <Collapse
                 bordered={false}
-                activeKey={advancedOpen}
-                onChange={(keys) => setAdvancedOpen(Array.isArray(keys) ? keys : keys ? [keys] : [])}
+                activeKey={['advanced']}
                 style={{ marginBottom: 16, background: 'transparent' }}
-                expandIconPosition="end"
+                expandIcon={() => null}
                 items={[
                   {
                     key: 'advanced',
                     forceRender: true,
+                    collapsible: 'disabled',
                     label: (
                       <span style={{ fontWeight: 500, color: palette.editorForeground }}>
                         {t('configPage.advancedConfig')}

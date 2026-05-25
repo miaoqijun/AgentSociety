@@ -362,6 +362,8 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
       ),
     },
   ];
+
+  return (
     <Tabs
       activeKey={activeTopTab}
       onChange={(key) => onActiveTopTabChange(key as AdvancedTopTab)}
