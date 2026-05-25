@@ -263,6 +263,17 @@ export class WorkspaceManager {
         this.autoCommit(workspacePath, `init: office skills (${officeSkillsResult.downloaded.join(', ')})`);
       }
 
+      reportProgress('正在配置 paper-toolkit 插件市场...');
+
+      const marketplaceResult = this.seedClaudePluginMarketplaces(workspacePath);
+      if (!marketplaceResult.success) {
+        this.log(`Failed to seed paper-toolkit marketplace: ${marketplaceResult.message}`);
+      } else if (marketplaceResult.written) {
+        filesCreated.push('.claude/settings.json');
+        this.log(marketplaceResult.message);
+        this.autoCommit(workspacePath, 'init: paper-toolkit plugin marketplace');
+      }
+
       reportProgress('正在完成初始化...');
 
       this.autoCommit(workspacePath, 'init: workspace initialized');
@@ -854,6 +865,78 @@ export class WorkspaceManager {
     };
   }
 
+  /**
+   * Seed `<workspace>/.claude/settings.json` with Claude Code plugin marketplace
+   * config so CC prompts the user to install the paper-toolkit plugin (which
+   * delivers the `paper` skill) when they trust the workspace folder.
+   *
+   * Idempotent + merge-only: any existing keys outside of
+   * `extraKnownMarketplaces.paper-toolkit` / `enabledPlugins["paper-toolkit@paper-toolkit"]`
+   * are preserved verbatim.
+   */
+  public seedClaudePluginMarketplaces(
+    workspacePath?: string
+  ): { success: boolean; message: string; written: boolean } {
+    workspacePath = workspacePath || this.getWorkspacePath() || '';
+    if (!workspacePath) {
+      return { success: false, message: 'No workspace folder open', written: false };
+    }
+
+    const claudeDir = path.join(workspacePath, '.claude');
+    const settingsPath = path.join(claudeDir, 'settings.json');
+
+    let settings: Record<string, any> = {};
+    if (fs.existsSync(settingsPath)) {
+      try {
+        const raw = fs.readFileSync(settingsPath, 'utf-8');
+        settings = raw.trim() ? JSON.parse(raw) : {};
+      } catch (error) {
+        this.log(`Failed to parse existing ${settingsPath}: ${error}`);
+        return {
+          success: false,
+          message: `无法解析 ${settingsPath}: ${error}`,
+          written: false,
+        };
+      }
+    }
+
+    const desiredMarketplace = {
+      source: { source: 'github', repo: 'Yokumii/paper-toolkit' },
+    };
+    const marketplaces =
+      (settings.extraKnownMarketplaces as Record<string, any>) || {};
+    const enabled = (settings.enabledPlugins as Record<string, boolean>) || {};
+
+    const marketplaceMatches =
+      JSON.stringify(marketplaces['paper-toolkit']) === JSON.stringify(desiredMarketplace);
+    const enabledMatches = enabled['paper-toolkit@paper-toolkit'] === true;
+
+    if (marketplaceMatches && enabledMatches) {
+      return { success: true, message: 'paper-toolkit marketplace already seeded', written: false };
+    }
+
+    marketplaces['paper-toolkit'] = desiredMarketplace;
+    enabled['paper-toolkit@paper-toolkit'] = true;
+    settings.extraKnownMarketplaces = marketplaces;
+    settings.enabledPlugins = enabled;
+
+    try {
+      if (!fs.existsSync(claudeDir)) {
+        fs.mkdirSync(claudeDir, { recursive: true });
+      }
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+      this.log(`Seeded paper-toolkit marketplace into ${settingsPath}`);
+      return { success: true, message: 'paper-toolkit marketplace seeded', written: true };
+    } catch (error) {
+      this.log(`Failed to write ${settingsPath}: ${error}`);
+      return {
+        success: false,
+        message: `无法写入 ${settingsPath}: ${error}`,
+        written: false,
+      };
+    }
+  }
+
   /** Remove obsolete analysis-support layouts (bundles now live under agentsociety-analysis/support/). */
   private pruneLegacyAnalysisSkillLayouts(workspacePath: string): void {
     const legacyPaths = [
@@ -1247,7 +1330,7 @@ Use this routing model:
 - Use \`agentsociety-experiment-config\` to prepare \`init_config.json\` and \`steps.yaml\`.
 - Use \`agentsociety-run-experiment\` only after configuration is ready and checked.
 - Use \`agentsociety-analysis\` once experiment outputs exist.
-- Use \`agentsociety-paper-orchestrator\` after analysis artifacts and reviewed claims are ready.
+- Use the external \`paper-toolkit\` plugin after analysis artifacts and reviewed claims are ready.
 - Use \`agentsociety-use-dataset\` or \`agentsociety-create-dataset\` only when data acquisition or publishing is part of the task.
 
 Preferred command examples:

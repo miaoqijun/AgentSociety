@@ -214,7 +214,7 @@ PersonAgent follows a **metadata-first, selected-only** model:
 - **literature**: Academic literature search and management
 - **experiment**: Experiment configuration and execution
 - **hypothesis**: Hypothesis generation and management
-- **paper**: Academic paper generation (rewriting: will be replaced by the `agentsociety-paper-orchestrator` skill suite that produces a Nature-style PDF via LaTeX)
+- **paper**: Academic paper generation (deprecated; replaced by the external `paper-toolkit` plugin, which provides a deterministic CLI for evidence DAG, typesetting, and checks, plus a companion Claude Code skill for writing and review)
 - **analysis**: Data analysis and reporting
 - **agent**: Agent processing, selection, generation, and filtering
 

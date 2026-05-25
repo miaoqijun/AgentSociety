@@ -98,7 +98,7 @@ Use `where-am-i --json` whenever the current stage is unclear.
 | `experiment_config` | experiment-config |
 | `run_experiment` | run-experiment |
 | `analysis` | analysis |
-| `generate_paper` | agentsociety-paper-orchestrator |
+| `generate_paper` | paper-toolkit plugin |
 
 ### Progress File Quick Reference
 
@@ -124,7 +124,7 @@ digraph research_pipeline {
     exp [label="experiment-config"];
     run [label="run-experiment"];
     analysis [label="analysis"];
-    paper [label="agentsociety-paper-orchestrator"];
+    paper [label="paper-toolkit plugin"];
     agent [label="create-agent"];
     env [label="create-env-module"];
     create_ds [label="create-dataset"];
@@ -170,7 +170,7 @@ digraph research_pipeline {
 | 3 | **experiment-config** | `init_config.json`, `steps.yaml`, `config_params.py` | `SIM_SETTINGS.json` |
 | 4 | **run-experiment** | `run/sqlite.db`, `run/stdout.log`, `run/stderr.log`, `run/artifacts/` | `init_config.json` + `steps.yaml` |
 | 5 | **analysis** | `presentation/hypothesis_{id}/report.md`, charts, data | `run/sqlite.db` |
-| 6 | **agentsociety-paper-orchestrator** | `<ws>/paper/runs/<TS>/compose/out/paper.pdf` | analysis report + literature index |
+| 6 | **paper-toolkit plugin** | `<ws>/paper/compile_runs/<RUN>/main.pdf` | analysis report + literature index |
 
 ### Branch Skills (called from trunk)
 
@@ -192,7 +192,7 @@ digraph research_pipeline {
 | experiment-config | "configure experiment", "init_config", "steps.yaml", "set up experiment" |
 | run-experiment | "run experiment", "start simulation", "check status", "stop experiment" |
 | analysis | "analyze", "results", "visualization", "chart", "report" |
-| agentsociety-paper-orchestrator | "write paper", "academic paper", "generate paper", "Nature paper" |
+| paper-toolkit plugin | "write paper", "academic paper", "generate paper", "Nature paper" |
 | scan-modules | "available modules", "list agents", "find environment" |
 | create-agent | "create agent", "custom agent", "new agent type" |
 | create-env-module | "create environment", "custom module", "env module" |
@@ -217,7 +217,7 @@ digraph research_pipeline {
 
 - Never run analysis before `run-experiment` produces `sqlite.db`
 - Always run `experiment-config check` before `run-experiment`
-- `agentsociety-paper-orchestrator` requires analysis reports to exist
+- `paper-toolkit` requires analysis reports or equivalent evidence artifacts to exist
 - Always call `research-pipeline update-stage` after completing a pipeline stage
 - Always git commit after `research-pipeline update-stage` — see **Git Checkpoint Discipline**
 - On workspace init, run `git init` (if needed) followed by an initial commit

@@ -57,14 +57,6 @@ TOOL_SCRIPTS = {
         "agentsociety-analysis",
         "scripts/analysis.py",
     ),
-    "paper-orchestrator": (
-        "agentsociety-paper-orchestrator",
-        "scripts/orchestrate.py",
-    ),
-    "paper-adapter": (
-        "agentsociety-paper-adapter",
-        "scripts/build_research_pack.py",
-    ),
     "create-agent": (
         "agentsociety-create-agent",
         "scripts/validate.py",
@@ -94,12 +86,6 @@ ALIASES = {
     "experiment_config": "experiment-config",
     "run_experiment": "run-experiment",
     "research_pipeline": "research-pipeline",
-    "paper": "paper-orchestrator",
-    "generate-paper": "paper-orchestrator",
-    "generate_paper": "paper-orchestrator",
-    "paper_orchestrator": "paper-orchestrator",
-    "paper-adapter": "paper-adapter",
-    "paper_adapter": "paper-adapter",
     "create_agent": "create-agent",
     "create_env_module_validate": "create-env-module-validate",
     "create_env_module_resolve_sources": "create-env-module-resolve-sources",

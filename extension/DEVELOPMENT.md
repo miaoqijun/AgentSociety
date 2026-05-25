@@ -111,12 +111,7 @@ extension/
 │   ├── agentsociety-scan-modules/    # 扫描模块
 │   ├── agentsociety-synthesize/      # 结果综合
 │   ├── agentsociety-web-research/    # 网络研究
-│   ├── agentsociety-paper-orchestrator/  # 论文生成 OS — 状态机 + 调度
-│   ├── agentsociety-paper-adapter/       # workspace → ResearchPack
-│   ├── agentsociety-paper-framing/       # storyline_map 生成
-│   ├── agentsociety-paper-evidence-expansion/  # 证据缺口审计
-│   ├── agentsociety-paper-architecture/  # claim tree + manuscript drafting
-│   ├── agentsociety-paper-skeptical-review/   # 多审稿人评审轮次
+│   ├── paper-toolkit plugin             # 外部论文模板、证据图、检查和编译工具
 │   ├── agentsociety-analysis/        # …/v1.0.0/support/frontend-design 等分析附属包
 │   ├── docx/                         # Word 文档处理
 │   ├── pdf/                          # PDF 文档处理
