@@ -182,6 +182,9 @@ export interface SkillManagementState {
   // Built-in Skills
   builtinSkills: BuiltinSkill[];
   builtinSkillsLoading: boolean;
+  // Bundled Plugins
+  bundledPlugins: BundledPlugin[];
+  bundledPluginsLoading: boolean;
   // Marketplace
   agentMarketplaceSkills: MarketplaceSkill[];
   claudeCodeMarketplaceSkills: MarketplaceSkill[];
@@ -247,7 +250,9 @@ export interface ExtensionMessage {
   | 'saveGithubToken'          // 保存 GitHub Token
   // 更新差异预览
   | 'getSkillUpdateDiff'       // 获取技能更新差异
-  | 'confirmSkillUpdate';      // 确认更新技能
+  | 'confirmSkillUpdate'       // 确认更新技能
+  // Bundled Plugins
+  | 'listBundledPlugins';      // 获取扩展自带插件列表
   payload?: unknown;
 }
 
@@ -267,6 +272,8 @@ export interface WebviewMessage {
   | 'claudeCodeSkillDeleted'
   // Built-in Skills
   | 'builtinSkillsLoaded'
+  // Bundled Plugins
+  | 'bundledPluginsLoaded'
   // Marketplace
   | 'marketplaceSkillsLoaded'
   | 'installProgress'
@@ -328,6 +335,24 @@ export interface SkillFrontmatter {
   version?: string;
   author?: string;
   tags?: string[];
+}
+
+// ============ Bundled Plugins（扩展自带的 Claude Code 插件） ============
+
+export interface BundledPluginCommand {
+  name: string;       // 文件名（不含 .md）
+  path: string;       // 源文件路径
+  description?: string;
+}
+
+export interface BundledPlugin {
+  name: string;       // 插件名（如 "easypaper"）
+  version: string;
+  description: string;
+  author: string;
+  path: string;       // 插件根目录
+  skills: BuiltinSkill[];
+  commands: BundledPluginCommand[];
 }
 
 // ============ 原始配置类型（用于类型安全解析） ============

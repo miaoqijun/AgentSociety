@@ -434,6 +434,10 @@
     "vsixTemplateSection": "Bundled templates",
     "vsixTemplateExplain": "Sample copies included with the extension for preview; use Sync to workspace to use them in this project.",
     "vsixTemplateTag": "Bundled template",
+    "pluginsSection": "Plugins",
+    "pluginSkills": "skills",
+    "pluginCommands": "commands",
+    "viewDoc": "View",
     "claudeOrigin": {
       "workspace": "Workspace",
       "global": "User home"

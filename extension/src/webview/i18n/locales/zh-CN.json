@@ -434,6 +434,10 @@
     "vsixTemplateSection": "扩展附带模板",
     "vsixTemplateExplain": "随本扩展提供的示例副本，仅供预览；需要时可「同步到工作区」以便在当前项目中使用。",
     "vsixTemplateTag": "内置模板",
+    "pluginsSection": "插件",
+    "pluginSkills": "技能",
+    "pluginCommands": "命令",
+    "viewDoc": "查看",
     "claudeOrigin": {
       "workspace": "工作区",
       "global": "用户目录"

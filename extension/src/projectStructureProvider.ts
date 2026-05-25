@@ -3576,6 +3576,10 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
     return this.workspaceManager.getVersionManager();
   }
 
+  getWorkspaceManager() {
+    return this.workspaceManager;
+  }
+
   async updateExtensionSkills(): Promise<void> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {

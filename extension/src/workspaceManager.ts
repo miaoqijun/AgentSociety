@@ -31,12 +31,14 @@ export interface WorkspaceInitResult {
 export class WorkspaceManager {
   private outputChannel: vscode.OutputChannel;
   private skillsSourcePath: string;
+  private pluginsSourcePath: string;
   private runtimeSourcePath: string;
   private versionManager: SkillVersionManager;
 
   constructor(context: vscode.ExtensionContext) {
     this.outputChannel = vscode.window.createOutputChannel('Workspace Manager');
     this.skillsSourcePath = path.join(context.extensionPath, 'skills');
+    this.pluginsSourcePath = path.join(context.extensionPath, 'plugins');
     this.runtimeSourcePath = path.join(context.extensionPath, 'runtime');
     this.versionManager = new SkillVersionManager(context, this.outputChannel);
   }
@@ -470,6 +472,11 @@ export class WorkspaceManager {
 
     created.push(...this.ensureCodexSkillsLink(workspacePath, targetDir));
 
+    // Install bundled plugins (skills → .claude/skills/, commands → .claude/commands/)
+    const pluginResult = this.installBundledPlugins(workspacePath);
+    created.push(...pluginResult.created);
+    synced.push(...pluginResult.synced);
+
     this.autoCommit(workspacePath, `sync: Claude Code resources (${synced.length} items)`);
 
     if (synced.length === 0) {
@@ -529,6 +536,89 @@ export class WorkspaceManager {
     }
 
     return created;
+  }
+
+  /**
+   * Install bundled Claude Code plugins from extension/plugins/.
+   * Each plugin's skills/ are copied to .claude/skills/ and commands/ to .claude/commands/.
+   */
+  private installBundledPlugins(
+    workspacePath: string,
+  ): { created: string[]; synced: string[] } {
+    const created: string[] = [];
+    const synced: string[] = [];
+
+    if (!fs.existsSync(this.pluginsSourcePath) || !fs.statSync(this.pluginsSourcePath).isDirectory()) {
+      return { created, synced };
+    }
+
+    const claudeDir = path.join(workspacePath, '.claude');
+    const skillsDir = path.join(claudeDir, 'skills');
+    const commandsDir = path.join(claudeDir, 'commands');
+
+    for (const pluginName of fs.readdirSync(this.pluginsSourcePath)) {
+      const pluginDir = path.join(this.pluginsSourcePath, pluginName);
+      if (!fs.statSync(pluginDir).isDirectory()) {
+        continue;
+      }
+
+      // Install plugin skills
+      const pluginSkillsDir = path.join(pluginDir, 'skills');
+      if (fs.existsSync(pluginSkillsDir) && fs.statSync(pluginSkillsDir).isDirectory()) {
+        if (!fs.existsSync(skillsDir)) {
+          fs.mkdirSync(skillsDir, { recursive: true });
+          created.push('.claude/skills/');
+        }
+        for (const skillName of fs.readdirSync(pluginSkillsDir)) {
+          const sourceSkillPath = path.join(pluginSkillsDir, skillName);
+          if (!fs.statSync(sourceSkillPath).isDirectory()) {
+            continue;
+          }
+          const targetSkillPath = path.join(skillsDir, skillName);
+          try {
+            if (fs.existsSync(targetSkillPath)) {
+              fs.rmSync(targetSkillPath, { recursive: true, force: true });
+            }
+            this.copyDirectoryRecursive(sourceSkillPath, targetSkillPath);
+            synced.push(skillName);
+          } catch (error) {
+            this.log(`Failed to install plugin skill ${skillName}: ${error}`);
+          }
+        }
+      }
+
+      // Install plugin commands
+      const pluginCommandsDir = path.join(pluginDir, 'commands');
+      if (fs.existsSync(pluginCommandsDir) && fs.statSync(pluginCommandsDir).isDirectory()) {
+        if (!fs.existsSync(commandsDir)) {
+          fs.mkdirSync(commandsDir, { recursive: true });
+          created.push('.claude/commands/');
+          this.log(`Created: ${commandsDir}`);
+        }
+        for (const cmdFile of fs.readdirSync(pluginCommandsDir)) {
+          if (!cmdFile.endsWith('.md')) {
+            continue;
+          }
+          const sourceCmdPath = path.join(pluginCommandsDir, cmdFile);
+          const targetCmdPath = path.join(commandsDir, cmdFile);
+          try {
+            fs.copyFileSync(sourceCmdPath, targetCmdPath);
+            synced.push(cmdFile);
+          } catch (error) {
+            this.log(`Failed to install plugin command ${cmdFile}: ${error}`);
+          }
+        }
+      }
+
+      this.log(`Installed plugin: ${pluginName} (skills + commands)`);
+    }
+
+    return { created, synced };
+  }
+
+  /** Expose the bundled plugins source path for the marketplace provider. */
+  public getPluginsSourcePath(): string {
+    return this.pluginsSourcePath;
   }
 
   private syncWorkspaceRuntimeAssets(

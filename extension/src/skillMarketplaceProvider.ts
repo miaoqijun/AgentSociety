@@ -14,6 +14,8 @@ import type {
   ClaudeCodeSkill,
   BuiltinSkill,
   BuiltinSkillVersionInfo,
+  BundledPlugin,
+  BundledPluginCommand,
   SkillPreset,
   SkillVersionRef,
   MarketplaceLoadError,
@@ -150,6 +152,9 @@ export class SkillMarketplacePanel {
             break;
           case 'listBuiltinSkills':
             await this._loadBuiltinSkills();
+            break;
+          case 'listBundledPlugins':
+            await this._loadBundledPlugins();
             break;
           case 'scanAgentSkills':
             await this._scanAgentSkills();
@@ -508,6 +513,100 @@ export class SkillMarketplacePanel {
       }
     }
     await this._postMessage({ type: 'builtinSkillsLoaded', payload: skills });
+  }
+
+  private async _loadBundledPlugins(): Promise<void> {
+    const plugins: BundledPlugin[] = [];
+    const pluginsDir = this._projectStructureProvider.getWorkspaceManager()?.getPluginsSourcePath();
+
+    if (!pluginsDir || !fs.existsSync(pluginsDir)) {
+      await this._postMessage({ type: 'bundledPluginsLoaded', payload: plugins });
+      return;
+    }
+
+    for (const pluginName of fs.readdirSync(pluginsDir)) {
+      const pluginPath = path.join(pluginsDir, pluginName);
+      if (!fs.statSync(pluginPath).isDirectory()) {
+        continue;
+      }
+
+      // Read plugin manifest
+      const manifestPath = path.join(pluginPath, '.claude-plugin', 'plugin.json');
+      if (!fs.existsSync(manifestPath)) {
+        continue;
+      }
+
+      let manifest: any;
+      try {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      } catch {
+        continue;
+      }
+
+      // Scan plugin skills
+      const pluginSkills: BuiltinSkill[] = [];
+      const skillsDir = path.join(pluginPath, 'skills');
+      if (fs.existsSync(skillsDir) && fs.statSync(skillsDir).isDirectory()) {
+        for (const skillName of fs.readdirSync(skillsDir)) {
+          const skillPath = path.join(skillsDir, skillName);
+          if (!fs.statSync(skillPath).isDirectory()) {
+            continue;
+          }
+          const mdPath = skillMdPathInDir(skillPath);
+          let description: string | undefined;
+          if (mdPath) {
+            try {
+              const content = fs.readFileSync(mdPath, 'utf-8');
+              const fm = parseFrontmatter(content);
+              description = typeof fm.description === 'string' ? fm.description : undefined;
+            } catch { /* ignore */ }
+          }
+          pluginSkills.push({
+            name: skillName,
+            path: skillPath,
+            hasSkillMd: mdPath !== null,
+            description,
+            isVersioned: false,
+          });
+        }
+      }
+
+      // Scan plugin commands
+      const commands: BundledPluginCommand[] = [];
+      const commandsDir = path.join(pluginPath, 'commands');
+      if (fs.existsSync(commandsDir) && fs.statSync(commandsDir).isDirectory()) {
+        for (const cmdFile of fs.readdirSync(commandsDir)) {
+          if (!cmdFile.endsWith('.md')) {
+            continue;
+          }
+          const cmdPath = path.join(commandsDir, cmdFile);
+          let description: string | undefined;
+          try {
+            const content = fs.readFileSync(cmdPath, 'utf-8');
+            // Extract first line as description (usually a summary)
+            const firstLine = content.split('\n').find(l => l.trim().length > 0) || '';
+            description = firstLine.replace(/^#+\s*/, '').trim() || undefined;
+          } catch { /* ignore */ }
+          commands.push({
+            name: cmdFile.replace(/\.md$/, ''),
+            path: cmdPath,
+            description,
+          });
+        }
+      }
+
+      plugins.push({
+        name: manifest.name || pluginName,
+        version: manifest.version || '0.0.0',
+        description: manifest.description || '',
+        author: manifest.author?.name || manifest.author || '',
+        path: pluginPath,
+        skills: pluginSkills,
+        commands,
+      });
+    }
+
+    await this._postMessage({ type: 'bundledPluginsLoaded', payload: plugins });
   }
 
   private _openLocalSkillMarkdown(skillDir: string): void {

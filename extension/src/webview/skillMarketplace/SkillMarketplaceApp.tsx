@@ -12,7 +12,8 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type {
-  VSCodeAPI, MarketplaceSkill, AgentSkill, ClaudeCodeSkill, BuiltinSkill, AgentSkillDetailPayload,
+  VSCodeAPI, MarketplaceSkill, AgentSkill, ClaudeCodeSkill, BuiltinSkill, BundledPlugin,
+  AgentSkillDetailPayload,
   MarketplaceLoadError, MarketplaceChannelsPayload, SkillSourceConfig,
 } from './types';
 import { DEFAULT_CLAUDE_SOURCES, DEFAULT_AGENT_SOURCES } from './types';
@@ -41,6 +42,8 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
   const [claudeCodeSkillsLoading, setClaudeCodeSkillsLoading] = React.useState(false);
   const [builtinSkills, setBuiltinSkills] = React.useState<BuiltinSkill[]>([]);
   const [builtinSkillsLoading, setBuiltinSkillsLoading] = React.useState(false);
+  const [bundledPlugins, setBundledPlugins] = React.useState<BundledPlugin[]>([]);
+  const [bundledPluginsLoading, setBundledPluginsLoading] = React.useState(false);
   const [agentMarketplaceSkills, setAgentMarketplaceSkills] = React.useState<MarketplaceSkill[]>([]);
   const [claudeMarketplaceSkills, setClaudeMarketplaceSkills] = React.useState<MarketplaceSkill[]>([]);
   const [marketplaceLoading, setMarketplaceLoading] = React.useState(false);
@@ -148,6 +151,10 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
         case 'builtinSkillsLoaded':
           setBuiltinSkills(msg.payload || []);
           setBuiltinSkillsLoading(false);
+          break;
+        case 'bundledPluginsLoaded':
+          setBundledPlugins(msg.payload || []);
+          setBundledPluginsLoading(false);
           break;
         case 'agentSkillDetailLoaded': {
           const p = msg.payload as AgentSkillDetailPayload;
@@ -317,6 +324,7 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
     vscode.postMessage({ type: 'listAgentSkills' });
     vscode.postMessage({ type: 'listClaudeCodeSkills' });
     vscode.postMessage({ type: 'listBuiltinSkills' });
+    vscode.postMessage({ type: 'listBundledPlugins' });
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
@@ -339,7 +347,9 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
   };
   const handleRefreshClaudeList = () => {
     setClaudeCodeSkillsLoading(true);
+    setBundledPluginsLoading(true);
     vscode.postMessage({ type: 'listClaudeCodeSkills' });
+    vscode.postMessage({ type: 'listBundledPlugins' });
   };
   const handleUpdateExtensionSkills = () => vscode.postMessage({ type: 'updateExtensionSkills' });
   const handleSwitchSkillVersion = () =>
@@ -1551,6 +1561,128 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
                 </Panel>
               </Collapse>
             )}
+            {/* 插件 */}
+            {bundledPlugins.length > 0 && (
+              <Collapse defaultActiveKey={['plugins']} ghost style={{ marginTop: bundledRows.length > 0 ? 8 : 0 }}>
+                <Panel
+                  header={sectionPanelHeader(<AppstoreOutlined />, `${t('skillManagement.pluginsSection')} (${bundledPlugins.length})`)}
+                  key="plugins"
+                >
+                  {bundledPlugins.map((plugin) => (
+                    <Card
+                      key={plugin.name}
+                      size="small"
+                      style={{
+                        marginBottom: 8,
+                        background: palette.surfaceMuted,
+                        border: `1px solid ${palette.panelBorder}`,
+                        borderRadius: 8,
+                      }}
+                      styles={{ body: { padding: '10px 14px' } }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14 }}>{plugin.name}</span>
+                          <Tag style={{ fontSize: 11, lineHeight: '18px', margin: 0 }}>v{plugin.version}</Tag>
+                          {plugin.author && <Tag color="blue" style={{ fontSize: 11, lineHeight: '18px', margin: 0 }}>{plugin.author}</Tag>}
+                        </div>
+                        <Space size={4}>
+                          {plugin.skills.length > 0 && (
+                            <Tag icon={<ToolOutlined />} style={{ fontSize: 11, margin: 0 }}>
+                              {plugin.skills.length} {t('skillManagement.pluginSkills')}
+                            </Tag>
+                          )}
+                          {plugin.commands.length > 0 && (
+                            <Tag icon={<ThunderboltOutlined />} style={{ fontSize: 11, margin: 0 }}>
+                              {plugin.commands.length} {t('skillManagement.pluginCommands')}
+                            </Tag>
+                          )}
+                        </Space>
+                      </div>
+                      {plugin.description && (
+                        <div style={{ fontSize: 12, color: palette.descriptionForeground, marginBottom: 6 }}>
+                          {plugin.description}
+                        </div>
+                      )}
+                      <Collapse ghost size="small" style={{ marginBottom: 0 }}>
+                        {plugin.skills.length > 0 && (
+                          <Panel
+                            header={`${t('skillManagement.pluginSkills')} (${plugin.skills.length})`}
+                            key="skills"
+                            style={{ fontSize: 12 }}
+                          >
+                            {plugin.skills.map((skill) => (
+                              <div
+                                key={skill.name}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  padding: '4px 0',
+                                  fontSize: 12,
+                                }}
+                              >
+                                <ToolOutlined style={{ color: palette.linkForeground, fontSize: 12 }} />
+                                <span style={{ fontWeight: 500 }}>{skill.name}</span>
+                                {skill.description && (
+                                  <span style={{ color: palette.descriptionForeground }}>— {skill.description}</span>
+                                )}
+                                {skill.hasSkillMd && (
+                                  <Button
+                                    type="link"
+                                    size="small"
+                                    style={{ fontSize: 11, padding: 0, height: 'auto' }}
+                                    onClick={() => {
+                                      vscode.postMessage({ type: 'openLocalSkillMarkdown', payload: { skillDir: skill.path } });
+                                    }}
+                                  >
+                                    {t('skillManagement.viewDoc')}
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                          </Panel>
+                        )}
+                        {plugin.commands.length > 0 && (
+                          <Panel
+                            header={`${t('skillManagement.pluginCommands')} (${plugin.commands.length})`}
+                            key="commands"
+                            style={{ fontSize: 12 }}
+                          >
+                            {plugin.commands.map((cmd) => (
+                              <div
+                                key={cmd.name}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  padding: '4px 0',
+                                  fontSize: 12,
+                                }}
+                              >
+                                <ThunderboltOutlined style={{ color: palette.linkForeground, fontSize: 12 }} />
+                                <code style={{
+                                  fontSize: 11,
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  background: `${palette.linkForeground}15`,
+                                  color: palette.linkForeground,
+                                }}>
+                                  /{cmd.name}
+                                </code>
+                                {cmd.description && (
+                                  <span style={{ color: palette.descriptionForeground }}>— {cmd.description}</span>
+                                )}
+                              </div>
+                            ))}
+                          </Panel>
+                        )}
+                      </Collapse>
+                    </Card>
+                  ))}
+                </Panel>
+              </Collapse>
+            )}
             {/* 工作区技能 */}
             {workspaceRows.length > 0 && (
               <Collapse defaultActiveKey={['workspace']} ghost style={{ marginTop: bundledRows.length > 0 ? 8 : 0 }}>
@@ -1751,6 +1883,7 @@ export const SkillMarketplaceApp: React.FC<SkillManagementAppProps> = ({ vscode 
                       vscode.postMessage({ type: 'listAgentSkills' });
                       vscode.postMessage({ type: 'listClaudeCodeSkills' });
                       vscode.postMessage({ type: 'listBuiltinSkills' });
+                      vscode.postMessage({ type: 'listBundledPlugins' });
                       vscode.postMessage({ type: 'refreshMarketplace' });
                     }}
                   >

@@ -21,6 +21,7 @@ COPY ./extension/src/ ./src/
 COPY ./extension/media/ ./media/
 COPY ./extension/resources/ ./resources/
 COPY ./extension/skills/ ./skills/
+COPY ./extension/plugins/ ./plugins/
 COPY ./extension/runtime/ ./runtime/
 COPY ./extension/.vscodeignore ./
 # Copy LICENSE file for vsce packaging (from project root)
@@ -101,7 +102,8 @@ RUN uv pip install --system \
     python-pptx \
     Pillow \
     python-docx \
-    python-dotenv
+    python-dotenv \
+    "easypaper[docling,images]"
 
 # Copy the vsix file from builder stage
 COPY --from=extension-builder /app/extension.vsix /app/extension.vsix
