@@ -14,7 +14,14 @@ Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.
 
 ## [Unreleased]
 
-（无）
+### Removed
+
+- **agentsociety2**：内置 `paper` 研究技能套件（`agentsociety-paper-adapter` / `agentsociety-paper-architecture` / `agentsociety-paper-evidence-architect`），论文生成迁移至独立的 `paper-toolkit` plugin。
+- **extension**：移除 legacy paper skill 注册条目；`ags.py` 中已无 paper 子命令入口。
+
+### Changed
+
+- **docs**：根 `CLAUDE.md`、`workspace/CLAUDE.md`、`workspace/AGENTS.md` 指引由 `agentsociety-paper-orchestrator` 更新为引用外部 `paper-toolkit` plugin（确定性 CLI + companion Claude Code 写作 / 审阅 skill）。
 
 ---
 

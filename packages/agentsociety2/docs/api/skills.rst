@@ -39,16 +39,11 @@ literature
 .. automodule:: agentsociety2.skills.literature
    :members:
 
-paper
-~~~~~
-
-.. automodule:: agentsociety2.skills.paper
-   :members:
-
 .. note::
 
    当前仓库中可公开使用的 research skills 模块为 ``analysis``、``experiment``、
-   ``hypothesis``、``literature``、``paper``。``web_research`` 目录当前没有保留
+   ``hypothesis``、``literature``。论文撰写由外部 ``paper-toolkit`` 插件提供。
+   ``web_research`` 目录当前没有保留
    可读源码，因此未列为文档 API 表面。
 
 Agent Skills

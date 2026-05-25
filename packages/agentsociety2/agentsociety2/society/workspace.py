@@ -393,13 +393,9 @@ This file records descriptions of high-value file paths and their meanings to he
 ## Ignore Files
 
 - `papers/`: The directory for storing literature search results or user-uploaded literature files. You SHOULD NOT read this directory directly, but use the `load_literature` tool to load the literature files.
-- `paper/`: The paper-orchestrator harness directory. Contains all state and artifacts for the Nature/Science-grade paper development OS:
-  - `paper/paper_meta.yaml` — title, authors, affiliations
-  - `paper/state/` — paper_state.yaml, research_pack.json, human_gates.yaml
-  - `paper/artifacts/` — storyline_map, claim_ledger, evidence_backlog, figure_argument_map
-  - `paper/artifacts/manuscript/` — abstract.md, main.md, results/*, discussion.md
-  - `paper/reviews/` — review_round_NNN.yaml
-  - `paper/runs/<TS>/compose/out/paper.pdf` — the compiled deliverable
+- `paper/`: The external paper-toolkit workspace directory. It contains deterministic
+  paper artifacts such as `paper.json`, section `.tex` files, evidence graph,
+  check reports, compile runs, and the compiled deliverable.
 
 ## Progressive Context Loading
 

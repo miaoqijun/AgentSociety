@@ -111,6 +111,7 @@ function shouldShowFileByExt(fileName: string): boolean {
   // 只展示常见可读/可视化的产物，避免把大二进制/缓存塞满树
   return [
     '.json',
+    '.jsonl',
     '.pdf',
     '.yaml',
     '.yml',
@@ -130,6 +131,10 @@ function shouldShowFileByExt(fileName: string): boolean {
     '.log',
     '.db',
     '.sqlite',
+    '.tex',
+    '.bib',
+    '.cls',
+    '.bst',
   ].includes(ext);
 }
 
@@ -743,7 +748,7 @@ export class ProjectItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-    public readonly type: 'initWorkspace' | 'configureEnv' | 'fixWorkspace' | 'aiChat' | 'topic' | 'hypothesis' | 'experiment' | 'paper' | 'file' | 'papers' | 'userdata' | 'prefillParams' | 'prefillParamsGroup' | 'prefillParamsEnv' | 'prefillParamsAgent' | 'settings' | 'custom' | 'customScan' | 'customTest' | 'customClean' | 'customAgentItem' | 'customEnvItem' | 'customAgentsGroup' | 'customEnvsGroup' | 'customWorkspace' | 'presentation' | 'presentationHypothesis' | 'presentationExperiment' | 'synthesis' | 'analysisPhaseGroup' | 'analysisPhaseStep' | 'synthesisPhaseGroup' | 'reportHtml' | 'reportMd' | 'skillManagement' | 'datasets' | 'datasetItem' | 'paperPdfGroup' | 'paperMdGroup' | 'paperJsonGroup' | 'pidJson' | 'experimentInitGroup' | 'experimentRunGroup' | 'projectStats' | 'projectStatsMetric',
+    public readonly type: 'initWorkspace' | 'configureEnv' | 'fixWorkspace' | 'aiChat' | 'topic' | 'hypothesis' | 'experiment' | 'paper' | 'file' | 'papers' | 'userdata' | 'prefillParams' | 'prefillParamsGroup' | 'prefillParamsEnv' | 'prefillParamsAgent' | 'settings' | 'custom' | 'customScan' | 'customTest' | 'customClean' | 'customAgentItem' | 'customEnvItem' | 'customAgentsGroup' | 'customEnvsGroup' | 'customWorkspace' | 'presentation' | 'presentationHypothesis' | 'presentationExperiment' | 'synthesis' | 'analysisPhaseGroup' | 'analysisPhaseStep' | 'synthesisPhaseGroup' | 'reportHtml' | 'reportMd' | 'skillManagement' | 'datasets' | 'datasetItem' | 'paperPdfGroup' | 'paperMdGroup' | 'paperJsonGroup' | 'pidJson' | 'experimentInitGroup' | 'experimentRunGroup' | 'projectStats' | 'projectStatsMetric' | 'paperWorkspace' | 'paperSections' | 'paperFigures' | 'paperFigureSpecs' | 'paperTables' | 'paperTableSpecs' | 'paperCompileRuns' | 'paperCompileRun' | 'paperReviews' | 'paperLit' | 'paperArtifact' | 'analysisWorkspace' | 'analysisHypothesis' | 'analysisExperiment' | 'analysisEda',
     public readonly filePath?: string
   ) {
     // 调用父类构造函数，初始化树节点
@@ -852,6 +857,21 @@ export class ProjectItem extends vscode.TreeItem {
       'experimentRunGroup': 'graph-line', // 实验运行结果组
       'projectStats': 'graph', // 项目统计概览
       'projectStatsMetric': 'primitive-dot', // 拆行展示的统计子行
+      'paperWorkspace': 'file-text',
+      'paperSections': 'symbol-file',
+      'paperFigures': 'file-media',
+      'paperFigureSpecs': 'symbol-file',
+      'paperTables': 'table',
+      'paperTableSpecs': 'symbol-file',
+      'paperCompileRuns': 'output',
+      'paperCompileRun': 'file-pdf',
+      'paperReviews': 'feedback',
+      'paperLit': 'search',
+      'paperArtifact': 'file',
+      'analysisWorkspace': 'beaker',
+      'analysisHypothesis': 'lightbulb',
+      'analysisExperiment': 'flame',
+      'analysisEda': 'graph',
     };
 
     // 对于 paper 和 file 类型，根据文件扩展名设置图标
@@ -1200,6 +1220,8 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       'custom/**',
       'presentation/**',
       'synthesis/**',
+      'paper/**',
+      'analysis/**',
       '.agentsociety/**',
       '.claude/skills/**',
     ];
@@ -1924,6 +1946,34 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           );
         }
         items.push(synItem);
+      }
+
+      // paper-toolkit 论文工作区
+      const paperDir = path.join(workspacePath, 'paper');
+      if (fs.existsSync(paperDir)) {
+        const paperItem = new ProjectItem(
+          localize('projectStructure.paperWorkspace'),
+          vscode.TreeItemCollapsibleState.Collapsed,
+          'paperWorkspace',
+          paperDir
+        );
+        paperItem.tooltip = localize('projectStructure.paperWorkspace.tooltip');
+        paperItem.iconPath = makeThemeIcon('file-text', 'charts.purple');
+        items.push(paperItem);
+      }
+
+      // paper-toolkit 分析管线产物
+      const analysisDir = path.join(workspacePath, 'analysis');
+      if (fs.existsSync(analysisDir)) {
+        const analysisItem = new ProjectItem(
+          localize('projectStructure.analysisWorkspace'),
+          vscode.TreeItemCollapsibleState.Collapsed,
+          'analysisWorkspace',
+          analysisDir
+        );
+        analysisItem.tooltip = localize('projectStructure.analysisWorkspace.tooltip');
+        analysisItem.iconPath = makeThemeIcon('beaker', 'charts.purple');
+        items.push(analysisItem);
       }
 
       return items;
@@ -3028,6 +3078,52 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       return items;
     }
 
+    // ── paper-toolkit: 论文工作区展开 ──────────────────────
+    if (element.type === 'paperWorkspace' && element.filePath) {
+      return buildPaperWorkspaceChildren(element.filePath);
+    }
+    if (element.type === 'paperSections' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+    if (element.type === 'paperFigures' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+    if (element.type === 'paperFigureSpecs' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+    if (element.type === 'paperTables' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+    if (element.type === 'paperTableSpecs' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+    if (element.type === 'paperCompileRuns' && element.filePath) {
+      return buildPaperCompileRunsChildren(element.filePath);
+    }
+    if (element.type === 'paperCompileRun' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+    if (element.type === 'paperReviews' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+    if (element.type === 'paperLit' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+
+    // ── paper-toolkit: 分析管线展开 ──────────────────────
+    if (element.type === 'analysisWorkspace' && element.filePath) {
+      return buildAnalysisWorkspaceChildren(element.filePath);
+    }
+    if (element.type === 'analysisHypothesis' && element.filePath) {
+      return buildAnalysisHypothesisChildren(element.filePath);
+    }
+    if (element.type === 'analysisExperiment' && element.filePath) {
+      return buildAnalysisExperimentChildren(element.filePath);
+    }
+    if (element.type === 'analysisEda' && element.filePath) {
+      return buildPaperSubdirFileItems(element.filePath);
+    }
+
     // 其他类型的节点没有子节点
     return [];
   }
@@ -3759,4 +3855,268 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       vscode.window.showErrorMessage(localize('extension.skill.openDocFailed'));
     }
   }
+}
+
+// ── paper-toolkit sidebar helpers (module-level) ─────────────
+
+function buildPaperWorkspaceChildren(paperDir: string): ProjectItem[] {
+  const items: ProjectItem[] = [];
+
+  // Known top-level files with special labels
+  const specialFiles: { name: string; labelKey: string }[] = [
+    { name: 'paper.json', labelKey: 'projectStructure.paperState' },
+    { name: 'evidence_graph.json', labelKey: 'projectStructure.evidenceGraph' },
+    { name: 'research_pack.json', labelKey: 'projectStructure.researchPack' },
+    { name: 'main.tex', labelKey: 'projectStructure.paperMainTex' },
+    { name: 'refs.bib', labelKey: 'projectStructure.paperBib' },
+  ];
+
+  for (const spec of specialFiles) {
+    const fullPath = path.join(paperDir, spec.name);
+    if (!fs.existsSync(fullPath)) { continue; }
+    const item = new ProjectItem(
+      localize(spec.labelKey),
+      vscode.TreeItemCollapsibleState.None,
+      'paperArtifact',
+      fullPath
+    );
+    // Enrich evidence_graph.json with node count
+    if (spec.name === 'evidence_graph.json') {
+      try {
+        const data = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+        const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0;
+        item.description = `${nodeCount} nodes`;
+      } catch { /* ignore */ }
+    }
+    items.push(item);
+  }
+
+  // venue.yaml (optional)
+  const venuePath = path.join(paperDir, 'venue.yaml');
+  if (fs.existsSync(venuePath)) {
+    items.push(new ProjectItem('venue.yaml', vscode.TreeItemCollapsibleState.None, 'paperArtifact', venuePath));
+  }
+
+  // Template support files
+  const templateFiles = ['sn-jnl.cls', 'sn-nature.bst'];
+  for (const tplName of templateFiles) {
+    const tplPath = path.join(paperDir, tplName);
+    if (fs.existsSync(tplPath)) {
+      items.push(new ProjectItem(tplName, vscode.TreeItemCollapsibleState.None, 'paperArtifact', tplPath));
+    }
+  }
+
+  // Known subdirectories with special labels
+  const subDirs: { name: string; type: ProjectItem['type']; labelKey: string }[] = [
+    { name: 'sections', type: 'paperSections', labelKey: 'projectStructure.paperSections' },
+    { name: 'figures', type: 'paperFigures', labelKey: 'projectStructure.paperFigures' },
+    { name: 'figure_specs', type: 'paperFigureSpecs', labelKey: 'projectStructure.paperFigureSpecs' },
+    { name: 'tables', type: 'paperTables', labelKey: 'projectStructure.paperTables' },
+    { name: 'table_specs', type: 'paperTableSpecs', labelKey: 'projectStructure.paperTableSpecs' },
+    { name: 'compile_runs', type: 'paperCompileRuns', labelKey: 'projectStructure.paperCompileRuns' },
+    { name: 'reviews', type: 'paperReviews', labelKey: 'projectStructure.paperReviews' },
+    { name: 'lit', type: 'paperLit', labelKey: 'projectStructure.paperLit' },
+  ];
+
+  for (const sub of subDirs) {
+    const fullPath = path.join(paperDir, sub.name);
+    if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isDirectory()) { continue; }
+    // Skip empty directories
+    try {
+      const entries = listDirEntriesSafe(fullPath).filter(e => !shouldHideFsEntry(e));
+      if (entries.length === 0) { continue; }
+    } catch { continue; }
+    items.push(new ProjectItem(
+      localize(sub.labelKey),
+      vscode.TreeItemCollapsibleState.Collapsed,
+      sub.type,
+      fullPath
+    ));
+  }
+
+  return items;
+}
+
+function buildPaperSubdirFileItems(dirPath: string): ProjectItem[] {
+  const items: ProjectItem[] = [];
+  if (!fs.existsSync(dirPath)) { return items; }
+
+  const entries = listDirEntriesSafe(dirPath).filter(e => !shouldHideFsEntry(e));
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry);
+    const stat = safeStatSync(fullPath);
+    if (!stat) { continue; }
+    if (stat.isDirectory()) {
+      // Recurse into subdirectories (e.g. eda/queries/)
+      const subItems = listDirEntriesSafe(fullPath).filter(e => !shouldHideFsEntry(e));
+      if (subItems.length > 0) {
+        const dirItem = new ProjectItem(entry, vscode.TreeItemCollapsibleState.Collapsed, 'analysisEda', fullPath);
+        items.push(dirItem);
+      }
+    } else if (shouldShowFileByExt(entry)) {
+      items.push(new ProjectItem(entry, vscode.TreeItemCollapsibleState.None, 'paperArtifact', fullPath));
+    }
+  }
+  return items;
+}
+
+function buildPaperCompileRunsChildren(compileRunsDir: string): ProjectItem[] {
+  const items: ProjectItem[] = [];
+  if (!fs.existsSync(compileRunsDir)) { return items; }
+
+  const entries = listDirEntriesSafe(compileRunsDir).filter(e => !shouldHideFsEntry(e));
+  // Sort run directories (r1, r2, ...) in reverse order (latest first)
+  const runDirs = entries
+    .filter(e => /^r\d+$/.test(e))
+    .sort((a, b) => {
+      const na = parseInt(a.slice(1), 10);
+      const nb = parseInt(b.slice(1), 10);
+      return nb - na;
+    });
+
+  for (const runName of runDirs) {
+    const runPath = path.join(compileRunsDir, runName);
+    if (!fs.statSync(runPath).isDirectory()) { continue; }
+
+    const item = new ProjectItem(runName, vscode.TreeItemCollapsibleState.Collapsed, 'paperCompileRun', runPath);
+
+    // Check for compiled PDF and show status
+    const pdfPath = path.join(runPath, 'main.pdf');
+    if (fs.existsSync(pdfPath)) {
+      item.description = 'PDF';
+    }
+
+    // Read run.json for status
+    const runJsonPath = path.join(runPath, 'run.json');
+    if (fs.existsSync(runJsonPath)) {
+      try {
+        const runData = JSON.parse(fs.readFileSync(runJsonPath, 'utf-8'));
+        if (runData.success === true) {
+          item.iconPath = makeThemeIcon('pass-filled', 'charts.green');
+        } else if (runData.success === false) {
+          item.iconPath = makeThemeIcon('error', 'charts.red');
+        }
+      } catch { /* ignore */ }
+    }
+
+    items.push(item);
+  }
+  return items;
+}
+
+function buildAnalysisWorkspaceChildren(analysisDir: string): ProjectItem[] {
+  const items: ProjectItem[] = [];
+  if (!fs.existsSync(analysisDir)) { return items; }
+
+  const entries = listDirEntriesSafe(analysisDir).filter(e => !shouldHideFsEntry(e));
+  for (const entry of entries) {
+    const fullPath = path.join(analysisDir, entry);
+    const stat = safeStatSync(fullPath);
+    if (!stat || !stat.isDirectory()) { continue; }
+
+    if (/^hypothesis_\d+$/.test(entry)) {
+      const match = entry.match(/^hypothesis_(\d+)$/);
+      const displayName = match
+        ? `${localize('projectStructure.hypothesis')} ${match[1]}`
+        : entry;
+      items.push(new ProjectItem(
+        displayName,
+        vscode.TreeItemCollapsibleState.Collapsed,
+        'analysisHypothesis',
+        fullPath
+      ));
+    } else if (entry === 'synthesis') {
+      // Show synthesis_brief.json files directly
+      const synEntries = listDirEntriesSafe(fullPath).filter(e => !shouldHideFsEntry(e));
+      for (const synEntry of synEntries) {
+        const synHypPath = path.join(fullPath, synEntry);
+        if (!fs.statSync(synHypPath).isDirectory()) { continue; }
+        const briefPath = path.join(synHypPath, 'synthesis_brief.json');
+        if (fs.existsSync(briefPath)) {
+          items.push(new ProjectItem(
+            `${localize('projectStructure.analysisSynthesis')} — ${synEntry}`,
+            vscode.TreeItemCollapsibleState.None,
+            'paperArtifact',
+            briefPath
+          ));
+        }
+      }
+    }
+  }
+  return items;
+}
+
+function buildAnalysisHypothesisChildren(hypothesisDir: string): ProjectItem[] {
+  const items: ProjectItem[] = [];
+  if (!fs.existsSync(hypothesisDir)) { return items; }
+
+  const entries = listDirEntriesSafe(hypothesisDir).filter(e => !shouldHideFsEntry(e));
+  for (const entry of entries) {
+    const fullPath = path.join(hypothesisDir, entry);
+    const stat = safeStatSync(fullPath);
+    if (!stat || !stat.isDirectory()) { continue; }
+
+    if (/^experiment_\d+$/.test(entry)) {
+      const match = entry.match(/^experiment_(\d+)$/);
+      const displayName = match
+        ? `${localize('projectStructure.analysisExperiment')} ${match[1]}`
+        : entry;
+      items.push(new ProjectItem(
+        displayName,
+        vscode.TreeItemCollapsibleState.Collapsed,
+        'analysisExperiment',
+        fullPath
+      ));
+    }
+  }
+  return items;
+}
+
+function buildAnalysisExperimentChildren(experimentDir: string): ProjectItem[] {
+  const items: ProjectItem[] = [];
+  if (!fs.existsSync(experimentDir)) { return items; }
+
+  // Special files with labels
+  const specialFiles: { name: string; labelKey: string }[] = [
+    { name: 'claims.json', labelKey: 'projectStructure.analysisClaims' },
+    { name: 'report_context.md', labelKey: 'projectStructure.analysisContext' },
+    { name: 'evidence_index.json', labelKey: 'projectStructure.evidenceGraph' },
+  ];
+
+  for (const spec of specialFiles) {
+    const fullPath = path.join(experimentDir, spec.name);
+    if (!fs.existsSync(fullPath)) { continue; }
+    items.push(new ProjectItem(
+      localize(spec.labelKey),
+      vscode.TreeItemCollapsibleState.None,
+      'paperArtifact',
+      fullPath
+    ));
+  }
+
+  // Generic config/state files
+  const genericFiles = ['analysis_plan.yaml', 'state.yaml', 'config.yaml'];
+  for (const name of genericFiles) {
+    const fullPath = path.join(experimentDir, name);
+    if (!fs.existsSync(fullPath)) { continue; }
+    items.push(new ProjectItem(name, vscode.TreeItemCollapsibleState.None, 'paperArtifact', fullPath));
+  }
+
+  // EDA directory
+  const edaDir = path.join(experimentDir, 'eda');
+  if (fs.existsSync(edaDir) && fs.statSync(edaDir).isDirectory()) {
+    try {
+      const edaEntries = listDirEntriesSafe(edaDir).filter(e => !shouldHideFsEntry(e));
+      if (edaEntries.length > 0) {
+        items.push(new ProjectItem(
+          localize('projectStructure.analysisEda'),
+          vscode.TreeItemCollapsibleState.Collapsed,
+          'analysisEda',
+          edaDir
+        ));
+      }
+    } catch { /* ignore */ }
+  }
+
+  return items;
 }

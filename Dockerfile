@@ -105,6 +105,11 @@ RUN uv pip install --system \
     python-dotenv \
     "easypaper[docling,images]"
 
+# Install paper-toolkit CLI (deterministic paper drafting / typesetting tool).
+# The Claude Code skill ships via the paper-toolkit plugin (auto-prompted at
+# workspace trust via .claude/settings.json seeded by the VS Code extension).
+RUN uv pip install --system "paper-toolkit"
+
 # Copy the vsix file from builder stage
 COPY --from=extension-builder /app/extension.vsix /app/extension.vsix
 
