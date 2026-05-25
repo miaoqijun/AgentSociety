@@ -630,5 +630,26 @@
     "permissionModePlaceholder": "选择运行模式",
     "permissionModeDefault": "默认（需要权限确认）",
     "permissionModeBypass": "跳过权限确认"
+  },
+  "easyPaperConfig": {
+    "infoTitle": "EasyPaper（可选功能）",
+    "infoDescription": "EasyPaper 是一个多智能体学术论文生成系统，可以将元数据（标题、想法、方法、数据、实验、参考文献）转化为结构化的 LaTeX 论文。在下方配置 LLM 和可选的 VLM 设置，保存后将在工作区根目录生成 easypaper_config.yaml。配置完成后可使用 /easypaper 命令开始生成论文。",
+    "llmSection": "LLM 配置",
+    "llmSectionHint": "所有 agent 共用（解析器、写作器、审稿器、规划器等）",
+    "copyFromAgentSociety": "从 AgentSociety 复制",
+    "copyDisabled": "（请先配置主 LLM 配置）",
+    "modelName": "模型名称",
+    "modelNamePlaceholder": "例如 google/gemini-3-flash-preview",
+    "apiKeyPlaceholder": "输入 API Key",
+    "baseUrlPlaceholder": "例如 https://openrouter.ai/api/v1",
+    "vlmSection": "VLM 配置",
+    "vlmOptional": "可选 — 用于对生成的 PDF 进行视觉审查",
+    "vlmModel": "模型",
+    "vlmModelPlaceholder": "例如 openai/gpt-4o",
+    "save": "保存配置",
+    "saveHint": "保存到工作区根目录 ./easypaper_config.yaml",
+    "saveSuccess": "EasyPaper 配置已保存",
+    "saveFailed": "EasyPaper 配置保存失败",
+    "validationFailed": "请检查表单"
   }
 }

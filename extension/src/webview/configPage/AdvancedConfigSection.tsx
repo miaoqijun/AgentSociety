@@ -6,12 +6,14 @@ import {
   Tabs,
   Typography,
 } from 'antd';
+import { FileTextOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import type { TFunction } from 'i18next';
 import type { VscodeThemePalette } from '../theme';
 import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from './claudeCodeTypes';
-import type { ValidationState } from './types';
+import type { ValidationState, EasyPaperConfigValues } from './types';
 import { ClaudeCodeConfigSection } from './ClaudeCodeConfigSection';
+import { EasyPaperConfigSection } from './EasyPaperConfigSection';
 import { ValidationAction } from './ValidationAction';
 import { tabBodyStyle } from './configPageStyles';
 import {
@@ -23,7 +25,7 @@ import {
 
 const { Text } = Typography;
 
-export type AdvancedTopTab = 'models' | 'python' | 'literature' | 'claude';
+export type AdvancedTopTab = 'models' | 'python' | 'literature' | 'claude' | 'easypaper';
 
 type SpecializedLlmKind = 'coder' | 'nano' | 'analysis' | 'embedding';
 
@@ -48,6 +50,10 @@ export interface AdvancedConfigSectionProps {
   claudeCliStatus: ClaudeCodeCliStatus;
   claudeSettingsPath: string;
   onResetClaude: () => void;
+  // EasyPaper
+  easyPaperForm: FormInstance<EasyPaperConfigValues>;
+  defaultLlmApiKey: string;
+  onSaveEasyPaper: () => void;
 }
 
 const MODEL_TAB_KEYS: SpecializedLlmKind[] = ['coder', 'nano', 'analysis', 'embedding'];
@@ -73,6 +79,9 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
   claudeCliStatus,
   claudeSettingsPath,
   onResetClaude,
+  easyPaperForm,
+  defaultLlmApiKey,
+  onSaveEasyPaper,
 }) => {
   const linkedKeyPlaceholder = t('configPage.linkedPlaceholders.apiKey', {
     status: hasDefaultLlmKey
@@ -332,9 +341,27 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
         </div>
       ),
     },
+    {
+      key: 'easypaper',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <FileTextOutlined />
+          EasyPaper
+        </span>
+      ),
+      children: (
+        <EasyPaperConfigSection
+          t={t}
+          palette={palette}
+          form={easyPaperForm}
+          defaultLlmApiKey={defaultLlmApiKey}
+          defaultLlmApiBase={defaultLlmApiBase}
+          defaultLlmModel={defaultLlmModel}
+          onSave={onSaveEasyPaper}
+        />
+      ),
+    },
   ];
-
-  return (
     <Tabs
       activeKey={activeTopTab}
       onChange={(key) => onActiveTopTabChange(key as AdvancedTopTab)}

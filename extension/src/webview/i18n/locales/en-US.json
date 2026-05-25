@@ -630,5 +630,26 @@
     "permissionModePlaceholder": "Select run mode",
     "permissionModeDefault": "Default (prompts for permissions)",
     "permissionModeBypass": "Bypass Permissions"
+  },
+  "easyPaperConfig": {
+    "infoTitle": "EasyPaper (Optional)",
+    "infoDescription": "EasyPaper is a multi-agent academic paper generation system. It turns metadata (title, idea, method, data, experiments, references) into structured LaTeX papers. Configure the LLM and optional VLM settings below, then save to generate easypaper_config.yaml in your workspace root.",
+    "llmSection": "LLM Configuration",
+    "llmSectionHint": "Shared by all agents (parser, writer, reviewer, planner, etc.)",
+    "copyFromAgentSociety": "Copy from AgentSociety",
+    "copyDisabled": "(Set the main LLM config first)",
+    "modelName": "Model Name",
+    "modelNamePlaceholder": "e.g. google/gemini-3-flash-preview",
+    "apiKeyPlaceholder": "Enter API key",
+    "baseUrlPlaceholder": "e.g. https://openrouter.ai/api/v1",
+    "vlmSection": "VLM Configuration",
+    "vlmOptional": "Optional — for visual review of generated PDFs",
+    "vlmModel": "Model",
+    "vlmModelPlaceholder": "e.g. openai/gpt-4o",
+    "save": "Save Config",
+    "saveHint": "Saves to ./easypaper_config.yaml in workspace root",
+    "saveSuccess": "EasyPaper config saved",
+    "saveFailed": "Failed to save EasyPaper config",
+    "validationFailed": "Please check the form"
   }
 }

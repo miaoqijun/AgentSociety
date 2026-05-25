@@ -19,7 +19,7 @@ import { SaveOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined, ReloadO
 import { useTranslation } from 'react-i18next';
 import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from './claudeCodeTypes';
 import { DEFAULT_CLAUDE_BASE_URL } from './claudeBaseUrlPresets';
-import type { VSCodeAPI, ConfigValues, WorkspaceInfo, BackendStatus, ValidationState } from './types';
+import type { VSCodeAPI, ConfigValues, WorkspaceInfo, BackendStatus, ValidationState, EasyPaperConfigValues } from './types';
 import { AdvancedConfigSection, type AdvancedTopTab } from './AdvancedConfigSection';
 import { advancedPanelInnerStyle, glassCardStyle } from './configPageStyles';
 import { ValidationAction } from './ValidationAction';
@@ -72,6 +72,16 @@ const DEFAULT_CLAUDE_VALUES: ClaudeCodeConfigValues = {
   permissionMode: '',
 };
 
+const DEFAULT_EASYPAPER_VALUES: EasyPaperConfigValues = {
+  llmModelName: '',
+  llmApiKey: '',
+  llmBaseUrl: '',
+  vlmEnabled: false,
+  vlmModel: '',
+  vlmApiKey: '',
+  vlmBaseUrl: '',
+};
+
 interface ConfigPageAppProps {
   vscode: VSCodeAPI;
 }
@@ -81,6 +91,7 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   const { isDark, palette, themeConfig } = useVscodeTheme();
   const [form] = Form.useForm<ConfigValues>();
   const [claudeForm] = Form.useForm<ClaudeCodeConfigValues>();
+  const [easyPaperForm] = Form.useForm<EasyPaperConfigValues>();
   const watchedValues = Form.useWatch([], form) as Partial<ConfigValues> | undefined;
   const watchedClaudeValues = Form.useWatch([], claudeForm) as Partial<ClaudeCodeConfigValues> | undefined;
   const currentValues = watchedValues || {};
@@ -611,6 +622,20 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     });
   };
 
+  const saveEasyPaperConfig = () => {
+    easyPaperForm.validateFields().then((values) => {
+      vscode.postMessage({
+        command: 'saveEasyPaperConfig',
+        config: values,
+      });
+    }).catch(() => {
+      notification.error({
+        message: t('easyPaperConfig.validationFailed'),
+        placement: 'top',
+      });
+    });
+  };
+
   const persistClaudeSettingsIfReady = (): boolean => {
     const claude = getClaudeValuesForValidation();
     const hasKey = hasText(claude.apiKey);
@@ -754,6 +779,26 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
         } else if (msg.error) {
           notification.error({
             message: t('claudeCodeConfig.saveFailed'),
+            description: msg.error,
+            placement: 'top',
+          });
+        }
+      } else if (message.command === 'initialEasyPaperConfig') {
+        const msg = message as { config?: EasyPaperConfigValues };
+        easyPaperForm.setFieldsValue({
+          ...DEFAULT_EASYPAPER_VALUES,
+          ...msg.config,
+        });
+      } else if (message.command === 'easyPaperSaveResult') {
+        const msg = message as { success?: boolean; error?: string };
+        if (msg.success) {
+          notification.success({
+            message: t('easyPaperConfig.saveSuccess'),
+            placement: 'top',
+          });
+        } else if (msg.error) {
+          notification.error({
+            message: t('easyPaperConfig.saveFailed'),
             description: msg.error,
             placement: 'top',
           });
@@ -1252,6 +1297,9 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                           claudeCliStatus={claudeCliStatus}
                           claudeSettingsPath={claudeSettingsPath}
                           onResetClaude={handleResetClaudeDefaults}
+                          easyPaperForm={easyPaperForm}
+                          defaultLlmApiKey={effectiveConfigValues.llmApiKey}
+                          onSaveEasyPaper={saveEasyPaperConfig}
                         />
                       </div>
                     ),

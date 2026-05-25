@@ -63,3 +63,15 @@ export interface OverviewStatusMessage {
   backendStatus: BackendStatus;
   claudeCodeCustomized?: boolean;
 }
+
+// ============ EasyPaper 配置 ============
+
+export interface EasyPaperConfigValues {
+  llmModelName: string;
+  llmApiKey: string;
+  llmBaseUrl: string;
+  vlmEnabled: boolean;
+  vlmModel: string;
+  vlmApiKey: string;
+  vlmBaseUrl: string;
+}

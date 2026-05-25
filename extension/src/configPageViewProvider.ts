@@ -29,6 +29,7 @@ import type { ClaudeCodeConfigValues } from './webview/configPage/claudeCodeType
 import * as path from 'path';
 import { localize } from './i18n';
 import type { ConfigValues, WorkspaceInfo } from './webview/configPage/types';
+import type { EasyPaperConfigValues } from './webview/configPage/types';
 import { EnvManager } from './envManager';
 import { LLMValidator, PythonValidator, LLMType } from './services/llmValidator';
 import { fetchCompat } from './shared/fetchCompat';
@@ -123,6 +124,9 @@ export class ConfigPageViewProvider {
           case 'saveClaudeConfig':
             await this._handleSaveClaudeConfig((message.config || {}) as ClaudeCodeConfigValues);
             break;
+          case 'saveEasyPaperConfig':
+            await this._handleSaveEasyPaperConfig(message.config);
+            break;
           case 'openUrl':
             if (message.url) {
               await vscode.env.openExternal(vscode.Uri.parse(message.url));
@@ -189,6 +193,7 @@ export class ConfigPageViewProvider {
     });
 
     await this._sendClaudeInitialConfig();
+    await this._sendEasyPaperInitialConfig();
     await this._postOverviewStatus();
   }
 
@@ -231,6 +236,35 @@ export class ConfigPageViewProvider {
         success: false,
         error: message,
       });
+    }
+  }
+
+  // ============ EasyPaper Config ============
+
+  private async _sendEasyPaperInitialConfig(): Promise<void> {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      this._panel.webview.postMessage({ command: 'initialEasyPaperConfig', config: undefined });
+      return;
+    }
+    const configPath = path.join(workspaceFolder.uri.fsPath, 'easypaper_config.yaml');
+    const config = readEasyPaperConfig(configPath);
+    this._panel.webview.postMessage({ command: 'initialEasyPaperConfig', config });
+  }
+
+  private async _handleSaveEasyPaperConfig(config: any): Promise<void> {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      this._panel.webview.postMessage({ command: 'easyPaperSaveResult', success: false, error: 'No workspace open' });
+      return;
+    }
+    try {
+      const configPath = path.join(workspaceFolder.uri.fsPath, 'easypaper_config.yaml');
+      writeEasyPaperConfig(configPath, config);
+      this._panel.webview.postMessage({ command: 'easyPaperSaveResult', success: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this._panel.webview.postMessage({ command: 'easyPaperSaveResult', success: false, error: message });
     }
   }
 
@@ -707,4 +741,119 @@ export class ConfigPageViewProvider {
       if (d) { d.dispose(); }
     }
   }
+}
+
+// ============ EasyPaper YAML Utilities ============
+
+const EASY_PAPER_AGENT_NAMES = [
+  'paper_parser', 'template_parser', 'commander', 'writer',
+  'typesetter', 'metadata', 'reviewer', 'planner',
+];
+
+function readEasyPaperConfig(configPath: string): EasyPaperConfigValues | undefined {
+  const fs = require('fs');
+  const yaml = require('js-yaml');
+  if (!fs.existsSync(configPath)) {
+    return undefined;
+  }
+  try {
+    const raw = fs.readFileSync(configPath, 'utf-8');
+    const data = yaml.load(raw) as any;
+    if (!data || typeof data !== 'object') {
+      return undefined;
+    }
+    const result: EasyPaperConfigValues = {
+      llmModelName: '',
+      llmApiKey: '',
+      llmBaseUrl: '',
+      vlmEnabled: false,
+      vlmModel: '',
+      vlmApiKey: '',
+      vlmBaseUrl: '',
+    };
+    // Extract LLM config from first agent
+    const agents = Array.isArray(data.agents) ? data.agents : [];
+    const firstModel = agents[0]?.model;
+    if (firstModel) {
+      result.llmModelName = firstModel.model_name || '';
+      result.llmApiKey = firstModel.api_key || '';
+      result.llmBaseUrl = firstModel.base_url || '';
+    }
+    // Extract VLM config
+    const vlm = data.vlm_service;
+    if (vlm && vlm.model) {
+      result.vlmEnabled = true;
+      result.vlmModel = vlm.model || '';
+      result.vlmApiKey = vlm.api_key || '';
+      result.vlmBaseUrl = vlm.base_url || '';
+    }
+    return result;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeEasyPaperConfig(configPath: string, config: EasyPaperConfigValues): void {
+  const fs = require('fs');
+  const hasLlm = config.llmModelName?.trim() || config.llmApiKey?.trim() || config.llmBaseUrl?.trim();
+  if (!hasLlm) {
+    // No LLM config — delete the file if it exists
+    if (fs.existsSync(configPath)) {
+      fs.unlinkSync(configPath);
+    }
+    return;
+  }
+
+  const agentBlock = (name: string) => {
+    const entry: any = {
+      name,
+      model: {
+        model_name: config.llmModelName || '',
+        api_key: config.llmApiKey || '',
+        base_url: config.llmBaseUrl || '',
+      },
+    };
+    if (name === 'writer') {
+      entry.writer_config = {};
+    }
+    if (name === 'metadata') {
+      entry.metadata_config = {};
+    }
+    return entry;
+  };
+
+  const yamlObj: any = {
+    skills: {},
+    tools: {
+      table_critic_enabled: true,
+      table_rendered_review_enabled: true,
+      paper_search: { timeout: 15, search_results_per_round: 12 },
+      research_context: {},
+      core_ref_analysis: {},
+      docling: { enabled: true },
+      exemplar: { enabled: true },
+    },
+    agents: EASY_PAPER_AGENT_NAMES.map(agentBlock),
+  };
+
+  // vlm_review agent (no model if VLM disabled)
+  if (!config.vlmEnabled) {
+    yamlObj.agents.push({ name: 'vlm_review', vlm_review_config: { check_layout: true } });
+  } else {
+    yamlObj.agents.push({ name: 'vlm_review', vlm_review_config: { check_layout: true } });
+  }
+
+  // VLM service
+  if (config.vlmEnabled && (config.vlmModel?.trim() || config.vlmApiKey?.trim())) {
+    yamlObj.vlm_service = {
+      model: config.vlmModel || '',
+      api_key: config.vlmApiKey || '',
+      base_url: config.vlmBaseUrl || '',
+    };
+  }
+
+  // Generate YAML manually to preserve formatting
+  const yaml = require('js-yaml');
+  const content = yaml.dump(yamlObj, { lineWidth: 120, noRefs: true });
+  fs.writeFileSync(configPath, content, 'utf-8');
 }
