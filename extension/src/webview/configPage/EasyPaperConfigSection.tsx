@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, Button, Collapse, Form, Input, Switch, Typography } from 'antd';
+import { Alert, Button, Form, Input, Switch, Typography } from 'antd';
 import { CopyOutlined, SaveOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import type { TFunction } from 'i18next';
@@ -8,17 +8,6 @@ import type { EasyPaperConfigValues } from './types';
 import { tabBodyStyle } from './configPageStyles';
 
 const { Text } = Typography;
-
-const AGENT_NAMES = [
-  'paper_parser',
-  'template_parser',
-  'commander',
-  'writer',
-  'typesetter',
-  'metadata',
-  'reviewer',
-  'planner',
-];
 
 export interface EasyPaperConfigSectionProps {
   t: TFunction;
@@ -107,51 +96,40 @@ export const EasyPaperConfigSection: React.FC<EasyPaperConfigSectionProps> = ({
         </Form.Item>
 
         {/* VLM Config (optional) */}
-        <Collapse
-          ghost
-          size="small"
-          activeKey={vlmEnabled ? ['vlm'] : []}
-          onChange={(keys) => {
-            form.setFieldValue('vlmEnabled', keys.includes('vlm'));
-          }}
-          items={[{
-            key: 'vlm',
-            label: (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <Switch size="small" checked={vlmEnabled} onChange={(v) => form.setFieldValue('vlmEnabled', v)} />
-                <Text strong style={{ fontSize: 13 }}>{t('easyPaperConfig.vlmSection')}</Text>
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>
-                  {t('easyPaperConfig.vlmOptional')}
-                </Text>
-              </span>
-            ),
-            children: (
-              <>
-                <Form.Item
-                  name="vlmModel"
-                  label={t('easyPaperConfig.vlmModel')}
-                  style={{ marginBottom: 10 }}
-                >
-                  <Input placeholder={t('easyPaperConfig.vlmModelPlaceholder')} autoComplete="off" />
-                </Form.Item>
-                <Form.Item
-                  name="vlmApiKey"
-                  label="API Key"
-                  style={{ marginBottom: 10 }}
-                >
-                  <Input.Password placeholder={t('easyPaperConfig.apiKeyPlaceholder')} autoComplete="off" />
-                </Form.Item>
-                <Form.Item
-                  name="vlmBaseUrl"
-                  label="Base URL"
-                  style={{ marginBottom: 10 }}
-                >
-                  <Input placeholder={t('easyPaperConfig.baseUrlPlaceholder')} autoComplete="off" />
-                </Form.Item>
-              </>
-            ),
-          }]}
-        />
+        <div style={{ marginTop: 8, marginBottom: 8 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Switch size="small" checked={vlmEnabled} onChange={(v) => form.setFieldValue('vlmEnabled', v)} />
+            <Text strong style={{ fontSize: 13 }}>{t('easyPaperConfig.vlmSection')}</Text>
+            <Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>
+              {t('easyPaperConfig.vlmOptional')}
+            </Text>
+          </span>
+        </div>
+        {vlmEnabled && (
+          <>
+            <Form.Item
+              name="vlmModel"
+              label={t('easyPaperConfig.vlmModel')}
+              style={{ marginBottom: 10 }}
+            >
+              <Input placeholder={t('easyPaperConfig.vlmModelPlaceholder')} autoComplete="off" />
+            </Form.Item>
+            <Form.Item
+              name="vlmApiKey"
+              label="API Key"
+              style={{ marginBottom: 10 }}
+            >
+              <Input.Password placeholder={t('easyPaperConfig.apiKeyPlaceholder')} autoComplete="off" />
+            </Form.Item>
+            <Form.Item
+              name="vlmBaseUrl"
+              label="Base URL"
+              style={{ marginBottom: 10 }}
+            >
+              <Input placeholder={t('easyPaperConfig.baseUrlPlaceholder')} autoComplete="off" />
+            </Form.Item>
+          </>
+        )}
 
         {/* Save */}
         <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
