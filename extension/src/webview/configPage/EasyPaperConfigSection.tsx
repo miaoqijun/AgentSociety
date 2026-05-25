@@ -89,18 +89,18 @@ export const EasyPaperConfigSection: React.FC<EasyPaperConfigSectionProps> = ({
           <Input placeholder={t('easyPaperConfig.modelNamePlaceholder')} autoComplete="off" />
         </Form.Item>
         <Form.Item
-          name="llmApiKey"
-          label="API Key"
-          style={{ marginBottom: 10 }}
-        >
-          <Input.Password placeholder={t('easyPaperConfig.apiKeyPlaceholder')} autoComplete="off" />
-        </Form.Item>
-        <Form.Item
           name="llmBaseUrl"
           label="Base URL"
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 10 }}
         >
           <Input placeholder={t('easyPaperConfig.baseUrlPlaceholder')} autoComplete="off" />
+        </Form.Item>
+        <Form.Item
+          name="llmApiKey"
+          label="API Key"
+          style={{ marginBottom: 16 }}
+        >
+          <Input.Password placeholder={t('easyPaperConfig.apiKeyPlaceholder')} autoComplete="off" />
         </Form.Item>
 
         {/* VLM Config (optional) */}
@@ -123,18 +123,18 @@ export const EasyPaperConfigSection: React.FC<EasyPaperConfigSectionProps> = ({
               <Input placeholder={t('easyPaperConfig.vlmModelPlaceholder')} autoComplete="off" />
             </Form.Item>
             <Form.Item
-              name="vlmApiKey"
-              label="API Key"
-              style={{ marginBottom: 10 }}
-            >
-              <Input.Password placeholder={t('easyPaperConfig.apiKeyPlaceholder')} autoComplete="off" />
-            </Form.Item>
-            <Form.Item
               name="vlmBaseUrl"
               label="Base URL"
               style={{ marginBottom: 10 }}
             >
               <Input placeholder={t('easyPaperConfig.baseUrlPlaceholder')} autoComplete="off" />
+            </Form.Item>
+            <Form.Item
+              name="vlmApiKey"
+              label="API Key"
+              style={{ marginBottom: 10 }}
+            >
+              <Input.Password placeholder={t('easyPaperConfig.apiKeyPlaceholder')} autoComplete="off" />
             </Form.Item>
           </>
         )}
