@@ -41,8 +41,10 @@ Closes #
 
 <!-- Describe how you verified your changes. -->
 
-- [ ] Ran `uv run pytest` (agentsociety2)
-- [ ] Ran `npm run lint` / `npm run build` (frontend, if applicable)
+- [ ] Ran `uv run pytest` in `packages/agentsociety2`
+- [ ] Ran `npm run lint` / `npm run build` in `extension` (if applicable)
+- [ ] Ran `npm run lint` / `npm run build` in `frontend` (if applicable)
+- [ ] Ran `npm audit --audit-level=high` (if JS deps changed)
 - [ ] Manually tested
 - [ ] Added / updated tests
 

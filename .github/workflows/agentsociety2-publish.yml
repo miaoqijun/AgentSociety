@@ -5,14 +5,65 @@ on:
     tags:
       - "agentsociety2-v*"
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
-  id-token: write # Required for trusted publishing
+  id-token: write
 
 jobs:
+  validate:
+    name: Validate before release
+    runs-on: ubuntu-latest
+    env:
+      MEM0_TELEMETRY: "False"
+      ANONYMIZED_TELEMETRY: "False"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Lint and test Python package
+        run: |
+          cd packages/agentsociety2
+          uv sync --extra dev
+          uv run ruff check .
+          uv run mypy tests/ --follow-imports=skip
+          uv run pytest -q
+        env:
+          AGENTSOCIETY_LLM_API_KEY: ${{ secrets.AGENTSOCIETY_LLM_API_KEY }}
+          AGENTSOCIETY_LLM_API_BASE: ${{ secrets.AGENTSOCIETY_LLM_API_BASE }}
+          AGENTSOCIETY_LLM_MODEL: glm-5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: extension/.nvmrc
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Lint and audit extension
+        working-directory: extension
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+          npm audit --audit-level=high
+
   build-python:
     name: Build Python distribution
     runs-on: ubuntu-latest
+    needs: validate
 
     steps:
       - name: Checkout
@@ -42,6 +93,7 @@ jobs:
   build-vscode:
     name: Build VSCode extension
     runs-on: ubuntu-latest
+    needs: validate
 
     steps:
       - name: Checkout
@@ -52,8 +104,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "22.13.0"
-          cache: "npm"
+          node-version-file: extension/.nvmrc
+          cache: npm
           cache-dependency-path: extension/package-lock.json
 
       - name: Install dependencies
@@ -108,9 +160,6 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          # For trusted publishing, no username/password needed
-          # Make sure to configure trusted publishing on PyPI:
-          # https://docs.pypi.org/trusted-publishers/
           skip-existing: true
 
   github-release:
@@ -146,24 +195,18 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Generate release notes
-        id: release_notes
-        run: |
-          # Get commit messages since last tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            echo "## What's Changed" > release_notes.md
-            git log ${PREV_TAG}..HEAD --oneline --no-merges | sed 's/^/- /' >> release_notes.md
-          else
-            echo "## What's Changed" > release_notes.md
-            git log --oneline --no-merges -10 | sed 's/^/- /' >> release_notes.md
-          fi
+        id: git_cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: AgentSociety2 ${{ steps.get_version.outputs.version }}
-          body_path: release_notes.md
+          body: ${{ steps.git_cliff.outputs.content }}
           files: |
             python-dist/*.tar.gz
             python-dist/*.whl

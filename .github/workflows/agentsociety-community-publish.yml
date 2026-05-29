@@ -1,3 +1,6 @@
+# Legacy community package — publish only on community-v* tags.
+# Not part of AgentSociety2 active CI/security scope (see .github/agentsociety2-scope.yml).
+
 name: Upload Python Package - Agentsociety Community
 
 on:

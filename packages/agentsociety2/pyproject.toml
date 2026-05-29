@@ -182,6 +182,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+norecursedirs = ["3-2", "daily_mobility", ".git", ".venv", "node_modules"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 

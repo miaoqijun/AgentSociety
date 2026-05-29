@@ -22,14 +22,16 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
+        files: ^packages/agentsociety2/
       - id: ruff-format
+        files: ^packages/agentsociety2/
 
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
         types_or: [ts, tsx, js, jsx, json, yaml, css, html]
-        exclude: ^(frontend/node_modules/|extension/node_modules/|packages/)
+        exclude: ^(frontend/node_modules/|extension/node_modules/|packages/agentsociety/|packages/agentsociety-community/|packages/agentsociety-benchmark/|docs_v1/|frontend/public/monaco-editor/)
 
   - repo: https://github.com/nick-lockhart/pre-commit-git-cliff
     rev: 0.6.0

@@ -3,12 +3,19 @@
 
 感谢您对贡献 AgentSociety 2 的兴趣！
 
+活跃维护范围
+------------------
+
+``packages/agentsociety2/``、``extension/``、``frontend/``。
+
+Legacy 包（v1、community、benchmark）不在活跃 CI / 安全扫描范围内。详见仓库根目录 ``CONTRIBUTING.md`` 与 ``.github/agentsociety2-scope.yml``。
+
 贡献方式
 ------------------
 
-* **报告错误**: 使用可重现的示例提交问题
+* **报告错误**: 使用可重现的示例提交 Issue
 * **建议功能**: 分享您的改进想法
-* **提交代码**: 使用您的更改提交拉取请求
+* **提交代码**: 提交 Pull Request
 * **改进文档**: 帮助使文档更清晰
 * **分享示例**: 向集合添加有用的示例
 
@@ -35,82 +42,48 @@
 * 考虑它是否适合项目范围
 * 愿意接受讨论
 
-提交拉取请求
+提交 Pull Request
 -------------------------
 
 提交 PR 之前：
 
-1. 检查现有问题以获取相关讨论
-2. Fork 仓库
-3. 为您的工作创建分支
-4. 使用清晰的提交消息进行更改
-5. 如需要，更新文档
-6. 提交拉取请求
+1. 检查现有 Issue 以获取相关讨论
+2. 从 ``main`` 创建分支
+3. 使用清晰的 Conventional Commits 提交
+4. 如需要，更新文档与 CHANGELOG
+5. 确保相关 CI 通过（Python / extension / frontend）
 
 PR 指南
 ~~~~~~~~~~~~~
 
-* 保持更改专注和原子化
+* 保持更改专注
 * 遵循现有代码风格
-* 为新函数/类添加文档字符串
 * 更新相关文档
 * 确保 CI 通过
-
-代码审查流程
-~~~~~~~~~~~~~~~~~~~
-
-所有 PR 都会经过代码审查：
-
-* 维护者将审查您的更改
-* 解决任何反馈或请求
-* 批准后，PR 将被合并
-* 大型更改可能需要多次迭代
 
 开发设置
 ------------------
 
 .. code-block:: bash
 
-   # Clone your fork
-   git clone https://github.com/your-username/agentsociety.git
-   cd agentsociety
-
-   # Install in development mode
+   # 安装依赖（工作区根目录）
    uv sync
-   pip install -e "packages/agentsociety2[dev]"
+   cd packages/agentsociety2 && uv sync --extra dev
 
-   # Install pre-commit hooks
-   cd packages/agentsociety2
-   pre-commit install
+   # Python 检查
+   uv run ruff check .
+   uv run pytest -q
 
-添加新功能
--------------------
+   # 扩展
+   cd extension && npm ci && npm run lint && npm run build
 
-添加新功能时：
+   # 前端
+   cd frontend && npm ci && npm run lint && npm run build
 
-1. 首先打开一个问题进行讨论
-2. 实现功能
-3. 更新文档
-4. 如有帮助，添加示例
+发版
+------
 
-示例结构
-~~~~~~~~~~~~~~~~~
-
-.. code-block:: text
-
-   tests/
-   ├── test_agent.py
-   ├── test_env.py
-   └── test_storage.py
-
-   agentsociety2/
-   ├── new_module/
-   │   ├── __init__.py
-   │   ├── core.py
-   │   └── utils.py
-   └── new_module/
-       ├── __init__.py
-       └── implementation.py
+在 ``main`` 上打标签 ``agentsociety2-vX.Y.Z`` 并推送，自动触发 PyPI、VSIX 与 GitHub Release。详见 ``CONTRIBUTING.md``。
 
 文档标准
 ------------------------
@@ -122,8 +95,6 @@ Python 文档字符串统一采用 Sphinx/reST 写法（``:param:``、``:returns
    def example_function(param1: str, param2: int) -> bool:
        """Brief description of the function.
 
-       Longer description with more details.
-
        :param param1: Description of param1.
        :param param2: Description of param2.
        :returns: Description of return value.
@@ -131,20 +102,13 @@ Python 文档字符串统一采用 Sphinx/reST 写法（``:param:``、``:returns
        """
        pass
 
-社区指南
---------------------
-
-* 尊重和建设性
-* 欢迎新的贡献者
-* 关注对社区最有利的事情
-* 对其他社区成员表现出同理心
-
 获取帮助
 ------------
 
-* **GitHub Issues**: 用于错误和功能请求
-* **GitHub Discussions**: 用于问题和想法
-* **Documentation**: 首先查看文档
+* **GitHub Issues**: 错误与功能请求
+* **GitHub Discussions**: 问题与讨论
+* **SECURITY.md**: 安全漏洞报告
+* **Documentation**: https://agentsociety2.readthedocs.io/
 
 许可证
 -------

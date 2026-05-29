@@ -1,4 +1,4 @@
-name: Extension CI
+name: Frontend CI
 
 permissions:
   contents: read
@@ -7,16 +7,16 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - "extension/**"
-      - ".github/workflows/extension-ci.yml"
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - "extension/**"
-      - ".github/workflows/extension-ci.yml"
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
 
 concurrency:
-  group: extension-ci-${{ github.ref }}
+  group: frontend-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: extension
+        working-directory: frontend
 
     steps:
       - name: Checkout
@@ -34,9 +34,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version-file: extension/.nvmrc
+          node-version: "22.13.0"
           cache: npm
-          cache-dependency-path: extension/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci

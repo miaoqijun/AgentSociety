@@ -101,8 +101,28 @@ pip install agentsociety
 
 ## Other Packages
 
-- **[agentsociety-community](./packages/agentsociety-community/)**: Community contributions for custom agents and blocks
-- **[agentsociety-benchmark](./packages/agentsociety-benchmark/)**: Benchmarking utilities for agent evaluation
+Legacy packages remain in this monorepo for reference but are **not part of active development, CI, or security scanning**:
+
+- **[agentsociety-community](./packages/agentsociety-community/)**: Community contributions for custom agents and blocks (legacy)
+- **[agentsociety-benchmark](./packages/agentsociety-benchmark/)**: Benchmarking utilities for agent evaluation (legacy)
+
+Active work focuses on **AgentSociety 2** (`packages/agentsociety2`), the **VS Code extension** (`extension/`), and the **web frontend** (`frontend/`). See [`.github/agentsociety2-scope.yml`](./.github/agentsociety2-scope.yml).
+
+## Releases
+
+AgentSociety 2 uses semantic versioning with Git tags:
+
+```text
+agentsociety2-v{major}.{minor}.{patch}
+```
+
+Example: `agentsociety2-v2.5.2` publishes:
+
+- **PyPI**: `agentsociety2==2.5.2`
+- **VS Code extension**: `ai-social-scientist` (version in `extension/package.json`)
+- **GitHub Release**: wheel, sdist, and `.vsix` attachments
+
+Changelog: [CHANGELOG.md](./CHANGELOG.md)
 
 ## Project Structure
 
@@ -183,6 +203,8 @@ If you use AgentSociety in your research, please cite:
 
 ## Contact
 
-- **Issues**: [GitHub Issues](https://github.com/tsinghua-fib-lab/agentsociety/issues)
+- **Issues**: [GitHub Issues](https://github.com/tsinghua-fib-lab/agentsociety/issues) (public bugs and feature requests)
+- **Security**: see [SECURITY.md](./SECURITY.md)
 - **Discussions**: [GitHub Discussions](https://github.com/tsinghua-fib-lab/agentsociety/discussions)
+- **Contributing**: [CONTRIBUTING.md](./CONTRIBUTING.md)
 - **Email**: agentsociety.fiblab2025@gmail.com

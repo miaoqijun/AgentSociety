@@ -8,10 +8,20 @@ on:
     branches: [main, develop]
     paths:
       - "packages/agentsociety2/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches: [main, develop]
     paths:
       - "packages/agentsociety2/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/ci.yml"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:

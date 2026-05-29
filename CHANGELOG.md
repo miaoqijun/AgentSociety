@@ -2,17 +2,24 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 格式，记录 **AgentSociety 2** 相关组件的可见变更。
 
-| 组件 | 标识 | 说明 |
-| --- | --- | --- |
-| Python SDK | `agentsociety2` | `packages/agentsociety2`，PyPI / 私有源发版 |
-| VS Code 扩展 | `ai-social-scientist` | `extension/package.json` 中的版本号 |
-| 分析技能 | `agentsociety-analysis` | 随扩展同步至工作区 `.claude/skills/` |
+| 组件         | 标识                    | 说明                                        |
+| ------------ | ----------------------- | ------------------------------------------- |
+| Python SDK   | `agentsociety2`         | `packages/agentsociety2`，PyPI / 私有源发版 |
+| VS Code 扩展 | `ai-social-scientist`   | `extension/package.json` 中的版本号         |
+| 分析技能     | `agentsociety-analysis` | 随扩展同步至工作区 `.claude/skills/`        |
 
-Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.md` 与 `.gitlab-ci.yml`）。
+Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.md`）。
 
 ---
 
 ## [Unreleased]
+
+### Changed
+
+- **docs**：更新 `README.md`、`CONTRIBUTING.md`、`SECURITY.md`，补充发版流程与 CI 范围说明。
+- **ci**：收窄检查范围至 AgentSociety2（`packages/agentsociety2`、`extension`、`frontend`）；legacy 包不纳入活跃 CI / Dependabot / CodeQL 扫描。
+- **ci**：增加 extension / frontend lint、Docker path 过滤；新增 `frontend-ci`、`codeql`、`dependency-review`，合并重复 Release workflow。
+- **ci**：发版前增加 validate 门禁；GitHub Release 说明改用 git-cliff。
 
 ---
 
