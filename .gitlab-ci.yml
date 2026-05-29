@@ -146,15 +146,27 @@ mirror-to-github:
     GIT_STRATEGY: clone
     GIT_DEPTH: 0
   before_script:
-    - apk add --no-cache git
+    - apk add --no-cache git openssh-client
   script:
     - |
-      if [ -z "${GITHUB_MIRROR_TOKEN}" ]; then
-        echo "GITHUB_MIRROR_TOKEN is not set; skipping GitHub mirror."
+      if [ -z "${GITHUB_DEPLOY_KEY}" ]; then
+        echo "GITHUB_DEPLOY_KEY is not set; skipping GitHub mirror."
         exit 0
       fi
-      git remote add github "https://x-access-token:${GITHUB_MIRROR_TOKEN}@github.com/tsinghua-fib-lab/AgentSociety.git" \
-        || git remote set-url github "https://x-access-token:${GITHUB_MIRROR_TOKEN}@github.com/tsinghua-fib-lab/AgentSociety.git"
+      mkdir -p ~/.ssh
+      chmod 700 ~/.ssh
+      if [ -f "${GITHUB_DEPLOY_KEY}" ]; then
+        DEPLOY_KEY_FILE="${GITHUB_DEPLOY_KEY}"
+      else
+        DEPLOY_KEY_FILE=~/.ssh/id_ed25519
+        printf '%s\n' "$GITHUB_DEPLOY_KEY" | tr -d '\r' > "${DEPLOY_KEY_FILE}"
+      fi
+      chmod 600 "${DEPLOY_KEY_FILE}"
+      ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+      chmod 644 ~/.ssh/known_hosts
+      export GIT_SSH_COMMAND="ssh -i ${DEPLOY_KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+      git remote add github "git@github.com:tsinghua-fib-lab/AgentSociety.git" \
+        || git remote set-url github "git@github.com:tsinghua-fib-lab/AgentSociety.git"
       if [ -n "${CI_COMMIT_TAG}" ]; then
         git push github "${CI_COMMIT_TAG}"
       elif [ "${CI_COMMIT_BRANCH}" = "main" ]; then
