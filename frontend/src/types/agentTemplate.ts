@@ -3,8 +3,8 @@ export interface ApiAgentTemplate {
   name: string;
   description: string;
   memory_distributions: Record<string, ApiDistributionConfig>;
-  agent_params: Record<string, any>;
-  blocks: Record<string, Record<string, any>>;
+  agent_params: Record<string, unknown>;
+  blocks: Record<string, Record<string, unknown>>;
   created_at: string;
   updated_at: string;
   tenant_id?: string;
@@ -54,14 +54,14 @@ export interface ApiNameTypeDescription {
   name: string;
   type: string;
   description: string | null;
-  default?: any;
+  default?: unknown;
 }
 
 export interface ApiParam {
   name: string;
   type: 'bool' | 'int' | 'float' | 'str' | 'select' | 'select_multiple';
   description: string | null;
-  default: any;
+  default: unknown;
   required: boolean;
   options?: { label: string; value: string }[];
 }

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Button, Flex, Select, Slider, SliderSingleProps, Space, Tooltip } from 'antd';
-import { PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined, FastBackwardOutlined, UpOutlined, ReloadOutlined, ToolOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined, FastBackwardOutlined, UpOutlined, ReloadOutlined } from '@ant-design/icons';
 import { parseT } from '../../components/util';
 import { observer } from 'mobx-react-lite';
 import { StoreContext } from './store';
@@ -20,7 +20,7 @@ const TimelinePlayer = observer(({ initialInterval }: {
     const [currentIndex, setCurrentIndex] = useState<number>(0);
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
     const [playInterval, setPlayInterval] = useState<number>(initialInterval);
-    const intervalRef = useRef<any>();
+    const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
     const currentTimeline = store.timeline[currentIndex] || { day: 0, t: 0 };
 

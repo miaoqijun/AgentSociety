@@ -6,7 +6,7 @@ import { Experiment, Survey } from "../../components/type";
 import { round4 } from "../../components/util";
 import { fetchCustom } from "../../components/fetch";
 
-const formatStatus = (status: any) => {
+const formatStatus = (status: unknown): string | number => {
     if (typeof status === 'number') {
         return round4(status)
     } else if (typeof status === 'string') {
@@ -19,11 +19,10 @@ const formatStatus = (status: any) => {
     } else if (typeof status === 'object') {
         if (Array.isArray(status)) {
             return JSON.stringify(status.map(s => formatStatus(s)))
-        } else {
-            return Object.fromEntries(Object.entries(status).map(([k, v]) => [k, formatStatus(v)]))
         }
+        return JSON.stringify(status)
     }
-    return status
+    return String(status)
 }
 
 export class ReplayStore {
@@ -150,7 +149,7 @@ export class ReplayStore {
             //     console.log('fetched agent status: ', agentStatuses.length)
             // }
             runInAction(() => {
-                let center = {
+                const center = {
                     lng: 0,
                     lat: 0,
                 }

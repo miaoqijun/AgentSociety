@@ -1,19 +1,18 @@
 import React, { useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
+import type * as Monaco from 'monaco-editor';
+
+export interface MonacoSuggestionItem {
+  label: string;
+  detail?: string;
+  children?: MonacoSuggestionItem[];
+}
 
 interface MonacoPromptEditorProps {
   value?: string;
   onChange?: (value: string | undefined) => void;
   height?: string;
-  suggestions?: Array<{
-    label: string;
-    detail?: string;
-    children?: Array<{
-      label: string;
-      detail?: string;
-      children?: Array<any>;  // Support infinite levels
-    }>;
-  }>;
+  suggestions?: MonacoSuggestionItem[];
   editorId?: string;
 }
 
@@ -24,24 +23,19 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
   suggestions = [],
   editorId = 'default'
 }) => {
-  // Use useRef to ensure provider is registered only once
-  const providerRef = useRef<any>(null);
-  const editorRef = useRef<any>(null);
-  const monacoRef = useRef<any>(null);
+  const providerRef = useRef<Monaco.IDisposable | null>(null);
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
 
-  // Register completion provider
-  const registerCompletionProvider = (monaco: any) => {
-    // Remove existing provider if it exists
+  const registerCompletionProvider = (monaco: typeof Monaco) => {
     if (providerRef.current) {
       providerRef.current.dispose();
       providerRef.current = null;
     }
 
-    // Use unique language ID
     const uniqueLanguageId = `markdown-${editorId}`;
 
-    // Register custom language
-    if (!monaco.languages.getLanguages().some((lang: any) => lang.id === uniqueLanguageId)) {
+    if (!monaco.languages.getLanguages().some((lang) => lang.id === uniqueLanguageId)) {
       monaco.languages.register({
         id: uniqueLanguageId,
         extensions: ['.md'],
@@ -50,10 +44,9 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
       });
     }
 
-    // Register new provider
     providerRef.current = monaco.languages.registerCompletionItemProvider(uniqueLanguageId, {
       triggerCharacters: ['$', '.', '{', ' '],
-      provideCompletionItems: (model: any, position: any) => {
+      provideCompletionItems: (model: Monaco.editor.ITextModel, position: Monaco.Position) => {
         const textUntilPosition = model.getValueInRange({
           startLineNumber: position.lineNumber,
           startColumn: 1,
@@ -67,26 +60,23 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
         const hasSpace = textUntilPosition.endsWith(' ');
         const word = model.getWordUntilPosition(position);
 
-        const range = {
+        const range: Monaco.IRange = {
           startLineNumber: position.lineNumber,
           endLineNumber: position.lineNumber,
           startColumn: hasDollar || hasDot || hasSpace ? position.column : word.startColumn,
           endColumn: position.column
         };
 
-        // Get current input path
         const currentPath = getCurrentPath(textUntilPosition);
-        let currentSuggestions = getSuggestionsForPath(currentPath, suggestions);
+        const currentSuggestions = getSuggestionsForPath(currentPath, suggestions);
 
         return {
           suggestions: currentSuggestions.map((item, index) => {
             let insertText = item.label;
 
-            // Check if it's the last level (no children or empty children)
             const isLastLevel = !item.children || item.children.length === 0;
             const hasChildren = item.children && item.children.length > 0;
 
-            // 检查是否是运算符建议（通过检查是否有 detail 属性且包含特定关键词）
             const isOperator = item.detail && (
               item.detail.includes('Equal to') ||
               item.detail.includes('Not equal to') ||
@@ -97,34 +87,27 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
               item.detail.includes('Identity comparison')
             );
 
-            // If triggered by dot
             if (hasDot) {
               if (hasChildren) {
-                // If has children, add dot
                 insertText = `${insertText}.`;
               } else {
-                // If it's the last level, add closing brace
                 insertText = `${insertText}}`;
               }
             } else if (hasBrace) {
-              // If triggered by {
               if (isLastLevel) {
                 insertText = `${insertText}}`;
               } else {
                 insertText = `${insertText}.`;
               }
             } else {
-              // If triggered by $ or other
               if (isLastLevel) {
-                // 只有非运算符建议才添加 ${}
                 insertText = isOperator ? insertText : `{${insertText}}`;
               } else {
-                // Not last level, add dot
                 insertText = `{${insertText}.`;
               }
             }
 
-            return {
+            const suggestion: Monaco.languages.CompletionItem = {
               label: item.label,
               kind: monaco.languages.CompletionItemKind.Field,
               insertText: insertText,
@@ -134,21 +117,22 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
               insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
               command: hasChildren ? { id: 'editor.action.triggerSuggest', title: 'Trigger Suggest' } : undefined
             };
+            return suggestion;
           })
         };
       }
     });
   };
 
-  // Handle editor mount
-  const handleEditorDidMount = (editor: any, monaco: any) => {
+  const handleEditorDidMount = (
+    editor: Monaco.editor.IStandaloneCodeEditor,
+    monaco: typeof Monaco
+  ) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    // Register completion provider
     registerCompletionProvider(monaco);
 
-    // Configure editor options
     editor.updateOptions({
       fontSize: 14,
       lineHeight: 20,
@@ -160,9 +144,9 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
       suggestOnTriggerCharacters: true,
       acceptSuggestionOnEnter: 'on',
       tabCompletion: 'on',
-      wordBasedSuggestions: 'on',
-      autoClosingBrackets: 'always',  // Add auto-closing brackets configuration
-      autoClosingQuotes: 'always',    // Add auto-closing quotes configuration
+      wordBasedSuggestions: 'currentDocument',
+      autoClosingBrackets: 'always',
+      autoClosingQuotes: 'always',
       suggest: {
         showIcons: true,
         insertMode: 'insert',
@@ -181,26 +165,23 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
       }
     });
 
-    // Set editor background color
     monaco.editor.defineTheme('vs-gray', {
       base: 'vs',
       inherit: true,
       rules: [],
       colors: {
-        'editor.background': '#f0f0f0',  // Light gray background
+        'editor.background': '#f0f0f0',
       }
     });
     monaco.editor.setTheme('vs-gray');
   };
 
-  // Re-register provider when suggestions change
   useEffect(() => {
     if (monacoRef.current) {
       registerCompletionProvider(monacoRef.current);
     }
   }, [suggestions]);
 
-  // Cleanup when component unmounts
   useEffect(() => {
     return () => {
       if (providerRef.current) {
@@ -209,19 +190,20 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
     };
   }, []);
 
-  // Get current input path
   const getCurrentPath = (textUntilPosition: string): string[] => {
     const match = textUntilPosition.match(/[\w.]+$/);
     return match ? match[0].split('.') : [];
   };
 
-  // Get suggestions based on current path
-  const getSuggestionsForPath = (path: string[], suggestions: any[]): any[] => {
+  const getSuggestionsForPath = (
+    path: string[],
+    suggestionItems: MonacoSuggestionItem[]
+  ): MonacoSuggestionItem[] => {
     if (path.length <= 1) {
-      return suggestions;
+      return suggestionItems;
     }
 
-    let currentSuggestions = suggestions;
+    let currentSuggestions = suggestionItems;
     for (let i = 0; i < path.length - 1; i++) {
       const currentSegment = path[i];
       const matchingSuggestion = currentSuggestions.find(s => s.label === currentSegment);
@@ -269,4 +251,4 @@ const MonacoPromptEditor: React.FC<MonacoPromptEditorProps> = ({
   );
 };
 
-export default MonacoPromptEditor; 
+export default MonacoPromptEditor;

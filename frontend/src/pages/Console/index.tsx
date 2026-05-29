@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 
-import { Col, Row, message, Table, Button, Space, Popconfirm, Modal, Dropdown, Select } from 'antd';
+import { Col, Row, message, Button, Space, Popconfirm, Modal, Dropdown, Select } from 'antd';
 import { parseT } from "../../components/util";
 import { useNavigate } from "react-router-dom";
 import { Experiment } from "../../components/type";
@@ -229,7 +229,7 @@ const Page = () => {
                         rowKey="id"
                         columnEmptyText="-"
                         search={{
-                            optionRender: ({ searchText, resetText }, { form }, dom) => [
+                            optionRender: (_searchProps, _formProps, dom) => [
                                 ...dom,
                                 <Button
                                     key="create"

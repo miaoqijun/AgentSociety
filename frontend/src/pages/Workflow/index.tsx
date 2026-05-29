@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Col, Row, InputNumber, Select, Divider, Alert } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, ExportOutlined, MinusCircleOutlined, QuestionCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { ConfigWrapper, WorkflowStepConfig, ExpConfig } from '../../types/config';
+import { ConfigWrapper, WorkflowStepConfig, AgentFilterConfig } from '../../types/config';
 import { WorkflowType } from '../../utils/enums';
 import { fetchCustom } from '../../components/fetch';
 import dayjs from 'dayjs';
@@ -10,11 +10,23 @@ import MonacoPromptEditor from '../../components/MonacoPromptEditor';
 import { Survey } from '../../components/type';
 import { profiles } from '../AgentTemplate/profile';
 
+interface WorkflowStepFormConfig extends WorkflowStepConfig {
+    agent_class?: string[];
+}
+
 interface FormValues {
     name: string;
     description?: string;
-    config: WorkflowStepConfig[];
+    config: WorkflowStepFormConfig[];
 }
+
+const isAgentFilterConfig = (
+    value: WorkflowStepConfig['target_agent']
+): value is AgentFilterConfig =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isSurveyWithId = (value: unknown): value is { id: string | number } =>
+    typeof value === 'object' && value !== null && 'id' in value;
 
 const getTargetAgentSuggestions = () => {
     const profileSuggestions = profiles.map((profile) => ({
@@ -180,22 +192,36 @@ const WorkflowList: React.FC = () => {
         setCurrentWorkflow(workflow);
 
         // 处理配置数据，将AgentFilterConfig转换为表单格式
-        const processedConfig = workflow.config?.map((step: any, index: number) => {
-            const processedStep = { ...step };
+        const processedConfig = workflow.config?.map((step: WorkflowStepConfig, index: number) => {
+            const processedStep: WorkflowStepFormConfig = { ...step };
             
             if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
-                if (step.target_agent && typeof step.target_agent === 'object') {
+                if (isAgentFilterConfig(step.target_agent)) {
+                    const targetAgent = step.target_agent;
                     // 如果是AgentFilterConfig对象
-                    if (step.target_agent.filter_str) {
+                    if (targetAgent.filter_str && targetAgent.agent_class) {
+                        handleTargetAgentModeChange(index, 'expression');
+                        if (Array.isArray(targetAgent.agent_class)) {
+                            targetAgent.agent_class.forEach((agentClass: string) => {
+                                if (agentClass.includes('citizen')) {
+                                    fetchAgentClasses();
+                                } else if (agentClass.includes('supervisor')) {
+                                    fetchAgentClasses();
+                                }
+                            });
+                        }
+                        processedStep.target_agent = targetAgent.filter_str;
+                        processedStep.agent_class = targetAgent.agent_class;
+                    } else if (targetAgent.filter_str) {
                         // 表达式模式
                         handleTargetAgentModeChange(index, 'expression');
-                        processedStep.target_agent = step.target_agent.filter_str;
-                    } else if (step.target_agent.agent_class) {
+                        processedStep.target_agent = targetAgent.filter_str;
+                    } else if (targetAgent.agent_class) {
                         // 表达式模式，使用agent_class选择器
                         handleTargetAgentModeChange(index, 'expression');
                         // 加载agent classes
-                        if (Array.isArray(step.target_agent.agent_class)) {
-                            step.target_agent.agent_class.forEach((agentClass: string) => {
+                        if (Array.isArray(targetAgent.agent_class)) {
+                            targetAgent.agent_class.forEach((agentClass: string) => {
                                 if (agentClass.includes('citizen')) {
                                     fetchAgentClasses();
                                 } else if (agentClass.includes('supervisor')) {
@@ -203,24 +229,9 @@ const WorkflowList: React.FC = () => {
                                 }
                             });
                         }
-                        processedStep.agent_class = step.target_agent.agent_class;
+                        processedStep.agent_class = targetAgent.agent_class;
                         // 在表达式模式下清空target_agent，因为只使用agent_class选择器
                         processedStep.target_agent = '';
-                    } else if (step.target_agent.filter_str && step.target_agent.agent_class) {
-                        // 过滤模式，同时使用filter_str和agent_class
-                        handleTargetAgentModeChange(index, 'expression');
-                        // 加载agent classes
-                        if (Array.isArray(step.target_agent.agent_class)) {
-                            step.target_agent.agent_class.forEach((agentClass: string) => {
-                                if (agentClass.includes('citizen')) {
-                                    fetchAgentClasses();
-                                } else if (agentClass.includes('supervisor')) {
-                                    fetchAgentClasses();
-                                }
-                            });
-                        }
-                        processedStep.target_agent = step.target_agent.filter_str;
-                        processedStep.agent_class = step.target_agent.agent_class;
                     }
                 } else if (Array.isArray(step.target_agent)) {
                     // 原有的数组格式
@@ -240,7 +251,7 @@ const WorkflowList: React.FC = () => {
             // 处理survey字段 - 确保选中正确的survey
             if (step.type === WorkflowType.SURVEY && step.survey) {
                 // 如果survey是对象，提取其id；如果是字符串或数字，直接使用
-                if (typeof step.survey === 'object' && step.survey.id) {
+                if (typeof step.survey === 'object' && isSurveyWithId(step.survey)) {
                     processedStep.survey = step.survey.id;
                 } else {
                     processedStep.survey = step.survey;
@@ -277,7 +288,7 @@ const WorkflowList: React.FC = () => {
                     const originalStep = workflow.config?.[index];
                     if (originalStep && Array.isArray(originalStep.target_agent)) {
                         modes[index] = 'list';
-                    } else if (originalStep && originalStep.target_agent && typeof originalStep.target_agent === 'object' && !Array.isArray(originalStep.target_agent) && (originalStep.target_agent as any).agent_class && !(originalStep.target_agent as any).filter_str) {
+                    } else if (originalStep && isAgentFilterConfig(originalStep.target_agent) && originalStep.target_agent.agent_class && !originalStep.target_agent.filter_str) {
                         modes[index] = 'expression'; // 仅agent_class的情况
                     } else {
                         modes[index] = 'expression';
@@ -295,22 +306,36 @@ const WorkflowList: React.FC = () => {
         setCurrentWorkflow(null);
 
         // 处理配置数据，将AgentFilterConfig转换为表单格式
-        const processedConfig = workflow.config?.map((step: any, index: number) => {
-            const processedStep = { ...step };
+        const processedConfig = workflow.config?.map((step: WorkflowStepConfig, index: number) => {
+            const processedStep: WorkflowStepFormConfig = { ...step };
             
             if ([WorkflowType.INTERVIEW, WorkflowType.SURVEY, WorkflowType.UPDATE_STATE_INTERVENE, WorkflowType.MESSAGE_INTERVENE, WorkflowType.SAVE_CONTEXT].includes(step.type)) {
-                if (step.target_agent && typeof step.target_agent === 'object') {
+                if (isAgentFilterConfig(step.target_agent)) {
+                    const targetAgent = step.target_agent;
                     // 如果是AgentFilterConfig对象
-                    if (step.target_agent.filter_str) {
+                    if (targetAgent.filter_str && targetAgent.agent_class) {
+                        handleTargetAgentModeChange(index, 'expression');
+                        if (Array.isArray(targetAgent.agent_class)) {
+                            targetAgent.agent_class.forEach((agentClass: string) => {
+                                if (agentClass.includes('citizen')) {
+                                    fetchAgentClasses();
+                                } else if (agentClass.includes('supervisor')) {
+                                    fetchAgentClasses();
+                                }
+                            });
+                        }
+                        processedStep.target_agent = targetAgent.filter_str;
+                        processedStep.agent_class = targetAgent.agent_class;
+                    } else if (targetAgent.filter_str) {
                         // 表达式模式
                         handleTargetAgentModeChange(index, 'expression');
-                        processedStep.target_agent = step.target_agent.filter_str;
-                    } else if (step.target_agent.agent_class) {
+                        processedStep.target_agent = targetAgent.filter_str;
+                    } else if (targetAgent.agent_class) {
                         // 表达式模式，使用agent_class选择器
                         handleTargetAgentModeChange(index, 'expression');
                         // 加载agent classes
-                        if (Array.isArray(step.target_agent.agent_class)) {
-                            step.target_agent.agent_class.forEach((agentClass: string) => {
+                        if (Array.isArray(targetAgent.agent_class)) {
+                            targetAgent.agent_class.forEach((agentClass: string) => {
                                 if (agentClass.includes('citizen')) {
                                     fetchAgentClasses();
                                 } else if (agentClass.includes('supervisor')) {
@@ -318,24 +343,9 @@ const WorkflowList: React.FC = () => {
                                 }
                             });
                         }
-                        processedStep.agent_class = step.target_agent.agent_class;
+                        processedStep.agent_class = targetAgent.agent_class;
                         // 在表达式模式下清空target_agent，因为只使用agent_class选择器
                         processedStep.target_agent = '';
-                    } else if (step.target_agent.filter_str && step.target_agent.agent_class) {
-                        // 过滤模式，同时使用filter_str和agent_class
-                        handleTargetAgentModeChange(index, 'expression');
-                        // 加载agent classes
-                        if (Array.isArray(step.target_agent.agent_class)) {
-                            step.target_agent.agent_class.forEach((agentClass: string) => {
-                                if (agentClass.includes('citizen')) {
-                                    fetchAgentClasses();
-                                } else if (agentClass.includes('supervisor')) {
-                                    fetchAgentClasses();
-                                }
-                            });
-                        }
-                        processedStep.target_agent = step.target_agent.filter_str;
-                        processedStep.agent_class = step.target_agent.agent_class;
                     }
                 } else if (Array.isArray(step.target_agent)) {
                     // 原有的数组格式
@@ -355,7 +365,7 @@ const WorkflowList: React.FC = () => {
             // 处理survey字段 - 确保选中正确的survey
             if (step.type === WorkflowType.SURVEY && step.survey) {
                 // 如果survey是对象，提取其id；如果是字符串或数字，直接使用
-                if (typeof step.survey === 'object' && step.survey.id) {
+                if (typeof step.survey === 'object' && isSurveyWithId(step.survey)) {
                     processedStep.survey = step.survey.id;
                 } else {
                     processedStep.survey = step.survey;
@@ -392,7 +402,7 @@ const WorkflowList: React.FC = () => {
                     const originalStep = workflow.config?.[index];
                     if (originalStep && Array.isArray(originalStep.target_agent)) {
                         modes[index] = 'list';
-                    } else if (originalStep && originalStep.target_agent && typeof originalStep.target_agent === 'object' && !Array.isArray(originalStep.target_agent) && (originalStep.target_agent as any).agent_class && !(originalStep.target_agent as any).filter_str) {
+                    } else if (originalStep && isAgentFilterConfig(originalStep.target_agent) && originalStep.target_agent.agent_class && !originalStep.target_agent.filter_str) {
                         modes[index] = 'expression'; // 仅agent_class的情况
                     } else {
                         modes[index] = 'expression';
@@ -443,7 +453,7 @@ const WorkflowList: React.FC = () => {
 
             // 处理 target_agent 字段
             if (formValues.config) {
-                formValues.config = formValues.config.map((step: any, idx: number) => {
+                formValues.config = formValues.config.map((step: WorkflowStepFormConfig, idx: number) => {
                     if (
                         [
                             WorkflowType.INTERVIEW,
@@ -453,26 +463,21 @@ const WorkflowList: React.FC = () => {
                             WorkflowType.SAVE_CONTEXT
                         ].includes(step.type)
                     ) {
-                        if (targetAgentModes[idx] === 'expression' && typeof step.target_agent === 'string' && step.target_agent.trim()) {
-                            // 表达式模式：使用filter_str
-                            step.target_agent = {
-                                filter_str: step.target_agent
-                            };
-                        } else if (targetAgentModes[idx] === 'expression' && step.agent_class && step.agent_class.length > 0) {
-                            // 过滤模式：使用agent_class
-                            step.target_agent = {
-                                agent_class: step.agent_class
-                            };
-                            // 删除临时的agent_class字段
-                            delete step.agent_class;
-                        } else if (targetAgentModes[idx] === 'expression' && step.target_agent && step.agent_class && step.agent_class.length > 0) {
-                            // 过滤模式：同时使用filter_str和agent_class
+                        if (targetAgentModes[idx] === 'expression' && typeof step.target_agent === 'string' && step.target_agent.trim() && step.agent_class && step.agent_class.length > 0) {
                             step.target_agent = {
                                 filter_str: step.target_agent,
                                 agent_class: step.agent_class
                             };
-                            // 删除临时的agent_class字段
                             delete step.agent_class;
+                        } else if (targetAgentModes[idx] === 'expression' && step.agent_class && step.agent_class.length > 0) {
+                            step.target_agent = {
+                                agent_class: step.agent_class
+                            };
+                            delete step.agent_class;
+                        } else if (targetAgentModes[idx] === 'expression' && typeof step.target_agent === 'string' && step.target_agent.trim()) {
+                            step.target_agent = {
+                                filter_str: step.target_agent
+                            };
                         } else if (targetAgentModes[idx] === 'list') {
                             // 列表模式：处理ID列表或agent_class
                             if (step.agent_class && step.agent_class.length > 0) {
@@ -543,7 +548,7 @@ const WorkflowList: React.FC = () => {
     };
 
     // 在表单值变化时更新 target_agent_mode
-    const handleFormValuesChange = (changedValues: any, allValues: FormValues) => {
+    const handleFormValuesChange = (changedValues: Partial<FormValues>, allValues: FormValues) => {
         if (changedValues.config) {
             const config = allValues.config;
             config.forEach((step, index) => {
@@ -555,9 +560,8 @@ const WorkflowList: React.FC = () => {
                             handleTargetAgentModeChange(index, 'list');
                         } else if (typeof targetAgent === 'string') {
                             handleTargetAgentModeChange(index, 'expression');
-                        } else if (targetAgent && typeof targetAgent === 'object') {
-                            // 如果是AgentFilterConfig对象
-                            const agentFilter = targetAgent as any;
+                        } else if (targetAgent && isAgentFilterConfig(targetAgent)) {
+                            const agentFilter = targetAgent;
                             if (agentFilter.filter_str) {
                                 handleTargetAgentModeChange(index, 'expression');
                             } else if (agentFilter.agent_class) {
@@ -596,7 +600,7 @@ const WorkflowList: React.FC = () => {
         {
             title: t('common.actions'),
             key: 'actions',
-            render: (_: any, record: ConfigWrapper<WorkflowStepConfig[]>) => (
+            render: (_: unknown, record: ConfigWrapper<WorkflowStepConfig[]>) => (
                 <Space size="small">
                     {
                         (record.tenant_id ?? '') !== '' && (
@@ -723,7 +727,7 @@ const WorkflowList: React.FC = () => {
                         >
                             {(fields, { add, remove }) => (
                                 <>
-                                    {fields.map(({ key, name, ...restField }, index) => (
+                                    {fields.map(({ key: _key, name, ...restField }) => (
                                         <>
                                             {/* 基本配置行 */}
                                             <Row gutter={8} align="middle" style={{ marginBottom: 8 }}>

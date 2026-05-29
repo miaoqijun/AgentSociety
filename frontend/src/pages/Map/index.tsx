@@ -154,10 +154,11 @@ const Map: React.FC = () => {
     };
 
     // Update parent component state when form values change
-    const handleValuesChange = (changedValues: any, allValues: any) => {
-        console.log('changedValues', changedValues);
+    const handleValuesChange = (_changedValues: Record<string, unknown>, allValues: Record<string, unknown>) => {
+        console.log('changedValues', _changedValues);
         console.log('allValues', allValues);
-        const file = allValues.file_path?.file;
+        const filePath = allValues.file_path as { file?: { status?: string; response?: { data?: { file_path?: string } } } } | undefined;
+        const file = filePath?.file;
         if (file && file.status === 'done') {
             setFormValues({
                 file_path: file.response.data.file_path,
@@ -216,7 +217,7 @@ const Map: React.FC = () => {
         {
             title: t('common.actions'),
             key: 'action',
-            render: (_: any, record: ConfigWrapper<MapConfig>) => (
+            render: (_: unknown, record: ConfigWrapper<MapConfig>) => (
                 <Space size="small">
                     {
                         (record.tenant_id ?? '') !== '' && (

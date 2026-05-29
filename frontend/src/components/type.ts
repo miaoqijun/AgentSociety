@@ -16,7 +16,7 @@ export interface Experiment {
 export interface Survey {
     id: string;
     name: string;
-    data: any;
+    data: Record<string, unknown>;
     createdAt: string;
     updatedAt: string;
 }

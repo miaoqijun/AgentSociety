@@ -5,8 +5,6 @@ import {
 
 import InfoPanel from "./LeftPanel";
 import { RightPanel } from "./ChatBox";
-import LngLatJump from "./components/LngLatJump";
-import { LngLat } from "./components/type";
 import Deck from "./Deck";
 import { useParams } from "react-router-dom";
 import { store, StoreContext } from "./store";

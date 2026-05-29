@@ -1,4 +1,5 @@
 import { makeAutoObservable } from 'mobx';
+import { MonacoSuggestionItem } from '../../components/MonacoPromptEditor';
 import { ApiAgentParam, ApiAgentTemplate, BlockContextInfo } from '../../types/agentTemplate';
 import React from 'react';
 import { fetchCustom } from '../../components/fetch';
@@ -6,7 +7,7 @@ import { profiles } from './profile';
 
 class AgentTemplateStore {
   agentParam: ApiAgentParam | null = null;
-  suggestions: any[] = [];
+  suggestions: MonacoSuggestionItem[] = [];
   agentType?: string;
   agentClass?: string;
   agentClasses: { value: string; label: string }[] = [];
@@ -22,7 +23,7 @@ class AgentTemplateStore {
     this.agentParam = info;
   }
 
-  setSuggestions(suggestions: any[]) {
+  setSuggestions(suggestions: MonacoSuggestionItem[]) {
     this.suggestions = suggestions;
   }
 
@@ -148,27 +149,22 @@ class AgentTemplateStore {
     }
   }
 
-  async createTemplate(templateData: any) {
-    try {
-      const res = await fetchCustom('/api/agent-templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templateData),
-      });
+  async createTemplate(templateData: Partial<ApiAgentTemplate> | Record<string, unknown>) {
+    const res = await fetchCustom('/api/agent-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(templateData),
+    });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        if (errorData.detail) {
-          throw new Error(typeof errorData.detail === 'object' ? JSON.stringify(errorData.detail) : errorData.detail);
-        } else {
-          throw new Error('创建模板失败: ' + JSON.stringify(errorData));
-        }
+    if (!res.ok) {
+      const errorData = await res.json();
+      if (errorData.detail) {
+        throw new Error(typeof errorData.detail === 'object' ? JSON.stringify(errorData.detail) : errorData.detail);
       }
-
-      return true;
-    } catch (error) {
-      throw error;
+      throw new Error('创建模板失败: ' + JSON.stringify(errorData));
     }
+
+    return true;
   }
 }
 

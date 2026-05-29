@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Button, Space, Row, Col } from 'antd';
+import { Typography, Button, Space, Col } from 'antd';
 import { GithubOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 
-const { Title, Text, Link } = Typography;
+const { Text, Link } = Typography;
 
 // 透明导航条样式
 const newsBarStyle = {
