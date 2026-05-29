@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Table, Button, Modal, Form, Input, Space, Flex, Col, Row, Alert, Popconfirm, Dropdown, Tabs, App } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Modal, Form, Input, Space, Flex, Popconfirm, Dropdown, Tabs, App } from 'antd';
 import dayjs from 'dayjs';
-import { Model, Survey as SurveyUI } from 'survey-react-ui';
 import 'survey-core/defaultV2.min.css';
 import { useForm } from 'antd/lib/form/Form';
-import { ExportOutlined, EllipsisOutlined } from '@ant-design/icons';
+import { EllipsisOutlined } from '@ant-design/icons';
 import { Editor } from '../../../components/Editor';
 import { Survey } from '../../../components/type';
 import { fetchCustom } from '../../../components/fetch';
@@ -338,7 +337,7 @@ const SurveyTableInner = () => {
                                             try {
                                                 JSON.parse(value);
                                                 return Promise.resolve();
-                                            } catch (e) {
+                                            } catch {
                                                 return Promise.reject(new Error(t('survey.invalidJson')));
                                             }
                                         }

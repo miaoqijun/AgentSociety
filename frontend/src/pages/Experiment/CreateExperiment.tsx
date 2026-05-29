@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Select, Space, Typography, Divider, message, Row, Col, Spin, Form, Input } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import { ExperimentOutlined, ApiOutlined, TeamOutlined, GlobalOutlined, RocketOutlined, NodeIndexOutlined } from '@ant-design/icons';
+import { ApiOutlined, TeamOutlined, GlobalOutlined, NodeIndexOutlined } from '@ant-design/icons';
 import { fetchCustom } from '../../components/fetch';
 import { useTranslation } from 'react-i18next';
 import { ConfigWrapper, LLMConfig, MapConfig, AgentsConfig, ExpConfig } from '../../types/config';
 
 const { Text } = Typography;
 const { Option } = Select;
-
-// Add these interfaces at the top of the file
-interface WorkflowConfig extends ConfigWrapper<ExpConfig> {}
 
 const CreateExperiment: React.FC = () => {
     const { t } = useTranslation();
@@ -26,7 +23,7 @@ const CreateExperiment: React.FC = () => {
     const [selectedMap, setSelectedMap] = useState<string>('');
     const [experimentName, setExperimentName] = useState<string>('');
     const [experimentRunning, setExperimentRunning] = useState(false);
-    const [experimentId, setExperimentId] = useState<string | null>(null);
+    const [, setExperimentId] = useState<string | null>(null);
     const [statusCheckInterval, setStatusCheckInterval] = useState<NodeJS.Timeout | null>(null);
     const [experimentStatus, setExperimentStatus] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -108,7 +105,7 @@ const CreateExperiment: React.FC = () => {
     };
 
     // Render option content with name and description
-    const renderOptionContent = (item: ConfigWrapper<any>) => (
+    const renderOptionContent = (item: ConfigWrapper<unknown>) => (
         <div>
             <div>{item.name}</div>
             {item.description && <Text type="secondary">{item.description}</Text>}

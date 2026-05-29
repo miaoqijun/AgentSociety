@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm } from 'antd';
+import { Table, Button, Card, Space, message, Tooltip, Input, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, ExportOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { fetchCustom } from '../../components/fetch';
@@ -152,7 +152,7 @@ const AgentTemplateList: React.FC = () => {
     {
       title: t('common.actions'),
       key: 'action',
-      render: (_: any, record: ApiAgentTemplate) => (
+      render: (_: unknown, record: ApiAgentTemplate) => (
         <Space size="small">
           {
             (record.tenant_id ?? '') !== '' && (

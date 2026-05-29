@@ -27,7 +27,7 @@ export interface DistributionConfig {
   max_value?: number;
   mean?: number;
   std?: number;
-  value?: any;
+  value?: unknown;
 }
 
 export interface MemoryConfig {
@@ -39,8 +39,8 @@ export interface MemoryConfig {
 export interface AgentConfig {
   agent_class: string;
   number?: number;
-  agent_params?: Record<string, any>;
-  blocks?: Record<string, any>;
+  agent_params?: Record<string, unknown>;
+  blocks?: Record<string, unknown>;
   memory_config_func?: string;
   memory_from_file?: string;
   memory_distributions?: Record<string, DistributionConfig>;
@@ -85,10 +85,10 @@ export interface WorkflowStepConfig {
   ticks_per_step?: number;
   target_agent?: number[] | string | AgentFilterConfig;
   interview_message?: string;
-  survey?: any;
+  survey?: unknown;
   key?: string;
   save_as?: string;
-  value?: any;
+  value?: unknown;
   intervene_message?: string;
   description?: string;
 }

@@ -18,7 +18,7 @@ Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.
 
 - **docs**：更新 `README.md`、`CONTRIBUTING.md`、`SECURITY.md`，补充发版流程与 CI 范围说明。
 - **ci**：收窄检查范围至 AgentSociety2（`packages/agentsociety2`、`extension`、`frontend`）；legacy 包不纳入活跃 CI / Dependabot / CodeQL 扫描。
-- **ci**：增加 extension / frontend lint、Docker path 过滤；新增 `frontend-ci`、`codeql`、`dependency-review`，合并重复 Release workflow。
+- **ci**：修复 frontend 全量 ESLint 错误（类型化、`unused-vars` 清理、Workflow 分支逻辑）；CI 保留 lint + build + audit。
 - **ci**：发版前增加 validate 门禁；GitHub Release 说明改用 git-cliff。
 
 ---

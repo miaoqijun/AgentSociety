@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { AuthCallback, sdkConfig } from "../components/Auth";
 
 const Callback = () => {

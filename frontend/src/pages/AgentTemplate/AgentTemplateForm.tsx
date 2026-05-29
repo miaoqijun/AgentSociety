@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Form, Input, Card, Row, Col, Button, Switch, InputNumber, Select, Space, message, Tooltip, Table, Tabs, Empty } from 'antd';
-import type { FormInstance } from 'antd/es/form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchCustom } from '../../components/fetch';
 import { QuestionCircleOutlined } from '@ant-design/icons';
@@ -14,17 +13,44 @@ import {
   ApiNameTypeDescription,
   BlockContextInfo,
   BlockInfo,
-  ProfileField
+  ApiDistributionConfig,
+  ApiAgentTemplate,
 } from '../../types/agentTemplate';
 import { profiles } from './profile';
 
 // ==================== 工具函数 ====================
+type MonacoSuggestion = {
+  label: string;
+  detail?: string;
+  children?: MonacoSuggestion[];
+};
+
+interface ProfileFormValue {
+  type: ApiDistributionType;
+  choices?: string[];
+  weights?: number[];
+  min_value?: number;
+  max_value?: number;
+  mean?: number;
+  std?: number;
+}
+
+interface AgentTemplateFormValues {
+  name?: string;
+  description?: string;
+  agent_type?: string;
+  agent_class?: string;
+  profile?: Record<string, ProfileFormValue>;
+  agent_params?: Record<string, unknown>;
+  blocks?: Record<string, { params?: Record<string, unknown> }>;
+}
+
 const renderDynamicFormItem = (
   paramName: string,
   paramInfo: ApiParam,
   formItemProps: {
     name: (string | number)[],
-    suggestions?: any[],
+    suggestions?: MonacoSuggestion[],
   }
 ) => {
   const baseProps = {
@@ -45,7 +71,7 @@ const renderDynamicFormItem = (
     case 'bool':
       return (
         <Form.Item {...baseProps} valuePropName="checked">
-          <Switch defaultChecked={paramInfo.default} />
+          <Switch defaultChecked={paramInfo.default === true} />
         </Form.Item>
       );
     case 'int':
@@ -88,144 +114,6 @@ const renderDynamicFormItem = (
         </Form.Item>
       );
   }
-};
-
-const renderDistributionFields = (fieldName: string, fieldConfig: ProfileField, form: FormInstance) => {
-  const { t } = useTranslation();
-  const distributionType = Form.useWatch(['profile', fieldName, 'type'], form);
-
-  const handleDistributionTypeChange = (value: ApiDistributionType) => {
-    if (value === ApiDistributionType.UNIFORM_INT) {
-      form.setFieldsValue({
-        profile: {
-          [fieldName]: {
-            type: value,
-            min_value: fieldConfig.defaultParams?.min_value,
-            max_value: fieldConfig.defaultParams?.max_value
-          }
-        }
-      });
-    } else if (value === ApiDistributionType.NORMAL) {
-      form.setFieldsValue({
-        profile: {
-          [fieldName]: {
-            type: value,
-            mean: fieldConfig.defaultParams?.mean,
-            std: fieldConfig.defaultParams?.std
-          }
-        }
-      });
-    }
-  };
-
-  if (fieldConfig.type === 'discrete') {
-    return (
-      <div style={{ marginTop: 8 }}>
-        <Form.Item
-          label={t('template.choiceWeights')}
-          required
-          tooltip={t('template.choiceWeightsTooltip')}
-        >
-          <Table
-            size="small"
-            pagination={false}
-            dataSource={fieldConfig.options?.map((option, index) => ({
-              key: index,
-              option: option,
-              weight: (
-                <Form.Item
-                  initialValue={1 / fieldConfig.options!.length}
-                  name={['profile', fieldName, 'weights', index]}
-                  rules={[{ required: true, message: t('template.required') }]}
-                  style={{ margin: 0 }}
-                >
-                  <InputNumber
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    style={{ width: '100%' }}
-                    placeholder="0-1"
-                  />
-                </Form.Item>
-              )
-            }))}
-            columns={[
-              { title: t('template.option'), dataIndex: 'option', width: '60%' },
-              { title: t('template.weight'), dataIndex: 'weight', width: '40%' }
-            ]}
-          />
-        </Form.Item>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ marginTop: 8 }}>
-      <Form.Item
-        name={['profile', fieldName, 'type']}
-        label={t('template.distributionType')}
-        initialValue="uniform_int"
-      >
-        <Select
-          options={[
-            { label: t('template.uniformDistribution'), value: ApiDistributionType.UNIFORM_INT },
-            { label: t('template.normalDistribution'), value: ApiDistributionType.NORMAL }
-          ]}
-          onChange={handleDistributionTypeChange}
-        />
-      </Form.Item>
-
-      {distributionType === ApiDistributionType.UNIFORM_INT && (
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              label={t('template.minValue')}
-              name={['profile', fieldName, 'min_value']}
-              rules={[{ required: true, message: t('template.required') }]}
-              initialValue={fieldConfig.defaultParams?.min_value}
-            >
-              <InputNumber style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label={t('template.maxValue')}
-              name={['profile', fieldName, 'max_value']}
-              rules={[{ required: true, message: t('template.required') }]}
-              initialValue={fieldConfig.defaultParams?.max_value}
-            >
-              <InputNumber style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-        </Row>
-      )}
-
-      {distributionType === ApiDistributionType.NORMAL && (
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              label={t('template.mean')}
-              name={['profile', fieldName, 'mean']}
-              rules={[{ required: true, message: t('template.required') }]}
-              initialValue={fieldConfig.defaultParams?.mean}
-            >
-              <InputNumber style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label={t('template.standardDeviation')}
-              name={['profile', fieldName, 'std']}
-              rules={[{ required: true, message: t('template.required') }]}
-              initialValue={fieldConfig.defaultParams?.std}
-            >
-              <InputNumber style={{ width: '100%' }} min={0} />
-            </Form.Item>
-          </Col>
-        </Row>
-      )}
-    </div>
-  );
 };
 
 // ==================== 组件 ====================
@@ -277,7 +165,7 @@ const BlockConfiguration: React.FC<{
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [blockParams, setBlockParams] = useState<Record<string, ApiParam[]>>({});
   const [blockContexts, setBlockContexts] = useState<Record<string, ApiNameTypeDescription[]>>({});
-  const [blockSuggestions, setBlockSuggestions] = useState<Record<string, any[]>>({});
+  const [blockSuggestions, setBlockSuggestions] = useState<Record<string, MonacoSuggestion[]>>({});
   const { t } = useTranslation();
   const agentTemplateStore = useContext(AgentTemplateStoreContext);
 
@@ -574,12 +462,12 @@ const AgentTemplateForm: React.FC = observer(() => {
 
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields();
+      const values = await form.validateFields() as AgentTemplateFormValues;
 
       // 构造 memory_distributions
-      const memory_distributions: Record<string, any> = {};
+      const memory_distributions: Record<string, ApiDistributionConfig> = {};
       if (values.agent_type === 'citizen') {
-        Object.entries(values.profile || {}).forEach(([key, value]: [string, any]) => {
+        Object.entries(values.profile || {}).forEach(([key, value]: [string, ProfileFormValue]) => {
           if (value.type === ApiDistributionType.CHOICE) {
             memory_distributions[key] = {
               type: ApiDistributionType.CHOICE,
@@ -603,14 +491,14 @@ const AgentTemplateForm: React.FC = observer(() => {
       }
 
       // 构造 agent_params
-      const agent_params: Record<string, any> = {};
+      const agent_params: Record<string, unknown> = {};
       agentTemplateStore.agentParam.params_type.forEach(paramInfo => {
         const value = values.agent_params?.[paramInfo.name];
         agent_params[paramInfo.name] = value ?? paramInfo.default;
       });
 
       // 构造 blocks
-      const blocksData: Record<string, any> = {};
+      const blocksData: Record<string, Record<string, unknown>> = {};
       // 确保所有选中的block都被包含，即使没有参数
       selectedBlocks.forEach(blockName => {
         if (values.blocks && values.blocks[blockName]) {
@@ -621,7 +509,7 @@ const AgentTemplateForm: React.FC = observer(() => {
         }
       });
 
-      const templateData = {
+      const templateData: Omit<ApiAgentTemplate, 'id' | 'created_at' | 'updated_at'> = {
         name: values.name || 'Default Template Name',
         description: values.description || '',
         agent_type: values.agent_type,

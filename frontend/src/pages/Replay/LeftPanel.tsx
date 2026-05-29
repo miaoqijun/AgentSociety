@@ -1,4 +1,4 @@
-import { Typography, Col, Row, List, Flex, Tooltip, Divider, Button } from 'antd';
+import { Typography, List, Flex, Tooltip, Divider, Button } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { AgentStatus } from './components/type';
 import { useContext } from 'react';
@@ -7,7 +7,7 @@ import { StoreContext } from './store';
 import { observer } from 'mobx-react-lite';
 import { useTranslation } from 'react-i18next';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 // const IconFont = createFromIconfontCN({
 //     scriptUrl: "//at.alicdn.com/t/font_3397267_ttijnd1yjxq.js",
 // });
@@ -27,7 +27,7 @@ const InfoPanel = observer(() => {
         return translated === translationKey ? key : translated;
     };
 
-    const renderItem = (item: AgentStatus, index: number) => (
+    const renderItem = (item: AgentStatus, _index: number) => (
         <Flex className='left-info-history-card'>
             <Flex vertical justify='flex-start' className='left-info-history-inner'>
                 <strong>{t('replay.day', { day: item.day })} {parseT(item.t)}</strong>

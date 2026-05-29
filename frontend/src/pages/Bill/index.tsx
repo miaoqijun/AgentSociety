@@ -29,12 +29,10 @@ const Page = () => {
     const { t } = useTranslation();
     const [account, setAccount] = useState<Account | null>(null);
     const [rechargeVisible, setRechargeVisible] = useState(false);
-    const [confirmVisible, setConfirmVisible] = useState(false);
     const [rechargeAmount, setRechargeAmount] = useState<number>(100);
     const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed'>('pending');
     const [paymentModalVisible, setPaymentModalVisible] = useState(false);
     const [paymentUrl, setPaymentUrl] = useState('');
-    const [paymentId, setPaymentId] = useState('');
     const actionRef = useRef<ActionType>();
 
     const presetAmounts = [10, 20, 50, 100, 1000];
@@ -49,7 +47,7 @@ const Page = () => {
                 throw new Error(await res.text());
             }
             message.success(t('bill.refreshSuccess'));
-        } catch (err) {
+        } catch (_err) {
             message.error(t('bill.fetchAccountFailed'));
         }
     };
@@ -78,7 +76,7 @@ const Page = () => {
                 }
             }
             return false;
-        } catch (err) {
+        } catch (_err) {
             message.error(t('bill.payment.checkFailed'));
             return false;
         }
@@ -121,7 +119,6 @@ const Page = () => {
             });
             if (res.ok) {
                 const data = await res.json();
-                setPaymentId(data.data.id);
                 setPaymentUrl(data.data.url);
                 setPaymentStatus('pending');
                 setPaymentModalVisible(true);
@@ -135,7 +132,7 @@ const Page = () => {
             } else {
                 throw new Error(await res.text());
             }
-        } catch (err) {
+        } catch (_err) {
             message.error(t('bill.payment.createFailed'));
         }
     };

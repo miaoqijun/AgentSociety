@@ -3,7 +3,7 @@ import { Card, Button, Form, Input, Select, Space, List, Modal, InputNumber, Typ
 import { PlusOutlined, DeleteOutlined, EditOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 
 interface Choice {
@@ -16,6 +16,16 @@ interface Question {
     title: string;
     type: 'text' | 'radiogroup' | 'checkbox' | 'rating';
     choices?: Choice[];
+    rateMin?: number;
+    rateMax?: number;
+    rateStep?: number;
+}
+
+interface QuestionFormValues {
+    name?: string;
+    title: string;
+    type: Question['type'];
+    choices?: string[];
     rateMin?: number;
     rateMax?: number;
     rateStep?: number;
@@ -116,7 +126,7 @@ const SurveyBuilder: React.FC<SurveyBuilderProps> = ({ value, onChange }) => {
         setIsModalVisible(true);
     };
 
-    const handleQuestionSubmit = (values: any) => {
+    const handleQuestionSubmit = (values: QuestionFormValues) => {
         const newQuestion: Question = {
             name: values.name || `question_${Date.now()}`,
             title: values.title,

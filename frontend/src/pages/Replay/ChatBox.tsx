@@ -1,6 +1,6 @@
-import { Button, Col, Divider, Flex, GetProp, message, Modal, Row, Select, Tabs } from 'antd';
+import { Button, Flex, GetProp, message, Modal, Row, Select, Tabs } from 'antd';
 import { AndroidOutlined, ArrowUpOutlined, CommentOutlined, ProfileOutlined, SmileOutlined, UpOutlined, UserOutlined, LineChartOutlined } from '@ant-design/icons';
-import { AgentDialog, AgentProfile, AgentSurvey, ApiMetric } from './components/type';
+import { AgentDialog } from './components/type';
 import { Bubble, Sender } from '@ant-design/x';
 import { parseT } from '../../components/util';
 import React, { useContext, useState } from 'react';
@@ -116,7 +116,8 @@ export const RightPanel = observer(() => {
                     if (contentJson.content !== undefined) {
                         content = contentJson.content;
                     }
-                } catch (e) {
+                } catch {
+                    // content is plain text, not JSON
                 }
                 const { role, name } = getRoleByChatMessage(m);
 

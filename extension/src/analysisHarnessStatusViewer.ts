@@ -221,7 +221,7 @@ export class AnalysisHarnessStatusViewer {
           <div class="meta-row"><span class="label">${labels.currentPhase}</span><span class="badge accent">${escapeHtml(localize(PHASE_LABEL_KEYS[currentPhase as keyof typeof PHASE_LABEL_KEYS] || currentPhase))}</span></div>
           <div class="meta-row"><span class="label">${labels.release}</span><span class="badge ${release === 'ready' ? 'ok' : 'warn'}">${escapeHtml(release)}</span></div>
           <div class="meta-row"><span class="label">${isZh ? '阶段进度' : 'Progress'}</span><span>${passed} / ${HYPOTHESIS_PHASES.length} ${labels.pass}</span></div>
-          ${state.chart_count != null
+          ${state.chart_count !== null && state.chart_count !== undefined
           ? `<div class="meta-row"><span class="label">${labels.chartCount}</span><span>${escapeHtml(
             formatChartCountLabel(state.chart_count, state.max_charts, isZh)
           )}</span></div>`

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Card, Space, Modal, message, Tooltip, Input, Popconfirm, Form, Col, Row, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, ExportOutlined, MinusCircleOutlined } from '@ant-design/icons';
-import { Config, LLMConfig, ConfigWrapper } from '../../types/config';
+import { ConfigWrapper, LLMConfig } from '../../types/config';
 import { fetchCustom } from '../../components/fetch';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -247,7 +247,7 @@ const LLM: React.FC = () => {
         {
             title: t('common.actions'),
             key: 'action',
-            render: (_: any, record: ConfigWrapper<LLMConfig[]>) => (
+            render: (_: unknown, record: ConfigWrapper<LLMConfig[]>) => (
                 <Space size="small">
                     {
                         (record.tenant_id ?? '') !== '' && (

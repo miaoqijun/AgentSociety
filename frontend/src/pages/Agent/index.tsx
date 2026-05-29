@@ -38,7 +38,7 @@ const AgentList: React.FC = () => {
     const [searchText, setSearchText] = useState('');
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-    const [currentAgent, setCurrentAgent] = useState<ConfigWrapper<AgentsConfig> | null>(null);
+    const [, setCurrentAgent] = useState<ConfigWrapper<AgentsConfig> | null>(null);
     const [previewAgent, setPreviewAgent] = useState<ConfigWrapper<AgentsConfig> | null>(null);
     const [templates, setTemplates] = useState<ApiAgentTemplate[]>([]);
     const [profiles, setProfiles] = useState<ApiAgentProfile[]>([]);
@@ -55,7 +55,7 @@ const AgentList: React.FC = () => {
                 } else {
                     message.error('Failed to load templates');
                 }
-            } catch (error) {
+            } catch (_error) {
                 message.error('Error loading templates');
             }
         };
@@ -73,7 +73,7 @@ const AgentList: React.FC = () => {
                 } else {
                     message.error('Failed to load profiles');
                 }
-            } catch (error) {
+            } catch (_error) {
                 message.error('Error loading profiles');
             }
         };
@@ -187,7 +187,7 @@ const AgentList: React.FC = () => {
                     if (response.ok) {
                         const template = (await response.json()).data;
 
-                        const result: any = {
+                        const result: AgentConfig = {
                             agent_class: template.agent_class || 'citizen',
                             agent_params: template.agent_params,
                             blocks: template.blocks
@@ -216,7 +216,7 @@ const AgentList: React.FC = () => {
             }
 
             // Fallback if no template
-            const result: any = {
+            const result: AgentConfig = {
                 agent_class: 'citizen',
             };
 
@@ -246,7 +246,7 @@ const AgentList: React.FC = () => {
                 const response = await fetchCustom(`/api/agent-templates/${formValues.supervisor.templateId}`);
                 if (response.ok) {
                     const template = (await response.json()).data;
-                    const convertedBlocks = {};
+                    const convertedBlocks: AgentConfig['blocks'] = {};
                     Object.entries(template.blocks).forEach(([key, value]) => {
                         const blockKey = key.toLowerCase();
                         convertedBlocks[blockKey] = value;
@@ -330,8 +330,7 @@ const AgentList: React.FC = () => {
         if (agent.memory_from_file) {
             // 解析 memory_from_file 路径，格式: agent_profiles/<tenant_id>/<id>.json
             const pathParts = agent.memory_from_file.split('/');
-            let profileDisplay: React.ReactNode = agent.memory_from_file; // 默认显示原始路径
-            let recordCountText = '';
+            let profileDisplay: React.ReactNode = agent.memory_from_file;
 
             if (pathParts.length >= 3 && pathParts[0] === 'agent_profiles') {
                 // 在 profiles 中查找匹配的 profile
@@ -432,7 +431,7 @@ const AgentList: React.FC = () => {
         {
             title: t('common.actions'),
             key: 'actions',
-            render: (_: any, record: ConfigWrapper<AgentsConfig>) => (
+            render: (_: unknown, record: ConfigWrapper<AgentsConfig>) => (
                 <Space size="small">
                     <Tooltip title={t('common.preview')}>
                         <Button icon={<EyeOutlined />} size="small" onClick={() => handlePreview(record)} />

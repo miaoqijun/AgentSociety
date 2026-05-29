@@ -1,10 +1,8 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import DeckGL from '@deck.gl/react';
 import { FlyToInterpolator, MapView, MapViewState } from '@deck.gl/core';
 import { HeatmapLayer, TextLayer, IconLayer, ScatterplotLayer } from 'deck.gl';
 import { Map as MapGL } from 'react-map-gl';
-import tinycolor from "tinycolor2";
-import { LngLat } from './components/type';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { observer } from 'mobx-react-lite';
 import { StoreContext } from './store';
@@ -12,16 +10,6 @@ import { StoreContext } from './store';
 // Set your mapbox access token here
 const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiZmh5ZHJhbGlzayIsImEiOiJja3VzMWc5NXkwb3RnMm5sbnVvd3IydGY0In0.FrwFkYIMpLbU83K9rHSe8w';
 const MAP_STYLE = 'mapbox://styles/mapbox/standard';
-
-const AOI_COLOR_MAP = new Map<string, string>([
-    ['LAND_USE_TYPE_UNSPECIFIED', '#5C8D71'],
-    ['LAND_USE_TYPE_COMMERCIAL', '#5B1697'],
-    ['LAND_USE_TYPE_INDUSTRIAL', '#82470C'],
-    ['LAND_USE_TYPE_RESIDENTIAL', '#fffe00'],
-    ['LAND_USE_TYPE_PUBLIC', '#EC3022'],
-    ['LAND_USE_TYPE_TRANSPORTATION', '#979B9A'],
-    ['LAND_USE_TYPE_OTHER', '#5C8D71'],
-]);
 
 const LAND_USE_NAME = new Map<string, string>([
     ['LAND_USE_TYPE_UNSPECIFIED', '未指定'],
@@ -216,7 +204,7 @@ const Deck = observer((props: {
                 setCurZoom(zoom);
             }}
             onHover={(info) => {
-                const { object, coordinate } = info;
+                const { object } = info;
                 setHovering(Boolean(object))
             }}
             getCursor={() => hovering ? 'pointer' : 'grab'}
@@ -261,7 +249,7 @@ const Deck = observer((props: {
                 }
             }}
         >
-            {/* @ts-ignore */}
+            {/* @ts-expect-error MapView props differ from deck.gl types */}
             <MapView id="map" width="100%" controller>
                 <MapGL mapboxAccessToken={MAPBOX_ACCESS_TOKEN} mapStyle={MAP_STYLE} />
             </MapView>
