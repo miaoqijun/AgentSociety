@@ -153,15 +153,28 @@ mirror-to-github:
         echo "GITHUB_DEPLOY_KEY is not set; skipping GitHub mirror."
         exit 0
       fi
+      DEPLOY_KEY_FILE=~/.ssh/github_deploy_key
       mkdir -p ~/.ssh
       chmod 700 ~/.ssh
       if [ -f "${GITHUB_DEPLOY_KEY}" ]; then
-        DEPLOY_KEY_FILE="${GITHUB_DEPLOY_KEY}"
+        KEY_MATERIAL=$(cat "${GITHUB_DEPLOY_KEY}")
       else
-        DEPLOY_KEY_FILE=~/.ssh/id_ed25519
-        printf '%s\n' "$GITHUB_DEPLOY_KEY" | tr -d '\r' > "${DEPLOY_KEY_FILE}"
+        KEY_MATERIAL="${GITHUB_DEPLOY_KEY}"
       fi
+      KEY_MATERIAL=$(printf '%s' "$KEY_MATERIAL" | tr -d '\r')
+      case "$(printf '%s' "$KEY_MATERIAL" | head -n1)" in
+        -----BEGIN*)
+          printf '%s\n' "$KEY_MATERIAL" > "${DEPLOY_KEY_FILE}"
+          ;;
+        *)
+          printf '%s' "$KEY_MATERIAL" | tr -d '\n \t' | base64 -d > "${DEPLOY_KEY_FILE}"
+          ;;
+      esac
       chmod 600 "${DEPLOY_KEY_FILE}"
+      if ! ssh-keygen -y -f "${DEPLOY_KEY_FILE}" >/dev/null 2>&1; then
+        echo "GITHUB_DEPLOY_KEY is invalid. Paste raw PEM/OpenSSH key, or base64 of the key file bytes."
+        exit 1
+      fi
       ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
       chmod 644 ~/.ssh/known_hosts
       export GIT_SSH_COMMAND="ssh -i ${DEPLOY_KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
