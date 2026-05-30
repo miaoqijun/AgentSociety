@@ -207,7 +207,7 @@ def render_report_context_md(index: EvidenceIndex, *, pres_dir: Path) -> str:
     lines.append("## Embed checklist")
     lines.append("")
     lines.append(
-        "- **data**: EDA prose + table from `eda_quick_stats`; link `data/eda_profile.html` in appendix"
+        "- **data**: After `run-eda --type bundle`, run `embed-interactive-eda` (or `sync-report-assets`) to inject multi-tab interactive EDA into `report_*.html`; keep `<!-- EDA_INTERACTIVE_BEGIN -->` … `<!-- EDA_INTERACTIVE_END -->` in the HTML shell"
     )
     lines.append(
         "- **findings**: `assets/` charts only (run `collect-assets`); caption under each figure"
@@ -216,7 +216,7 @@ def render_report_context_md(index: EvidenceIndex, *, pres_dir: Path) -> str:
         "- **appendix**: artifact table + EDA/tool paths; HTML uses `report-shell.reference.html`"
     )
     lines.append(
-        "- See extension skill `references/report-embeddings.md` for MD/HTML patterns"
+        "- Run `ags.py analysis guidance --topic reports` for required report files and embed rules"
     )
     lines.append("")
     return "\n".join(lines)
@@ -258,3 +258,12 @@ def write_report_bundle(workspace: Path, hypothesis_id: str) -> dict:
         "source_count": len(index.sources),
         "section_counts": {k: len(v) for k, v in index.section_map.items()},
     }
+
+
+def cmd_embed_interactive_eda(workspace: Path, hypothesis_id: str) -> dict:
+    from agentsociety2.skills.analysis.harness.report_eda_embed import (
+        embed_interactive_eda_in_reports,
+    )
+
+    pres = hypothesis_presentation_dir(workspace, hypothesis_id)
+    return embed_interactive_eda_in_reports(pres)

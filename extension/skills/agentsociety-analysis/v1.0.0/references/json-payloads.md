@@ -14,7 +14,8 @@ CLI accepts `--payload` as a **JSON object** or path to a `.json` file. Malforme
   ],
   "exploratory_notes": "Optional side comparisons on subgroups",
   "simulation_limitations": "Single seed; not calibrated to real city",
-  "eda_profile": "quick-stats",
+  "eda_profile": "bundle",
+  "eda_profiles": ["quick-stats", "ydata", "pygwalker", "datatable", "plotly-profile"],
   "table_checks": [
     {"table": "agent_metrics", "min_rows": 10, "columns": ["step", "Y"]}
   ],
@@ -30,13 +31,14 @@ CLI accepts `--payload` as a **JSON object** or path to a `.json` file. Malforme
   "statement": "Treatment arm shows higher mean Y after step 10",
   "mode": "confirmatory",
   "evidence": "agent_metrics: filter step>=10; compare mean(Y) by treatment_flag",
-  "needs_chart": true
+  "needs_chart": true,
+  "approved": true
 }
 ```
 
 ## phase attestation (`record-attestation`)
 
-See `phase-attestation.md` for rubric keys. Minimal example:
+See `references/harness.md#attestation` for rubric keys. Minimal example:
 
 ```json
 {
@@ -48,6 +50,7 @@ See `phase-attestation.md` for rubric keys. Minimal example:
   "artifacts_written": [
     "presentation/hypothesis_1/data/eda_quick_stats.md"
   ],
+  "artifact_fingerprint": "",
   "rubric": {
     "tables_inspected": ["agent_metrics"],
     "data_limitations": "No demographic table; 12% missing Y in early steps",
@@ -55,6 +58,9 @@ See `phase-attestation.md` for rubric keys. Minimal example:
   }
 }
 ```
+
+Leave `artifact_fingerprint` empty unless you are replaying an existing record; the CLI
+fills it and uses it to detect stale attestations after artifact edits.
 
 ## report_outline.json (written to presentation dir)
 
@@ -112,6 +118,97 @@ Also writes `data/report_context.md` (grouped digest for LLM).
   "key_findings": ["Confirmatory claim c1 supported with caveats"],
   "limitations": "Single simulation run; not external validation",
   "evidence_index_path": "data/evidence_index.json"
+}
+```
+
+## reflection report (`record-reflection`)
+
+Use this after reviewing a `draft-reflection` result or after synthesis.
+
+```json
+{
+  "hypothesis_id": "1",
+  "experiment_id": "1",
+  "source": "hypothesis",
+  "what_worked": [
+    {
+      "title": "Claim-first charting worked",
+      "content": "Charts were easier to justify after claims were approved.",
+      "evidence": ["presentation/hypothesis_1/data/evidence_index.json"],
+      "confidence": "high"
+    }
+  ],
+  "what_failed": [
+    {
+      "title": "EDA scope was too broad",
+      "content": "Unselected tables made the first pass noisy.",
+      "evidence": [".agentsociety/analysis/hypothesis_1/state.yaml"],
+      "confidence": "medium"
+    }
+  ],
+  "reusable_methods": [
+    {
+      "recipe_id": "claim_first_charting",
+      "title": "Claim-first charting",
+      "content": "Approve confirmatory claims before producing final charts.",
+      "applies_when": ["simulation analysis", "bilingual report"],
+      "recommended_steps": [
+        "Record claims with approved=true",
+        "Write figure contracts",
+        "Validate each chart before report assembly"
+      ],
+      "pitfalls": ["Do not promote exploratory EDA to a claim without review"],
+      "confidence": "high"
+    }
+  ],
+  "user_preferences_observed": [
+    {
+      "item_id": "claim_tone",
+      "title": "Claim tone",
+      "category": "writing",
+      "value": "conservative, caveated claims",
+      "content": "User explicitly preferred cautious interpretation.",
+      "evidence": ["user-confirmed"],
+      "confidence": "high"
+    }
+  ]
+}
+```
+
+`promote-reflection` writes lessons and recipes by default. Add
+`--include-preferences` only after explicit user confirmation.
+
+## user feedback (`record-feedback`)
+
+Use this after showing the analysis or reflection draft to the user.
+
+```json
+{
+  "hypothesis_id": "1",
+  "experiment_id": "1",
+  "rating": 5,
+  "satisfied": true,
+  "comments": "以后保持结论克制，先中文解释再英文报告。",
+  "requested_changes": ["Add a robustness caveat before paper drafting"],
+  "preference_candidates": [
+    {
+      "item_id": "writing_order",
+      "title": "Writing order",
+      "category": "workflow",
+      "value": "Chinese explanation before English report",
+      "content": "User explicitly requested this order.",
+      "evidence": ["feedback:user-confirmed"],
+      "confidence": "high"
+    }
+  ],
+  "lesson_candidates": [
+    {
+      "title": "Robustness caveat needed",
+      "content": "The user wanted a stronger caveat before publication-oriented writing.",
+      "evidence": ["feedback:user-comment"],
+      "confidence": "medium"
+    }
+  ]
 }
 ```
 

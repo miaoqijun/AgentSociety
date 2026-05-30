@@ -18,7 +18,7 @@
 - Node.js ^22.13.0 或 >=24（与 `package.json` 的 `engines`、`.nvmrc` 一致）
 - Python >= 3.11
 - uv (Python 包管理器)
-- VSCode >= 1.80.0
+- VSCode >= 1.120.0
 
 ### 安装依赖
 

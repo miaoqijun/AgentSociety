@@ -8,6 +8,7 @@
 
 .PHONY: all sync build build-extension build-webview watch watch-extension watch-webview clean clean-extension clean-all help dev rebuild
 .PHONY: html html-zh html-en html-all gettext update-po build-po
+.PHONY: install-node install-frontend check lint-frontend build-frontend
 
 # =============================================================================
 # Extension Development Targets
@@ -21,10 +22,15 @@ sync:
 	@echo "==> Syncing Python dependencies with uv..."
 	uv sync
 
-# 安装 Node 依赖
+# 安装 Node 依赖（extension）
 install-node:
-	@echo "==> Installing Node dependencies..."
-	cd extension && npm install
+	@echo "==> Installing extension Node dependencies..."
+	cd extension && npm ci
+
+# 安装 Node 依赖（frontend）
+install-frontend:
+	@echo "==> Installing frontend Node dependencies..."
+	cd frontend && npm ci
 
 # 构建 extension (TypeScript + Webview)
 build: build-extension build-webview
@@ -70,6 +76,22 @@ clean-all: clean-extension
 # 快速重新构建（用于开发时快速迭代）
 rebuild: build-extension build-webview
 	@echo "==> Rebuild complete!"
+
+# 全栈本地检查（与 CONTRIBUTING.md pre-push 一致）
+check:
+	@echo "==> Python lint + test..."
+	cd packages/agentsociety2 && uv run ruff check . && uv run pytest -q
+	@echo "==> Extension lint + build..."
+	cd extension && npm run lint && npm run build
+	@echo "==> Frontend lint + build..."
+	cd frontend && npm run lint && npm run build
+	@echo "==> All checks passed."
+
+lint-frontend:
+	cd frontend && npm run lint
+
+build-frontend:
+	cd frontend && npm run build
 
 # 开发模式：同步、安装依赖、构建
 dev: sync install-node build
@@ -161,6 +183,10 @@ help:
 	@echo "  watch-webview    监听 Webview 构建"
 	@echo "  rebuild          快速重新构建"
 	@echo "  dev              完整开发环境准备 (sync + install + build)"
+	@echo "  check            全栈 lint + test + build (AS2 scope)"
+	@echo "  install-frontend npm ci in frontend/"
+	@echo "  lint-frontend    frontend ESLint"
+	@echo "  build-frontend   frontend production build"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  html             构建中文文档"

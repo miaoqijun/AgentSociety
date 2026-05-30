@@ -129,7 +129,7 @@ def validate_report_review(
                 "report_review_invalid",
                 phase="produce",
                 message=str(exc),
-                fix_hint="See references/report-review.md for payload shape",
+                fix_hint="Run `ags.py analysis payload-template --name report_review` for payload shape",
             )
         )
         return blocked(issues)

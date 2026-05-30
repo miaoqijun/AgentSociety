@@ -16,10 +16,16 @@ Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.
 
 ### Changed
 
+- **docs**：新增根目录与 `packages/agentsociety2` 的中英文 README（`README_zh.md`），同步 Sphinx 贡献指南与 API 示例。
+- **docs**：将 `AGENTS.md` 从 `CLAUDE.md` 软链拆为独立 Cursor Agent 入口；修正 `cliff.toml` 对 `docs(...)` commit 的匹配。
 - **docs**：更新 `README.md`、`CONTRIBUTING.md`、`SECURITY.md`，补充发版流程与 CI 范围说明。
+- **analysis**：分析 harness 增加经验记忆闭环（`draft-reflection` / `promote-reflection` / `memory-context`）及更严格的 phase 门禁。
+- **analysis**：分析技能 stages 补充外部工具调用链（integrations.md）与 Stage 6 必做经验沉淀；support 包在 explore/refine/produce 阶段显式启用。
+- **extension**：默认 LLM 模型对齐为 `gpt-5.5`。
 - **ci**：收窄检查范围至 AgentSociety2（`packages/agentsociety2`、`extension`、`frontend`）；legacy 包不纳入活跃 CI / Dependabot / CodeQL 扫描。
 - **ci**：修复 frontend 全量 ESLint 错误（类型化、`unused-vars` 清理、Workflow 分支逻辑）；CI 保留 lint + build + audit。
 - **ci**：发版前增加 validate 门禁；GitHub Release 说明改用 git-cliff。
+- **deps**：刷新根 `uv.lock`（`sphinx-intl`、`urllib3`、`pytest` 等）；extension 升级 `ajv`、`@types/vscode`；frontend 升级 `typescript-eslint`、`@types/react-plotly.js`；GitHub Actions 升级 `dependency-review-action` v5、`download-artifact` v8。
 
 ---
 

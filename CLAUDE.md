@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. For a shorter Cursor / agent entry point, see [AGENTS.md](./AGENTS.md).
 
 ## Project Overview
 
@@ -83,7 +83,7 @@ python -m agentsociety2.backend.run
 
 ```bash
 cd frontend
-npm install          # Install dependencies
+npm ci               # Install dependencies (lockfile-pinned)
 npm run dev          # Start dev server (http://localhost:5173)
 npm run build        # Production build
 npm run lint         # ESLint
@@ -172,10 +172,6 @@ graph TB
     Skills --> Society
     Skills --> LLM
     Society --> LLM
-
-    Agent1 -.-> Mem0
-    Agent2 -.-> Mem0
-    AgentN -.-> Mem0
 ```
 
 ### agentsociety2 Core Components
@@ -215,7 +211,7 @@ PersonAgent follows a **metadata-first, selected-only** model:
 - **experiment**: Experiment configuration and execution
 - **hypothesis**: Hypothesis generation and management
 - **paper**: Academic paper generation (deprecated; replaced by the external `paper-toolkit` plugin, which provides a deterministic CLI for evidence DAG, typesetting, and checks, plus a companion Claude Code skill for writing and review)
-- **analysis**: Data analysis and reporting
+- **analysis**: Data analysis harness (phase-gated CLI, EDA embed, experience memory via `draft-reflection` / `promote-reflection`, HTML report bundles)
 - **agent**: Agent processing, selection, generation, and filtering
 
 #### Backend API (`agentsociety2/backend/`)
@@ -385,7 +381,6 @@ graph TD
     SK --> SK4
     SK --> SK5
     SK --> SK6
-    SK --> SK7
     B --> B1
     B --> B2
     B --> B3

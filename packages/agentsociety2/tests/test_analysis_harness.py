@@ -9,7 +9,15 @@ import pytest
 from agentsociety2.skills.analysis.harness import state as harness_state
 from agentsociety2.skills.analysis.harness.models import (
     AnalysisPlan,
+    Claim,
+    ClaimsDocument,
+    ClaimMode,
+    FigureContract,
+    HypothesisAnalysisState,
+    ReflectionReport,
+    ReleaseStatus,
 )
+from agentsociety2.skills.analysis.harness.guidance import get_chart_scaffold
 from agentsociety2.skills.analysis.harness.review import (
     REPORT_DIMENSION_KEYS,
     report_content_fingerprint,
@@ -24,8 +32,10 @@ from agentsociety2.skills.analysis.harness.report_assets import (
 )
 from agentsociety2.skills.analysis.harness.validators import (
     validate_chart_script,
+    validate_claims,
     validate_explore,
     validate_plan,
+    validate_refine,
     validate_release,
     validate_report_quality,
     validate_synthesis,
@@ -118,6 +128,85 @@ def test_validate_explore_missing_eda(tmp_path: Path) -> None:
     assert any(i.code == "explore_output_empty" for i in result.issues)
 
 
+def test_validate_explore_missing_output_dir_blocks(workspace: Path) -> None:
+    plan = AnalysisPlan(
+        research_question="q",
+        primary_metrics=["value"],
+        target_tables=["metrics"],
+        confirmatory_claims=["c"],
+    )
+    db = workspace / "hypothesis_1" / "experiment_1" / "run" / "sqlite.db"
+    result = validate_explore(
+        workspace,
+        "1",
+        db_path=db,
+        plan=plan,
+        data_dir=workspace / "presentation" / "hypothesis_1" / "missing_data",
+    )
+    assert result.status == "BLOCKED"
+    assert any(i.code == "explore_output_dir_missing" for i in result.issues)
+
+
+def test_validate_claims_requires_approved_confirmatory() -> None:
+    doc = ClaimsDocument(
+        hypothesis_id="1",
+        claims=[
+            Claim(
+                claim_id="c1",
+                statement="Treatment increases value",
+                mode=ClaimMode.confirmatory,
+                evidence="metrics table mean comparison",
+                approved=False,
+            )
+        ],
+    )
+    result = validate_claims(doc)
+    assert result.status == "BLOCKED"
+    assert any(i.code == "no_approved_confirmatory_claim" for i in result.issues)
+
+
+def test_validate_refine_requires_contracts_and_validated_charts(
+    workspace: Path,
+) -> None:
+    st = HypothesisAnalysisState(hypothesis_id="1", chart_count=1)
+    result = validate_refine(st, workspace, "1")
+    assert result.status == "BLOCKED"
+    assert any(i.code == "refine_no_contracts" for i in result.issues)
+
+    st = HypothesisAnalysisState(
+        hypothesis_id="1",
+        figure_contracts=[
+            FigureContract(
+                contract_id="f1",
+                claim_id="c1",
+                core_finding="Treatment increases value",
+                output_files=["chart_01_value.png"],
+            )
+        ],
+        chart_count=0,
+    )
+    result = validate_refine(st, workspace, "1")
+    assert result.status == "BLOCKED"
+    assert any(i.code == "refine_no_validated_charts" for i in result.issues)
+
+
+def test_validate_chart_deduplicates_chart_count(workspace: Path) -> None:
+    harness_cli.cmd_intake(workspace, "1", "1")
+    chart = (
+        workspace / "presentation" / "hypothesis_1" / "charts" / "chart_01_value.png"
+    )
+    chart.parent.mkdir(parents=True, exist_ok=True)
+    chart.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 200)
+
+    first = harness_cli.cmd_validate_chart(workspace, "1", chart_path=str(chart))
+    second = harness_cli.cmd_validate_chart(workspace, "1", chart_path=str(chart))
+
+    assert first["chart_count"] == 1
+    assert second["chart_count"] == 1
+    st = harness_state.load_hypothesis_state(workspace, "1")
+    assert st.phase_artifacts["refine_validated_charts"] == [str(chart.resolve())]
+
+
 def test_intake_and_write_plan(workspace: Path) -> None:
     out = harness_cli.cmd_intake(workspace, "1", "1")
     assert out["db_ready"] is True
@@ -152,6 +241,245 @@ def test_intake_and_write_plan(workspace: Path) -> None:
     result = harness_cli.cmd_validate_plan(workspace, "1")
     assert result["status"] == "PASS"
     assert result["attestation_pass"] is True
+
+
+def test_run_explore_eda_registers_artifacts(workspace: Path) -> None:
+    harness_cli.cmd_intake(workspace, "1", "1")
+    harness_cli.cmd_write_plan(
+        workspace,
+        "1",
+        {
+            "research_question": "Test question",
+            "primary_metrics": ["value"],
+            "target_tables": ["metrics"],
+            "confirmatory_claims": ["Hypothesis holds"],
+            "eda_profile": "quick-stats",
+        },
+    )
+    result = harness_cli.cmd_run_explore_eda(workspace, "1", "1")
+    assert "error" not in result
+    assert result["eda_profile"] == "quick-stats"
+    assert result["files"]
+    st = harness_state.load_hypothesis_state(workspace, "1")
+    assert st.phase_artifacts.get("explore")
+
+
+def test_completion_epilogue_non_blocking(workspace: Path) -> None:
+    harness_cli.cmd_intake(workspace, "1", "1")
+    st = harness_state.load_hypothesis_state(workspace, "1")
+    st.hypothesis_release = ReleaseStatus.ready
+    harness_state.save_hypothesis_state(workspace, "1", st)
+    syn = harness_state.load_synthesis_state(workspace)
+    syn.workspace_release = ReleaseStatus.ready
+    harness_state.save_synthesis_state(workspace, syn)
+    status = harness_cli.cmd_gate_status(workspace, "1")
+    assert "epilogue" in status
+    assert status["epilogue"]["blocking"] is False
+    assert status["epilogue"]["skip_ok"] is True
+    loop = harness_cli.cmd_run_loop(workspace, "1", "1")
+    assert loop["current_phase"] == "complete"
+    assert loop["epilogue"]["blocking"] is False
+
+
+def test_gate_status_only_shows_next_phase_after_current_gate_pass(
+    workspace: Path,
+) -> None:
+    from agentsociety2.skills.analysis.harness.models import AttestationStatus
+
+    harness_cli.cmd_intake(workspace, "1", "1")
+    status = harness_cli.cmd_gate_status(workspace, "1")["hypothesis"]
+    assert status["current_phase"] == "frame"
+    assert status["next_phase"] is None
+    assert "structural" in status["blocked_by"]
+
+    harness_cli.cmd_write_plan(
+        workspace,
+        "1",
+        {
+            "research_question": "Does treatment increase value?",
+            "primary_metrics": ["value"],
+            "target_tables": ["metrics"],
+            "confirmatory_claims": ["Treatment increases value"],
+        },
+    )
+    harness_cli.cmd_record_attestation(
+        workspace,
+        "1",
+        {
+            "phase": "frame",
+            "status": AttestationStatus.DONE.value,
+            "key_findings": ["Plan approved"],
+            "rubric": {
+                "research_question_confirmed": True,
+                "success_criteria": "Compare value",
+            },
+        },
+    )
+    harness_cli.cmd_validate_plan(workspace, "1")
+
+    status = harness_cli.cmd_gate_status(workspace, "1")["hypothesis"]
+    assert status["current_gate_pass"] is True
+    assert status["blocked_by"] == []
+    assert status["next_phase"] == "explore"
+
+
+def test_phase_attestation_becomes_stale_after_artifact_change(workspace: Path) -> None:
+    from agentsociety2.skills.analysis.harness.models import AttestationStatus
+
+    harness_cli.cmd_intake(workspace, "1", "1")
+    harness_cli.cmd_write_plan(
+        workspace,
+        "1",
+        {
+            "research_question": "Test question",
+            "primary_metrics": ["value"],
+            "target_tables": ["metrics"],
+            "confirmatory_claims": ["Hypothesis holds"],
+        },
+    )
+    harness_cli.cmd_record_attestation(
+        workspace,
+        "1",
+        {
+            "phase": "frame",
+            "status": AttestationStatus.DONE.value,
+            "key_findings": ["Plan approved"],
+            "rubric": {
+                "research_question_confirmed": True,
+                "success_criteria": "Compare metrics",
+            },
+        },
+    )
+    assert harness_cli.cmd_validate_plan(workspace, "1")["status"] == "PASS"
+
+    harness_cli.cmd_write_plan(
+        workspace,
+        "1",
+        {"research_question": "Changed question after attestation"},
+    )
+    result = harness_cli.cmd_validate_plan(workspace, "1")
+    assert result["status"] == "BLOCKED"
+    assert any(i.get("code") == "attestation_stale" for i in result["issues"])
+
+
+def test_draft_reflection_creates_reviewable_learning_report(
+    workspace: Path,
+) -> None:
+    harness_cli.cmd_intake(workspace, "1", "1")
+    harness_cli.cmd_write_plan(
+        workspace,
+        "1",
+        {
+            "research_question": "Does treatment increase value?",
+            "primary_metrics": ["value"],
+            "target_tables": ["metrics"],
+            "confirmatory_claims": ["Treatment increases value"],
+        },
+    )
+    harness_cli.cmd_record_claim(
+        workspace,
+        "1",
+        {
+            "claim_id": "c1",
+            "statement": "Treatment increases value",
+            "mode": "confirmatory",
+            "approved": True,
+        },
+    )
+
+    result = harness_cli.cmd_draft_reflection(workspace, "1", "1")
+
+    assert Path(result["reflection_path"]).exists()
+    reflection = ReflectionReport.model_validate(result["reflection"])
+    assert reflection.hypothesis_id == "1"
+    assert reflection.reusable_methods
+    assert any(item.item_id == "approved_claims" for item in reflection.what_worked)
+
+
+def test_promote_reflection_writes_lessons_recipes_and_confirmed_preferences(
+    workspace: Path,
+) -> None:
+    harness_cli.cmd_record_reflection(
+        workspace,
+        "1",
+        {
+            "hypothesis_id": "1",
+            "experiment_id": "1",
+            "what_worked": [
+                {
+                    "title": "Conservative claims worked",
+                    "content": "User preferred cautious confirmatory claims.",
+                    "evidence": ["claims.json"],
+                    "confidence": "high",
+                }
+            ],
+            "reusable_methods": [
+                {
+                    "recipe_id": "cautious_claims",
+                    "title": "Cautious claim protocol",
+                    "content": "Keep claim strength aligned with evidence.",
+                    "recommended_steps": ["Ask for user alignment", "Approve claims"],
+                    "pitfalls": ["Do not overclaim"],
+                    "confidence": "high",
+                }
+            ],
+            "user_preferences_observed": [
+                {
+                    "item_id": "claim_style",
+                    "title": "Claim style",
+                    "content": "Use conservative wording.",
+                    "category": "writing",
+                    "value": "conservative claims",
+                    "evidence": ["user-confirmed"],
+                    "confidence": "high",
+                }
+            ],
+        },
+    )
+
+    promoted = harness_cli.cmd_promote_reflection(workspace, "1")
+    assert promoted["status"] == "PROMOTED"
+    assert promoted["preference_keys"] == []
+
+    skipped = harness_cli.cmd_promote_reflection(workspace, "1")
+    assert skipped["status"] == "SKIPPED"
+    assert skipped["reason"] == "reflection_already_promoted"
+
+    harness_cli.cmd_record_feedback(
+        workspace,
+        "1",
+        {
+            "hypothesis_id": "1",
+            "experiment_id": "1",
+            "rating": 5,
+            "satisfied": True,
+            "comments": "请长期保持保守表述。",
+            "preference_candidates": [
+                {
+                    "item_id": "claim_style",
+                    "title": "Claim style",
+                    "category": "writing",
+                    "value": "conservative claims",
+                    "content": "User confirmed conservative claim wording.",
+                    "evidence": ["feedback:user-confirmed"],
+                    "confidence": "high",
+                }
+            ],
+        },
+    )
+
+    promoted_prefs = harness_cli.cmd_promote_reflection(
+        workspace, "1", include_preferences=True
+    )
+    assert promoted_prefs["status"] == "PROMOTED"
+    assert promoted_prefs["already_promoted"] is True
+
+    memory_dir = Path(promoted_prefs["memory_dir"])
+    assert (memory_dir / "project_lessons.jsonl").exists()
+    assert (memory_dir / "method_recipes" / "cautious_claims.md").exists()
+    assert promoted_prefs["preference_keys"] == ["claim_style"]
+    index = harness_state.load_memory_index(workspace)
+    assert index.preferences["claim_style"].value == "conservative claims"
 
 
 def test_validate_release_pass(workspace: Path) -> None:
@@ -346,10 +674,83 @@ def test_build_report_context_collects_eda(workspace: Path) -> None:
     assert "eda_quick_stats" in ctx_path.read_text(encoding="utf-8")
 
 
+def test_embed_interactive_eda_in_reports(workspace: Path) -> None:
+    from agentsociety2.skills.analysis.harness.report_eda_embed import (
+        EDA_INTERACTIVE_BEGIN,
+        EDA_INTERACTIVE_END,
+        embed_interactive_eda_in_reports,
+    )
+
+    pres = workspace / "presentation" / "hypothesis_1"
+    data_dir = pres / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "eda_quick_stats.md").write_text(
+        "# stats\nrows: 10\n", encoding="utf-8"
+    )
+    (data_dir / "eda_hub.html").write_text(
+        "<html><body>hub</body></html>", encoding="utf-8"
+    )
+    (data_dir / "eda_plotly.html").write_text(
+        "<html><body>plotly</body></html>", encoding="utf-8"
+    )
+
+    shell = f"""<html><body>
+    {EDA_INTERACTIVE_BEGIN}
+    <section class="eda-interactive" id="data"><h2>placeholder</h2></section>
+    {EDA_INTERACTIVE_END}
+    <h2 id="findings">findings</h2></body></html>"""
+    (pres / "report_zh.html").write_text(shell, encoding="utf-8")
+
+    result = embed_interactive_eda_in_reports(pres)
+    assert "report_zh.html" in result["updated"]
+    assert result["tabs"] == ["summary", "hub"]
+    assert (pres / "assets" / "agentsociety_icon.svg").is_file()
+    html_out = (pres / "report_zh.html").read_text(encoding="utf-8")
+    assert "eda_hub.html" in html_out
+    assert "eda-section-title" in html_out
+    assert "tool-card" in html_out
+    assert 'data-tab="plotly"' not in html_out
+    assert "eda_plotly.html" in html_out
+    assert "placeholder" not in html_out
+    assert (data_dir / "interactive_eda_section.html").is_file()
+
+
 def test_validate_chart_script_requires_agg() -> None:
     bad = "import matplotlib.pyplot as plt\nplt.plot([1,2,3])\n"
     result = validate_chart_script(bad)
     assert result.status == "BLOCKED"
+
+
+def test_validate_chart_script_accepts_builtin_scaffold() -> None:
+    result = validate_chart_script(get_chart_scaffold())
+    assert result.status == "PASS"
+
+
+def test_validate_chart_script_blocks_rainbow_and_cjk_legend() -> None:
+    bad = """
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["DejaVu Sans"],
+    "svg.fonttype": "none",
+})
+fig, ax = plt.subplots()
+ax.scatter([1, 2], [3, 4], cmap="jet", label="处理组")
+ax.set_xlabel("Step")
+ax.set_ylabel("Metric")
+ax.set_title("Results")
+ax.legend()
+fig.tight_layout()
+fig.savefig("charts/chart_01_bad.png")
+"""
+    result = validate_chart_script(bad)
+    assert result.status == "BLOCKED"
+    codes = {issue.code for issue in result.issues}
+    assert "forbidden_rainbow_palette" in codes
+    assert "legend_not_english" in codes
+    assert "chart_title_generic" in codes
 
 
 def test_validate_synthesis_missing_reports(workspace: Path) -> None:
@@ -359,6 +760,40 @@ def test_validate_synthesis_missing_reports(workspace: Path) -> None:
         workspace, synthesis_dir=syn_dir, scope_hypothesis_ids=["1"]
     )
     assert result.status == "BLOCKED"
+
+
+def test_validate_synthesis_requires_scoped_source_artifacts(workspace: Path) -> None:
+    syn_dir = workspace / "synthesis"
+    syn_dir.mkdir()
+    for name in (
+        "synthesis_report_zh.md",
+        "synthesis_report_en.md",
+        "synthesis_report_zh.html",
+        "synthesis_report_en.html",
+    ):
+        content = "<html>ok</html>" if name.endswith(".html") else "ok"
+        (syn_dir / name).write_text(content, encoding="utf-8")
+    (syn_dir / "synthesis_brief.json").write_text(
+        json.dumps(
+            {
+                "synthesis_question": "What holds across hypotheses?",
+                "scope_hypothesis_ids": ["1"],
+                "source_artifacts": ["presentation/hypothesis_1/report_zh.md"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    pres = workspace / "presentation" / "hypothesis_1"
+    pres.mkdir(parents=True, exist_ok=True)
+    (pres / "report_zh.md").write_text("ok", encoding="utf-8")
+    (pres / "report_zh.html").write_text("<html>ok</html>", encoding="utf-8")
+
+    result = validate_synthesis(
+        workspace, synthesis_dir=syn_dir, scope_hypothesis_ids=["1"]
+    )
+
+    assert result.status == "BLOCKED"
+    assert any(i.code == "scope_hypothesis_source_missing" for i in result.issues)
 
 
 def test_json_repair_loads_trailing_comma_outline() -> None:

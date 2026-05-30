@@ -1,6 +1,12 @@
 """Analysis harness: state, validators, and CLI helpers for staged experiment analysis."""
 
 from .attestation import PHASE_RUBRIC_KEYS
+from .guidance import (
+    get_chart_scaffold,
+    get_harness_guidance,
+    get_payload_template,
+    list_payload_templates,
+)
 from .models import (
     AnalysisPhase,
     AnalysisPlan,
@@ -29,6 +35,10 @@ from .paths import (
 
 __all__ = [
     "PHASE_RUBRIC_KEYS",
+    "get_chart_scaffold",
+    "get_harness_guidance",
+    "get_payload_template",
+    "list_payload_templates",
     "AnalysisPhase",
     "AnalysisPlan",
     "AttestationStatus",

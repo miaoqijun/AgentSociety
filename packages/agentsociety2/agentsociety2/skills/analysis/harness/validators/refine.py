@@ -25,13 +25,23 @@ def validate_refine(
     assets = pres / "assets"
     charts_dir = pres / "charts"
 
-    if not state.figure_contracts and state.chart_count < 1:
+    if not state.figure_contracts:
         issues.append(
             issue(
-                "refine_no_figures",
+                "refine_no_contracts",
                 phase="refine",
-                message="No figure contracts and chart_count is 0",
-                fix_hint="Record figure contracts and run validate-chart per chart",
+                message="No figure contracts recorded",
+                fix_hint="Record a figure contract for each report-facing chart or figure",
+            )
+        )
+
+    if state.chart_count < 1:
+        issues.append(
+            issue(
+                "refine_no_validated_charts",
+                phase="refine",
+                message="No validated chart or figure files recorded",
+                fix_hint="Run validate-chart --chart-path for each contract output",
             )
         )
 

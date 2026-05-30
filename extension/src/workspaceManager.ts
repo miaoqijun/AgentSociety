@@ -1176,28 +1176,36 @@ export class WorkspaceManager {
    * If no git repo exists yet, one is created first.
    */
   private autoCommit(workspacePath: string, message: string): void {
-    const git = (...args: string[]) => {
+    const git = (...args: string[]): boolean => {
       try {
         execFileSync('git', args, { cwd: workspacePath, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+        return true;
       } catch (error) {
         this.log(`git ${args.join(' ')} failed: ${error}`);
+        return false;
       }
     };
 
     const repo = this.ensureWorkspaceGitRepository(workspacePath);
     if (!repo.repoRoot) {
+      this.log(`autoCommit skipped: no git repo at ${workspacePath}`);
       return;
     }
 
     // Ensure repo-local git identity so commits don't fail on fresh workspaces
     try {
-      execFileSync('git', ['config', 'user.name'], { cwd: workspacePath, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+      const userName = execFileSync('git', ['config', 'user.name'], { cwd: workspacePath, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+      if (!userName) {
+        throw new Error('empty user.name');
+      }
     } catch {
       git('config', 'user.name', 'AgentSociety');
       git('config', 'user.email', 'agent@agentsociety.dev');
     }
 
-    git('add', '-A');
+    if (!git('add', '-A')) {
+      return;
+    }
     // Check whether there is anything staged before committing
     try {
       execFileSync('git', ['diff', '--cached', '--quiet'], {
@@ -1211,7 +1219,10 @@ export class WorkspaceManager {
       // Non-zero exit means there ARE staged changes → proceed to commit
     }
 
-    git('commit', '-m', message);
+    if (!git('commit', '-m', message)) {
+      this.log(`autoCommit commit failed for: ${message}`);
+      return;
+    }
     this.log(`Auto-commit: ${message}`);
   }
 

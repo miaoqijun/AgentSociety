@@ -74,7 +74,7 @@ Document why in `key_findings` and `recommended_next_step`.
 
 ## References while writing
 
-- Methods: `analysis-methods.md`
-- Chart choice: `chart-guide.md`, `chart-types.md`
-- Visual QA: `qa-contract.md`, `checklists/quality.md`
-- Payload shapes: `json-payloads.md`
+- Methods: `references/analysis-methods.md`
+- Chart choice & QA: `references/charts.md`
+- Payload shapes: `references/json-payloads.md`
+- Produce checklist: `checklists/quality.md`

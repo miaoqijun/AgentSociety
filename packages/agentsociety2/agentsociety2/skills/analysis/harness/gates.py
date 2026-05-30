@@ -154,13 +154,27 @@ def gate_status_hypothesis(state: HypothesisAnalysisState) -> Dict[str, Any]:
                 "structural_pass": cp.structural_pass,
                 "attestation_pass": cp.attestation_pass,
                 "gate_pass": cp.gate_pass,
+                "structural_issues": cp.structural_issues,
+                "completed_at": cp.completed_at.isoformat()
+                if cp.completed_at
+                else None,
                 "rubric_keys": PHASE_RUBRIC_KEYS.get(ph, []),
                 "has_attestation": ph in state.phase_attestations,
             }
         )
+    current_cp = state.phase_checkpoints.get(
+        state.current_phase.value, PhaseCheckpoint(phase=state.current_phase.value)
+    )
+    blocked_by: List[str] = []
+    if not current_cp.structural_pass:
+        blocked_by.append("structural")
+    if not current_cp.attestation_pass:
+        blocked_by.append("attestation")
     return {
         "current_phase": state.current_phase.value,
         "hypothesis_release": state.hypothesis_release.value,
+        "current_gate_pass": current_cp.gate_pass,
+        "blocked_by": blocked_by,
         "phases": rows,
         "next_phase": _next_phase(state),
     }
@@ -169,6 +183,9 @@ def gate_status_hypothesis(state: HypothesisAnalysisState) -> Dict[str, Any]:
 def _next_phase(state: HypothesisAnalysisState) -> Optional[str]:
     order = list(AnalysisPhase)
     idx = order.index(state.current_phase)
+    cp = state.phase_checkpoints.get(state.current_phase.value)
+    if cp is None or not cp.gate_pass:
+        return None
     if idx + 1 < len(order):
         return order[idx + 1].value
     return None

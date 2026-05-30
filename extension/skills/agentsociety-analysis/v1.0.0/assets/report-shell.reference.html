@@ -5,7 +5,36 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title><!-- LLM: experiment title --></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap"
+    rel="stylesheet" />
   <style>
+    /* Tokens aligned with chart_export.REPORT_UI — logo colors: accent / blue / green nodes */
+    :root {
+      --as-text: #1a1a1a;
+      --as-muted: #5e5e5e;
+      --as-bg: #ffffff;
+      --as-bg-subtle: #f6f4f0;
+      --as-bg-warm: #ebe8e2;
+      --as-panel: #faf8f5;
+      --as-border: #d4cfc6;
+      --as-border-light: #e6e2da;
+      --as-accent: #c41e3a;
+      --as-link: #0066cc;
+      --as-blue: #0072b2;
+      --as-green: #009e73;
+      --as-amber: #e69f00;
+      --as-font-serif: "Source Serif 4", "Noto Serif SC", "Songti SC", serif;
+      --as-font-sans: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --as-font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
+      --as-radius: 8px;
+      --as-radius-sm: 5px;
+      --as-shadow: 0 1px 2px rgba(26, 24, 20, 0.05), 0 10px 28px rgba(26, 24, 20, 0.07);
+      --as-shadow-sm: 0 1px 3px rgba(26, 24, 20, 0.06);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -13,194 +42,420 @@
     }
 
     body {
-      font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-family: var(--as-font-sans);
       font-size: 15px;
       line-height: 1.65;
-      color: #1a1a1a;
-      background: #f4f6f8;
+      color: var(--as-text);
+      background: var(--as-bg-subtle);
+      background-image:
+        radial-gradient(ellipse 90% 60% at 100% 0%, rgba(196, 30, 58, 0.06), transparent 50%),
+        radial-gradient(ellipse 70% 50% at 0% 100%, rgba(0, 114, 178, 0.06), transparent 48%),
+        radial-gradient(ellipse 50% 40% at 80% 90%, rgba(0, 158, 115, 0.04), transparent 45%);
+    }
+
+    a {
+      color: var(--as-link);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+
+    a:hover {
+      color: #004d99;
+    }
+
+    code {
+      font-family: var(--as-font-mono);
+      font-size: 0.88em;
+      background: var(--as-bg-warm);
+      padding: 0.12em 0.4em;
+      border-radius: 3px;
     }
 
     .page {
-      max-width: 920px;
-      margin: 24px auto 48px;
-      background: #fff;
-      border: 1px solid #d8dee4;
-      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+      width: min(100%, 1000px);
+      max-width: 1000px;
+      margin: 32px auto 64px;
+      background: var(--as-bg);
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius);
+      box-shadow: var(--as-shadow);
+      overflow: hidden;
+    }
+
+    img,
+    iframe,
+    video {
+      max-width: 100%;
     }
 
     .header {
-      background: linear-gradient(135deg, #0b3d5c 0%, #0f5a7a 100%);
-      color: #fff;
-      padding: 28px 36px 22px;
-      border-bottom: 3px solid #082a40;
+      position: relative;
+      padding: 32px 44px 28px;
+      background: linear-gradient(180deg, var(--as-bg) 0%, var(--as-panel) 100%);
+      border-bottom: 1px solid var(--as-border-light);
     }
 
-    .header h1 {
-      font-size: 1.55rem;
+    .header::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, var(--as-accent) 0%, var(--as-blue) 45%, var(--as-green) 100%);
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 24px;
+      min-width: 0;
+    }
+
+    .brand-text {
+      min-width: 0;
+    }
+
+    /* Logo: agentsociety_icon.svg uses embedded SVG feColorMatrix tint (warm paper + Wong hues), shape unchanged */
+    .brand-logo {
+      --logo-size: 60px;
+      display: block;
+      flex-shrink: 0;
+      width: var(--logo-size);
+      height: var(--logo-size);
+      border-radius: calc(var(--logo-size) * 0.26);
+      object-fit: contain;
+    }
+
+    .brand-wordmark {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--as-text);
+    }
+
+    .brand-tagline {
+      display: block;
+      font-size: 0.84rem;
+      color: var(--as-muted);
+      margin-top: 6px;
+      line-height: 1.45;
+    }
+
+    .header-report h1 {
+      font-family: var(--as-font-serif);
+      font-size: clamp(1.35rem, 3.2vw, 1.72rem);
       font-weight: 600;
       margin-bottom: 10px;
-      letter-spacing: 0.02em;
+      letter-spacing: -0.025em;
+      line-height: 1.22;
+      padding-top: 20px;
+      border-top: 1px solid var(--as-border-light);
     }
 
     .header-meta {
-      font-size: 0.85rem;
-      color: #b8d4e6;
-      line-height: 1.5;
+      font-size: 0.87rem;
+      color: var(--as-muted);
+      line-height: 1.6;
+    }
+
+    .header-meta span,
+    .header-meta time {
+      margin-right: 1em;
     }
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      border-bottom: 2px solid #0b3d5c;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 14px;
+      padding: 22px 44px;
+      background: var(--as-panel);
+      border-bottom: 1px solid var(--as-border-light);
     }
 
-    .metric {
-      padding: 16px 20px;
-      background: #f8f9fa;
+    .metric-card {
+      background: var(--as-bg);
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius-sm);
+      padding: 18px 16px;
       text-align: center;
-      border-right: 1px solid #e2e8f0;
+      box-shadow: var(--as-shadow-sm);
+      border-top: 3px solid var(--as-blue);
     }
 
-    .metric:last-child {
-      border-right: none;
+    .metric-card:nth-child(2) {
+      border-top-color: var(--as-green);
+    }
+
+    .metric-card:nth-child(3) {
+      border-top-color: var(--as-accent);
+    }
+
+    .metric-card:nth-child(4) {
+      border-top-color: var(--as-amber);
     }
 
     .metric-value {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #0b3d5c;
+      font-family: var(--as-font-serif);
+      font-size: 1.85rem;
+      font-weight: 600;
+      color: var(--as-text);
       display: block;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
     }
 
     .metric-label {
-      font-size: 0.7rem;
-      color: #4a5568;
+      display: block;
+      margin-top: 8px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--as-muted);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
+    }
+
+    .metric-source {
+      display: block;
+      margin-top: 6px;
+      font-size: 0.72rem;
+      color: var(--as-muted);
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      opacity: 0.9;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 960px) {
+      .content-grid.has-toc {
+        grid-template-columns: 196px 1fr;
+      }
+    }
+
+    .report-toc {
+      display: none;
+      padding: 24px 16px 24px 28px;
+      font-size: 0.82rem;
+      background: var(--as-panel);
+      border-right: 1px solid var(--as-border-light);
+    }
+
+    @media (min-width: 960px) {
+      .content-grid.has-toc .report-toc {
+        display: block;
+        position: sticky;
+        top: 0;
+        align-self: start;
+        max-height: 100vh;
+        overflow-y: auto;
+      }
+    }
+
+    .report-toc strong {
+      display: block;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--as-muted);
+      margin-bottom: 12px;
+    }
+
+    .report-toc a {
+      display: block;
+      padding: 7px 10px 7px 12px;
+      color: var(--as-muted);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      border-radius: 0 var(--as-radius-sm) var(--as-radius-sm) 0;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+
+    .report-toc a:hover {
+      color: var(--as-text);
+      background: rgba(255, 255, 255, 0.6);
+      border-left-color: var(--as-border);
     }
 
     main {
-      padding: 28px 36px 36px;
+      padding: 32px 44px 44px;
+      min-width: 0;
+    }
+
+    main>h2:first-of-type {
+      margin-top: 0;
     }
 
     main h2 {
-      font-size: 1.15rem;
-      color: #0b3d5c;
-      margin: 28px 0 12px;
-      padding-bottom: 6px;
-      border-bottom: 2px solid #0b3d5c;
+      font-family: var(--as-font-serif);
+      font-size: 1.22rem;
+      font-weight: 600;
+      color: var(--as-text);
+      margin: 36px 0 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--as-border-light);
     }
 
     main h3 {
-      font-size: 1rem;
-      color: #1e3a5f;
-      margin: 20px 0 10px;
+      font-family: var(--as-font-serif);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 24px 0 12px;
+      color: var(--as-text);
     }
 
     main p,
     main li {
-      margin: 0 0 12px;
+      margin: 0 0 14px;
     }
 
     main ul {
-      margin: 0 0 14px 1.25rem;
+      margin: 0 0 16px 1.3rem;
     }
 
     .eda-panel {
-      background: #f0f9ff;
-      border: 1px solid #bae6fd;
-      border-radius: 8px;
-      padding: 16px 18px;
-      margin: 16px 0 22px;
+      background: var(--as-panel);
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius-sm);
+      padding: 18px 20px;
+      margin: 18px 0 24px;
     }
 
     .eda-panel h3 {
       margin-top: 0;
-      color: #0369a1;
       font-size: 0.95rem;
-    }
-
-    .eda-panel .eda-link {
-      display: inline-block;
-      margin-top: 8px;
-      font-size: 0.85rem;
-      color: #0369a1;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    .eda-panel .eda-link:hover {
-      text-decoration: underline;
+      color: var(--as-blue);
     }
 
     .eda-interactive {
-      margin: 20px 0 28px;
+      margin: 32px 0 40px;
+      padding: 24px;
+      background: var(--as-bg);
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius);
+      box-shadow: var(--as-shadow-sm);
+      border-left: 4px solid var(--as-blue);
+    }
+
+    .panel-intro {
+      font-size: 0.9rem;
+      color: var(--as-muted);
+      line-height: 1.55;
+      margin-bottom: 12px;
     }
 
     .tab-bar {
       display: flex;
+      flex-wrap: wrap;
       gap: 4px;
-      border-bottom: 2px solid #e2e8f0;
-      margin-bottom: 0;
+      padding: 4px;
+      background: var(--as-bg-warm);
+      border-radius: var(--as-radius-sm);
+      border: 1px solid var(--as-border-light);
+      margin-bottom: 4px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
     }
 
     .tab-bar .tab {
-      padding: 10px 18px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .tab-bar .tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
       border: none;
       background: transparent;
-      font-size: 0.88rem;
+      font-size: 0.84rem;
       font-weight: 600;
-      color: #64748b;
+      color: var(--as-muted);
       cursor: pointer;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
+      border-radius: 4px;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
     }
 
     .tab-bar .tab:hover {
-      color: #0b3d5c;
-      background: #f8fafc;
+      color: var(--as-text);
+      background: rgba(255, 255, 255, 0.75);
     }
 
     .tab-bar .tab.active {
-      color: #0b3d5c;
-      border-bottom-color: #0b3d5c;
+      color: var(--as-text);
+      background: var(--as-bg);
+      box-shadow: var(--as-shadow-sm);
+    }
+
+    .tab-bar .tab.tab--featured.active {
+      box-shadow: var(--as-shadow-sm), inset 0 -2px 0 var(--as-blue);
+    }
+
+    .tab-badge {
+      font-size: 0.6rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--as-accent);
+      color: #fff;
+      font-weight: 700;
     }
 
     .tab-panel {
       display: none;
-      padding: 18px 0 0;
+      padding: 20px 2px 8px;
     }
 
     .tab-panel.active {
       display: block;
     }
 
-    .iframe-hint {
-      font-size: 0.85rem;
-      color: #64748b;
-      margin-bottom: 10px;
-    }
-
     .eda-frame {
       width: 100%;
-      min-height: 720px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      background: #fff;
+      min-height: min(680px, 72vh);
+      border: 1px solid var(--as-border);
+      border-radius: var(--as-radius-sm);
+      background: var(--as-bg);
+    }
+
+    .eda-quick-stats {
+      font-family: var(--as-font-mono);
+      font-size: 0.8rem;
+      line-height: 1.5;
+      background: var(--as-panel);
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius-sm);
+      padding: 16px 18px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    .iframe-hint {
+      font-size: 0.84rem;
+      color: var(--as-muted);
+      margin-bottom: 12px;
     }
 
     .table-wrap {
       overflow-x: auto;
-      margin: 14px 0 22px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      margin: 16px 0 24px;
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius-sm);
+      background: var(--as-bg);
     }
 
     .table-caption {
       font-size: 0.85rem;
       font-weight: 600;
-      color: #475569;
-      padding: 10px 14px 0;
+      color: var(--as-muted);
+      padding: 12px 16px 0;
     }
 
     table.data-table {
@@ -211,19 +466,26 @@
 
     table.data-table th,
     table.data-table td {
-      padding: 10px 14px;
+      padding: 11px 16px;
       text-align: left;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--as-border-light);
     }
 
     table.data-table th {
-      background: #f1f5f9;
-      color: #0b3d5c;
+      background: var(--as-panel);
       font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--as-muted);
     }
 
     table.data-table tr:last-child td {
       border-bottom: none;
+    }
+
+    table.data-table tbody tr:hover {
+      background: var(--as-panel);
     }
 
     table.data-table td.num,
@@ -232,44 +494,72 @@
       font-variant-numeric: tabular-nums;
     }
 
-    table.data-table tbody tr:hover {
-      background: #f8fafc;
-    }
-
     .figure-block {
-      margin: 20px 0 28px;
-      padding: 16px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      margin: 24px 0 32px;
+      padding: 20px;
+      background: var(--as-panel);
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius);
     }
 
     .figure-block img {
       display: block;
       max-width: 100%;
       height: auto;
-      margin: 0 auto 10px;
-      border: 1px solid #cbd5e1;
-      border-radius: 4px;
+      margin: 0 auto 14px;
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius-sm);
+      background: var(--as-bg);
     }
 
     .figure-caption {
-      font-size: 0.9rem;
-      color: #334155;
+      font-family: var(--as-font-serif);
+      font-size: 0.92rem;
       font-weight: 600;
-      margin-bottom: 6px;
+      color: var(--as-text);
+      margin-bottom: 8px;
     }
 
     .figure-takeaway {
-      font-size: 0.85rem;
-      color: #64748b;
-      line-height: 1.5;
+      font-size: 0.86rem;
+      color: var(--as-muted);
+      line-height: 1.55;
+      padding-left: 12px;
+      border-left: 3px solid var(--as-green);
+    }
+
+    .chart-frame-wrap {
+      margin: 0 0 28px;
+    }
+
+    .chart-frame {
+      width: 100%;
+      min-height: 400px;
+      border: 1px solid var(--as-border);
+      border-radius: var(--as-radius-sm);
+      background: var(--as-bg);
+    }
+
+    .mermaid-block {
+      margin: 24px 0 32px;
+      padding: 20px 22px;
+      background: var(--as-panel);
+      border: 1px solid var(--as-border-light);
+      border-radius: var(--as-radius);
+      overflow-x: auto;
+    }
+
+    .diagram-caption {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--as-muted);
+      margin-bottom: 14px;
     }
 
     .appendix {
-      margin-top: 32px;
-      padding-top: 20px;
-      border-top: 1px dashed #cbd5e1;
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px dashed var(--as-border);
     }
 
     table.artifact-table {
@@ -280,28 +570,134 @@
 
     table.artifact-table th,
     table.artifact-table td {
-      padding: 8px 12px;
-      border: 1px solid #e2e8f0;
+      padding: 10px 14px;
+      border: 1px solid var(--as-border-light);
       text-align: left;
     }
 
     table.artifact-table th {
-      background: #f1f5f9;
+      background: var(--as-panel);
+      font-weight: 600;
     }
 
     .limitations {
-      background: #fffbeb;
-      border-left: 4px solid #d97706;
-      padding: 14px 16px;
-      margin: 0 36px 32px;
+      margin: 0 44px 40px;
+      padding: 16px 20px;
+      background: linear-gradient(90deg, rgba(230, 159, 0, 0.08), rgba(255, 255, 255, 0));
+      border: 1px solid rgba(230, 159, 0, 0.35);
+      border-left: 4px solid var(--as-amber);
+      border-radius: var(--as-radius-sm);
       font-size: 0.9rem;
       line-height: 1.55;
+      color: var(--as-text);
     }
 
     .limitations strong {
       display: block;
       margin-bottom: 6px;
-      color: #92400e;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8a6914;
+    }
+
+    @media (max-width: 960px) {
+      .content-grid.has-toc {
+        grid-template-columns: 1fr;
+      }
+
+      .report-toc {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        position: static;
+        max-height: none;
+        padding: 14px 18px;
+        border-right: none;
+        border-bottom: 1px solid var(--as-border-light);
+      }
+
+      .report-toc strong {
+        width: 100%;
+      }
+
+      .report-toc a {
+        border-left: none;
+        border-radius: 999px;
+        padding: 6px 12px;
+        background: var(--as-bg);
+        border: 1px solid var(--as-border-light);
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        font-size: clamp(14px, 3.6vw, 15px);
+      }
+
+      .page {
+        margin: 12px auto 36px;
+      }
+
+      .header {
+        padding: 22px 18px 20px;
+      }
+
+      .metrics {
+        padding: 16px 18px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      main {
+        padding: 22px 18px 32px;
+      }
+
+      .limitations {
+        margin: 0 18px 28px;
+      }
+
+      .eda-interactive {
+        padding: 16px;
+      }
+
+      .eda-frame {
+        min-height: min(520px, 62vh);
+      }
+
+      .brand-wordmark {
+        letter-spacing: 0.12em;
+        font-size: 0.72rem;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .brand-logo {
+        --logo-size: 48px;
+      }
+
+      .header-report h1 {
+        font-size: clamp(1.12rem, 5vw, 1.32rem);
+      }
+
+      .tool-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-frame {
+        min-height: 260px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .tab-bar .tab,
+      .report-toc a {
+        transition: none;
+      }
     }
 
     @media print {
@@ -315,9 +711,14 @@
         box-shadow: none;
       }
 
+      .report-toc {
+        display: none;
+      }
+
       .figure-block,
       .table-wrap,
-      .eda-panel {
+      .eda-panel,
+      .mermaid-block {
         break-inside: avoid;
       }
     }
@@ -325,124 +726,126 @@
 </head>
 
 <body>
+  <!-- Shell preview: logo src = agentsociety_icon.svg (same folder).
+       Delivered report_*.html in presentation/: src = assets/agentsociety_icon.svg -->
   <div class="page">
     <header class="header">
-      <h1><!-- 实验标题 / Experiment title --></h1>
-      <div class="header-meta">
-        <!-- 假设 ID、实验 ID、run/sqlite.db、生成时间 -->
+      <div class="brand-lockup">
+        <img class="brand-logo" style="--logo-size: 60px" src="agentsociety_icon.svg" width="60" height="60"
+          alt="AgentSociety" decoding="async" />
+        <div class="brand-text">
+          <span class="brand-wordmark">AGENTSOCIETY</span>
+          <span class="brand-tagline">多智能体社会仿真 · 分析报告</span>
+        </div>
+      </div>
+      <div class="header-report">
+        <h1><!-- 实验标题 — LLM 填写；可调整版式，勿替换 logo 文件 --></h1>
+        <div class="header-meta">
+          <!-- hypothesis_id · experiment_id · sqlite 路径 · 生成时间 -->
+        </div>
       </div>
     </header>
 
     <div class="metrics">
-      <div class="metric">
+      <div class="metric-card">
         <span class="metric-value"><!-- 12,400 --></span>
-        <span class="metric-label"><!-- 行数 Rows --></span>
+        <span class="metric-label"><!-- 行数 --></span>
+        <span class="metric-source"><!-- metrics 表 --></span>
       </div>
-      <div class="metric">
+      <div class="metric-card">
         <span class="metric-value"><!-- 3.2% --></span>
-        <span class="metric-label"><!-- 缺失率 Missing --></span>
+        <span class="metric-label"><!-- 缺失率 --></span>
+        <span class="metric-source"><!-- eda_profile --></span>
       </div>
-      <div class="metric">
+      <div class="metric-card">
         <span class="metric-value"><!-- 200 --></span>
-        <span class="metric-label"><!-- 步数 Steps --></span>
+        <span class="metric-label"><!-- 步数 --></span>
+        <span class="metric-source"><!-- run metadata --></span>
       </div>
     </div>
 
-    <main>
-      <h2>实验设置</h2>
-      <p><!-- 研究问题、智能体与环境配置 --></p>
+    <div class="content-grid has-toc">
+      <nav class="report-toc" aria-label="目录">
+        <strong>目录</strong>
+        <a href="#setup">实验设置</a>
+        <a href="#data">数据与探索</a>
+        <a href="#findings">核心发现</a>
+        <a href="#conclusion">结论</a>
+        <a href="#appendix">附录</a>
+      </nav>
 
-      <section class="eda-interactive" id="eda-interactive">
-        <h2>数据与探索</h2>
-        <div class="tab-bar" role="tablist">
-          <button type="button" class="tab active" data-tab="summary" role="tab" aria-selected="true">摘要</button>
-          <button type="button" class="tab" data-tab="explore" role="tab" aria-selected="false">交互式 EDA</button>
+      <main>
+        <h2 id="setup">实验设置</h2>
+        <p><!-- 研究问题、智能体与环境 --></p>
+
+        <!-- EDA_INTERACTIVE_BEGIN -->
+        <section class="eda-interactive" id="data">
+          <p class="panel-intro">由 <code>run-eda --type bundle</code> + <code>embed-interactive-eda</code> 注入。</p>
+        </section>
+        <!-- EDA_INTERACTIVE_END -->
+
+        <h2 id="findings">核心发现</h2>
+
+        <div class="mermaid-block">
+          <p class="diagram-caption">图 0：主张与证据链</p>
+          <pre class="mermaid">
+flowchart TD
+  Q[研究问题] --> C1[主张 C1]
+  C1 --> E1[SQL: metrics]
+  C1 --> E2[chart_01.png]
+          </pre>
         </div>
-        <div class="tab-panel active" data-panel="summary" role="tabpanel">
-          <p><!-- 从 eda_quick_stats / SQL 提炼的 prose --></p>
-          <p class="table-caption">表 1：核心表概览</p>
+
+        <h3><!-- 主张 1 --></h3>
+        <p><!-- 证据叙述 --></p>
+
+        <figure class="figure-block">
+          <img src="assets/chart_01_treatment_mean.png" alt="处理效应" />
+          <figcaption class="figure-caption">图 1：处理组在后期步数上均值更高</figcaption>
+          <p class="figure-takeaway">与 claim C1 一致；数值见 report_context.md。</p>
+        </figure>
+
+        <div class="chart-frame-wrap">
+          <p class="iframe-hint">交互图（可选）：<a href="assets/interactive/chart_01.html" target="_blank"
+              rel="noopener">新标签打开</a></p>
+          <iframe class="chart-frame" src="assets/interactive/chart_01.html" title="Interactive chart"
+            loading="lazy"></iframe>
+        </div>
+
+        <h2 id="conclusion">结论</h2>
+        <p><!-- 回答研究问题 --></p>
+
+        <section class="appendix" id="appendix">
+          <h2>附录</h2>
           <div class="table-wrap">
-            <table class="data-table">
+            <table class="artifact-table">
               <thead>
                 <tr>
-                  <th>表名</th>
-                  <th class="num">行数</th>
-                  <th class="num">缺失率</th>
-                  <th>备注</th>
+                  <th>文件</th>
+                  <th>类型</th>
+                  <th>说明</th>
+                  <th>发现#</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>metrics</td>
-                  <td class="num">12400</td>
-                  <td class="num">3.2%</td>
-                  <td>step 0–199</td>
+                  <td>chart_01_treatment_mean.png</td>
+                  <td>chart</td>
+                  <td>处理效应</td>
+                  <td>1</td>
+                </tr>
+                <tr>
+                  <td><a href="data/eda_hub.html">eda_hub.html</a></td>
+                  <td>eda</td>
+                  <td>探索中心</td>
+                  <td>—</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <div class="eda-panel">
-            <h3>工具产出</h3>
-            <ul>
-              <li>ydata: <a href="data/eda_profile.html">eda_profile.html</a></li>
-              <li>或 sweetviz: <a href="data/eda_sweetviz.html">eda_sweetviz.html</a></li>
-            </ul>
-          </div>
-        </div>
-        <div class="tab-panel" data-panel="explore" role="tabpanel">
-          <p class="iframe-hint">
-            嵌入 <code>run-eda</code> 生成的交互式画像。若下方空白，请
-            <a href="data/eda_profile.html" target="_blank" rel="noopener">在新标签页打开 EDA</a>。
-          </p>
-          <!-- 按 analysis_plan.eda_profile 二选一或索引页 -->
-          <iframe class="eda-frame" src="data/eda_profile.html" title="Interactive EDA (ydata-profiling)"
-            loading="lazy"></iframe>
-        </div>
-      </section>
-
-      <h2>核心发现</h2>
-      <h3><!-- 主张 1 标题 --></h3>
-      <p><!-- 证据叙述 + 数字 --></p>
-
-      <figure class="figure-block">
-        <img src="assets/chart_01_treatment_mean.png" alt="处理组与对照组均值对比" />
-        <figcaption class="figure-caption">图 1：处理组在后期步数上均值更高</figcaption>
-        <p class="figure-takeaway">步 150–199 区间处理组均值约高出 12%，与 confirmatory claim C1 一致。</p>
-      </figure>
-
-      <h2>结论</h2>
-      <p><!-- 直接回答研究问题 --></p>
-
-      <section class="appendix">
-        <h2>附录</h2>
-        <div class="table-wrap">
-          <table class="artifact-table">
-            <thead>
-              <tr>
-                <th>文件</th>
-                <th>类型</th>
-                <th>说明</th>
-                <th>发现#</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>chart_01_treatment_mean.png</td>
-                <td>chart</td>
-                <td>处理效应</td>
-                <td>1</td>
-              </tr>
-              <tr>
-                <td><a href="data/eda_profile.html">eda_profile.html</a></td>
-                <td>eda</td>
-                <td>完整 profiling</td>
-                <td>—</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </div>
 
     <div class="limitations">
       <strong>局限性（仿真证据）</strong>
@@ -466,6 +869,10 @@
         });
       });
     })();
+  </script>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
   </script>
 </body>
 

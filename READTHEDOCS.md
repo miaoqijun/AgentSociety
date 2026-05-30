@@ -398,7 +398,8 @@ $$
 如果翻译文件没有正确更新，尝试：
 
 ```bash
-make clean
+cd packages/agentsociety2/docs
+make clean-docs
 make gettext
 make update-po
 ```
@@ -408,8 +409,8 @@ make update-po
 检查文档语法：
 
 ```bash
-# 检查 rst 语法
-sphinx-build -b dummy docs docs/_build/dummy
+cd packages/agentsociety2/docs
+sphinx-build -b dummy . _build/dummy
 ```
 
 ### 3. 图片显示问题
@@ -417,7 +418,7 @@ sphinx-build -b dummy docs docs/_build/dummy
 确保图片路径正确且文件存在：
 
 ```bash
-ls docs/_static/
+ls packages/agentsociety2/docs/_static/
 ```
 
 ## 贡献指南

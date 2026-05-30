@@ -212,7 +212,7 @@
       "apiBase": "LLM API 基础URL",
       "apiBasePlaceholder": "默认值：https://api.openai.com/v1",
       "modelName": "LLM 模型名称",
-      "modelPlaceholder": "默认值：gpt-5.4"
+      "modelPlaceholder": "默认值：gpt-5.5"
     },
     "advancedValidation": {
       "passedShort": "{{done}}/{{total}} 已通过",

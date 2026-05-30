@@ -40,8 +40,32 @@ Cross-experiment comparison happens in Stage 6 (required synthesis) of the
 
 `agentsociety2.skills.analysis.harness` provides staged state, structural validators,
 and LLM attestation gates (`record-attestation`, `validate-*`, `gate-status`, `advance`).
-Analysis completes when `validate-synthesis` gate passes. See extension skill
-`references/harness-contract.md` for the two-layer model.
+Analysis completes when `validate-synthesis` gate passes. The SDK harness is
+self-contained for required mechanics: use `guidance --topic workflow|paths|attestation|charts|reports|reflection`
+and `payload-template --name NAME` from the analysis CLI for gate rules and JSON
+payload shapes. Chart quality guardrails and a reusable Matplotlib scaffold are built
+in (`guidance --topic charts`, `chart-scaffold`). The extension skill references remain
+useful for advanced chart recipes, report styling examples, subagent prompts, and
+external integrations.
+
+Attestations carry automatic artifact fingerprints. If a phase artifact changes after
+attestation, the next `validate-*` blocks with `attestation_stale` until the phase is
+reviewed and attested again.
+
+The harness also exposes a conservative experience-memory loop:
+`draft-reflection`, `record-reflection`, and `promote-reflection`. Reflection reports
+are reviewable proposals; promotion writes long-term assets under `.agentsociety/memory/`
+(`project_lessons.jsonl`, `method_recipes/`, and confirmed preferences in
+`memory_index.yaml`). Preference promotion is opt-in so inferred user preferences do
+not silently steer future analyses. After promotion, experience memory is active by
+default: `intake`, `status`, and `run-loop` return `memory_context`, and `run-loop`
+adds a Memory step before phase work when lessons, recipes, or confirmed preferences
+exist. Use `memory-context` to inspect what will be applied. `status` and `run-loop`
+also return `feedback_prompt`; store post-analysis user feedback with
+`record-feedback`, then let `review-reflection` or `promote-reflection` check the
+reflection before durable promotion. Re-running `promote-reflection` for the same
+reflection source is idempotent (`SKIPPED`); use `--include-preferences` only after
+`record-feedback` when promoting user preferences.
 
 ## Quick Start
 
@@ -57,7 +81,7 @@ context = ContextLoader(workspace).load_context("1", "1")
 summary = DataReader(db_path).read_full_summary()
 quick_stats = EDAGenerator().generate_quick_stats(
     db_path,
-    tables=["agent_profile"],
+    tables=["core_agent_profile"],
 )
 ```
 
@@ -78,6 +102,15 @@ The staged skill uses
 - `validate-report-quality`
 - `record-report-review`
 - `record-synthesis-review`
+- `draft-reflection`
+- `record-reflection`
+- `record-feedback`
+- `review-reflection`
+- `promote-reflection`
+- `memory-context`
+- `guidance`
+- `payload-template`
+- `chart-scaffold`
 
 ## Output Layout
 
@@ -85,7 +118,7 @@ Single-experiment outputs live under:
 `presentation/hypothesis_{id}/`
 
 - `report_zh.md` / `report_en.md` (required for harness)
-- required LLM-authored bilingual `.html` reports (see extension skill `references/html-export.md`)
+- required LLM-authored bilingual `.html` reports (`guidance --topic reports`)
 - `.agentsociety/analysis/hypothesis_{id}/` harness state (`state.yaml`, `analysis_plan.yaml`, `claims.json`)
 - `data/analysis_summary.json`
 - `data/eda_*.html` or `eda_quick_stats.md`

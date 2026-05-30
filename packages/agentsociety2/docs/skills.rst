@@ -135,7 +135,7 @@ create-agent 技能
    $PYTHON_PATH .agentsociety/bin/ags.py analysis load-context --workspace . --hypothesis-id 1 --experiment-id 1
    $PYTHON_PATH .agentsociety/bin/ags.py analysis list-tables --db-path hypothesis_1/experiment_1/run/sqlite.db
    $PYTHON_PATH .agentsociety/bin/ags.py analysis data-summary --db-path hypothesis_1/experiment_1/run/sqlite.db
-   $PYTHON_PATH .agentsociety/bin/ags.py analysis query-data --db-path hypothesis_1/experiment_1/run/sqlite.db --sql "SELECT * FROM agent_profile LIMIT 5"
+   $PYTHON_PATH .agentsociety/bin/ags.py analysis query-data --db-path hypothesis_1/experiment_1/run/sqlite.db --sql "SELECT * FROM core_agent_profile LIMIT 5"
 
 
 学术文献检索
@@ -310,7 +310,7 @@ Claude ``mcp.json``）。网关上的其他 MCP 工具不会被文献技能调�
    ).read_full_summary()
    quick_stats = EDAGenerator().generate_quick_stats(
        workspace / "hypothesis_1" / "experiment_1" / "run" / "sqlite.db",
-       tables=["agent_profile"],
+       tables=["core_agent_profile"],
    )
 
 跨实验对比不再使用独立综合 skill，而是作为

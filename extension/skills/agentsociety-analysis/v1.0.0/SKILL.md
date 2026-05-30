@@ -17,10 +17,13 @@ Use this skill for interactive experiment analysis. **You (Claude Code) own orch
 | **Structural**  | Python `validate-*`          | Files exist, JSON schemas valid, DB/tables/artifacts consistent                      |
 | **Attestation** | You via `record-attestation` | Phase-complete judgment: findings, limitations, user alignment (schema-checked only) |
 | **Narrative**   | You                          | Reports, synthesis, claim wording, chart design, caveats                             |
+| **Memory**      | You + user confirmation      | Reviewable lessons, reusable recipes, and confirmed preferences                      |
 
-After each phase: (1) do the analytical work with the user, (2) run `validate-<phase>`, (3) run `record-attestation` with rubric from `references/phase-attestation.md`, (4) `gate-status` or `advance`.
+After each phase: (1) do the analytical work with the user, (2) run `validate-<phase>`, (3) run `record-attestation` with rubric from `references/harness.md`, (4) `gate-status` or `advance`.
 
-References: `references/harness-contract.md`, `references/phase-attestation.md`, `references/analysis-quality.md`, `references/json-payloads.md`.
+After release or synthesis and pipeline handoff, run the **experience epilogue** (Stage 6 Part C — required practice, **non-blocking**): debrief with user → `record-feedback` → `draft-reflection` → `record-reflection` → `review-reflection` → `promote-reflection`. `gate-status` / `run-loop` expose `epilogue` when pipeline is complete. Preferences only with `--include-preferences` after explicit user confirmation. See `stages/06_synthesis.md` and `references/experience-memory.md`.
+
+References: `references/harness.md`, `references/integrations.md`, `references/analysis-quality.md`, `references/json-payloads.md`, `references/experience-memory.md`.
 
 **JSON payloads:** `--payload` accepts a JSON object or a `.json` file path. The CLI repairs minor syntax issues via `json-repair` before Pydantic validation — still fix wrong fields, not escaping.
 
@@ -43,27 +46,33 @@ The plotting and figure-assembly parts of this skill follow a contract-first str
 
 ## Quick Reference
 
-| Command                                                                                                                                 | Purpose                                                                            |
-| --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis load-context --workspace . --hypothesis-id ID --experiment-id ID`                       | Load experiment context                                                            |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis list-tables --db-path PATH`                                                             | List tables in SQLite DB                                                           |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis data-summary --db-path PATH`                                                            | Full data summary                                                                  |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis query-data --db-path PATH --sql "SELECT ..."`                                           | Read-only SQL query                                                                |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis run-code --db-path PATH --code FILE`                                                    | Execute analysis code                                                              |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis run-eda --db-path PATH --output-dir DIR --type TYPE [--workspace . --hypothesis-id ID]` | Generate EDA; auto-registers explore artifacts when hypothesis id is set           |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis compose-figure --spec FILE`                                                             | Combine multiple raster charts/images into one labeled figure                      |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis collect-assets --workspace . --hypothesis-id ID --experiment-id ID --output-dir DIR`    | Collect report assets from experiment artifacts                                    |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis sync-report-assets --workspace . --hypothesis-id ID --experiment-id ID`                 | Copy images referenced in reports from `charts/` → `assets/`                       |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis intake --workspace . --hypothesis-id ID --experiment-id ID`                             | Initialize harness state                                                           |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis write-plan --workspace . --hypothesis-id ID --payload '{...}'`                          | Persist `analysis_plan.yaml`                                                       |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis validate-plan` / `validate-explore` / …                                                 | Structural + attestation gate per phase                                            |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis record-attestation --payload '{...}'`                                                   | LLM phase sign-off (required for gate pass)                                        |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis record-phase-artifacts --phase explore --artifacts '["path"]'`                          | Register EDA/output paths (feeds `build-report-context`)                           |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis build-report-context --workspace . --hypothesis-id ID`                                  | Merge EDA/charts/claims → `data/report_context.md` (orchestrator / subagent input) |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis validate-report-quality` / `record-report-review` / `record-synthesis-review`           | Mechanical quality + independent review records                                    |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis validate`                                                                               | Workspace complete = `validate-synthesis` pass                                     |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis advance --phase PHASE`                                                                  | After **prior** phase `gate_pass`                                                  |
-| `$PYTHON_PATH .agentsociety/bin/ags.py analysis gate-status` / `run-loop`                                                               | Checkpoint dashboard / next steps                                                  |
+| Command                                                                                                                                                  | Purpose                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis load-context --workspace . --hypothesis-id ID --experiment-id ID`                                        | Load experiment context                                                                         |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis list-tables --db-path PATH`                                                                              | List tables in SQLite DB                                                                        |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis data-summary --db-path PATH`                                                                             | Full data summary                                                                               |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis query-data --db-path PATH --sql "SELECT ..."`                                                            | Read-only SQL query                                                                             |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis run-code --db-path PATH --code FILE`                                                                     | Execute analysis code                                                                           |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis run-explore-eda --workspace . --hypothesis-id ID --experiment-id ID`                                     | **Stage 2 default** — EDA from `analysis_plan` + auto `record-phase-artifacts`                  |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis run-eda --db-path PATH --output-dir DIR --type TYPE [--profiles a,b] [--workspace . --hypothesis-id ID]` | Low-level EDA escape hatch: `bundle`, `pygwalker`, `datatable`, `plotly-profile`, …             |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis compose-figure --spec FILE`                                                                              | Combine multiple raster charts/images into one labeled figure                                   |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis collect-assets --workspace . --hypothesis-id ID --experiment-id ID --output-dir DIR`                     | Collect report assets from experiment artifacts                                                 |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis sync-report-assets --workspace . --hypothesis-id ID --experiment-id ID`                                  | Copy images `charts/` → `assets/` **and** inject multi-tab interactive EDA into `report_*.html` |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis embed-interactive-eda --workspace . --hypothesis-id ID`                                                  | Re-inject EDA tabs (hub / PyGWalker / Plotly / …) into bilingual HTML reports                   |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis intake --workspace . --hypothesis-id ID --experiment-id ID`                                              | Initialize harness state                                                                        |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis write-plan --workspace . --hypothesis-id ID --payload '{...}'`                                           | Persist `analysis_plan.yaml`                                                                    |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis validate-plan` / `validate-explore` / …                                                                  | Structural + attestation gate per phase                                                         |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis record-attestation --payload '{...}'`                                                                    | LLM phase sign-off (required for gate pass)                                                     |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis record-phase-artifacts --phase explore --artifacts '["path"]'`                                           | Register EDA/output paths (feeds `build-report-context`)                                        |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis prepare-produce --workspace . --hypothesis-id ID --experiment-id ID`                                     | **Stage 5 default** — `build-report-context` + `sync-report-assets` before report drafting      |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis build-report-context --workspace . --hypothesis-id ID`                                                   | Merge EDA/charts/claims → `data/report_context.md` (included in `prepare-produce`)              |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis validate-report-quality` / `record-report-review` / `record-synthesis-review`                            | Mechanical quality + independent review records                                                 |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis validate`                                                                                                | Workspace complete = `validate-synthesis` pass                                                  |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis advance --phase PHASE`                                                                                   | After **prior** phase `gate_pass`                                                               |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis gate-status` / `run-loop`                                                                                | Checkpoint dashboard / next steps                                                               |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis draft-reflection` / `record-reflection` / `promote-reflection`                                           | Reviewable experience memory and explicit promotion                                             |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis record-feedback` / `review-reflection`                                                                   | User feedback capture + pre-promotion review                                                    |
+| `$PYTHON_PATH .agentsociety/bin/ags.py analysis memory-context`                                                                                          | Show active lessons, recipes, and confirmed preferences used by orchestration                   |
 
 Use the Python interpreter from `.env`. See `CLAUDE.md` for setup.
 
@@ -81,20 +90,20 @@ The highest-priority rule is: each visual artifact must strengthen an already id
 
 ## Common Mistakes
 
-| Mistake                                                                     | Fix                                                                                                              |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Skipping context loading and going straight to charts                       | Always start with Stage 1 (`intake` + `write-plan`)                                                              |
-| Skipping synthesis                                                          | Stage 6 is required; run `validate-synthesis` before pipeline `analysis completed`                               |
-| Starting from a favorite plot type before defining the message              | Write a figure contract first: finding, scope, evidence source, and expected takeaway                            |
-| Decorative charts without a claim or figure contract                        | Each chart must defend one finding; skip charts when prose/EDA is enough                                         |
-| Writing analysis output to wrong directory                                  | Single-experiment goes to `presentation/hypothesis_{id}/`, synthesis goes to `synthesis/`                        |
-| Running EDA on all tables indiscriminately                                  | Only run EDA for tables explicitly selected during Stage 2                                                       |
-| Inventing helper scripts instead of using the analysis CLI                  | Use `.agentsociety/bin/ags.py analysis ...` for all mechanical operations                                        |
-| Chart without description                                                   | Every chart in the report must have a one-line description directly below it                                     |
-| Overloaded colors, repeated legends, or weak panel hierarchy                | Reuse the chart contract and `references/chart-guide.md` before regenerating                                     |
-| Leaving a multi-view finding as several disconnected screenshots            | Generate atomic charts first, then assemble a single `figure_{nn}_{slug}.png` with labeled panels                |
-| Treating simulation output as direct real-world proof                       | Downgrade the claim strength and record the caveat in the figure contract or report text                         |
-| Using ad hoc matplotlib defaults in one script and styled output in another | Reuse `references/api.md` and `references/common-patterns.md` so colors, fonts, and export rules stay consistent |
+| Mistake                                                                     | Fix                                                                                               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Skipping context loading and going straight to charts                       | Always start with Stage 1 (`intake` + `write-plan`)                                               |
+| Skipping synthesis                                                          | Stage 6 is required; run `validate-synthesis` before pipeline `analysis completed`                |
+| Starting from a favorite plot type before defining the message              | Write a figure contract first: finding, scope, evidence source, and expected takeaway             |
+| Decorative charts without a claim or figure contract                        | Each chart must defend one finding; skip charts when prose/EDA is enough                          |
+| Writing analysis output to wrong directory                                  | Single-experiment goes to `presentation/hypothesis_{id}/`, synthesis goes to `synthesis/`         |
+| Running EDA on all tables indiscriminately                                  | Only run EDA for tables explicitly selected during Stage 2                                        |
+| Inventing helper scripts instead of using the analysis CLI                  | Use `.agentsociety/bin/ags.py analysis ...` for all mechanical operations                         |
+| Chart without description                                                   | Every chart in the report must have a one-line description directly below it                      |
+| Overloaded colors, repeated legends, or weak panel hierarchy                | Reuse `references/charts.md` and `chart-recipes.md` before regenerating                           |
+| Leaving a multi-view finding as several disconnected screenshots            | Generate atomic charts first, then assemble a single `figure_{nn}_{slug}.png` with labeled panels |
+| Treating simulation output as direct real-world proof                       | Downgrade the claim strength and record the caveat in the figure contract or report text          |
+| Using ad hoc matplotlib defaults in one script and styled output in another | Reuse `references/api.md` and `references/chart-recipes.md`                                       |
 
 ## Workflow
 
@@ -103,7 +112,7 @@ digraph analysis_flow {
     rankdir=LR;
     node [shape=box, style=filled, fillcolor="#E8F4FD"];
     frame [label="1 frame\nplan"];
-    explore [label="2 explore\nrun-eda"];
+    explore [label="2 explore\nrun-explore-eda"];
     claims [label="3 claims"];
     refine [label="4 refine\ncharts"];
     produce [label="5 produce\nreport"];
@@ -116,48 +125,53 @@ digraph analysis_flow {
 ## Pipeline Position
 
 **Predecessors:** run-experiment (completed run with `sqlite.db`)
-**Optional inputs:** web-research (supplementary context for interpretation), use-dataset (external datasets for comparison)
-**Successors:** paper-toolkit plugin
-**Also feeds:** hypothesis (refinement cycle when analysis informs hypothesis revision)
+**Optional inputs:** `agentsociety-literature-search` (frame/claims), `agentsociety-use-dataset` (frame/explore comparison)
+**Successors:** `paper-toolkit` plugin (after Stage 6 + pipeline `analysis completed`)
+**Tool map by stage:** `references/integrations.md`
 
 ## Stage Notes
 
-- `stages/01_frame.md`: intake, write-plan, validate-plan
-- `stages/02_data_explore.md`: narrow exploration + `run-eda` + validate-explore
-- `stages/03_claims.md`: record-claim, validate-claims
-- `stages/04_refine.md`: figure contracts, run-code, validate-chart
-- `stages/05_produce.md`: bilingual report, validate-release
-- `stages/06_synthesis.md`: required workspace synthesis, validate-synthesis
-## Shared References
+- `stages/01_frame.md`: context, intake, `memory-context`, plan, optional literature/dataset
+- `stages/02_data_explore.md`: `run-explore-eda` + optional external data compare
+- `stages/03_claims.md`: record-claim, literature grounding, user approval
+- `stages/04_refine.md`: figure contracts, `scientific-visualization`, run-code
+- `stages/05_produce.md`: `report-blocks` + `frontend-design`, review loop, optional Office export
+- `stages/06_synthesis.md`: synthesis + pipeline complete + **non-blocking experience epilogue**
 
-- Figure contract: `references/figure-contract.md`
-- Python backend rule: `references/backend-selection.md`
-- Chart selection: `references/chart-guide.md`
-- Plot API and palettes: `references/api.md`
-- Design rationale: `references/design-theory.md`
-- Plot layout patterns: `references/common-patterns.md`
-- Chart families: `references/chart-types.md`
-- Composite figure assembly: `references/composite-figures.md`
-- Chart QA and export checks: `references/qa-contract.md`
-- Analysis methods: `references/analysis-methods.md`
-- Worked examples: `references/tutorials.md`
-- Demo routing: `references/demos.md`
-- Output layout: `references/output-conventions.md`
-- Report self-check: `checklists/quality.md`
-- Harness contract: `references/harness-contract.md`
-- Phase attestation rubrics: `references/phase-attestation.md`
-- Quality standard (LLM-owned): `references/analysis-quality.md`
-- JSON templates: `references/json-payloads.md`
-- EDA → report integration: `references/report-integration.md`
-- Independent review: `references/report-review.md`
-- Embeddings (figures, tables, EDA): `references/report-embeddings.md`
-- Interactive EDA in HTML reports: `references/html-interactive-eda.md`
-- HTML design cues: `references/html-design-inspiration.md`
-- Bundled HTML support: `references/support-skills.md`; polish via `support/frontend-design/` + `support/frontend-design/references/analysis-reports.md`
-- Simulation report template: `references/report-template-simulation.md`
-- Progressive assembly: `references/report-assembly.md`
-- HTML (LLM-authored): `references/html-export.md`, `assets/report-shell.reference.html`
-- External index: `references/report-writing-inspiration.md`
+**Also feeds:** `agentsociety-hypothesis` (when analysis invalidates or refines the hypothesis)
+
+## Stage files (workflow)
+
+Read the stage doc for the current phase — each file is self-contained:
+
+- `stages/01_frame.md` — context, intake, plan, paths
+- `stages/02_data_explore.md` — tables, EDA bundle, explore attestation
+- `stages/03_claims.md` — confirmatory/exploratory claims
+- `stages/04_refine.md` — figure contracts, charts, compose-figure
+- `stages/05_produce.md` — bilingual reports, review loop, release gate
+- `stages/06_synthesis.md` — synthesis + experience memory + pipeline complete
+
+## Reference docs (lookup)
+
+| Doc                                  | When to read                                         |
+| ------------------------------------ | ---------------------------------------------------- |
+| `references/integrations.md`         | **External skills & support bundles per stage**      |
+| `references/harness.md`              | Gates, attestation, paths, QA, JSON repair           |
+| `references/analysis-quality.md`     | Start of every phase — quality bar                   |
+| `references/charts.md`               | Refine: contracts, selection, palettes, composite    |
+| `references/eda.md`                  | Explore + HTML EDA embed                             |
+| `references/reports.md`              | Produce: build-context, embeds, HTML shell           |
+| `references/json-payloads.md`        | Payload templates for CLI                            |
+| `references/experience-memory.md`    | Stage 6 Part C — epilogue + promotion governance     |
+| `references/report-review.md`        | Report/synthesis reviewer rubric                     |
+| `references/analysis-methods.md`     | Statistical method hints                             |
+| `references/api.md`                  | Matplotlib rcParams, export helpers, layout patterns |
+| `references/chart-recipes.md`        | Copy-paste chart code                                |
+| `assets/chart_scaffold.reference.py` | Script starting point                                |
+| `assets/report-shell.reference.html` | HTML report shell                                    |
+| `checklists/quality.md`              | Pre-attestation report checklist                     |
+
+Bundled support — invoke in-stage per `references/integrations.md`: `support/README.md`.
 
 ## CLI Tool
 
@@ -185,7 +199,7 @@ Produce flow:
 4. `record-report-review` then `validate-release` (includes mechanical quality + review fingerprint).
 5. Orchestrator `record-attestation` only after review PASS and user-aligned narrative.
 
-HTML (if requested) is written inside report-producer as native HTML using `assets/report-shell.reference.html` — **never** mechanical Markdown conversion.
+HTML is written inside report-producer as native HTML using `assets/report-shell.reference.html` and `references/reports.md` — **never** mechanical Markdown conversion. IDE exploration may use Cursor Canvas per `references/reports.md`; disk deliverables remain `report_*.html`.
 
 ## Runtime Contract
 
@@ -211,12 +225,12 @@ HTML (if requested) is written inside report-producer as native HTML using `asse
 - Write synthesis output only to the dedicated `synthesis/` root directory, never under `presentation/`.
 - Reports are bilingual, Chinese-first by default. **Required for gate pass:** `report_zh.md`, `report_en.md`, `report_zh.html`, and `report_en.html` under `presentation/hypothesis_{id}/`. Embed images only via `assets/` (run `sync-report-assets` or `collect-assets` before `validate-release`).
 - Generated matplotlib charts must use the `Agg` backend, English-only legend text, and a publication-safe rcParams block that keeps SVG text editable.
-- Final charts and reports must pass `references/qa-contract.md` before being described as complete.
+- Final charts and reports must pass `references/harness.md#qa-contract` before being described as complete.
 - Scripts are mechanical helpers only; Claude Code remains the orchestrator.
 
 ## Progress Tracking
 
-Only after `validate-synthesis` passes:
+Only after `validate-synthesis` PASS (experience epilogue is separate — see `stages/06_synthesis.md` Part C):
 ```bash
 $PYTHON_PATH .agentsociety/bin/ags.py research-pipeline update-stage analysis completed
 ```

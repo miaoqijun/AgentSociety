@@ -14,6 +14,7 @@ from .models import (
     ReportContent,
     SynthesisPaths,
 )
+from .chart_export import export_altair_html, export_plotly_html, export_pygwalker_html
 from .output import AssetManager, EDAGenerator, ReportPaths
 from .utils import (
     collect_experiment_files,
@@ -33,6 +34,9 @@ __all__ = [
     "DataSummary",
     "DatabaseSchema",
     "EDAGenerator",
+    "export_altair_html",
+    "export_plotly_html",
+    "export_pygwalker_html",
     "ExecutionResult",
     "ExperimentContext",
     "ExperimentDesign",

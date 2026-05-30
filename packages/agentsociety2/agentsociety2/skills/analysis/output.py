@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import html as html_module
 import mimetypes
 import shutil
 from dataclasses import dataclass
@@ -17,6 +18,17 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency
 
 from agentsociety2.logger import get_logger
 
+from .chart_export import (
+    EDA_HUB_ENTRIES,
+    brand_header_html,
+    eda_datatable_css,
+    eda_hub_page_css,
+    eda_index_page_css,
+    ensure_brand_icon,
+    export_plotly_html,
+    html_font_links,
+    html_tab_switcher_script,
+)
 from .models import (
     DIR_ARTIFACTS,
     DIR_EXPERIMENT_PREFIX,
@@ -98,6 +110,7 @@ class AssetManager:
 
         assets_dir = output_dir / DIR_REPORT_ASSETS
         assets_dir.mkdir(exist_ok=True)
+        ensure_brand_icon(assets_dir)
         processed: Dict[str, Any] = {}
         used_names: set[str] = set()
 
@@ -418,7 +431,7 @@ class EDAGenerator:
                     corr_matrix,
                     annot=True,
                     fmt=".2f",
-                    cmap="coolwarm",
+                    cmap="RdBu_r",
                     center=0,
                     square=True,
                     linewidths=0.5,
@@ -582,34 +595,32 @@ class EDAGenerator:
             f'<tr><td><a href="{filename}">{name}</a></td><td class="num">{row_count}</td></tr>'
             for name, filename, row_count in table_files
         )
+        subtitle = f"{tool_name} · 选择表打开完整画像"
+        header = brand_header_html(
+            "交互式 EDA 索引",
+            subtitle,
+            variant="hub",
+            lang="zh",
+        )
         return f"""<!DOCTYPE html>
 <html lang="zh">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>EDA Reports Index ({tool_name})</title>
-    <style>
-        body {{ font-family: "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 0; background: #f4f6f8; color: #1a1a1a; }}
-        .page {{ max-width: 720px; margin: 32px auto; background: #fff; border: 1px solid #d8dee4; padding: 28px 32px; }}
-        h1 {{ font-size: 1.35rem; color: #0b3d5c; margin-bottom: 8px; }}
-        .info {{ color: #64748b; font-size: 0.9rem; margin-bottom: 20px; }}
-        table {{ border-collapse: collapse; width: 100%; font-size: 0.9rem; }}
-        th, td {{ border: 1px solid #e2e8f0; padding: 12px 14px; text-align: left; }}
-        th {{ background: #f1f5f9; color: #0b3d5c; }}
-        tr:hover {{ background: #f8fafc; }}
-        a {{ color: #0369a1; font-weight: 600; text-decoration: none; }}
-        a:hover {{ text-decoration: underline; }}
-        td.num {{ text-align: right; font-variant-numeric: tabular-nums; }}
-    </style>
+    <title>EDA Index ({tool_name})</title>
+    {html_font_links()}
+    <style>{eda_index_page_css()}</style>
 </head>
 <body>
-    <div class="page">
-        <h1>交互式 EDA 索引 ({tool_name})</h1>
-        <p class="info">选择表名打开完整交互画像；分析报告 HTML 可通过 iframe 嵌入本页。</p>
-        <table>
-            <tr><th>表</th><th class="num">行数</th></tr>
+    <div class="index-shell">
+        {header}
+        <div class="index-body">
+            <p class="panel-intro">分析报告可通过 <code>iframe</code> 嵌入下方各表画像。</p>
+            <table>
+                <tr><th>表</th><th class="num">行数</th></tr>
 {rows}
-        </table>
+            </table>
+        </div>
     </div>
 </body>
 </html>"""
@@ -709,3 +720,410 @@ class EDAGenerator:
         except Exception as exc:
             self.logger.debug("Sweetviz 生成失败: %s", exc)
             return None
+
+    def _read_non_empty_tables(
+        self,
+        db_path: Path,
+        output_dir: Path,
+        max_rows: int,
+        tables: Optional[List[str]],
+    ) -> Dict[str, "pd.DataFrame"]:
+        if pd is None or not db_path.exists():
+            return {}
+
+        from .data import DataReader
+
+        reader = DataReader(db_path)
+        selected_tables = self._resolve_tables(reader, tables)
+        sample = reader.read_sample_data(tables=selected_tables, limit=max_rows)
+        frames: Dict[str, pd.DataFrame] = {}
+        for table_name, data in (sample or {}).items():
+            if not data:
+                continue
+            df = pd.DataFrame(data)
+            if not df.empty:
+                frames[table_name] = df
+        return frames
+
+    def generate_pygwalker_profile(
+        self,
+        db_path: Path,
+        output_dir: Path,
+        max_rows: int = 10000,
+        tables: Optional[List[str]] = None,
+    ) -> Optional[Path]:
+        frames = self._read_non_empty_tables(db_path, output_dir, max_rows, tables)
+        if not frames:
+            return None
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            import pygwalker as pyg
+        except ImportError:
+            self.logger.warning("pygwalker 未安装，跳过拖拽探索报告")
+            return None
+
+        generated: List[Tuple[str, str, int]] = []
+        for table_name, df in frames.items():
+            safe_name = "".join(
+                c if c.isalnum() or c in "_-" else "_" for c in table_name
+            )
+            out_file = output_dir / f"eda_pygwalker_{safe_name}.html"
+            html = pyg.to_html(df, embed_lib=True)
+            out_file.write_text(html, encoding="utf-8")
+            generated.append((table_name, out_file.name, len(df)))
+            self.logger.info("生成 PyGWalker 报告: %s", out_file)
+
+        if not generated:
+            return None
+        if len(generated) == 1:
+            single = output_dir / generated[0][1]
+            hub = output_dir / "eda_pygwalker.html"
+            if hub != single:
+                hub.write_text(single.read_text(encoding="utf-8"), encoding="utf-8")
+            return hub
+        index_file = output_dir / "eda_pygwalker.html"
+        index_file.write_text(
+            self._build_eda_index_html(generated, "PyGWalker"), encoding="utf-8"
+        )
+        return index_file
+
+    def generate_datatable_profile(
+        self,
+        db_path: Path,
+        output_dir: Path,
+        max_rows: int = 5000,
+        tables: Optional[List[str]] = None,
+    ) -> Optional[Path]:
+        frames = self._read_non_empty_tables(db_path, output_dir, max_rows, tables)
+        if not frames:
+            return None
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        generated: List[Tuple[str, str, int]] = []
+        for table_name, df in frames.items():
+            safe_name = "".join(
+                c if c.isalnum() or c in "_-" else "_" for c in table_name
+            )
+            out_file = output_dir / f"eda_datatable_{safe_name}.html"
+            out_file.write_text(
+                self._build_sortable_datatable_html(table_name, df),
+                encoding="utf-8",
+            )
+            generated.append((table_name, out_file.name, len(df)))
+            self.logger.info("生成可排序数据表: %s", out_file)
+
+        index_file = output_dir / "eda_datatable.html"
+        if len(generated) == 1:
+            index_file.write_text(
+                (output_dir / generated[0][1]).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+        else:
+            index_file.write_text(
+                self._build_eda_index_html(generated, "Interactive tables"),
+                encoding="utf-8",
+            )
+        return index_file
+
+    def _build_sortable_datatable_html(
+        self, table_name: str, df: "pd.DataFrame"
+    ) -> str:
+        preview = df.head(500)
+        esc = html_module.escape
+        headers = "".join(f"<th>{esc(str(col))}</th>" for col in preview.columns)
+        rows = []
+        for _, row in preview.iterrows():
+            cells = "".join(f"<td>{esc(str(row[col]))}</td>" for col in preview.columns)
+            rows.append(f"<tr>{cells}</tr>")
+        body = "\n".join(rows)
+        truncated = len(df) > len(preview)
+        note = (
+            f"显示前 {len(preview)} / {len(df)} 行（完整数据见 sqlite）"
+            if truncated
+            else f"共 {len(df)} 行"
+        )
+        return f"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Table: {esc(table_name)}</title>
+  {html_font_links()}
+  <style>{eda_datatable_css()}</style>
+</head>
+<body>
+  <div class="standalone-wrap">
+  {brand_header_html(esc(table_name), esc(note), variant="standalone", lang="zh")}
+  <div class="standalone-body">
+  <p class="meta">{note}</p>
+  <div class="toolbar">
+    <input type="search" id="filter" placeholder="筛选任意列…" />
+  </div>
+  <div class="wrap">
+    <table id="tbl">
+      <thead><tr>{headers}</tr></thead>
+      <tbody id="tbody">{body}</tbody>
+    </table>
+  </div>
+  <script>
+    (function () {{
+      var tbl = document.getElementById("tbl");
+      var filter = document.getElementById("filter");
+      var tbody = document.getElementById("tbody");
+      var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+      filter.addEventListener("input", function () {{
+        var q = filter.value.toLowerCase();
+        rows.forEach(function (tr) {{
+          tr.style.display = tr.textContent.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+        }});
+      }});
+      tbl.querySelectorAll("th").forEach(function (th, idx) {{
+        th.addEventListener("click", function () {{
+          var asc = th.dataset.asc !== "1";
+          tbl.querySelectorAll("th").forEach(function (h) {{ delete h.dataset.asc; }});
+          th.dataset.asc = asc ? "1" : "0";
+          rows.sort(function (a, b) {{
+            var av = (a.children[idx] && a.children[idx].textContent) || "";
+            var bv = (b.children[idx] && b.children[idx].textContent) || "";
+            var an = parseFloat(av), bn = parseFloat(bv);
+            if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
+            return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+          }});
+          rows.forEach(function (tr) {{ tbody.appendChild(tr); }});
+        }});
+      }});
+    }})();
+  </script>
+  </div></div>
+</body>
+</html>"""
+
+    def generate_plotly_profile(
+        self,
+        db_path: Path,
+        output_dir: Path,
+        max_rows: int = 8000,
+        tables: Optional[List[str]] = None,
+    ) -> Optional[Path]:
+        frames = self._read_non_empty_tables(db_path, output_dir, max_rows, tables)
+        if not frames:
+            return None
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            import plotly.express as px
+        except ImportError:
+            self.logger.warning("plotly 未安装，跳过 Plotly 概览")
+            return None
+
+        generated: List[Tuple[str, str, int]] = []
+        for table_name, df in frames.items():
+            numeric = df.select_dtypes(include=["number"])
+            if numeric.shape[1] < 1:
+                continue
+            cols = list(numeric.columns[:8])
+            safe_name = "".join(
+                c if c.isalnum() or c in "_-" else "_" for c in table_name
+            )
+            out_file = output_dir / f"eda_plotly_{safe_name}.html"
+            if len(cols) >= 2:
+                fig = px.scatter_matrix(
+                    numeric[cols],
+                    dimensions=cols,
+                    title=f"Numeric overview: {table_name}",
+                )
+            else:
+                fig = px.histogram(
+                    numeric,
+                    x=cols[0],
+                    title=f"Distribution: {table_name}.{cols[0]}",
+                )
+            export_plotly_html(fig, out_file)
+            generated.append((table_name, out_file.name, len(df)))
+            self.logger.info("生成 Plotly 概览: %s", out_file)
+
+        if not generated:
+            return None
+        index_file = output_dir / "eda_plotly.html"
+        index_file.write_text(
+            self._build_eda_index_html(generated, "Plotly"), encoding="utf-8"
+        )
+        return index_file
+
+    def generate_eda_hub(
+        self,
+        output_dir: Path,
+        *,
+        title: str = "AgentSociety EDA Hub",
+    ) -> Path:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        assets_dir = output_dir.parent / "assets"
+        ensure_brand_icon(assets_dir)
+        entries = []
+        for spec in EDA_HUB_ENTRIES:
+            path = output_dir / spec["file"]
+            if path.is_file():
+                entries.append(spec)
+
+        hub_path = output_dir / "eda_hub.html"
+        hub_path.write_text(
+            self._build_eda_hub_html(entries, title=title, lang="zh"),
+            encoding="utf-8",
+        )
+        self.logger.info("生成 EDA Hub: %s (%d 入口)", hub_path, len(entries))
+        return hub_path
+
+    def _build_eda_hub_html(
+        self,
+        entries: List[Dict[str, str]],
+        *,
+        title: str,
+        lang: str = "zh",
+    ) -> str:
+        zh = lang.startswith("zh")
+        subtitle = (
+            "多模式交互式数据探索 · 嵌入报告请使用 data/eda_hub.html"
+            if zh
+            else "Multi-mode interactive EDA · embed via data/eda_hub.html"
+        )
+        header = brand_header_html(title, subtitle, variant="hub", lang=lang)
+
+        if not entries:
+            body = '<p class="hub-empty">暂无 EDA 产物。请先运行 <code>run-eda --type bundle</code>。</p>'
+            tabs_html = ""
+        else:
+            tab_buttons: List[str] = []
+            tab_panels: List[str] = []
+            for idx, spec in enumerate(entries):
+                active = " active" if idx == 0 else ""
+                tab_id = spec["key"]
+                label = spec["zh"] if zh else spec["en"]
+                desc = spec["desc_zh"] if zh else spec["desc_en"]
+                icon = spec["icon"]
+                tab_buttons.append(
+                    f'<button type="button" class="tab{active}" data-tab="{tab_id}" '
+                    f'role="tab" aria-selected="{"true" if idx == 0 else "false"}">'
+                    f'<span class="tab-icon" aria-hidden="true">{icon}</span>'
+                    f"<span>{label}</span></button>"
+                )
+                if spec["mode"] == "markdown":
+                    md_path = spec["file"]
+                    body_inner = (
+                        f'<p class="panel-intro"><strong>{label}</strong> — {desc}</p>'
+                        f'<p class="iframe-hint">'
+                        f'<a href="{md_path}" target="_blank" rel="noopener">'
+                        f'{"打开 Markdown" if zh else "Open Markdown"}</a></p>'
+                    )
+                else:
+                    open_lbl = "新标签页打开" if zh else "Open in new tab"
+                    body_inner = (
+                        f'<p class="panel-intro"><strong>{label}</strong> — {desc}</p>'
+                        f'<p class="iframe-hint"><a href="{spec["file"]}" target="_blank" rel="noopener">{open_lbl}</a></p>'
+                        f'<iframe class="eda-frame" src="{spec["file"]}" title="{label}" loading="lazy"></iframe>'
+                    )
+                tab_panels.append(
+                    f'<div class="tab-panel{active} {spec["panel"]}" data-panel="{tab_id}" role="tabpanel">'
+                    f"{body_inner}</div>"
+                )
+            tabs_html = (
+                f'<div class="tab-root"><div class="tab-bar" role="tablist">{"".join(tab_buttons)}</div>'
+                f'{"".join(tab_panels)}</div>'
+            )
+            body = tabs_html
+
+        return f"""<!DOCTYPE html>
+<html lang="{"zh" if zh else "en"}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title}</title>
+  {html_font_links()}
+  <style>{eda_hub_page_css()}</style>
+</head>
+<body>
+  <div class="hub-shell">
+    {header}
+    <div class="hub-body">{body}</div>
+  </div>
+  {html_tab_switcher_script()}
+</body>
+</html>"""
+
+    def generate_eda_bundle(
+        self,
+        db_path: Path,
+        output_dir: Path,
+        profiles: Optional[List[str]] = None,
+        tables: Optional[List[str]] = None,
+        max_rows: int = 10000,
+    ) -> Tuple[List[str], Optional[Path]]:
+        default_profiles = [
+            "quick-stats",
+            "ydata",
+            "pygwalker",
+            "datatable",
+            "plotly-profile",
+        ]
+        active = profiles or default_profiles
+        output_dir.mkdir(parents=True, exist_ok=True)
+        ensure_brand_icon(output_dir.parent / "assets")
+        files: List[str] = []
+
+        runners = {
+            "quick-stats": lambda: self._bundle_quick_stats(
+                db_path, output_dir, tables
+            ),
+            "ydata": lambda: self.generate_ydata_profile(
+                db_path, output_dir, max_rows=max_rows, tables=tables
+            ),
+            "sweetviz": lambda: self.generate_sweetviz_profile(
+                db_path, output_dir, max_rows=max_rows, tables=tables
+            ),
+            "missingno": lambda: self.generate_missingno_report(
+                db_path, output_dir, tables=tables
+            ),
+            "correlation": lambda: self.generate_correlation_report(
+                db_path, output_dir, tables=tables
+            ),
+            "pygwalker": lambda: self.generate_pygwalker_profile(
+                db_path, output_dir, max_rows=max_rows, tables=tables
+            ),
+            "datatable": lambda: self.generate_datatable_profile(
+                db_path, output_dir, max_rows=max_rows, tables=tables
+            ),
+            "plotly-profile": lambda: self.generate_plotly_profile(
+                db_path, output_dir, max_rows=max_rows, tables=tables
+            ),
+        }
+
+        for name in active:
+            if name in ("eda-hub", "bundle"):
+                continue
+            runner = runners.get(name)
+            if not runner:
+                continue
+            result = runner()
+            if name == "quick-stats":
+                qs = output_dir / "eda_quick_stats.md"
+                if qs.exists():
+                    files.append(str(qs))
+            elif result is not None:
+                files.append(str(result))
+
+        hub = self.generate_eda_hub(output_dir)
+        files.append(str(hub))
+        return files, hub
+
+    def _bundle_quick_stats(
+        self,
+        db_path: Path,
+        output_dir: Path,
+        tables: Optional[List[str]],
+    ) -> Optional[str]:
+        content = self.generate_quick_stats(db_path, tables=tables)
+        if content is None:
+            return None
+        path = output_dir / "eda_quick_stats.md"
+        path.write_text(content, encoding="utf-8")
+        return content

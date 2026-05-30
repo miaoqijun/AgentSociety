@@ -123,17 +123,26 @@ def validate_explore(
                     "phase_artifact_missing",
                     phase="explore",
                     message=f"Recorded explore artifact missing: {path}",
-                    fix_hint="Re-run run-eda and record-phase-artifacts",
+                    fix_hint="Re-run run-explore-eda and record-phase-artifacts",
                 )
             )
-    elif data_dir is not None and data_dir.exists():
-        if not any(data_dir.iterdir()):
+    elif data_dir is not None:
+        if not data_dir.exists():
+            issues.append(
+                issue(
+                    "explore_output_dir_missing",
+                    phase="explore",
+                    message=f"Explore output directory not found: {data_dir}",
+                    fix_hint="Run intake and run-explore-eda before validate-explore",
+                )
+            )
+        elif not any(data_dir.iterdir()):
             issues.append(
                 issue(
                     "explore_output_empty",
                     phase="explore",
                     message=f"No files under {data_dir}",
-                    fix_hint="Run run-eda and record-phase-artifacts with output paths",
+                    fix_hint="Run run-explore-eda and record-phase-artifacts with output paths",
                 )
             )
 

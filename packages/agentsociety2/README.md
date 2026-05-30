@@ -1,6 +1,10 @@
 # AgentSociety 2
 
 <p align="center">
+  <a href="./README.md">English</a> · <a href="./README_zh.md">中文</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/tsinghua-fib-lab/AgentSociety/stargazers">
     <img src="https://img.shields.io/github/stars/tsinghua-fib-lab/AgentSociety?style=social" alt="GitHub Stars">
   </a>
@@ -47,6 +51,10 @@ pip install agentsociety2
 - An LLM API key (OpenAI, Anthropic, or any provider supported by LiteLLM)
 
 ## Quick Start
+
+Before running the examples, set the LLM environment variables described in
+[Configuration](#configuration). The package validates them when `agentsociety2`
+is imported.
 
 ### Create Your First Agent
 
@@ -196,16 +204,16 @@ PersonAgent follows a **metadata-first, selected-only** model. Skills are self-c
 
 ```
 agent/skills/
-├── observation/        # SKILL.md + scripts/observation.py
-├── memory/             # SKILL.md + scripts/memory.py
-├── cognition/          # SKILL.md + scripts/cognition.py
-└── plan/               # SKILL.md + scripts/plan.py
+├── observation/        # SKILL.md + scripts/validate_observation_artifacts.py
+├── memory/             # SKILL.md + scripts/memory_maintenance.py
+├── cognition/          # SKILL.md + scripts/validate_cognition.py
+└── plan/               # SKILL.md + scripts/validate_plan_state.py
 ```
 
 Each skill has:
 
 - `SKILL.md` — YAML frontmatter (name, description) + behavior docs
-- `scripts/<name>.py` — optional subprocess script
+- `scripts/*.py` — optional subprocess scripts declared by `script:` in frontmatter, or auto-detected as `scripts/<name>.py`
 
 Skills follow metadata-first selection:
 
@@ -264,7 +272,7 @@ await writer.register_table(schema)
 ```
 
 - **ReplayWriter / SQLite**: stores environment replay datasets plus dataset/column catalog metadata.
-- **PersonAgent workspace**: stores per-agent local files under `run/agents/agent_xxxx/`, such as `agent_config.json`, `session_state.json`, `tool_calls.jsonl`, and `thread_messages.jsonl`.
+- **PersonAgent workspace**: stores per-agent local files under `run/agents/agent_xxxx/`, such as `agent_config.json`, `AGENT.md`, and `.runtime/logs/session_state.json`, `.runtime/logs/tool_calls.jsonl`, `.runtime/logs/thread_messages.jsonl`.
 
 Legacy SQLite tables like `agent_profile`, `agent_status`, and `agent_dialog` are kept only for compatibility when reading old experiment databases; new runs no longer write them.
 
@@ -312,14 +320,14 @@ export AGENTSOCIETY_HOME_DIR="/path/to/your/data"
 Or use a `.env` file:
 
 ```bash
+# From the repository root:
 cp .env.example .env
-# Edit .env with your credentials
+# Edit .env with your credentials before importing agentsociety2
 ```
 
-.. note::
-
-   The upstream code validates ``AGENTSOCIETY_LLM_API_KEY`` at import time. Make sure it is set
-   before importing `agentsociety2` (or load `.env` early in your entrypoint).
+> **Note**
+> AgentSociety 2 validates `AGENTSOCIETY_LLM_API_KEY` at import time. Make sure it is set
+> before importing `agentsociety2`, or load `.env` early in your entrypoint.
 
 ## Examples
 
@@ -345,11 +353,11 @@ The `examples/` directory contains ready-to-run examples:
 
 ## Development
 
-For development and contribution guidelines, see [DEVELOPMENT.md](DEVELOPMENT.md).
+For development guidelines, see [docs/development.rst](docs/development.rst).
 
 ### Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+We welcome contributions! Please see [CONTRIBUTING.md](../../CONTRIBUTING.md) for details.
 
 ## Citation
 
@@ -379,7 +387,9 @@ AgentSociety 2 builds upon excellent open-source projects:
 ## Contact
 
 - **Issues**: [GitHub Issues](https://github.com/tsinghua-fib-lab/agentsociety/issues)
+- **Security**: see [SECURITY.md](../../SECURITY.md)
 - **Discussions**: [GitHub Discussions](https://github.com/tsinghua-fib-lab/agentsociety/discussions)
+- **Contributing**: [CONTRIBUTING.md](../../CONTRIBUTING.md)
 
 ---
 

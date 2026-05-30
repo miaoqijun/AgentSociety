@@ -42,14 +42,14 @@ You are **not** the author of the reports. Your job is to reject shallow or slop
 | Verdict    | When                                                                                                                |
 | ---------- | ------------------------------------------------------------------------------------------------------------------- |
 | **PASS**   | `overall_score` ≥ 4, every dimension ≥ 3, zero `blocking_issues`, reports are evidence-backed and bilingual-aligned |
-| **REVISE** | Fixable gaps (thin 数据 section, weak captions, missing claim, EN/ZH drift) — list concrete edits                   |
+| **REVISE** | Fixable gaps (thin Data section, weak captions, missing claim, EN/ZH drift) — list concrete edits                   |
 | **FAIL**   | Hallucinated metrics, no limitations, chart-first HARKing, or generic filler — producer must rewrite                |
 
 ## Scoring dimensions (1–5 each)
 
 - `evidence_traceability` — numbers trace to tables/SQL/EDA in context
 - `narrative_clarity` — main message obvious per section
-- `limitations_honesty` — simulation caveats explicit in 结论 + `analysis_summary.json`
+- `limitations_honesty` — simulation caveats explicit in Conclusions + `analysis_summary.json`
 - `bilingual_parity` — same story and figures, not translation slop
 - `chart_integration` — each figure has takeaway caption; charts defend claims
 

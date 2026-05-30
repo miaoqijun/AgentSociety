@@ -1169,11 +1169,14 @@ export class SkillMarketplacePanel {
       await this._postMessage({ type: 'installProgress', payload: { skillId: skill.id, status: 'installing' } });
 
       // 克隆仓库到临时目录
-      const tempDir = path.join(process.env.TMP || '/tmp', `skill-${skill.id}-${Date.now()}`);
-      spawnSync('git', ['clone', '--depth', '1', '--branch', branch, skill.repo, tempDir], {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `skill-install-${skill.id}-`));
+      const cloneResult = spawnSync('git', ['clone', '--depth', '1', '--branch', branch, skill.repo, tempDir], {
         encoding: 'utf-8',
         timeout: 120000
       });
+      if (cloneResult.status !== 0) {
+        throw new Error(`git clone failed: ${cloneResult.stderr || 'unknown error'}`);
+      }
 
       // 复制技能目录
       const sourcePath = path.join(tempDir, skill.path);
@@ -1534,10 +1537,14 @@ export class SkillMarketplacePanel {
       }
 
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `skill-diff-${skill.id}-`));
-      spawnSync('git', ['clone', '--depth', '1', '--branch', branch, skill.repo, tempDir], {
+      const cloneResult = spawnSync('git', ['clone', '--depth', '1', '--branch', branch, skill.repo, tempDir], {
         encoding: 'utf-8',
         timeout: 120000,
       });
+      if (cloneResult.status !== 0) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        throw new Error(`git clone failed: ${cloneResult.stderr || 'unknown error'}`);
+      }
 
       const remoteRoot = path.join(tempDir, skill.path);
       if (!fs.existsSync(remoteRoot)) {

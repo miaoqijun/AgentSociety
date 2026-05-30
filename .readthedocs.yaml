@@ -1,3 +1,7 @@
+# AgentSociety v1 documentation (legacy).
+# AgentSociety 2 docs: packages/agentsociety2/.readthedocs.yaml
+# Authoring guide: READTHEDOCS.md
+
 version: 2
 
 build:

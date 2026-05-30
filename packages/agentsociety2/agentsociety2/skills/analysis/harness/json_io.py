@@ -45,12 +45,16 @@ def save_model_to_file(path: Path, model: BaseModel) -> None:
 
 
 def load_dict_payload(text_or_path: str) -> dict[str, Any]:
-    path = Path(text_or_path)
-    raw = (
-        loads_json_file(path)
-        if path.exists() and path.is_file()
-        else loads_json_text(text_or_path)
-    )
+    stripped = str(text_or_path).lstrip()
+    if stripped.startswith("{"):
+        raw = loads_json_text(text_or_path)
+    else:
+        path = Path(text_or_path)
+        try:
+            is_file = path.exists() and path.is_file()
+        except OSError:
+            is_file = False
+        raw = loads_json_file(path) if is_file else loads_json_text(text_or_path)
     if not isinstance(raw, dict):
         raise ValueError("payload must be a JSON object")
     return raw

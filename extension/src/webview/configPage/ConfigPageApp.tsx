@@ -43,7 +43,7 @@ const DEFAULT_VALUES: ConfigValues = {
   backendPort: 8001,
   pythonPath: '/usr/local/bin/python3',
   llmApiBase: 'https://api.openai.com/v1',
-  llmModel: 'gpt-5.4',
+  llmModel: 'gpt-5.5',
   backendLogLevel: 'info',
   coderLlmApiKey: '',
   coderLlmApiBase: 'https://api.openai.com/v1',

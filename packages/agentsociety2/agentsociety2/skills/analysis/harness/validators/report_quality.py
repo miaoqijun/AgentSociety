@@ -78,7 +78,7 @@ def validate_report_quality(
                 "report_quality_missing_files",
                 phase="produce",
                 message=f"Bilingual MD + HTML required before quality check: {', '.join(missing)}",
-                fix_hint="Write all four report files (see references/html-export.md)",
+                fix_hint="Write all four report files; run `ags.py analysis guidance --topic reports`",
             )
         )
         return blocked(issues)
@@ -97,7 +97,7 @@ def validate_report_quality(
                     "report_too_short",
                     phase="produce",
                     message=f"{label} has only ~{wc} words (minimum {MIN_REPORT_WORDS})",
-                    fix_hint="Expand narrative sections; see references/analysis-quality.md",
+                    fix_hint="Expand claim-backed narrative sections with metrics, evidence, and caveats",
                 )
             )
         if len(SECTION_RE.findall(text)) < MIN_SECTION_HEADERS:
@@ -126,7 +126,7 @@ def validate_report_quality(
                     "figure_caption_missing",
                     phase="produce",
                     message=f"{label}: every `![](assets/...)` needs a one-line caption below",
-                    fix_hint="See checklists/quality.md",
+                    fix_hint="Add a concise caption directly below each figure embed",
                 )
             )
 
