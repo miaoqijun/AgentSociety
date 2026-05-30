@@ -1524,17 +1524,35 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
     if (!element) {
       const items: ProjectItem[] = [];
 
-      // 阶段1: 没有.env文件 -> 提示配置环境变量
+      // 阶段1: 没有.env文件 -> 自动创建模板后继续
       if (!hasEnv) {
-        const settingsItem = new ProjectItem(
-          localize('projectStructure.settings'),
-          vscode.TreeItemCollapsibleState.None,
-          'settings',
-          undefined
-        );
-        settingsItem.tooltip = localize('projectStructure.settings.tooltip');
-        items.push(settingsItem);
-        return items;
+        envManager.createEnvFromExample();
+        // 创建后直接进入阶段2（有.env但需配置 API key）
+        const updatedConfig = envManager.readEnv();
+        if (!updatedConfig.llmApiKey?.trim()) {
+          const settingsItem = new ProjectItem(
+            localize('projectStructure.settings'),
+            vscode.TreeItemCollapsibleState.None,
+            'settings',
+            undefined
+          );
+          settingsItem.tooltip = localize('projectStructure.settings.tooltip');
+          items.push(settingsItem);
+
+          const infoItem = new ProjectItem(
+            localize('projectStructure.apiKeyRequired.label'),
+            vscode.TreeItemCollapsibleState.None,
+            'initWorkspace',
+            undefined
+          );
+          infoItem.command = {
+            command: 'aiSocialScientist.openConfigPage',
+            title: localize('projectStructure.settings')
+          };
+          infoItem.tooltip = localize('projectStructure.apiKeyRequired.tooltip');
+          items.push(infoItem);
+          return items;
+        }
       }
 
       // 阶段2: 有.env但没有配置API key -> 提示配置环境变量
@@ -1608,20 +1626,16 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       aiChatItem.tooltip = localize('extension.aiChat.tooltip');
       items.push(aiChatItem);
 
-      // 如果工作区目录结构不完整，显示修复按钮
+      // 如果工作区目录结构不完整，自动修复（无需用户点击）
       if (needsFix) {
-        const fixItem = new ProjectItem(
-          localize('extension.fixWorkspace.button'),
-          vscode.TreeItemCollapsibleState.None,
-          'fixWorkspace',
-          undefined
-        );
-        fixItem.command = {
-          command: 'aiSocialScientist.fixWorkspace',
-          title: localize('extension.fixWorkspace.commandTitle'),
-        };
-        fixItem.tooltip = localize('extension.fixWorkspace.tooltip');
-        items.push(fixItem);
+        try {
+          const result = await this.workspaceManager.init({ topic: 'Fix Workspace' });
+          if (result.success && result.filesCreated && result.filesCreated.length > 0) {
+            this.log(`Auto-fixed workspace: created ${result.filesCreated.length} items`);
+          }
+        } catch (error: any) {
+          this.log(`Auto-fix workspace failed: ${error}`);
+        }
       }
 
       // 添加项目状态概览（统计信息）
@@ -3407,19 +3421,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
 
     const workspacePath = workspaceFolder.uri.fsPath;
 
-    // 检查 .agentsociety 文件夹是否存在
-    const dotAgentSocietyPath = path.join(workspacePath, '.agentsociety');
-    if (fs.existsSync(dotAgentSocietyPath)) {
-      const confirm = await vscode.window.showWarningMessage(
-        localize('projectStructure.initWorkspace.warnExists'),
-        { modal: true },
-        localize('projectStructure.initWorkspace.confirm'),
-        localize('projectStructure.initWorkspace.cancel')
-      );
-      if (confirm !== localize('projectStructure.initWorkspace.confirm')) {
-        return;
-      }
-    }
+    // init() 是幂等的，所有写入都有 existsSync 守卫，直接执行
 
     try {
       // 使用进度提示显示初始化过程
@@ -3463,30 +3465,18 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
     const workspacePath = workspaceFolder.uri.fsPath;
 
     try {
-      vscode.window.showInformationMessage(localize('customModules.scanning'));
-
       const response = await this.apiClient.scanCustomModules({
         workspace_path: workspacePath
       });
 
       if (response.success) {
-        // 获取扫描后的模块列表
         const listResponse = await this.apiClient.listCustomModules();
 
         if (listResponse.success) {
-          // 过滤出自定义模块（is_custom 为 true）
           this.customModulesCache.agents = listResponse.agents.filter(a => a.is_custom);
           this.customModulesCache.envs = listResponse.envs.filter(e => e.is_custom);
 
           this.log(`Custom modules scan completed: ${this.customModulesCache.agents.length} agents, ${this.customModulesCache.envs.length} envs`);
-
-          vscode.window.showInformationMessage(
-            localize('customModules.scanSuccess') +
-            ` (${this.customModulesCache.agents.length} ${localize('projectStructure.customAgents')}, ` +
-            `${this.customModulesCache.envs.length} ${localize('projectStructure.customEnvs')})`
-          );
-
-          // 刷新视图
           this.refresh();
         }
       } else {
@@ -3625,27 +3615,11 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       return;
     }
 
-    // 显示问题并询问是否修复
-    const missingList = health.missingItems.map(i => `  - ${i}`).join('\n');
-    const message = localize('workspaceFix.confirm', health.missingItems.length, missingList);
-
-    const confirm = await vscode.window.showWarningMessage(
-      message,
-      { modal: true },
-      'Fix / 修复',
-      'Cancel / 取消'
-    );
-
-    if (confirm !== 'Fix / 修复') {
-      return;
-    }
-
     try {
-      // 使用 WorkspaceManager 来修复工作区
       const result = await this.workspaceManager.init({ topic: 'Fix Workspace' });
 
       if (result.success) {
-        vscode.window.showInformationMessage(localize('workspaceFix.fixed', result.filesCreated?.length || 0));
+        this.log(`Workspace fixed: created ${result.filesCreated?.length || 0} items`);
         this.refresh();
       } else {
         vscode.window.showErrorMessage(localize('workspaceFix.failed', result.message));
@@ -3733,45 +3707,31 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
           const officeSkillsCount = officeSkillsResult.downloaded.length;
           const totalSkills = agentSocietyCount + officeSkillsCount;
 
-          let message: string;
-          let buttons: string[] = [
-            localize('projectStructure.updateSkills.viewDetails'),
-            localize('projectStructure.updateSkills.ok')
-          ];
-
           if (officeSkillsCount === 0) {
-            message = localize('projectStructure.updateSkills.partialIssues');
-            message += localize('projectStructure.updateSkills.agentsociety', agentSocietyCount);
-            message += localize('projectStructure.updateSkills.officeFailed');
-            message += `⚠️ ${officeSkillsResult.message}\n\n`;
-            message += localize('projectStructure.updateSkills.checkExtension');
-            buttons = [
+            const message = localize('projectStructure.updateSkills.partialIssues')
+              + localize('projectStructure.updateSkills.agentsociety', agentSocietyCount)
+              + localize('projectStructure.updateSkills.officeFailed')
+              + `⚠️ ${officeSkillsResult.message}\n\n`
+              + localize('projectStructure.updateSkills.checkExtension');
+            const result = await vscode.window.showWarningMessage(
+              message,
               localize('projectStructure.updateSkills.viewDetails'),
               localize('projectStructure.updateSkills.close')
-            ];
+            );
+            if (result === localize('projectStructure.updateSkills.viewDetails')) {
+              this.workspaceManager.showOutput();
+            }
           } else if (!officeSkillsResult.success && officeSkillsResult.downloaded.length > 0) {
-            message = localize('projectStructure.updateSkills.partialSuccess');
-            message += localize('projectStructure.updateSkills.agentsociety', agentSocietyCount);
-            message += localize('projectStructure.updateSkills.partialOffice', officeSkillsCount);
-            message += `⚠️ ${officeSkillsResult.message}`;
+            this.log(
+              `Skills updated: ${agentSocietyCount} agentsociety, ${officeSkillsCount} office (partial: ${officeSkillsResult.message})`
+            );
           } else {
-            message = localize('projectStructure.updateSkills.success');
-            message += localize('projectStructure.updateSkills.agentsociety', agentSocietyCount);
-            message += localize('projectStructure.updateSkills.office', officeSkillsCount);
-            message += localize('projectStructure.updateSkills.total', totalSkills);
+            this.log(
+              `Skills updated: ${agentSocietyCount} agentsociety, ${officeSkillsCount} office, ${totalSkills} total`
+            );
           }
 
           progress.report({ increment: 100 });
-
-          const result = await vscode.window.showInformationMessage(
-            message,
-            ...buttons
-          );
-
-          if (result === localize('projectStructure.updateSkills.viewDetails') ||
-            result === localize('projectStructure.updateSkills.viewInstructions')) {
-            this.workspaceManager.showOutput();
-          }
 
           this.refresh();
         }

@@ -37,7 +37,18 @@ class ClaimMode(str, Enum):
     exploratory = "exploratory"
 
 
-EdaProfile = Literal["quick-stats", "ydata", "sweetviz", "missingno", "correlation"]
+EdaProfile = Literal[
+    "quick-stats",
+    "ydata",
+    "sweetviz",
+    "missingno",
+    "correlation",
+    "pygwalker",
+    "datatable",
+    "plotly-profile",
+    "eda-hub",
+    "bundle",
+]
 Severity = Literal["info", "warning", "fatal"]
 
 
@@ -67,8 +78,15 @@ class AnalysisPlan(BaseModel):
     confirmatory_claims: List[str] = Field(default_factory=list)
     exploratory_notes: str = ""
     simulation_limitations: str = ""
-    eda_profile: EdaProfile = "quick-stats"
+    eda_profile: EdaProfile = "bundle"
+    eda_profiles: List[EdaProfile] = Field(default_factory=list)
     table_checks: List[TableCheck] = Field(default_factory=list)
+
+    def resolved_eda_profiles(self) -> List[EdaProfile]:
+        if self.eda_profiles:
+            return list(self.eda_profiles)
+        return [self.eda_profile]
+
     synthesis_scope_hypothesis_ids: List[str] = Field(default_factory=list)
 
 
@@ -89,6 +107,25 @@ class FigureContract(BaseModel):
     contract_id: str
     claim_id: str = ""
     core_finding: str = ""
+    figure_scope: Literal["single chart", "composite figure"] = "single chart"
+    chart_role: Literal[
+        "comparison",
+        "trend",
+        "distribution",
+        "composition",
+        "relationship",
+        "robustness",
+        "other",
+    ] = "other"
+    evidence_source: str = ""
+    analysis_scope: str = ""
+    figure_archetype: str = ""
+    visual_center: str = ""
+    axes_grouping: str = ""
+    legend_strategy: str = ""
+    reviewer_check: str = ""
+    caption_requirements: List[str] = Field(default_factory=list)
+    presentation_mode: Literal["static", "plotly", "altair"] = "static"
     output_files: List[str] = Field(default_factory=list)
 
 
@@ -131,7 +168,96 @@ class PhaseAttestation(BaseModel):
     blocking_reason: Optional[str] = None
     recommended_next_step: Optional[str] = None
     rubric: Dict[str, Any] = Field(default_factory=dict)
+    artifact_fingerprint: str = ""
     completed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ReflectionItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    item_id: str = ""
+    title: str
+    content: str
+    evidence: List[str] = Field(default_factory=list)
+    confidence: Literal["low", "medium", "high"] = "medium"
+
+
+class PreferenceCandidate(ReflectionItem):
+    scope: Literal["user", "project", "workspace"] = "user"
+    category: str = "workflow"
+    value: str = ""
+
+
+class MethodRecipeCandidate(ReflectionItem):
+    recipe_id: str = ""
+    applies_when: List[str] = Field(default_factory=list)
+    recommended_steps: List[str] = Field(default_factory=list)
+    pitfalls: List[str] = Field(default_factory=list)
+
+
+class ReflectionReport(BaseModel):
+    """Reviewable post-run learning candidates; promotion is explicit."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    hypothesis_id: str = ""
+    experiment_id: str = ""
+    source: Literal["hypothesis", "synthesis", "manual"] = "hypothesis"
+    what_worked: List[ReflectionItem] = Field(default_factory=list)
+    what_failed: List[ReflectionItem] = Field(default_factory=list)
+    reusable_methods: List[MethodRecipeCandidate] = Field(default_factory=list)
+    user_preferences_observed: List[PreferenceCandidate] = Field(default_factory=list)
+    promotion_candidates: List[str] = Field(default_factory=list)
+    caveats: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class UserFeedback(BaseModel):
+    """User-visible post-analysis feedback captured before memory promotion."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    feedback_id: str = ""
+    hypothesis_id: str = ""
+    experiment_id: str = ""
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    satisfied: Optional[bool] = None
+    comments: str = ""
+    requested_changes: List[str] = Field(default_factory=list)
+    preference_candidates: List[PreferenceCandidate] = Field(default_factory=list)
+    lesson_candidates: List[ReflectionItem] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ReflectionReview(BaseModel):
+    """Mechanical pre-promotion review for reflection quality and memory safety."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    verdict: Literal["PASS", "NEEDS_REVISION"] = "NEEDS_REVISION"
+    issues: List[ValidationIssue] = Field(default_factory=list)
+    recommendations: List[str] = Field(default_factory=list)
+    reviewed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class PromotedPreference(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    key: str
+    category: str = "workflow"
+    value: str
+    evidence: List[str] = Field(default_factory=list)
+    confidence: Literal["low", "medium", "high"] = "medium"
+    source_reflection: str = ""
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class MemoryIndex(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    preferences: Dict[str, PromotedPreference] = Field(default_factory=dict)
+    promoted_reflections: List[str] = Field(default_factory=list)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PhaseCheckpoint(BaseModel):

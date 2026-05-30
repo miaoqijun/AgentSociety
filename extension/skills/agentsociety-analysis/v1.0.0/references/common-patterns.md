@@ -131,3 +131,61 @@ ax.text(x_text, y_text, label, color=color, ha="center", va="center", fontweight
 - progressive ablation: alpha-graded bars
 - trend affected by phase shifts: event markers
 - one finding with multiple evidence views: compact multi-panel layout or composite assembly
+- 2–3 series with stable endpoints: direct labels (Pattern 10) instead of legend
+- aggregated time series with uncertainty: seaborn CI line (Pattern 11)
+- group comparison with visible n: bar + strip/jitter (Pattern 12)
+- many subgroups, same axes: seaborn facet grid (Pattern 13)
+- redundant series encoding: linestyle + marker cycle (Pattern 14)
+- subtle grid for value reading: light y-grid only (Pattern 15)
+
+## Pattern 11: CI Band Trend Line (seaborn)
+
+Use when step-level mean needs uncertainty and n supports it.
+
+```python
+import seaborn as sns
+
+sns.lineplot(data=df, x="step", y="metric_value", hue="condition",
+             errorbar=("ci", 95), markers=True, linewidth=1.8)
+sns.despine()
+```
+
+Caption: state CI level and whether points are agents or run aggregates.
+
+## Pattern 12: Bar Summary + Raw Points
+
+Use when n is modest and showing spread strengthens the claim.
+
+```python
+sns.barplot(data=df, x="condition", y="metric_value", errorbar="se", palette=OKABE_ITO)
+sns.stripplot(data=df, x="condition", y="metric_value", color="#333", alpha=0.3, size=2.5)
+```
+
+## Pattern 13: Faceted Small Multiples
+
+Observable Plot–style faceting when one metric repeats across cohorts/regions.
+
+```python
+g = sns.relplot(data=df, x="step", y="metric_value", col="cohort", col_wrap=3,
+                kind="line", facet_kws={"sharey": True}, height=2.8)
+```
+
+## Pattern 14: Linestyle + Marker Redundancy
+
+Grayscale-safe multi-series encoding:
+
+```python
+styles = ["-", "--", "-.", ":"]
+markers = ["o", "s", "^", "D"]
+for i, (label, sub) in enumerate(groups):
+    ax.plot(sub.x, sub.y, color=OKABE_ITO[i], ls=styles[i % 4], marker=markers[i % 4], label=label)
+```
+
+## Pattern 15: Light Y-Grid Only
+
+Enable only when tick reading is hard; keep alpha low.
+
+```python
+ax.yaxis.grid(True, color="#e2e8f0", linewidth=0.8, alpha=0.9)
+ax.set_axisbelow(True)
+```

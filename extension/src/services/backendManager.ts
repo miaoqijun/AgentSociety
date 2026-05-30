@@ -134,20 +134,36 @@ export class BackendManager {
                 signal: AbortSignal.timeout(3000),
               });
               if (response.ok) {
-                // 后端仍在运行，保留PID记录
                 this.log(`Existing backend process found (PID: ${pid}, Port: ${port})`);
                 this.allocatedPort = port;
                 this.updateStatusBar('running', port);
                 this.startHealthCheck();
               } else {
-                // 健康检查失败，清理记录
-                this.log(`Backend process (PID: ${pid}) exists but health check failed, cleaning up...`);
+                this.log(`Backend process (PID: ${pid}) exists but health check returned non-OK, cleaning up...`);
                 this.cleanupBackendEnv();
               }
             } catch {
-              // 无法连接，清理记录
-              this.log(`Cannot connect to backend (PID: ${pid}), cleaning up...`);
-              this.cleanupBackendEnv();
+              // 健康检查失败可能是后端正在启动中，等待 2 秒重试一次
+              this.log(`Backend health check failed (PID: ${pid}), retrying in 2s...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              try {
+                const retryResponse = await fetch(`${backendUrl}/health`, {
+                  method: 'GET',
+                  signal: AbortSignal.timeout(3000),
+                });
+                if (retryResponse.ok) {
+                  this.log(`Backend process recovered (PID: ${pid}, Port: ${port})`);
+                  this.allocatedPort = port;
+                  this.updateStatusBar('running', port);
+                  this.startHealthCheck();
+                } else {
+                  this.log(`Backend process (PID: ${pid}) still unhealthy after retry, cleaning up...`);
+                  this.cleanupBackendEnv();
+                }
+              } catch {
+                this.log(`Cannot connect to backend (PID: ${pid}) after retry, cleaning up...`);
+                this.cleanupBackendEnv();
+              }
             }
           } catch {
             // 进程不存在，清理记录
@@ -170,15 +186,10 @@ export class BackendManager {
    * 显示配置错误消息，并提供打开 .env 文件的选项
    */
   private async showConfigError(message: string): Promise<void> {
-    const openEnvLabel = 'Open .env file';
-    const result = await vscode.window.showErrorMessage(message, openEnvLabel);
-    if (result === openEnvLabel) {
-      // 打开 .env 文件
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-      if (workspaceFolder) {
-        const envPath = vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, '.env'));
-        await vscode.commands.executeCommand('vscode.open', envPath);
-      }
+    const openConfigLabel = 'Open Settings / 打开配置';
+    const result = await vscode.window.showErrorMessage(message, openConfigLabel);
+    if (result === openConfigLabel) {
+      await vscode.commands.executeCommand('aiSocialScientist.openConfigPage');
     }
   }
 

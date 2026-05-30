@@ -1,28 +1,27 @@
 # Stage 4: Refine (Charts & Figure Contracts)
 
-Goal: turn approved claims into a small set of **argument-driven** visuals. Exploration stays in Stage 2; this stage only confirms charts that defend claims.
+Goal: claim-driven visuals only — no decorative exploration charts.
 
-Read `references/analysis-quality.md` (Refine section) before generating code.
+Read `references/analysis-quality.md` (Refine) and `references/charts.md` before code.
 
 ## Steps
 
-1. For each claim with `needs_chart: true`, draft a figure contract (`references/figure-contract.md`).
-2. Run `$PYTHON_PATH .agentsociety/bin/ags.py analysis record-contract --workspace $WORKSPACE --hypothesis-id $HYP_ID --payload '{...}'` per chart.
-3. Generate charts with `run-code` (max 5 unless user approves more). Use `references/api.md` and `references/chart-guide.md`.
-4. Optional: `$PYTHON_PATH .agentsociety/bin/ags.py analysis compose-figure --spec FILE` for multi-panel figures.
-5. Run `validate-chart` per new chart (code path or `--chart-path`).
-6. Run `$PYTHON_PATH .agentsociety/bin/ags.py analysis validate-refine --workspace $WORKSPACE --hypothesis-id $HYP_ID` (holistic refine gate).
-7. Run `record-attestation` with `phase: refine` only after step 6 structural PASS.
-8. `advance --phase produce` only when `gate-status` shows `refine` gate_pass.
+1. For each claim with `needs_chart: true`, write a **figure contract**. Template: `references/charts.md`.
+2. `record-contract --payload '{...}'` per chart.
+3. Generate with `run-code` from `assets/chart_scaffold.reference.py` + `references/chart-recipes.md`.
+4. On layout/QA issues, **read and apply** `support/scientific-visualization/SKILL.md` (squint test, CI bands, grayscale-safe encoding).
+5. Optional: `compose-figure --spec FILE` using `assets/layout-atlas/` wireframes for multi-panel figures.
+6. Optional interactive sidecar: `references/eda.md` + `chart_export` when contract sets `presentation_mode: plotly|altair`.
+7. `validate-chart` per artifact → `validate-refine` → `record-attestation` (`charts_map_to_claims`, `visual_message_clear`).
+8. `advance --phase produce` only when refine `gate_pass`.
 
-## Exit Conditions
+## Quality (required)
 
-- Every chart traces to a claim + contract.
-- `validate-refine` + refine attestation → `refine` gate_pass.
-- Do **not** run `record-attestation --phase produce` or `validate-release` until refine gate_pass (harness enforces).
+- One chart = one message; English-only legends; Okabe-Ito / semantic palette locked.
+- Same condition → same color across report.
+- Simulation limitations in captions where relevant.
 
-## Quality (not optional)
+## Exit conditions
 
-- One chart = one takeaway; reject decorative plots.
-- Same condition → same color across charts.
-- English-only legend text; simulation limitations visible in captions where relevant.
+- Every chart traces to claim + contract.
+- `validate-refine` PASS + refine attestation.

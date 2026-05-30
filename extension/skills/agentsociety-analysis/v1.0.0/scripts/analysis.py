@@ -176,7 +176,22 @@ def _build_parser() -> argparse.ArgumentParser:
     run_eda_parser.add_argument(
         "--type",
         required=True,
-        choices=["ydata", "sweetviz", "missingno", "correlation", "quick-stats"],
+        choices=[
+            "ydata",
+            "sweetviz",
+            "missingno",
+            "correlation",
+            "quick-stats",
+            "pygwalker",
+            "datatable",
+            "plotly-profile",
+            "eda-hub",
+            "bundle",
+        ],
+    )
+    run_eda_parser.add_argument(
+        "--profiles",
+        help="Comma-separated EDA types for --type bundle (default: quick-stats,ydata,pygwalker,datatable,plotly-profile)",
     )
     run_eda_parser.add_argument("--tables")
     run_eda_parser.add_argument("--workspace", default=workspace_default)
@@ -252,6 +267,13 @@ def _build_parser() -> argparse.ArgumentParser:
     sync_assets_parser.add_argument("--hypothesis-id", required=True)
     sync_assets_parser.add_argument("--experiment-id", required=True)
 
+    embed_eda_parser = subparsers.add_parser(
+        "embed-interactive-eda",
+        help="Inject multi-tab interactive EDA section into report_*.html",
+    )
+    _add_harness_workspace(embed_eda_parser)
+    embed_eda_parser.add_argument("--hypothesis-id", required=True)
+
     validate_release_parser = subparsers.add_parser("validate-release")
     _add_harness_workspace(validate_release_parser)
     validate_release_parser.add_argument("--hypothesis-id", required=True)
@@ -324,9 +346,122 @@ def _build_parser() -> argparse.ArgumentParser:
         "--artifacts", required=True, help="JSON array of file paths"
     )
 
+    run_explore_eda_parser = subparsers.add_parser(
+        "run-explore-eda",
+        help="Run EDA from analysis_plan and register explore phase artifacts",
+    )
+    _add_harness_workspace(run_explore_eda_parser)
+    run_explore_eda_parser.add_argument("--hypothesis-id", required=True)
+    run_explore_eda_parser.add_argument("--experiment-id", required=True)
+
+    prepare_produce_parser = subparsers.add_parser(
+        "prepare-produce",
+        help="Build report context and sync chart/EDA assets before release validation",
+    )
+    _add_harness_workspace(prepare_produce_parser)
+    prepare_produce_parser.add_argument("--hypothesis-id", required=True)
+    prepare_produce_parser.add_argument("--experiment-id", required=True)
+
     gate_status_parser = subparsers.add_parser("gate-status")
     _add_harness_workspace(gate_status_parser)
     gate_status_parser.add_argument("--hypothesis-id")
+
+    draft_reflection_parser = subparsers.add_parser(
+        "draft-reflection",
+        help="Create a reviewable post-run learning draft from harness state",
+    )
+    _add_harness_workspace(draft_reflection_parser)
+    draft_reflection_parser.add_argument("--hypothesis-id", required=True)
+    draft_reflection_parser.add_argument("--experiment-id", required=True)
+
+    record_reflection_parser = subparsers.add_parser(
+        "record-reflection",
+        help="Store a reviewed reflection report before promotion",
+    )
+    _add_harness_workspace(record_reflection_parser)
+    record_reflection_parser.add_argument("--hypothesis-id")
+    record_reflection_parser.add_argument("--payload", required=True)
+
+    record_feedback_parser = subparsers.add_parser(
+        "record-feedback",
+        help="Store user post-analysis feedback for reflection and memory promotion",
+    )
+    _add_harness_workspace(record_feedback_parser)
+    record_feedback_parser.add_argument("--hypothesis-id")
+    record_feedback_parser.add_argument("--payload", required=True)
+
+    review_reflection_parser = subparsers.add_parser(
+        "review-reflection",
+        help="Run pre-promotion review over reflection and feedback records",
+    )
+    _add_harness_workspace(review_reflection_parser)
+    review_reflection_parser.add_argument("--hypothesis-id")
+    review_reflection_parser.add_argument(
+        "--include-preferences",
+        action="store_true",
+        help="Check whether preference promotion has explicit feedback evidence",
+    )
+
+    promote_reflection_parser = subparsers.add_parser(
+        "promote-reflection",
+        help="Promote reviewed lessons/recipes/preferences into workspace memory",
+    )
+    _add_harness_workspace(promote_reflection_parser)
+    promote_reflection_parser.add_argument("--hypothesis-id")
+    promote_reflection_parser.add_argument(
+        "--include-preferences",
+        action="store_true",
+        help="Promote preference candidates only after explicit user confirmation",
+    )
+    promote_reflection_parser.add_argument(
+        "--skip-recipes",
+        action="store_true",
+        help="Do not write method recipe markdown files",
+    )
+    promote_reflection_parser.add_argument(
+        "--skip-lessons",
+        action="store_true",
+        help="Do not append project lessons JSONL records",
+    )
+
+    memory_context_parser = subparsers.add_parser(
+        "memory-context",
+        help="Show active experience memory injected into analysis orchestration",
+    )
+    _add_harness_workspace(memory_context_parser)
+    memory_context_parser.add_argument("--hypothesis-id")
+
+    guidance_parser = subparsers.add_parser(
+        "guidance",
+        help="Show built-in analysis harness guidance for required mechanics",
+    )
+    _add_harness_workspace(guidance_parser)
+    guidance_parser.add_argument(
+        "--topic",
+        default="workflow",
+        choices=[
+            "workflow",
+            "paths",
+            "attestation",
+            "charts",
+            "reports",
+            "reflection",
+            "optional-refs",
+        ],
+    )
+
+    payload_template_parser = subparsers.add_parser(
+        "payload-template",
+        help="Show a built-in JSON payload template for a harness command",
+    )
+    _add_harness_workspace(payload_template_parser)
+    payload_template_parser.add_argument("--name", required=True)
+
+    chart_scaffold_parser = subparsers.add_parser(
+        "chart-scaffold",
+        help="Print the built-in chart script scaffold used by harness validators",
+    )
+    _add_harness_workspace(chart_scaffold_parser)
 
     return parser
 
@@ -1065,11 +1200,41 @@ def _run_eda(args: argparse.Namespace) -> int:
             invalid_tables=invalid_tables,
         )
 
+    if args.type == "bundle":
+        profiles = _parse_csv_list(args.profiles) if args.profiles else None
+        files, hub = generator.generate_eda_bundle(
+            db_path, output_dir, profiles=profiles, tables=selected_tables
+        )
+        _maybe_record_eda_artifacts(args, files)
+        return _ok(
+            type=args.type,
+            files=files,
+            hub=str(hub) if hub else None,
+            requested_tables=requested_tables,
+            selected_tables=selected_tables,
+            invalid_tables=invalid_tables,
+        )
+
+    if args.type == "eda-hub":
+        hub = generator.generate_eda_hub(output_dir)
+        files = [str(hub)]
+        _maybe_record_eda_artifacts(args, files)
+        return _ok(
+            type=args.type,
+            files=files,
+            requested_tables=requested_tables,
+            selected_tables=selected_tables,
+            invalid_tables=invalid_tables,
+        )
+
     method_map = {
         "ydata": generator.generate_ydata_profile,
         "sweetviz": generator.generate_sweetviz_profile,
         "missingno": generator.generate_missingno_report,
         "correlation": generator.generate_correlation_report,
+        "pygwalker": generator.generate_pygwalker_profile,
+        "datatable": generator.generate_datatable_profile,
+        "plotly-profile": generator.generate_plotly_profile,
     }
     output_path = method_map[args.type](db_path, output_dir, tables=selected_tables)
     files = [str(output_path)] if output_path else []
@@ -1197,6 +1362,19 @@ def _dispatch_harness(args: argparse.Namespace) -> int:
         )
     if cmd == "validate-refine":
         return _ok(**harness_cli.cmd_validate_refine(workspace, args.hypothesis_id))
+    if cmd == "run-explore-eda":
+        result = harness_cli.cmd_run_explore_eda(
+            workspace, args.hypothesis_id, args.experiment_id
+        )
+        if result.get("error"):
+            return _error(result["error"])
+        return _ok(**result)
+    if cmd == "prepare-produce":
+        return _ok(
+            **harness_cli.cmd_prepare_produce(
+                workspace, args.hypothesis_id, args.experiment_id
+            )
+        )
     if cmd == "build-report-context":
         return _ok(
             **harness_cli.cmd_build_report_context(workspace, args.hypothesis_id)
@@ -1229,6 +1407,12 @@ def _dispatch_harness(args: argparse.Namespace) -> int:
                 workspace, args.hypothesis_id, args.experiment_id
             )
         )
+    if cmd == "embed-interactive-eda":
+        from agentsociety2.skills.analysis.harness.report_bundle import (
+            cmd_embed_interactive_eda,
+        )
+
+        return _ok(**cmd_embed_interactive_eda(workspace, args.hypothesis_id))
     if cmd == "validate-release":
         return _ok(
             **harness_cli.cmd_validate_release(
@@ -1283,6 +1467,64 @@ def _dispatch_harness(args: argparse.Namespace) -> int:
                 workspace, getattr(args, "hypothesis_id", None)
             )
         )
+    if cmd == "draft-reflection":
+        return _ok(
+            **harness_cli.cmd_draft_reflection(
+                workspace, args.hypothesis_id, args.experiment_id
+            )
+        )
+    if cmd == "record-reflection":
+        return _ok(
+            **harness_cli.cmd_record_reflection(
+                workspace,
+                getattr(args, "hypothesis_id", None),
+                _load_json_payload(args.payload),
+            )
+        )
+    if cmd == "record-feedback":
+        return _ok(
+            **harness_cli.cmd_record_feedback(
+                workspace,
+                getattr(args, "hypothesis_id", None),
+                _load_json_payload(args.payload),
+            )
+        )
+    if cmd == "review-reflection":
+        return _ok(
+            **harness_cli.cmd_review_reflection(
+                workspace,
+                getattr(args, "hypothesis_id", None),
+                include_preferences=args.include_preferences,
+            )
+        )
+    if cmd == "promote-reflection":
+        return _ok(
+            **harness_cli.cmd_promote_reflection(
+                workspace,
+                getattr(args, "hypothesis_id", None),
+                include_preferences=args.include_preferences,
+                include_recipes=not args.skip_recipes,
+                include_lessons=not args.skip_lessons,
+            )
+        )
+    if cmd == "memory-context":
+        return _ok(
+            **harness_cli.cmd_memory_context(
+                workspace, getattr(args, "hypothesis_id", None)
+            )
+        )
+    if cmd == "guidance":
+        result = harness_cli.cmd_guidance(args.topic)
+        if result.get("error"):
+            return _error(result["error"])
+        return _ok(**result)
+    if cmd == "payload-template":
+        result = harness_cli.cmd_payload_template(args.name)
+        if result.get("error"):
+            return _error(result["error"])
+        return _ok(**result)
+    if cmd == "chart-scaffold":
+        return _ok(**harness_cli.cmd_chart_scaffold())
     return _error(f"unknown harness command: {cmd}")
 
 
@@ -1318,6 +1560,7 @@ def main() -> int:
             "validate-chart",
             "validate-refine",
             "sync-report-assets",
+            "embed-interactive-eda",
             "validate-release",
             "validate-report-quality",
             "record-report-review",
@@ -1329,8 +1572,19 @@ def main() -> int:
             "run-loop",
             "record-attestation",
             "record-phase-artifacts",
+            "run-explore-eda",
+            "prepare-produce",
             "build-report-context",
             "gate-status",
+            "draft-reflection",
+            "record-reflection",
+            "promote-reflection",
+            "memory-context",
+            "record-feedback",
+            "review-reflection",
+            "guidance",
+            "payload-template",
+            "chart-scaffold",
         }
         if args.command in harness_commands:
             return _dispatch_harness(args)

@@ -212,7 +212,7 @@
       "apiBase": "LLM API Base URL",
       "apiBasePlaceholder": "Default: https://api.openai.com/v1",
       "modelName": "LLM Model Name",
-      "modelPlaceholder": "Default: gpt-5.4"
+      "modelPlaceholder": "Default: gpt-5.5"
     },
     "advancedValidation": {
       "passedShort": "{{done}}/{{total}} passed",

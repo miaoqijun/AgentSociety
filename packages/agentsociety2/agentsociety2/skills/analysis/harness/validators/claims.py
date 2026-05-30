@@ -32,6 +32,15 @@ def validate_claims(doc: ClaimsDocument) -> ValidationResult:
                 message="No confirmatory claims in claims.json",
             )
         )
+    elif not any(c.approved for c in confirmatory):
+        issues.append(
+            issue(
+                "no_approved_confirmatory_claim",
+                phase="claims",
+                message="No confirmatory claim has approved=true",
+                fix_hint="Have the user approve at least one confirmatory claim before refine",
+            )
+        )
     for claim in doc.claims:
         if not claim.statement.strip():
             issues.append(

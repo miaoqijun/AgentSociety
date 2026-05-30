@@ -309,9 +309,14 @@ export class WorkspaceExportManager implements vscode.Disposable {
     }
 
     // 动态 hypothesis 目录
-    const dynamicRoots = fs.readdirSync(workspacePath, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && /^hypothesis_[^/\\]+$/.test(entry.name))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    let dynamicRoots: fs.Dirent[] = [];
+    try {
+      dynamicRoots = fs.readdirSync(workspacePath, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && /^hypothesis_[^/\\]+$/.test(entry.name))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch {
+      this.log(`Failed to scan hypothesis directories in ${workspacePath}`);
+    }
 
     for (const entry of dynamicRoots) {
       const sourcePath = path.join(workspacePath, entry.name);
@@ -346,11 +351,16 @@ export class WorkspaceExportManager implements vscode.Disposable {
     }
 
     // 可选的其他文件/目录
-    const optionalRoots = fs.readdirSync(workspacePath, { withFileTypes: true })
-      .filter((entry) => !defaultRoots.has(entry.name))
-      .filter((entry) => !ALWAYS_EXCLUDED_ROOTS.has(entry.name))
-      .filter((entry) => !this.shouldExclude(this.normalizeRelativePath(entry.name), entry.isDirectory()))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    let optionalRoots: fs.Dirent[] = [];
+    try {
+      optionalRoots = fs.readdirSync(workspacePath, { withFileTypes: true })
+        .filter((entry) => !defaultRoots.has(entry.name))
+        .filter((entry) => !ALWAYS_EXCLUDED_ROOTS.has(entry.name))
+        .filter((entry) => !this.shouldExclude(this.normalizeRelativePath(entry.name), entry.isDirectory()))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch {
+      this.log(`Failed to scan optional entries in ${workspacePath}`);
+    }
 
     for (const entry of optionalRoots) {
       const sourcePath = path.join(workspacePath, entry.name);
@@ -549,12 +559,48 @@ export class WorkspaceExportManager implements vscode.Disposable {
       }
     }
 
+    // Fallback: try system `zip` command
+    try {
+      await this.runSystemZipCommand(sourceDir, destinationZipPath);
+      return;
+    } catch (error: unknown) {
+      this.log(`System zip fallback also failed: ${error}`);
+    }
+
     throw lastError || new Error(localize('workspaceExport.pythonUnavailable'));
   }
 
+  private runSystemZipCommand(sourceDir: string, destinationZipPath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const cp = require('child_process');
+      const proc = cp.spawn('zip', ['-r', '-q', destinationZipPath, '.'], {
+        cwd: sourceDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let stderr = '';
+      proc.stderr?.on('data', (d: Buffer) => { stderr += d.toString(); });
+      proc.on('error', (err: Error) => reject(err));
+      proc.on('close', (code: number) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`zip command exited with code ${code}: ${stderr}`));
+        }
+      });
+    });
+  }
+
   private async writeArchiveToDestination(sourceZipPath: string, destinationUri: vscode.Uri): Promise<void> {
-    const zipContent = await fs.promises.readFile(sourceZipPath);
-    await vscode.workspace.fs.writeFile(destinationUri, zipContent);
+    // 如果目标是本地文件，直接用流式复制避免将整个 ZIP 读入内存
+    if (destinationUri.scheme === 'file') {
+      const destPath = destinationUri.fsPath;
+      await fs.promises.mkdir(path.dirname(destPath), { recursive: true });
+      await fs.promises.copyFile(sourceZipPath, destPath);
+    } else {
+      // 远程 URI（如 untitled）仍需读入内存
+      const zipContent = await fs.promises.readFile(sourceZipPath);
+      await vscode.workspace.fs.writeFile(destinationUri, zipContent);
+    }
   }
 
   private getPythonCandidates(): string[] {

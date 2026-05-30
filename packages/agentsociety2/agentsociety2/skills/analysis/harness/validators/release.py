@@ -37,7 +37,10 @@ def _load_json_model(path: Path, model, label: str) -> tuple[object | None, List
                 f"{label}_missing",
                 phase="produce",
                 message=f"{path.name} not found",
-                fix_hint=f"Write {path.name} (see references/json-payloads.md)",
+                fix_hint=(
+                    f"Write {path.name}; run `ags.py analysis payload-template "
+                    f"--name {label}` for the SDK template"
+                ),
             )
         ]
     try:
@@ -48,7 +51,10 @@ def _load_json_model(path: Path, model, label: str) -> tuple[object | None, List
                 f"{label}_invalid",
                 phase="produce",
                 message=str(exc),
-                fix_hint=f"Fix JSON for {path.name}; templates in references/json-payloads.md",
+                fix_hint=(
+                    f"Fix JSON for {path.name}; run `ags.py analysis payload-template "
+                    f"--name {label}` for the SDK template"
+                ),
             )
         ]
 
@@ -71,7 +77,7 @@ def validate_release(presentation_dir: Path) -> ValidationResult:
                 "presentation_layout_invalid",
                 phase="produce",
                 message=msg,
-                fix_hint="See references/output-conventions.md",
+                fix_hint="Run `ags.py analysis guidance --topic paths` for output path rules",
             )
         )
     report_zh = presentation_dir / "report_zh.md"
@@ -104,7 +110,7 @@ def validate_release(presentation_dir: Path) -> ValidationResult:
                     "report_missing",
                     phase="produce",
                     message=f"{label} missing or empty",
-                    fix_hint="Write bilingual MD + HTML reports (see references/html-export.md)",
+                    fix_hint="Write bilingual MD + HTML reports; run `ags.py analysis guidance --topic reports`",
                 )
             )
         elif path.suffix.lower() == ".html":
@@ -115,7 +121,7 @@ def validate_release(presentation_dir: Path) -> ValidationResult:
                         "report_html_invalid",
                         phase="produce",
                         message=f"{label} is not a complete HTML document",
-                        fix_hint="Author full HTML per assets/report-shell.reference.html",
+                        fix_hint="Author a complete HTML document; run `ags.py analysis guidance --topic reports`",
                     )
                 )
 

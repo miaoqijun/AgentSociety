@@ -12,12 +12,23 @@ from agentsociety2.skills.analysis.harness.models import (
     AnalysisPlan,
     ClaimsDocument,
     HypothesisAnalysisState,
+    MemoryIndex,
+    ReflectionReview,
+    ReflectionReport,
     SynthesisAnalysisState,
+    UserFeedback,
 )
 from agentsociety2.skills.analysis.harness.paths import (
+    hypothesis_feedback_path,
     hypothesis_claims_path,
     hypothesis_plan_path,
+    hypothesis_reflection_path,
+    hypothesis_reflection_review_path,
     hypothesis_state_path,
+    memory_index_path,
+    synthesis_feedback_path,
+    synthesis_reflection_path,
+    synthesis_reflection_review_path,
     synthesis_state_path,
 )
 
@@ -101,6 +112,105 @@ def load_synthesis_state(workspace: Path) -> SynthesisAnalysisState:
 def save_synthesis_state(workspace: Path, state: SynthesisAnalysisState) -> None:
     state.updated_at = datetime.now(UTC)
     _save_yaml(synthesis_state_path(workspace), state)
+
+
+def load_reflection(
+    workspace: Path, hypothesis_id: str | None = None
+) -> ReflectionReport:
+    path = (
+        synthesis_reflection_path(workspace)
+        if hypothesis_id is None
+        else hypothesis_reflection_path(workspace, hypothesis_id)
+    )
+    if not path.exists():
+        return ReflectionReport(
+            source="synthesis" if hypothesis_id is None else "hypothesis",
+            hypothesis_id=hypothesis_id or "",
+        )
+    return load_model_from_file(path, ReflectionReport)
+
+
+def save_reflection(
+    workspace: Path,
+    reflection: ReflectionReport,
+    hypothesis_id: str | None = None,
+) -> Path:
+    path = (
+        synthesis_reflection_path(workspace)
+        if hypothesis_id is None
+        else hypothesis_reflection_path(workspace, hypothesis_id)
+    )
+    from agentsociety2.skills.analysis.harness.json_io import save_model_to_file
+
+    save_model_to_file(path, reflection)
+    return path
+
+
+def load_feedback(workspace: Path, hypothesis_id: str | None = None) -> UserFeedback:
+    path = (
+        synthesis_feedback_path(workspace)
+        if hypothesis_id is None
+        else hypothesis_feedback_path(workspace, hypothesis_id)
+    )
+    if not path.exists():
+        return UserFeedback(
+            hypothesis_id=hypothesis_id or "",
+        )
+    return load_model_from_file(path, UserFeedback)
+
+
+def save_feedback(
+    workspace: Path,
+    feedback: UserFeedback,
+    hypothesis_id: str | None = None,
+) -> Path:
+    path = (
+        synthesis_feedback_path(workspace)
+        if hypothesis_id is None
+        else hypothesis_feedback_path(workspace, hypothesis_id)
+    )
+    from agentsociety2.skills.analysis.harness.json_io import save_model_to_file
+
+    save_model_to_file(path, feedback)
+    return path
+
+
+def load_reflection_review(
+    workspace: Path, hypothesis_id: str | None = None
+) -> ReflectionReview:
+    path = (
+        synthesis_reflection_review_path(workspace)
+        if hypothesis_id is None
+        else hypothesis_reflection_review_path(workspace, hypothesis_id)
+    )
+    if not path.exists():
+        return ReflectionReview()
+    return load_model_from_file(path, ReflectionReview)
+
+
+def save_reflection_review(
+    workspace: Path,
+    review: ReflectionReview,
+    hypothesis_id: str | None = None,
+) -> Path:
+    path = (
+        synthesis_reflection_review_path(workspace)
+        if hypothesis_id is None
+        else hypothesis_reflection_review_path(workspace, hypothesis_id)
+    )
+    from agentsociety2.skills.analysis.harness.json_io import save_model_to_file
+
+    save_model_to_file(path, review)
+    return path
+
+
+def load_memory_index(workspace: Path) -> MemoryIndex:
+    return _load_yaml(memory_index_path(workspace), MemoryIndex)
+
+
+def save_memory_index(workspace: Path, index: MemoryIndex) -> None:
+    index.updated_at = datetime.now(UTC)
+    _save_yaml(memory_index_path(workspace), index)
 
 
 def merge_plan_payload(plan: AnalysisPlan, payload: Dict[str, Any]) -> AnalysisPlan:

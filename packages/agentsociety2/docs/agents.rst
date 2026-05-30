@@ -520,14 +520,14 @@ AgentBase 其他可用方法
 
    class MyAgent(AgentBase):
        def __init__(self, id: int, profile: dict, **kwargs):
-           super().__init__(id=id, profile=profile, **kwargs)
+           super().__init__(id=id, profile=profile)
            self._custom_state = profile.get("custom_field", {})
 
        async def ask(self, message: str, readonly: bool = True) -> str:
-           return await super().ask(message, readonly=readonly)
+           return f"{self._name} received: {message}"
 
        async def step(self, tick: int, t: datetime) -> str:
-           return await super().step(tick, t)
+           return f"{self._name} completed one step at {t.isoformat()}"
 
        async def dump(self) -> dict:
            return {
@@ -631,7 +631,7 @@ execute() 方法
 智能体记忆
 ------------
 
-``PersonAgent`` 的记忆系统分为三层：
+``PersonAgent`` 的记忆系统分为四层：
 
 1. **Thread（对话线程）**：短期上下文，维护最近工具调用和 LLM 交互，过长时自动压缩。
 2. **AgentMemory（运行时持久化记忆）**：跨 step 保持当前任务、已完成动作、错误记录等。位于 ``AGENT_MEMORY.md``，由 thread 压缩摘要和 ``handoff_to_memory()`` 更新。

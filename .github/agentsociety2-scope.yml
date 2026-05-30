@@ -21,6 +21,8 @@ paths:
     - .github/workflows/extension-ci.yml
     - .github/workflows/frontend-ci.yml
     - .github/workflows/agentsociety2-publish.yml
+    - .github/workflows/dependency-review.yml
+    - .github/workflows/codeql.yml
     - .github/codeql/codeql-config.yml
 
 legacy_paths:

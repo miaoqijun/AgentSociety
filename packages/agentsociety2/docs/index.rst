@@ -105,6 +105,10 @@ AgentSociety 2
 * **GitHub**: https://github.com/tsinghua-fib-lab/AgentSociety
 * **PyPI**: https://pypi.org/project/agentsociety2/
 * **Issues**: https://github.com/tsinghua-fib-lab/AgentSociety/issues
+* **README（英文）**: https://github.com/tsinghua-fib-lab/AgentSociety/blob/main/README.md
+* **README（中文）**: https://github.com/tsinghua-fib-lab/AgentSociety/blob/main/README_zh.md
+* **贡献指南**: https://github.com/tsinghua-fib-lab/AgentSociety/blob/main/CONTRIBUTING.md
+* **安全政策**: https://github.com/tsinghua-fib-lab/AgentSociety/blob/main/SECURITY.md
 
 搜索
 ------

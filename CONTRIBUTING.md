@@ -2,6 +2,15 @@
 
 Thanks for contributing to AgentSociety.
 
+## Where to contribute
+
+| Platform | Role |
+| -------- | ---- |
+| **GitLab** (`git.fiblab.net`) | Primary remote — MRs, CI pipelines, Docker build, GitHub mirror |
+| **GitHub** (`tsinghua-fib-lab/AgentSociety`) | Public mirror — Issues, Discussions, Dependabot, CodeQL |
+
+Open merge requests on GitLab for code changes. GitHub Issues/Discussions are fine for public bug reports and questions.
+
 ## Quick start
 
 - **Bug report / feature request**: [GitHub Issues](https://github.com/tsinghua-fib-lab/AgentSociety/issues)
@@ -107,8 +116,8 @@ git-cliff -o CHANGELOG.md
 | Python lint/test  | `ci.yml`                      |
 | Extension         | `extension-ci.yml`            |
 | Frontend          | `frontend-ci.yml`             |
-| CodeQL            | `codeql.yml` (scoped paths)   |
 | Dependency review | `dependency-review.yml` (PRs) |
+| CodeQL            | `codeql.yml` (scoped paths)   |
 | Publish on tag    | `agentsociety2-publish.yml`   |
 
 Local checks before pushing:
@@ -118,6 +127,10 @@ cd packages/agentsociety2 && uv run ruff check . && uv run pytest -q
 cd extension && npm run lint && npm run build
 cd frontend && npm run lint && npm run build
 ```
+
+Or from the repo root: `make check` (Python + extension + frontend).
+
+Extension-only iteration: `make dev` / `make rebuild` (see `make help`). Frontend has no Makefile targets — use `npm ci` in `frontend/`.
 
 ## Code style
 

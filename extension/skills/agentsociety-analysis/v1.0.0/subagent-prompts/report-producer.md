@@ -30,22 +30,22 @@ You write **simulation analysis reports** for one hypothesis. The orchestrator h
 
 ## Read first (in order)
 
-1. `references/report-integration.md`
-2. `references/report-embeddings.md` — images, tables, EDA embed rules
-3. `references/report-template-simulation.md`
-4. `references/analysis-quality.md`
-5. `data/report_context.md` + `data/evidence_index.json`
-6. `references/json-payloads.md`
-7. `html-export.md`, `html-interactive-eda.md`, `report-shell.reference.html`; polish via `support/frontend-design/` (`support-skills.md`, `analysis-reports.md`)
+1. `references/reports.md` — integration, embeds, HTML workflow
+2. `references/analysis-quality.md`
+3. `data/report_context.md` + `data/evidence_index.json`
+4. `references/json-payloads.md`
+5. **`support/report-blocks/SKILL.md`** — assemble HTML blocks (required)
+6. `assets/report-shell.reference.html`
+7. **`support/frontend-design/SKILL.md`** — polish pass after draft (required before final handoff)
 
 ## Workflow
 
 1. Run or confirm orchestrator ran `collect-assets` (report body uses **`assets/`**, not `charts/`).
-2. **数据**: synthesize EDA from `report_context.md` — bullets + at least one **markdown table** from `eda_quick_stats` or SQL; link `data/eda_profile.html` in appendix.
-3. **发现**: one subsection per confirmatory claim; `![caption](assets/chart_xx.png)` + caption line; add metric table when clearer than prose alone.
-4. **结论** + limitations in `analysis_summary.json`.
+2. **Data**: synthesize EDA from `report_context.md` — bullets + at least one **markdown table** from `eda_quick_stats` or SQL; link `data/eda_hub.html` (or `eda_profile.html`) in appendix when bundle EDA exists.
+3. **Findings**: one subsection per confirmatory claim; `![caption](assets/chart_xx.png)` + caption line; add metric table when clearer than prose alone.
+4. **Conclusions** + limitations in `analysis_summary.json`.
 5. Mirror in English; fill `report_outline.json` + `artifact_manifest.json`; appendix artifact table.
-6. Author HTML from shell — include **tabbed §数据** with iframe to interactive `run-eda` output (`data/eda_profile.html` or `eda_sweetviz.html` per plan); same numbers/paths as MD; **no** MD→HTML conversion.
+6. Author HTML from shell — keep EDA iframe markers; run `sync-report-assets` for multi-tab Data section per `references/eda.md` and `references/reports.md`.
 
 ## Output (return to orchestrator)
 

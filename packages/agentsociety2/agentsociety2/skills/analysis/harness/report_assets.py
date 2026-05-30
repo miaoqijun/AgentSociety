@@ -5,6 +5,8 @@ import shutil
 from pathlib import Path
 from typing import List, Set
 
+from agentsociety2.skills.analysis.chart_export import ensure_brand_icon
+
 MD_ASSET_REF_RE = re.compile(r"!\[[^\]]*\]\((?:assets|charts)/([^)]+)\)")
 HTML_ASSET_REF_RE = re.compile(
     r"""<img[^>]*\ssrc=["'](?:assets|charts)/([^"']+)["']""",
@@ -52,6 +54,7 @@ def sync_report_assets_from_reports(presentation_dir: Path) -> dict:
     charts_dir = presentation_dir / "charts"
     assets_dir = presentation_dir / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
+    ensure_brand_icon(assets_dir)
 
     copied: List[str] = []
     missing: List[str] = []

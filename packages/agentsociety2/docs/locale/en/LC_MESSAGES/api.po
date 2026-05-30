@@ -73,12 +73,15 @@ msgstr "Subclasses must implement the following abstract methods:"
 
 #: agentsociety2.agent.base.AgentBase:11 of
 msgid ":meth:`ask` — Handle questions and return a response"
+msgstr ":meth:`ask` — Handle questions and return a response"
 
 #: agentsociety2.agent.base.AgentBase:12 of
 msgid ":meth:`step` — Execute a simulation step"
+msgstr ":meth:`step` — Execute a simulation step"
 
 #: agentsociety2.agent.base.AgentBase:13 of
 msgid ":meth:`dump` — Serialize agent state"
+msgstr ":meth:`dump` — Serialize agent state"
 
 #: agentsociety2.agent.base.AgentBase:14 of
 msgid ":meth:`load` — 从字典恢复智能体状态"
@@ -7978,4 +7981,3 @@ msgstr "agent conversation record (frame table)."
 #~ "超时后的额外重试次数（写入 :attr:`LoopConfig.bash_retries`，默认 1，即共 "
 #~ "2 次执行）"
 #~ msgstr ""
-

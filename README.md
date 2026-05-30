@@ -4,6 +4,10 @@
 </div>
 
 <p align="center">
+  <a href="./README.md">English</a> · <a href="./README_zh.md">中文</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/tsinghua-fib-lab/AgentSociety/stargazers">
     <img src="https://img.shields.io/github/stars/tsinghua-fib-lab/AgentSociety?style=social" alt="GitHub Stars">
   </a>
@@ -71,7 +75,7 @@ pip install agentsociety2
 - **LLM-Native Design**: Built from the ground up for LLM-driven agents
 - **Flexible Environment System**: Modular environment components with hot-pluggable tools
 - **Multiple Reasoning Patterns**: ReAct, Plan-Execute, Code Generation, Two-Tier routers
-- **Research Skills**: Literature search, hypothesis generation, experiment design, paper writing
+- **Research Skills**: Literature search, hypothesis generation, experiment design, analysis, and paper workflows (via external `paper-toolkit` plugin)
 - **Experiment Replay**: Full SQLite-based replay system
 - **MCP Support**: Model Context Protocol integration for tool extensibility
 
@@ -143,6 +147,14 @@ AgentSociety/
 
 ### AgentSociety 2
 
+Set LLM environment variables before running examples (`agentsociety2` validates them at import time):
+
+```bash
+export AGENTSOCIETY_LLM_API_KEY="your-api-key"
+export AGENTSOCIETY_LLM_API_BASE="https://api.openai.com/v1"
+export AGENTSOCIETY_LLM_MODEL="gpt-5.5"
+```
+
 ```python
 import asyncio
 from datetime import datetime
@@ -152,8 +164,13 @@ from agentsociety2.contrib.env import SimpleSocialSpace
 from agentsociety2.society import AgentSociety
 
 async def main():
-    agent = PersonAgent(id=1, profile={"name": "Alice"})
-    env = CodeGenRouter(env_modules=[SimpleSocialSpace(agent_id_name_pairs=[(1, "Alice")])])
+    agent = PersonAgent(
+        id=1,
+        profile={"name": "Alice", "personality": "friendly and curious"},
+    )
+    env = CodeGenRouter(
+        env_modules=[SimpleSocialSpace(agent_id_name_pairs=[(agent.id, agent.name)])]
+    )
     society = AgentSociety(agents=[agent], env_router=env, start_t=datetime.now())
     await society.init()
     response = await society.ask("What's your name?")
@@ -207,4 +224,5 @@ If you use AgentSociety in your research, please cite:
 - **Security**: see [SECURITY.md](./SECURITY.md)
 - **Discussions**: [GitHub Discussions](https://github.com/tsinghua-fib-lab/agentsociety/discussions)
 - **Contributing**: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- **Agent guide** (Cursor / coding agents): [AGENTS.md](./AGENTS.md)
 - **Email**: agentsociety.fiblab2025@gmail.com

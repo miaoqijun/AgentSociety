@@ -116,6 +116,7 @@ class DependencyDetector:
         "community": "python-louvain",
         # 高级可视化
         "plotly": "plotly",
+        "pygwalker": "pygwalker",
         "bokeh": "bokeh",
         "altair": "altair",
         # 地理可视化

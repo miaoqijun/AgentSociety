@@ -26,5 +26,5 @@ They may remove, edit, or reject contributions that violate this policy.
 
 ## Reporting
 
-If you experience or witness unacceptable behavior, please open an issue (if safe) or contact the maintainers privately.
+If you experience or witness unacceptable behavior, please open an issue (if safe) or email [agentsociety.fiblab2025@gmail.com](mailto:agentsociety.fiblab2025@gmail.com).
 

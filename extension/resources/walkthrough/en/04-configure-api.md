@@ -59,9 +59,9 @@ Click the links below to sign up and get your key:
 
 | Setting         | Description                                  | Default                  |
 | --------------- | -------------------------------------------- | ------------------------ |
-| Model           | Default model name                           | `gpt-5.4`                |
+| Model           | Default model name                           | `gpt-5.5`                |
 | Coder Model     | Model for code generation                    | Same as default          |
-| Nano Model      | Lightweight model for frequent operations    | `gpt-5.4-nano`           |
+| Nano Model      | Lightweight model for frequent operations    | Same as default          |
 | Embedding Model | Vector embedding model (for semantic search) | `text-embedding-3-large` |
 
 > 💡 Leave fields blank to reuse defaults. Adjust later as needed.
