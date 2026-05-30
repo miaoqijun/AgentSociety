@@ -14,7 +14,47 @@ Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.
 
 ## [Unreleased]
 
+## [2.5.3] - 2026-05-30
+
+- **agentsociety2** `2.5.3` · **extension** `1.5.3` · 标签 `agentsociety2-v2.5.3`
+
+本版本在 [2.5.2] 基础上进行 **依赖升级**、**分析 harness 增强** 与 **扩展 UX/健壮性改进**。
+
+### Added
+
+- **analysis**：CLI 新增 `guidance`、`payload-template`、`chart-scaffold` 子命令，内置分析指引与 JSON 模板。
+- **analysis**：交互式 EDA 嵌入报告（`report_eda_embed.py`），支持在 HTML 报告中嵌入可视化图表。
+- **analysis**：经验记忆闭环（experience memory），跨分析会话积累反馈。
+- **analysis**：更严格的 phase gate 与扩展的 skill references。
+- **analysis**：新增 `chart_export.py`（817 行）、`harness/guidance.py`（473 行）等模块。
+- **docs**：中文 README（根目录 `README_zh.md` 与 `packages/agentsociety2/README_zh.md`）。
+- **docs**：`AGENTS.md` 从符号链接改为独立文档，适配 Cursor 等编辑器。
+- **extension**：新增 3 个 analysis support skills（`interactive-viz`、`report-blocks`、`scientific-visualization`）。
+
 ### Changed
+
+- **extension**：默认 LLM 模型对齐为 `gpt-5.5`。
+- **extension**：`engines.vscode` 降至 `^1.95.0`，兼容 Cursor（基于 VS Code 1.105.x）。
+- **extension**：工作区缺失目录/文件时自动修复，不再显示修复按钮和确认对话框。
+- **extension**：缺少 `.env` 时自动创建模板并引导配置 API key。
+- **extension**：`initProject` 去掉已存在时的确认对话框（`init()` 本身幂等）。
+- **extension**：技能同步成功时不再弹窗，仅失败/异常时提示。
+- **extension**：扫描自定义模块时去掉多余的"Scanning..."开始通知。
+- **extension**：后端配置错误时按钮直接打开配置页（而非手动编辑 `.env` 文件）。
+- **deps**：刷新根 `uv.lock`、`agentsociety-community/uv.lock`、`package-lock.json` 等全部 lock 文件。
+
+### Fixed
+
+- **extension**：`git clone` 操作现在检查返回状态码，失败时抛出明确错误。
+- **extension**：`autoCommit` 的 git 操作改为返回 `boolean`，失败时提前终止并记录日志。
+- **extension**：`autoCommit` 中 `git config user.name` 空字符串检测修复。
+- **extension**：ZIP 导出本地文件时改为流式 `copyFile`，不再将整个 ZIP 读入内存。
+- **extension**：ZIP 导出增加系统 `zip` 命令作为 Python 的后备方案。
+- **extension**：导出扫描中的 `readdirSync` 增加 try-catch 保护。
+- **extension**：孤立后端进程健康检查增加一次 2 秒延迟重试，避免误杀启动中的后端。
+- **extension**：临时目录改用 `fs.mkdtempSync()`，消除竞态条件风险。
+
+### Changed (from previous Unreleased)
 
 - **docs**：新增根目录与 `packages/agentsociety2` 的中英文 README（`README_zh.md`），同步 Sphinx 贡献指南与 API 示例。
 - **docs**：将 `AGENTS.md` 从 `CLAUDE.md` 软链拆为独立 Cursor Agent 入口；修正 `cliff.toml` 对 `docs(...)` commit 的匹配。
