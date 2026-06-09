@@ -187,6 +187,9 @@ paper_sources/
 # Sphinx generated .pot templates
 packages/agentsociety2/docs/locale/gettext/
 
+# Temporary examples
+examples/
+
 # =========================================
 # Pattern Exceptions
 # =========================================
