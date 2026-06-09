@@ -14,6 +14,28 @@ Git 发版标签：`agentsociety2-v{major}.{minor}.{patch}`（见 `CONTRIBUTING.
 
 ## [Unreleased]
 
+## [2.5.4] - 2026-06-09
+
+- **agentsociety2** `2.5.4` · **extension** `1.5.4` · 标签 `agentsociety2-v2.5.4`
+
+### Added
+
+- **extension**：配置页支持通过 Casdoor Device Flow 从 AgentSociety Web 导入 LiteLLM、Claude Code 与 EasyPaper 配置，登录凭据缓存至用户目录 `~/.fiblab/`。
+- **extension**：导入模型列表后，默认 LLM、专用模型、Embedding、Claude Code 与 EasyPaper 模型字段提供可编辑候选项。
+- **extension**：EasyPaper 导入时自动配置 LLM 与 VLM 的模型、Base URL 和 API Key。
+
+### Changed
+
+- **extension**：Web 导入配置需用户确认后才填入表单，仍需手动保存。
+- **extension**：Claude Code 导入保留 LiteLLM Base URL 原值，不再自动追加 `/anthropic`。
+
+### Fixed
+
+- **extension**：修复 Webview 配置页导入按钮 i18n key 直出问题。
+- **extension**：修复 EasyPaper VLM 开关无法正常操作的问题。
+- **extension**：修复 Device Flow 默认 client id 导致线上 Casdoor 返回 `Invalid client_id` 的问题。
+- **agentsociety2**：同步包内 `agentsociety2.__version__` 到发布版本。
+
 ## [2.5.3] - 2026-05-30
 
 - **agentsociety2** `2.5.3` · **extension** `1.5.3` · 标签 `agentsociety2-v2.5.3`
