@@ -423,14 +423,7 @@ export class AgentsocietyWebConfigService {
   }
 
   private normalizeClaudeBase(base: string): string {
-    const trimmed = this.trimTrailingSlash(base);
-    if (!trimmed) {
-      return '';
-    }
-    if (trimmed.endsWith('/anthropic') || trimmed.endsWith('/api') || trimmed.endsWith('/coding')) {
-      return trimmed;
-    }
-    return `${trimmed}/anthropic`;
+    return this.trimTrailingSlash(base);
   }
 
   private normalizeMcpUrl(base: string): string {
