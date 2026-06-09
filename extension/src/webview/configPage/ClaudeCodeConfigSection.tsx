@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Form, Input, Select, Space, Tag, Tooltip, Typography, Button } from 'antd';
+import { AutoComplete, Form, Input, Select, Space, Tag, Tooltip, Typography, Button } from 'antd';
 import { QuestionCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import type { TFunction } from 'i18next';
@@ -24,6 +24,7 @@ export interface ClaudeCodeConfigSectionProps {
   cliStatus: ClaudeCodeCliStatus;
   settingsPath: string;
   onReset: () => void;
+  modelOptions: string[];
 }
 
 const CUSTOM_BASE_URL_PRESET = 'custom';
@@ -35,6 +36,7 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
   cliStatus,
   settingsPath,
   onReset,
+  modelOptions,
 }) => {
   const baseUrlValue = Form.useWatch('baseUrl', form);
 
@@ -180,7 +182,13 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
             }
             style={{ marginBottom: 10 }}
           >
-            <Input placeholder={t('claudeCodeConfig.selectOrManual')} />
+            <AutoComplete
+              placeholder={t('claudeCodeConfig.selectOrManual')}
+              options={modelOptions.map((model) => ({ value: model }))}
+              filterOption={(input, option) =>
+                String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
         ))}
         <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8, marginTop: 8 }}>

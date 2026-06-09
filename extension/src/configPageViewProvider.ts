@@ -35,6 +35,7 @@ import { LLMValidator, PythonValidator, LLMType } from './services/llmValidator'
 import { fetchCompat } from './shared/fetchCompat';
 import { requestJson } from './services/httpClient';
 import { CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS } from './services/validateTimeouts';
+import { AgentsocietyWebConfigService } from './services/agentsocietyWebConfig';
 
 const fetch = fetchCompat as unknown as typeof globalThis.fetch;
 
@@ -49,6 +50,7 @@ export class ConfigPageViewProvider {
   private readonly _extensionPath: string;
   private readonly _context: vscode.ExtensionContext;
   private readonly _envManager: EnvManager;
+  private _webConfigImport: AgentsocietyWebConfigService | undefined;
   private _disposables: vscode.Disposable[] = [];
 
   public static createOrShow(
@@ -126,6 +128,12 @@ export class ConfigPageViewProvider {
             break;
           case 'saveEasyPaperConfig':
             await this._handleSaveEasyPaperConfig(message.config);
+            break;
+          case 'startCasdoorDeviceAuth':
+            await this._handleStartCasdoorDeviceAuth();
+            break;
+          case 'cancelCasdoorDeviceAuth':
+            this._cancelCasdoorDeviceAuth();
             break;
           case 'openUrl':
             if (message.url) {
@@ -236,6 +244,57 @@ export class ConfigPageViewProvider {
         success: false,
         error: message,
       });
+    }
+  }
+
+  private async _handleStartCasdoorDeviceAuth(): Promise<void> {
+    this._cancelCasdoorDeviceAuth();
+    const service = new AgentsocietyWebConfigService();
+    this._webConfigImport = service;
+    try {
+      const imported = await service.importConfig({
+        onDeviceAuthStarted: (info) => {
+          this._panel.webview.postMessage({
+            command: 'casdoorDeviceAuthStarted',
+            ...info,
+          });
+        },
+        onPolling: () => {
+          this._panel.webview.postMessage({ command: 'casdoorDeviceAuthPolling' });
+        },
+      });
+      if (this._webConfigImport !== service) {
+        return;
+      }
+      this._panel.webview.postMessage({
+        command: 'webConfigImported',
+        config: imported.config,
+        claudeConfig: imported.claudeConfig,
+        easyPaperConfig: imported.easyPaperConfig,
+        modelOptions: imported.modelOptions,
+        defaults: imported.defaults,
+        authPath: imported.authPath,
+      });
+    } catch (err) {
+      if (this._webConfigImport !== service) {
+        return;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      this._panel.webview.postMessage({
+        command: 'casdoorDeviceAuthFailed',
+        error: message,
+      });
+    } finally {
+      if (this._webConfigImport === service) {
+        this._webConfigImport = undefined;
+      }
+    }
+  }
+
+  private _cancelCasdoorDeviceAuth(): void {
+    if (this._webConfigImport) {
+      this._webConfigImport.cancel();
+      this._webConfigImport = undefined;
     }
   }
 
@@ -735,6 +794,7 @@ export class ConfigPageViewProvider {
 
   public dispose(): void {
     ConfigPageViewProvider.currentPanel = undefined;
+    this._cancelCasdoorDeviceAuth();
     this._envManager.dispose();
     while (this._disposables.length) {
       const d = this._disposables.pop();

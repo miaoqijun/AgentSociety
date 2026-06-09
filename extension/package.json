@@ -542,6 +542,21 @@
           ],
           "description": "默认 AI Chat 提供商。留空时自动检测；检测到多个时弹出选择。"
         },
+        "aiSocialScientist.webConfigImport.webBaseUrl": {
+          "type": "string",
+          "default": "https://agentsociety2.fiblab.net",
+          "description": "AgentSociety Web 配置导入使用的业务 API 基础地址。"
+        },
+        "aiSocialScientist.webConfigImport.clientId": {
+          "type": "string",
+          "default": "7ffcbfe4ae0fcb2c0d63",
+          "description": "Casdoor OAuth Device Flow 客户端 ID。"
+        },
+        "aiSocialScientist.webConfigImport.scope": {
+          "type": "string",
+          "default": "openid profile email offline_access",
+          "description": "Casdoor OAuth Device Flow 请求的 scope。"
+        },
         "aiSocialScientist.chat.viewColumn": {
           "type": "string",
           "default": "beside",

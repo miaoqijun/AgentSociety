@@ -59,6 +59,25 @@ export interface BackendStatus {
   url?: string;
 }
 
+export interface ImportedModelOptions {
+  openaiCompatible: string[];
+  claudeCode: string[];
+  embedding: string[];
+}
+
+export interface ImportedModelDefaults {
+  simulation: string;
+  coder: string;
+  analysis: string;
+  nano: string;
+  embedding: string;
+  claudeCode: string;
+  claudeCodeSonnet: string;
+  claudeCodeOpus: string;
+  claudeCodeHaiku: string;
+  easyPaperVlm: string;
+}
+
 export interface OverviewStatusMessage {
   backendStatus: BackendStatus;
   claudeCodeCustomized?: boolean;

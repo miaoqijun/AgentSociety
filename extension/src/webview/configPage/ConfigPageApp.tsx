@@ -3,6 +3,8 @@ import {
   ConfigProvider,
   Layout,
   Form,
+  AutoComplete,
+  Modal,
   Input,
   InputNumber,
   Button,
@@ -15,11 +17,11 @@ import {
   Tooltip,
   Tag,
 } from 'antd';
-import { SaveOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined, ReloadOutlined, SettingOutlined, LinkOutlined, StopOutlined, CodeOutlined } from '@ant-design/icons';
+import { SaveOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined, ReloadOutlined, SettingOutlined, LinkOutlined, StopOutlined, CodeOutlined, CloudDownloadOutlined, CopyOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from './claudeCodeTypes';
 import { DEFAULT_CLAUDE_BASE_URL } from './claudeBaseUrlPresets';
-import type { VSCodeAPI, ConfigValues, WorkspaceInfo, BackendStatus, ValidationState, EasyPaperConfigValues } from './types';
+import type { VSCodeAPI, ConfigValues, WorkspaceInfo, BackendStatus, ValidationState, EasyPaperConfigValues, ImportedModelOptions } from './types';
 import { AdvancedConfigSection, type AdvancedTopTab } from './AdvancedConfigSection';
 import { advancedPanelInnerStyle, glassCardStyle } from './configPageStyles';
 import { ValidationAction } from './ValidationAction';
@@ -80,6 +82,29 @@ const DEFAULT_EASYPAPER_VALUES: EasyPaperConfigValues = {
   vlmModel: '',
   vlmApiKey: '',
   vlmBaseUrl: '',
+};
+
+const EMPTY_MODEL_OPTIONS: ImportedModelOptions = {
+  openaiCompatible: [],
+  claudeCode: [],
+  embedding: [],
+};
+
+type DeviceAuthState = {
+  status: 'idle' | 'starting' | 'waiting' | 'polling';
+  userCode?: string;
+  verificationUri?: string;
+  verificationUriComplete?: string;
+  expiresIn?: number;
+  authPath?: string;
+};
+
+type PendingImport = {
+  config?: Partial<ConfigValues>;
+  claudeConfig?: Partial<ClaudeCodeConfigValues>;
+  easyPaperConfig?: Partial<EasyPaperConfigValues>;
+  modelOptions?: ImportedModelOptions;
+  authPath?: string;
 };
 
 interface ConfigPageAppProps {
@@ -222,6 +247,9 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   const [claudeSettingsPath, setClaudeSettingsPath] = React.useState('~/.claude/settings.json');
   const [claudeCodeCustomized, setClaudeCodeCustomized] = React.useState(false);
   const [advancedTopTab, setAdvancedTopTab] = React.useState<AdvancedTopTab>('models');
+  const [modelOptions, setModelOptions] = React.useState<ImportedModelOptions>(EMPTY_MODEL_OPTIONS);
+  const [deviceAuth, setDeviceAuth] = React.useState<DeviceAuthState>({ status: 'idle' });
+  const [pendingImport, setPendingImport] = React.useState<PendingImport | null>(null);
   const advancedSectionRef = React.useRef<HTMLDivElement>(null);
   const pythonSectionRef = React.useRef<HTMLDivElement>(null);
   const literatureSectionRef = React.useRef<HTMLDivElement>(null);
@@ -488,6 +516,54 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     notification.info({
       message: t('configPage.resetClaudeDefaults'),
       placement: 'top',
+    });
+  };
+
+  const handleStartWebConfigImport = () => {
+    setDeviceAuth({ status: 'starting' });
+    vscode.postMessage({ command: 'startCasdoorDeviceAuth' });
+  };
+
+  const handleCancelWebConfigImport = () => {
+    vscode.postMessage({ command: 'cancelCasdoorDeviceAuth' });
+    setDeviceAuth({ status: 'idle' });
+  };
+
+  const copyToClipboard = (value: string, message: string) => {
+    void navigator.clipboard.writeText(value).then(() => {
+      notification.success({
+        message,
+        placement: 'top',
+        duration: 2,
+      });
+    });
+  };
+
+  const applyImportedConfig = (imported: PendingImport) => {
+    if (imported.modelOptions) {
+      setModelOptions(imported.modelOptions);
+    }
+    form.setFieldsValue({
+      ...form.getFieldsValue(),
+      ...imported.config,
+    });
+    claudeForm.setFieldsValue({
+      ...claudeForm.getFieldsValue(),
+      ...imported.claudeConfig,
+    });
+    easyPaperForm.setFieldsValue({
+      ...easyPaperForm.getFieldsValue(),
+      ...imported.easyPaperConfig,
+    });
+    resetWorkspaceValidationState();
+    setDeviceAuth({ status: 'idle', authPath: imported.authPath });
+    notification.success({
+      message: t('configPage.webImport.success'),
+      description: imported.authPath
+        ? t('configPage.webImport.successWithAuthPath', { path: imported.authPath })
+        : t('configPage.webImport.successDesc'),
+      placement: 'top',
+      duration: 6,
     });
   };
 
@@ -765,6 +841,41 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
         jumpToAdvanced(tab);
       } else if (message.command === 'workspaceInfo') {
         setWorkspaceInfo(message.workspaceInfo || { hasWorkspace: false });
+      } else if (message.command === 'casdoorDeviceAuthStarted') {
+        setDeviceAuth({
+          status: 'waiting',
+          userCode: message.userCode,
+          verificationUri: message.verificationUri,
+          verificationUriComplete: message.verificationUriComplete,
+          expiresIn: message.expiresIn,
+        });
+      } else if (message.command === 'casdoorDeviceAuthPolling') {
+        setDeviceAuth((prev) => ({ ...prev, status: 'polling' }));
+      } else if (message.command === 'casdoorDeviceAuthFailed') {
+        const msg = message as { error?: string };
+        setDeviceAuth({ status: 'idle' });
+        notification.error({
+          message: t('configPage.webImport.failed'),
+          description: msg.error,
+          placement: 'top',
+          duration: 8,
+        });
+      } else if (message.command === 'webConfigImported') {
+        const msg = message as {
+          config?: Partial<ConfigValues>;
+          claudeConfig?: Partial<ClaudeCodeConfigValues>;
+          easyPaperConfig?: Partial<EasyPaperConfigValues>;
+          modelOptions?: ImportedModelOptions;
+          authPath?: string;
+        };
+        setPendingImport({
+          config: msg.config,
+          claudeConfig: msg.claudeConfig,
+          easyPaperConfig: msg.easyPaperConfig,
+          modelOptions: msg.modelOptions,
+          authPath: msg.authPath,
+        });
+        setDeviceAuth({ status: 'idle', authPath: msg.authPath });
       } else if (message.command === 'backendStatus') {
         setBackendStatus(message.backendStatus || { isRunning: false });
         if (typeof message.claudeCodeCustomized === 'boolean') {
@@ -1041,6 +1152,57 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   return (
     <ConfigProvider theme={themeConfig}>
       <Layout style={{ minHeight: '100vh', background: palette.editorBackground }}>
+        <Modal
+          open={Boolean(pendingImport)}
+          title={t('configPage.webImport.confirmTitle')}
+          okText={t('configPage.webImport.confirmApply')}
+          cancelText={t('configPage.webImport.confirmCancel')}
+          onOk={() => {
+            if (pendingImport) {
+              applyImportedConfig(pendingImport);
+            }
+            setPendingImport(null);
+          }}
+          onCancel={() => {
+            const authPath = pendingImport?.authPath;
+            setPendingImport(null);
+            setDeviceAuth({ status: 'idle', authPath });
+          }}
+        >
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Text type="secondary">{t('configPage.webImport.confirmDesc')}</Text>
+            <Text>
+              {t('configPage.llm.modelName')}: <code>{pendingImport?.config?.llmModel || '-'}</code>
+            </Text>
+            <Text>
+              Claude Code: <code>{pendingImport?.claudeConfig?.model || '-'}</code>
+            </Text>
+            <Text>
+              Sonnet: <code>{pendingImport?.claudeConfig?.sonnetModel || '-'}</code>
+            </Text>
+            <Text>
+              Opus: <code>{pendingImport?.claudeConfig?.opusModel || '-'}</code>
+            </Text>
+            <Text>
+              Haiku: <code>{pendingImport?.claudeConfig?.haikuModel || '-'}</code>
+            </Text>
+            <Text>
+              EasyPaper VLM: <code>{pendingImport?.easyPaperConfig?.vlmModel || '-'}</code>
+            </Text>
+            <Text>
+              EasyPaper Base URL: <code>{pendingImport?.easyPaperConfig?.llmBaseUrl || '-'}</code>
+            </Text>
+            <Text>
+              EasyPaper API Key: <code>{pendingImport?.easyPaperConfig?.llmApiKey ? '********' : '-'}</code>
+            </Text>
+            <Text>
+              EasyPaper VLM Base URL: <code>{pendingImport?.easyPaperConfig?.vlmBaseUrl || '-'}</code>
+            </Text>
+            <Text>
+              EasyPaper VLM API Key: <code>{pendingImport?.easyPaperConfig?.vlmApiKey ? '********' : '-'}</code>
+            </Text>
+          </Space>
+        </Modal>
         <Content
           style={{
             padding: '20px 24px',
@@ -1092,7 +1254,94 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                   </Text>
                 </div>
               </div>
+              <Space wrap>
+                <Button
+                  type="primary"
+                  icon={<CloudDownloadOutlined />}
+                  loading={deviceAuth.status === 'starting' || deviceAuth.status === 'polling'}
+                  onClick={handleStartWebConfigImport}
+                >
+                  {t('configPage.webImport.button')}
+                </Button>
+                {deviceAuth.authPath && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {t('configPage.webImport.cachedAt', { path: deviceAuth.authPath })}
+                  </Text>
+                )}
+              </Space>
             </div>
+
+            {deviceAuth.status !== 'idle' && (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16, borderRadius: 10 }}
+                message={t('configPage.webImport.deviceTitle')}
+                description={
+                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                    {deviceAuth.userCode && (
+                      <Text>
+                        {t('configPage.webImport.userCode')}: <code>{deviceAuth.userCode}</code>
+                      </Text>
+                    )}
+                    {deviceAuth.verificationUri && (
+                      <>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {t('configPage.webImport.openedLogin')}
+                        </Text>
+                        <Text style={{ fontSize: 12, wordBreak: 'break-all' }}>
+                          {t('configPage.webImport.loginUrl')}: <code>{deviceAuth.verificationUriComplete || deviceAuth.verificationUri}</code>
+                        </Text>
+                      </>
+                    )}
+                    <Space wrap>
+                      {deviceAuth.userCode && (
+                        <Button
+                          size="small"
+                          icon={<CopyOutlined />}
+                          onClick={() =>
+                            copyToClipboard(deviceAuth.userCode || '', t('configPage.webImport.codeCopied'))
+                          }
+                        >
+                          {t('configPage.webImport.copyCode')}
+                        </Button>
+                      )}
+                      {deviceAuth.verificationUri && (
+                        <Button
+                          size="small"
+                          icon={<CopyOutlined />}
+                          onClick={() =>
+                            copyToClipboard(
+                              deviceAuth.verificationUriComplete || deviceAuth.verificationUri || '',
+                              t('configPage.webImport.linkCopied')
+                            )
+                          }
+                        >
+                          {t('configPage.webImport.copyLoginUrl')}
+                        </Button>
+                      )}
+                      {deviceAuth.verificationUri && (
+                        <Button
+                          size="small"
+                          icon={<LinkOutlined />}
+                          onClick={() =>
+                            vscode.postMessage({
+                              command: 'openUrl',
+                              url: deviceAuth.verificationUriComplete || deviceAuth.verificationUri,
+                            })
+                          }
+                        >
+                          {t('configPage.webImport.openLogin')}
+                        </Button>
+                      )}
+                      <Button size="small" onClick={handleCancelWebConfigImport}>
+                        {t('configPage.webImport.cancel')}
+                      </Button>
+                    </Space>
+                  </Space>
+                }
+              />
+            )}
 
             {/* 统计卡片 - 显示后端状态和配置概览 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -1232,7 +1481,13 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                 <Input.Password placeholder={t('configPage.llm.apiKeyPlaceholder')} autoComplete="off" />
               </Form.Item>
               <Form.Item name="llmModel" label={t('configPage.llm.modelName')}>
-                <Input placeholder={t('configPage.llm.modelPlaceholder')} />
+                <AutoComplete
+                  placeholder={t('configPage.llm.modelPlaceholder')}
+                  options={modelOptions.openaiCompatible.map((model) => ({ value: model }))}
+                  filterOption={(input, option) =>
+                    String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                />
               </Form.Item>
               <ValidationAction
                 t={t}
@@ -1298,6 +1553,7 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                           easyPaperForm={easyPaperForm}
                           defaultLlmApiKey={effectiveConfigValues.llmApiKey}
                           onSaveEasyPaper={saveEasyPaperConfig}
+                          modelOptions={modelOptions}
                         />
                       </div>
                     ),

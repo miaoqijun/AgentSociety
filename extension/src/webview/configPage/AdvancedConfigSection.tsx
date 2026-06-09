@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {
   Form,
+  AutoComplete,
   Input,
   InputNumber,
   Tabs,
@@ -11,7 +12,7 @@ import type { FormInstance } from 'antd';
 import type { TFunction } from 'i18next';
 import type { VscodeThemePalette } from '../theme';
 import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from './claudeCodeTypes';
-import type { ValidationState, EasyPaperConfigValues } from './types';
+import type { ValidationState, EasyPaperConfigValues, ImportedModelOptions } from './types';
 import { ClaudeCodeConfigSection } from './ClaudeCodeConfigSection';
 import { EasyPaperConfigSection } from './EasyPaperConfigSection';
 import { ValidationAction } from './ValidationAction';
@@ -54,6 +55,7 @@ export interface AdvancedConfigSectionProps {
   easyPaperForm: FormInstance<EasyPaperConfigValues>;
   defaultLlmApiKey: string;
   onSaveEasyPaper: () => void;
+  modelOptions: ImportedModelOptions;
 }
 
 const MODEL_TAB_KEYS: SpecializedLlmKind[] = ['coder', 'nano', 'analysis', 'embedding'];
@@ -82,6 +84,7 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
   easyPaperForm,
   defaultLlmApiKey,
   onSaveEasyPaper,
+  modelOptions,
 }) => {
   const linkedKeyPlaceholder = t('configPage.linkedPlaceholders.apiKey', {
     status: hasDefaultLlmKey
@@ -156,6 +159,14 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
         <Form.Item key={field.key} name={field.key} label={field.label} style={{ marginBottom: 12 }}>
           {field.key.includes('ApiKey') ? (
             <Input.Password placeholder={field.placeholder ?? linkedKeyPlaceholder} autoComplete="off" />
+          ) : field.key.includes('Model') ? (
+            <AutoComplete
+              placeholder={field.placeholder}
+              options={modelOptions.openaiCompatible.map((model) => ({ value: model }))}
+              filterOption={(input, option) =>
+                String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           ) : (
             <Input placeholder={field.placeholder} />
           )}
@@ -239,7 +250,13 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
             <Input.Password placeholder={linkedKeyPlaceholder} autoComplete="off" />
           </Form.Item>
           <Form.Item name="embeddingModel" label={t('configPage.advanced.embedding.model')}>
-            <Input placeholder={t('configPage.advanced.embedding.modelPlaceholder')} />
+            <AutoComplete
+              placeholder={t('configPage.advanced.embedding.modelPlaceholder')}
+              options={modelOptions.embedding.map((model) => ({ value: model }))}
+              filterOption={(input, option) =>
+                String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
           <Form.Item name="embeddingDims" label={t('configPage.advanced.embedding.dims')}>
             <InputNumber
@@ -337,6 +354,7 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
             cliStatus={claudeCliStatus}
             settingsPath={claudeSettingsPath}
             onReset={onResetClaude}
+            modelOptions={modelOptions.claudeCode}
           />
         </div>
       ),
