@@ -37,6 +37,7 @@ from .context import (
 )
 from .segments import (
     parse_template_to_segments,
+    lookup_template_id,
     _discover_template_constants,
 )
 from .writer import RecordWriter
@@ -160,12 +161,9 @@ def get_writer() -> Optional[RecordWriter]:
 # ── Patch 1: FormatPrompt.format ──────────────────────────────────────────
 
 async def _patched_format(self: FormatPrompt, context: Optional[dict] = None, **kwargs) -> str:
-    """Wraps FormatPrompt.format to capture segment structure."""
+    """Wraps FormatPrompt.format to capture segment structure and template_id."""
     result = await _original_methods["FormatPrompt.format"](self, context=context, **kwargs)
 
-    # Parse template into segments and store in contextvar
-    # alongside the rendered string so the LLM hook can match them to the
-    # right message in the dialog.
     try:
         segments = parse_template_to_segments(
             template=self.template,
@@ -173,9 +171,10 @@ async def _patched_format(self: FormatPrompt, context: Optional[dict] = None, **
             context=context,
             memory_status=self.memory.status if self.memory else None,
         )
-        set_pending_segments(segments, result)
+        tid = lookup_template_id(self.template)
+        set_pending_segments(segments, result, tid)
     except Exception:
-        pass  # silently skip — poor man's segments
+        pass
 
     return result
 
@@ -220,13 +219,10 @@ async def _patched_atext_request(
     seq = next_seq(step, phase, agent_id)
 
     # Consume pending segments from FormatPrompt hook.
-    # The contextvar holds (segments, formatted_string) — match segments
-    # to the dialog message whose content equals formatted_string.
-    _pending = get_and_clear_pending_segments()
-    pending_segments: Optional[list] = None
-    pending_formatted: Optional[str] = None
-    if _pending is not None:
-        pending_segments, pending_formatted = _pending
+    # The contextvar holds a list of (segments, formatted_string, template_id)
+    # tuples — one per FormatPrompt.format() call.  We match each tuple
+    # against dialog messages by comparing the rendered string.
+    pending_list = get_and_clear_pending_segments() or []
 
     # ── Build the record ──
 
@@ -255,13 +251,16 @@ async def _patched_atext_request(
             "segments": [],
         }
 
-        # Match pending segments to the message whose content matches
-        # the FormatPrompt's rendered string.
-        if pending_segments is not None:
-            # Check if this message's content matches the formatted string
-            if pending_formatted and (content == pending_formatted or pending_formatted in content):
-                message_entry["segments"] = pending_segments
-                pending_segments = None  # consumed
+        # Walk pending_list and match by formatted content.
+        matched_idx = None
+        for pi, (segs, fmt_str, tid) in enumerate(pending_list):
+            if fmt_str and (content == fmt_str or fmt_str in content):
+                message_entry["segments"] = segs
+                message_entry["template_id"] = tid
+                matched_idx = pi
+                break
+        if matched_idx is not None:
+            pending_list.pop(matched_idx)
 
         if not message_entry["segments"]:
             # Fallback: treat as LLM-generated or free-form
@@ -344,13 +343,10 @@ async def _patched_atext_request(
         }
         raise
     finally:
-        # Write the record (fire-and-forget via put_nowait)
+        # Write the record via the writer's public API
         if _writer is not None:
-            # Use the writer's write method to increment counters
             try:
-                _writer._record_count += 1
-                _writer._step_counter += 1
-                _writer._queue.put_nowait(record)
+                await _writer.write(record)
             except Exception:
                 pass
 
@@ -414,14 +410,20 @@ def instrument_engine(engine) -> None:
     async def _patched_dispatch():
         current_phase.set("pre_dispatch")
         await _orig_dispatch()
+        current_phase.set("main")  # restore so Phase B gather inherits "main"
 
     engine._message_dispatch = _patched_dispatch
 
     # ── Wrap step ───────────────────────────────────────────────────────
+    # Use an independent counter rather than reading engine internals,
+    # whose attribute name we can't verify statically.
+    _step_counter: list[int] = [0]
+
     _orig_step = engine.step
 
     async def _patched_step(num_environment_ticks: int = 1):
-        step_num = getattr(engine, "_total_steps", 0)
+        step_num = _step_counter[0]
+        _step_counter[0] += 1
         current_step.set(step_num)
         clear_seq_counters()
 

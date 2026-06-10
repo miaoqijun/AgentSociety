@@ -37,27 +37,43 @@ current_block_name: ContextVar[Optional[str]] = ContextVar(
 
 # ── Pending segments (set by FormatPrompt hook, consumed by LLM hook) ─────
 
-_pending_segments: ContextVar[Optional[tuple]] = ContextVar(
+_pending_segments: ContextVar[Optional[list]] = ContextVar(
     "_pending_segments", default=None
 )
 """
-Temporarily stores ``(segments, formatted_string)`` for the most recent
-FormatPrompt.format() call.  Reset to None after the segments are consumed
-by the LLM hook (or after a non-LLM format call whose output is never sent
-to the LLM).
+Temporarily stores a list of ``(segments, formatted_string, template_id)``
+tuples from FormatPrompt.format() calls.  The LLM hook consumes this list
+by matching each tuple's ``formatted_string`` against dialog message content.
+
+A **list** (rather than a single value) is needed because some LLM calls
+construct *multiple* messages with separate ``FormatPrompt.format()`` calls
+(e.g. ``do_chat.should_respond`` builds both a system and a user message).
+A single-valued ContextVar would keep only the last one.
 """
 
 
-def get_and_clear_pending_segments() -> Optional[tuple[list, str]]:
-    """Return ``(segments, formatted_string)`` and clear the contextvar."""
+def get_and_clear_pending_segments() -> Optional[list]:
+    """Return list of ``(segments, formatted_string, template_id)`` and clear."""
     val = _pending_segments.get()
     _pending_segments.set(None)
     return val
 
 
-def set_pending_segments(segments: list, formatted_string: str) -> None:
-    """Set the pending ``(segments, formatted_string)`` contextvar."""
-    _pending_segments.set((segments, formatted_string))
+def set_pending_segments(
+    segments: list,
+    formatted_string: str,
+    template_id: Optional[str] = None,
+) -> None:
+    """Append a ``(segments, formatted_string, template_id)`` tuple.
+
+    If the contextvar is currently ``None``, initialises it as an empty
+    list first.
+    """
+    lst = _pending_segments.get()
+    if lst is None:
+        lst = []
+    lst.append((segments, formatted_string, template_id))
+    _pending_segments.set(lst)
 
 
 # ── Sequence counter ──────────────────────────────────────────────────────
