@@ -22,6 +22,7 @@ Usage::
 
 import asyncio
 import json
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -94,15 +95,33 @@ class ReplayMetrics:
 # ── Load records ──────────────────────────────────────────────────────────
 
 
+def resolve_record_path(path: str) -> str:
+    """Resolve a JSONL record path, accepting a record directory as input."""
+    path = os.path.abspath(os.path.expanduser(path))
+    if os.path.isdir(path):
+        candidates = [
+            os.path.join(path, name)
+            for name in os.listdir(path)
+            if name.endswith(".jsonl")
+        ]
+        if not candidates:
+            raise FileNotFoundError(f"No JSONL record file found in: {path}")
+        return max(candidates, key=os.path.getmtime)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Record file does not exist: {path}")
+    return path
+
+
 def load_records(path: str) -> list[Step]:
     """Load a JSONL record file and organise records into Step objects.
 
     Args:
-        path: Path to a JSONL file.
+        path: Path to a JSONL file or a directory containing JSONL records.
 
     Returns:
         A list of ``Step`` objects, one per simulation step.
     """
+    path = resolve_record_path(path)
     records: list[dict] = []
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
@@ -221,6 +240,9 @@ async def replay(
     Returns:
         ``ReplayMetrics`` with aggregate results.
     """
+    if mode not in {"faithful", "aggressive"}:
+        raise ValueError(f"Unsupported replay mode: {mode}")
+
     client = AsyncOpenAI(base_url=base_url, api_key=api_key)
 
     sem: Optional[asyncio.Semaphore] = None
@@ -290,12 +312,20 @@ async def replay(
     # ── Main loop over steps ───────────────────────────────────────────
     for step_idx, step in enumerate(steps):
         # Phase A: pre_dispatch — per-agent serial chains, agents run concurrently
-        phase_a_tasks = [
-            fire_agent_chain(reqs)
-            for reqs in step.pre_dispatch.values()
-        ]
-        for result_list in await asyncio.gather(*phase_a_tasks):
-            metrics_list.extend(result_list)
+        if mode == "aggressive":
+            phase_a_tasks = [
+                fire(record)
+                for reqs in step.pre_dispatch.values()
+                for record in reqs
+            ]
+            metrics_list.extend(await asyncio.gather(*phase_a_tasks))
+        else:
+            phase_a_tasks = [
+                fire_agent_chain(reqs)
+                for reqs in step.pre_dispatch.values()
+            ]
+            for result_list in await asyncio.gather(*phase_a_tasks):
+                metrics_list.extend(result_list)
 
         # Phase B: main — per-agent serial chains, agents run concurrently
         phase_b_tasks = [

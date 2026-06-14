@@ -30,6 +30,22 @@ AgentSociety/
 
 Primary remote is GitLab (`git.fiblab.net`); GitHub is a public mirror with Dependabot / CodeQL.
 
+## Remote verification policy
+
+The development environment and required services run remotely. After making
+changes, do **not** run tests, start services, or perform end-to-end validation
+in the local workspace. Instead, provide the user with remote-environment
+verification guidance that includes:
+
+1. Required environment, services, models, data, and paths.
+2. Copy-pasteable commands, in execution order.
+3. Expected outputs and explicit pass/fail criteria.
+4. Relevant logs or artifacts to inspect when verification fails.
+
+Static code inspection is allowed, but local test execution must be left to the
+user in the remote environment. This policy overrides local test commands
+documented elsewhere in this file.
+
 ## Setup
 
 ```bash

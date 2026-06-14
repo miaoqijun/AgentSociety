@@ -22,7 +22,7 @@ from .hooks import (
     is_recording_enabled,
     instrument_engine,
 )
-from .replay import replay, build_prompt, load_records, ReplayMetrics
+from .replay import replay, build_prompt, load_records, resolve_record_path, ReplayMetrics
 from .analysis import (
     estimate_cache_hit_rate,
     template_inventory,
@@ -41,6 +41,7 @@ __all__ = [
     "replay",
     "build_prompt",
     "load_records",
+    "resolve_record_path",
     "ReplayMetrics",
     "estimate_cache_hit_rate",
     "template_inventory",

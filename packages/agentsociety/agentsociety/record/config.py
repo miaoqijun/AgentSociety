@@ -15,7 +15,7 @@ class RecordConfig:
         scenario: Scenario name (e.g. "polarization.echo_chamber").
         n_agents: Number of agents in the simulation.
         n_steps: Number of simulation steps.
-        rng_seed: RNG seed used.
+        rng_seed: RNG seed used by the scenario. Zero means unknown or not set.
         agentsociety_commit: Git commit hash of the AgentSociety codebase.
         record_concurrency: Semaphore config used during record.
         record_llm_provider: LLM provider used during record.
@@ -26,7 +26,7 @@ class RecordConfig:
     scenario: str = "unknown"
     n_agents: int = 0
     n_steps: int = 0
-    rng_seed: int = 42
+    rng_seed: int = 0
     agentsociety_commit: str = ""
     record_concurrency: dict = field(default_factory=lambda: {
         "n_llm_configs": 1,
@@ -57,14 +57,14 @@ class ReplayConfig:
 
     Attributes:
         record_path: Path to the JSONL record file or a directory containing
-            meta.json + JSONL files.  If a directory, the latest JSONL is used.
+            JSONL files. If a directory, the most recently modified JSONL is used.
         mode: Replay concurrency mode — "faithful" (preserves agent-internal
             serial order) or "aggressive" (relaxes Phase-A serial constraints).
         sglang_base_url: sglang server base URL (e.g. "http://localhost:30000/v1").
         sglang_api_key: API key for sglang (default "sk-noop").
         sglang_model: Model name to send in requests.
-        max_concurrency: Max concurrent in-flight requests.  If 0, uses the
-            value from the record's meta.json.
+        max_concurrency: Max concurrent in-flight requests. If 0, replay uses
+            its default limit of 200.
         unlimited: If True, no semaphore limit at all (for stress-testing).
     """
     record_path: str = ""
