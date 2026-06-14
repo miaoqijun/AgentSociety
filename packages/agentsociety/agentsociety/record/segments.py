@@ -7,6 +7,7 @@ name for generating `template_id` values (e.g. "needs_block.INITIAL_NEEDS_PROMPT
 """
 
 import ast
+import inspect
 import os
 import re
 from typing import Any, Optional
@@ -110,7 +111,7 @@ VAR_PATTERN = re.compile(r"\{(\w+)\}")
 EXPR_PATTERN = re.compile(r"\$\{([^}]+?)\}")
 
 
-def parse_template_to_segments(
+async def parse_template_to_segments(
     template: str,
     kwargs: dict[str, Any],
     context: Optional[dict] = None,
@@ -147,7 +148,7 @@ def parse_template_to_segments(
         if placeholder.startswith("${"):
             # Expression placeholder
             expr = placeholder[2:-1].strip()
-            source, key, text = _resolve_expression(expr, context, memory_status)
+            source, key, text = await _resolve_expression(expr, context, memory_status)
             segments.append({
                 "kind": "var",
                 "source": source,
@@ -175,7 +176,7 @@ def parse_template_to_segments(
     return segments
 
 
-def _resolve_expression(
+async def _resolve_expression(
     expr: str, context: Optional[dict], memory_status: Any
 ) -> tuple[str, str, str]:
     """Resolve a ${expr} placeholder to (source, key, text)."""
@@ -183,7 +184,7 @@ def _resolve_expression(
     if expr.startswith("profile."):
         key = expr.split(".", 1)[1]
         source = "profile"
-        text = _safe_get(memory_status, key, "profile") if memory_status else ""
+        text = await _safe_get(memory_status, key) if memory_status else ""
         return source, key, str(text) if text is not None else ""
 
     # status.xxx  or  memory.status.xxx
@@ -191,7 +192,7 @@ def _resolve_expression(
         prefix = "status." if expr.startswith("status.") else "memory.status."
         key = expr.split(prefix, 1)[1]
         source = "memory.status"
-        text = _safe_get(memory_status, key) if memory_status else ""
+        text = await _safe_get(memory_status, key) if memory_status else ""
         return source, key, str(text) if text is not None else ""
 
     # context.xxx
@@ -221,7 +222,7 @@ def _classify_var(var_name: str) -> tuple[str, str]:
     return "format_kwarg", var_name
 
 
-def _safe_get(obj: Any, key: str, default: Any = "") -> Any:
+async def _safe_get(obj: Any, key: str, default: Any = "") -> Any:
     """Safely get a dotted attribute from an object (which may be a dict)."""
     parts = key.split(".")
     current = obj
@@ -233,6 +234,8 @@ def _safe_get(obj: Any, key: str, default: Any = "") -> Any:
         elif hasattr(current, "get"):
             try:
                 current = current.get(part, default)
+                if inspect.isawaitable(current):
+                    current = await current
             except Exception:
                 return default
         else:

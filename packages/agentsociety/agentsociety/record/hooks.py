@@ -18,6 +18,8 @@ import asyncio
 import time
 from typing import Any, Optional
 
+from openai import NOT_GIVEN
+
 from ..agent.prompt import FormatPrompt
 from ..llm.llm import LLM
 from ..agent.agent_base import Agent
@@ -165,7 +167,7 @@ async def _patched_format(self: FormatPrompt, context: Optional[dict] = None, **
     result = await _original_methods["FormatPrompt.format"](self, context=context, **kwargs)
 
     try:
-        segments = parse_template_to_segments(
+        segments = await parse_template_to_segments(
             template=self.template,
             kwargs=kwargs,
             context=context,
@@ -184,7 +186,7 @@ async def _patched_format(self: FormatPrompt, context: Optional[dict] = None, **
 async def _patched_atext_request(
     self: LLM,
     dialog: list,
-    response_format=None,
+    response_format=NOT_GIVEN,
     temperature: float = 1,
     max_tokens: Optional[int] = None,
     top_p: Optional[float] = None,
@@ -192,12 +194,11 @@ async def _patched_atext_request(
     presence_penalty: Optional[float] = None,
     timeout: int = 300,
     retries: int = 10,
-    tools=None,
-    tool_choice=None,
+    tools=NOT_GIVEN,
+    tool_choice=NOT_GIVEN,
 ):
     """Wraps LLM.atext_request to record the invocation."""
     from . import context as ctx_module
-    from openai import NOT_GIVEN
     from openai.types.chat import completion_create_params
 
     global _agent_class_cache
