@@ -77,6 +77,33 @@ def _count_agents(config: Any) -> int:
     return total
 
 
+def _resolve_scenario_input_paths(config: Any, script_path: Path) -> None:
+    """Resolve scenario-owned input files relative to the scenario script."""
+    scenario_dir = script_path.parent
+    agent_configs = []
+    for group in ("citizens", "firms", "banks", "nbs", "governments"):
+        agent_configs.extend(getattr(config.agents, group, []))
+    supervisor = getattr(config.agents, "supervisor", None)
+    if supervisor is not None:
+        agent_configs.append(supervisor)
+
+    missing_paths = []
+    for agent_config in agent_configs:
+        memory_path = getattr(agent_config, "memory_from_file", None)
+        if not memory_path or os.path.isabs(memory_path):
+            continue
+        resolved = (scenario_dir / memory_path).resolve()
+        agent_config.memory_from_file = str(resolved)
+        if not resolved.is_file():
+            missing_paths.append(resolved)
+
+    if missing_paths:
+        missing = "\n".join(f"  - {path}" for path in missing_paths)
+        raise FileNotFoundError(
+            f"Scenario input files do not exist relative to {scenario_dir}:\n{missing}"
+        )
+
+
 def _git_commit(script_path: Path) -> str:
     try:
         return subprocess.check_output(
@@ -101,6 +128,7 @@ async def run_record_demo(args: argparse.Namespace) -> None:
     from agentsociety.simulation import AgentSociety
 
     simulation_config, script_path = _load_scenario_config(args.script)
+    _resolve_scenario_input_paths(simulation_config, script_path)
     if args.map_file:
         simulation_config.map.file_path = str(Path(args.map_file).expanduser().resolve())
 
