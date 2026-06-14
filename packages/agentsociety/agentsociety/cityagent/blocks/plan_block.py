@@ -240,26 +240,39 @@ class PlanBlock(Block):
             context=self.context,
         )
 
-        response = await self.llm.atext_request(self.detail_prompt.to_dialog())
-        retry = 3
-        while retry > 0:
+        valid_step_types = {"mobility", "social", "economy", "other"}
+        for attempt in range(1, 4):
+            response = await self.llm.atext_request(
+                self.detail_prompt.to_dialog(),
+                response_format={"type": "json_object"},
+            )
             try:
                 result: Any = json_repair.loads(clean_json_response(response))
                 if (
-                    "plan" not in result
+                    not isinstance(result, dict)
+                    or "plan" not in result
+                    or not isinstance(result["plan"], dict)
                     or "target" not in result["plan"]
                     or "steps" not in result["plan"]
                 ):
                     raise ValueError("Invalid plan format")
-                for step in result["plan"]["steps"]:
-                    if "intention" not in step or "type" not in step:
+                steps = result["plan"]["steps"]
+                if not isinstance(steps, list) or not steps:
+                    raise ValueError("Plan steps must be a non-empty list")
+                for step in steps:
+                    if (
+                        not isinstance(step, dict)
+                        or not isinstance(step.get("intention"), str)
+                        or not step["intention"].strip()
+                        or step.get("type") not in valid_step_types
+                    ):
                         raise ValueError("Each step must have an intention and a type")
                 return result
             except Exception as e:
                 get_logger().warning(
-                    f"Error parsing detailed plan: {str(e)} with response={response}"
+                    f"Error parsing detailed plan attempt {attempt}/3: "
+                    f"{str(e)} with response={response}"
                 )
-                retry -= 1
         return None
 
     async def forward(self):
