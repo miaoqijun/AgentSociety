@@ -104,6 +104,36 @@ def _resolve_scenario_input_paths(config: Any, script_path: Path) -> None:
         )
 
 
+def _limit_simulation_steps(config: Any, max_steps: int) -> None:
+    """Limit scenario RUN/STEP workflows for a short smoke recording."""
+    if max_steps <= 0:
+        return
+
+    from agentsociety.configs.exp import WorkflowType
+
+    remaining = max_steps
+    limited_workflow = []
+    for workflow_step in config.exp.workflow:
+        if workflow_step.type == WorkflowType.STEP:
+            if remaining > 0:
+                steps = min(workflow_step.steps, remaining)
+                limited_workflow.append(
+                    workflow_step.model_copy(update={"steps": steps})
+                )
+                remaining -= steps
+        elif workflow_step.type == WorkflowType.RUN:
+            if remaining > 0:
+                limited_workflow.append(
+                    workflow_step.model_copy(
+                        update={"type": WorkflowType.STEP, "steps": remaining}
+                    )
+                )
+                remaining = 0
+        else:
+            limited_workflow.append(workflow_step)
+    config.exp.workflow = limited_workflow
+
+
 def _git_commit(script_path: Path) -> str:
     try:
         return subprocess.check_output(
@@ -129,6 +159,7 @@ async def run_record_demo(args: argparse.Namespace) -> None:
 
     simulation_config, script_path = _load_scenario_config(args.script)
     _resolve_scenario_input_paths(simulation_config, script_path)
+    _limit_simulation_steps(simulation_config, args.max_steps)
     if args.map_file:
         simulation_config.map.file_path = str(Path(args.map_file).expanduser().resolve())
 
@@ -150,7 +181,7 @@ async def run_record_demo(args: argparse.Namespace) -> None:
         output_dir=args.output,
         scenario=scenario,
         n_agents=args.n_agents if args.n_agents is not None else _count_agents(simulation_config),
-        n_steps=args.n_steps,
+        n_steps=args.n_steps or args.max_steps,
         rng_seed=args.rng_seed,
         agentsociety_commit=_git_commit(script_path),
         record_concurrency={
@@ -169,6 +200,8 @@ async def run_record_demo(args: argparse.Namespace) -> None:
     print(f"[Record] Scenario script: {script_path}")
     print(f"[Record] Local backend(s): {', '.join(base_urls)}")
     print(f"[Record] Model: {args.model}")
+    if args.max_steps:
+        print(f"[Record] Smoke-test step limit: {args.max_steps}")
     print(f"[Record] Output: {record_config.filepath}")
 
     enable_recording(record_config)
@@ -325,6 +358,8 @@ def main():
     parser.add_argument("--n-agents", type=int, help="Override agent count in metadata")
     parser.add_argument("--n-steps", type=int, default=0,
                         help="Expected simulation step count to store in metadata")
+    parser.add_argument("--max-steps", type=int, default=0,
+                        help="Limit actual simulation steps for a record smoke test; 0 preserves the scenario workflow")
     parser.add_argument("--rng-seed", type=int, default=0,
                         help="Seed already used by the scenario, stored as metadata only; 0 means unknown")
     parser.add_argument("--replay-mode", choices=["faithful", "aggressive"],

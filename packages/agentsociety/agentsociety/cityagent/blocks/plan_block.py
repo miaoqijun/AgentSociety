@@ -241,6 +241,11 @@ class PlanBlock(Block):
         )
 
         valid_step_types = {"mobility", "social", "economy", "other"}
+        step_type_aliases = {
+            "economic": "economy",
+            "work": "economy",
+            "work-related": "economy",
+        }
         for attempt in range(1, 4):
             response = await self.llm.atext_request(
                 self.detail_prompt.to_dialog(),
@@ -260,6 +265,9 @@ class PlanBlock(Block):
                 if not isinstance(steps, list) or not steps:
                     raise ValueError("Plan steps must be a non-empty list")
                 for step in steps:
+                    if isinstance(step, dict) and isinstance(step.get("type"), str):
+                        step_type = step["type"].strip().lower()
+                        step["type"] = step_type_aliases.get(step_type, step_type)
                     if (
                         not isinstance(step, dict)
                         or not isinstance(step.get("intention"), str)

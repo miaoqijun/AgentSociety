@@ -197,14 +197,15 @@ class NeedsBlock(Block):
 
         if not self.initialized:
             await self.initial_prompt.format(context=self.context)
-            response = await self.llm.atext_request(
-                self.initial_prompt.to_dialog(), response_format={"type": "json_object"}
-            )
-            response = clean_json_response(response)
-            retry = 3
-            while retry > 0:
+            for attempt in range(1, 4):
+                response = await self.llm.atext_request(
+                    self.initial_prompt.to_dialog(),
+                    response_format={"type": "json_object"},
+                )
                 try:
-                    satisfaction: Any = json_repair.loads(response)
+                    satisfaction: Any = json_repair.loads(
+                        clean_json_response(response)
+                    )
                     satisfactions = satisfaction["current_satisfaction"]
                     await self.memory.status.update(
                         "hunger_satisfaction", satisfactions["hunger_satisfaction"]
@@ -220,8 +221,9 @@ class NeedsBlock(Block):
                     )
                     break
                 except Exception as e:
-                    get_logger().warning(f"Initial response error: {e}")
-                    retry -= 1
+                    get_logger().warning(
+                        f"Initial response error attempt {attempt}/3: {e}"
+                    )
 
             current_plan = await self.memory.status.get("current_plan", False)
             if current_plan:
