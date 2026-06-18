@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from agentsociety2.agent.skills.registry import SkillRegistry
-from agentsociety2.agent.skills.runtime import AgentSkillRuntime
-from agentsociety2.agent.skills.workspace_fs import WorkspaceFS
+from agentsociety2.agent.base.registry import SkillRegistry
+from agentsociety2.agent.base.runtime import AgentSkillRuntime
+from agentsociety2.agent.base.workspace_fs import WorkspaceFS
 from agentsociety2.trace import JsonlTraceWriter, ShardedTraceWriter
 
 
@@ -18,7 +18,6 @@ def _bind_runtime_workspace(runtime, tmp_path, agent_id):
         fs=WorkspaceFS(workspace),
         trace_writer=JsonlTraceWriter(
             agent_id=agent_id,
-            events_path=workspace / ".runtime" / "events.jsonl",
             sharded_writer=ShardedTraceWriter(tmp_path / "trace"),
         ),
     )
@@ -31,11 +30,11 @@ async def test_runtime_run_skill_hook_selects_hook_type(tmp_path):
     skill_root.mkdir(parents=True)
     (skill_root / "pre.py").write_text(
         "import json, os, sys\n"
-        "open('pre.json','w').write(json.dumps({'argv': sys.argv[1:], 'skill': os.environ['SKILL_ID']}))\n",
+        "open(os.path.join(os.environ['AGENT_WORK_DIR'], 'pre.json'),'w').write(json.dumps({'argv': sys.argv[1:], 'skill': os.environ['SKILL_ID']}))\n",
         encoding="utf-8",
     )
     (skill_root / "post.py").write_text(
-        "import sys\nopen('post.txt','w').write('|'.join(sys.argv[1:]))\n",
+        "import os, sys\nopen(os.path.join(os.environ['AGENT_WORK_DIR'], 'post.txt'),'w').write('|'.join(sys.argv[1:]))\n",
         encoding="utf-8",
     )
     (skill_root / "SKILL.md").write_text(

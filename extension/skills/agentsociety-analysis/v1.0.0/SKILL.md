@@ -122,7 +122,7 @@ digraph analysis_flow {
 
 **Predecessors:** run-experiment (completed run with `run/replay/_schema.json`)
 **Optional inputs:** web-research (supplementary context for interpretation), use-dataset (external datasets for comparison)
-**Successors:** agentsociety-paper-orchestrator
+**Successors:** paper-toolkit
 **Also feeds:** hypothesis (refinement cycle when analysis informs hypothesis revision)
 
 ## Stage Notes

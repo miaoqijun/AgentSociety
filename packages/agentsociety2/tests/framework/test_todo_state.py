@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pytest
 
-from agentsociety2.agent.todo_state import (
+from agentsociety2.agent.base.todo import (
     MAX_TERMINAL_TODOS,
     TERMINAL_TODO_STATUSES,
     TODO_ARCHIVE_PATH,

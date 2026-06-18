@@ -4,12 +4,15 @@ import json
 import os
 import subprocess
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 from typing import Any
 
-import yaml
+import pytest
+import yaml  # type: ignore[import-untyped]
 
 from agentsociety2.agent.person import PersonAgent
+from agentsociety2.agent.service_proxy import LLMClients, ServiceProxy
 
 PKG_ROOT = Path(__file__).resolve().parents[2]
 SKILL_ROOT = PKG_ROOT / "agentsociety2" / "agent" / "skills" / "daily-guidance"
@@ -123,22 +126,56 @@ def _run_hook(tmp_path: Path) -> subprocess.CompletedProcess[str]:
     return _run("--args-json", json.dumps(payload), env=env)
 
 
-def test_person_agent_default_activates_daily_guidance() -> None:
-    agent = PersonAgent(
-        id=7,
-        profile={"name": "Alice"},
-        default_activated_skill_ids=["built-in@daily-guidance"],
+class _DummyEnv:
+    async def ask(self, *args: Any, **kwargs: Any) -> tuple[dict, str]:
+        return {}, ""
+
+    def set_current_time(self, t: Any) -> None:
+        return None
+
+    async def step(self, tick: int, t: Any) -> None:
+        return None
+
+    async def get_world_description(self) -> str:
+        return ""
+
+
+def _service_proxy(tmp_path: Path) -> ServiceProxy:
+    llm = SimpleNamespace(model_name="dummy", call=None)
+    return ServiceProxy(
+        env=_DummyEnv(),
+        llm=LLMClients(coder=llm, default=llm),
+        trace=None,
+        replay=None,
+        run_dir=tmp_path,
     )
+
+
+@pytest.mark.asyncio
+async def test_person_agent_default_activates_daily_guidance(tmp_path: Path) -> None:
+    workspace = tmp_path / "agent_0007"
+    PersonAgent.create(
+        workspace,
+        profile={"id": 7, "name": "Alice"},
+        config={"default_activated_skill_ids": ["built-in@daily-guidance"]},
+    )
+    agent = await PersonAgent.from_workspace(workspace, _service_proxy(tmp_path))
 
     assert "built-in@daily-guidance" in agent._default_activated_skill_ids  # noqa: SLF001
 
 
-def test_person_agent_default_daily_guidance_can_be_disabled() -> None:
-    agent = PersonAgent(
-        id=8,
-        profile={"name": "Disabled"},
-        disabled_skill_ids=["built-in@daily-guidance"],
+@pytest.mark.asyncio
+async def test_person_agent_default_daily_guidance_can_be_disabled(tmp_path: Path) -> None:
+    workspace = tmp_path / "agent_0008"
+    PersonAgent.create(
+        workspace,
+        profile={"id": 8, "name": "Disabled"},
+        config={
+            "default_activated_skill_ids": ["built-in@daily-guidance"],
+            "disabled_skill_ids": ["built-in@daily-guidance"],
+        },
     )
+    agent = await PersonAgent.from_workspace(workspace, _service_proxy(tmp_path))
 
     assert "built-in@daily-guidance" not in agent._default_activated_skill_ids  # noqa: SLF001
 

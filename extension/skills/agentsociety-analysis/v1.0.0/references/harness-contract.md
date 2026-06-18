@@ -65,7 +65,7 @@ Returns per-phase `structural_pass`, `attestation_pass`, `gate_pass`, and `rubri
 ## Downstream gates
 
 - **Pipeline:** `research-pipeline update-stage analysis completed` only after `validate-synthesis` PASS.
-- **Paper:** `paper-orchestrator build-pack` checks `validate-synthesis` when `presentation/hypothesis_*` exists.
+- **Paper:** `paper-toolkit` should consume outputs only after `validate-synthesis` passes when `presentation/hypothesis_*` exists.
 
 ## JSON payloads
 

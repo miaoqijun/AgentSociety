@@ -1,6 +1,6 @@
 import pytest
 
-from agentsociety2.agent.skills.workspace_fs import WorkspaceFS
+from agentsociety2.agent.base.workspace_fs import WorkspaceFS
 
 
 @pytest.mark.asyncio

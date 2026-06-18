@@ -7,6 +7,8 @@ from agentsociety2.env.router_base import ModuleToolsInfo, RouterBase, ToolInfo
 
 
 class _SampleEnv:
+    _persons: set[int]
+
     @tool(readonly=False)
     async def move_to(self, person_id: int) -> dict:
         """Move a person."""

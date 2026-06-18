@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from agentsociety2.agent.skills.registry import SkillRegistry
-from agentsociety2.agent.skills.runtime import AgentSkillRuntime
-from agentsociety2.agent.skills.workspace_fs import WorkspaceFS
+from agentsociety2.agent.base.registry import SkillRegistry
+from agentsociety2.agent.base.runtime import AgentSkillRuntime
+from agentsociety2.agent.base.workspace_fs import WorkspaceFS
 from agentsociety2.trace import JsonlTraceWriter, ShardedTraceWriter
 
 
@@ -18,7 +18,6 @@ def _bind_runtime_workspace(runtime, tmp_path, agent_id):
         fs=WorkspaceFS(workspace),
         trace_writer=JsonlTraceWriter(
             agent_id=agent_id,
-            events_path=workspace / ".runtime" / "events.jsonl",
             sharded_writer=ShardedTraceWriter(tmp_path / "trace"),
         ),
     )
@@ -34,7 +33,7 @@ def test_runtime_visible_catalog_and_skill_files(tmp_path):
     runtime.set_visible_skills(["built-in@daily-guidance", "built-in@memory"])
     catalog = runtime.skill_catalog()
 
-    assert {item["skill_id"] for item in catalog} == {"built-in@daily-guidance"}
+    assert {item["name"] for item in catalog} == {"daily-guidance"}
     assert "# Daily Guidance" in runtime.load_skill_doc("built-in@daily-guidance")
     assert "# Daily Guidance Examples" in runtime.read_skill_file(
         "built-in@daily-guidance",
