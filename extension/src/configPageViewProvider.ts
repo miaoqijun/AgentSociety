@@ -32,8 +32,7 @@ import type { ConfigValues, WorkspaceInfo } from './webview/configPage/types';
 import type { EasyPaperConfigValues } from './webview/configPage/types';
 import { EnvManager } from './envManager';
 import { LLMValidator, PythonValidator, LLMType } from './services/llmValidator';
-import { fetchCompat } from './shared/fetchCompat';
-import { requestJson } from './services/httpClient';
+import { fetchCompat, createTimeoutSignal } from './shared/fetchCompat';
 import { CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS } from './services/validateTimeouts';
 import { AgentsocietyWebConfigService } from './services/agentsocietyWebConfig';
 
@@ -489,60 +488,52 @@ export class ConfigPageViewProvider {
     });
   }
 
-  private async _literatureValidateHttpPost(
-    url: string,
+  /**
+   * 向 MCP Streamable HTTP 端点发送 JSON-RPC 请求并解析响应。
+   *
+   * litellm 的 /mcp/ 返回 text/event-stream（每行 `data: {...}`），也可能直接返回 JSON，
+   * 这里统一提取出 JSON-RPC payload。叠加检测超时，避免长调用挂起。
+   */
+  private async _mcpJsonRpc(
+    endpoint: string,
     headerMap: Record<string, string> | undefined,
-    body: Record<string, unknown>
-  ): Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }> {
+    payload: Record<string, unknown>
+  ): Promise<{ ok: boolean; status: number; data: unknown | null }> {
     const headers = {
       ...(headerMap ?? {}),
       'Content-Type': 'application/json',
+      Accept: 'application/json, text/event-stream',
     };
-    if (typeof globalThis.fetch === 'function') {
-      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-      return {
-        ok: res.ok,
-        status: res.status,
-        json: () => res.json(),
-      };
+    const { signal, cleanup } = createTimeoutSignal(CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS);
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal,
+      });
+      const text = await res.text();
+      let data: unknown = null;
+      for (const line of text.split(/\r?\n/)) {
+        if (line.startsWith('data: ')) {
+          try {
+            data = JSON.parse(line.slice('data: '.length));
+          } catch {
+            // 忽略无法解析的 data 行
+          }
+        }
+      }
+      if (data === null) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = null;
+        }
+      }
+      return { ok: res.ok, status: res.status, data };
+    } finally {
+      cleanup();
     }
-    const jr = await requestJson(url, {
-      method: 'POST',
-      headers,
-      body,
-      timeoutMs: CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS,
-    });
-    return {
-      ok: jr.ok,
-      status: jr.status,
-      json: async () => jr.data,
-    };
-  }
-
-  private async _literatureValidateHttpGet(
-    url: string,
-    headerMap: Record<string, string> | undefined
-  ): Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }> {
-    const headers = headerMap ?? {};
-    if (typeof globalThis.fetch === 'function') {
-      const res = await fetch(url, { method: 'GET', headers });
-      return {
-        ok: res.ok,
-        status: res.status,
-        json: () => res.json(),
-      };
-    }
-    const jr = await requestJson(url, {
-      method: 'GET',
-      headers,
-      timeoutMs: CONFIG_PAGE_API_VALIDATE_TIMEOUT_MS,
-    });
-    const data = jr.data;
-    return {
-      ok: jr.ok,
-      status: jr.status,
-      json: async () => data,
-    };
   }
 
   private _literatureAuthHeaders(apiKey: string): Record<string, string> | undefined {
@@ -580,14 +571,16 @@ export class ConfigPageViewProvider {
     );
   }
 
-  private _literatureMcpGatewayOrigin(mcpUrl: string): string | null {
+  /** 规范化 MCP Streamable HTTP 端点：必须以 /mcp/ 结尾，返回完整 URL；非法返回 null。 */
+  private _literatureMcpEndpoint(mcpUrl: string): string | null {
     try {
-      let normalized = mcpUrl.trim();
-      if (normalized.endsWith('/mcp')) {
-        normalized = `${normalized}/`;
+      const trimmed = mcpUrl.trim();
+      const normalized = trimmed.endsWith('/mcp') ? `${trimmed}/` : trimmed;
+      if (!normalized.endsWith('/mcp/')) {
+        return null;
       }
-      const parsed = new URL(normalized);
-      return parsed.origin;
+      new URL(normalized);
+      return normalized;
     } catch {
       return null;
     }
@@ -640,8 +633,11 @@ export class ConfigPageViewProvider {
       return;
     }
 
-    const gatewayOrigin = this._literatureMcpGatewayOrigin(mcpUrl);
-    if (!gatewayOrigin) {
+    // 直接走 MCP Streamable HTTP 端点（与运行时子进程的实际调用方式一致）。
+    // 不再使用 /mcp-rest/*：litellm v1.85 的 /mcp-rest/tools/call 要求 server_id，
+    // 而 /mcp-rest/tools/list 不返回 server_id，导致检测必然 400 失败。
+    const endpoint = this._literatureMcpEndpoint(mcpUrl);
+    if (!endpoint) {
       this._panel.webview.postMessage({
         command: 'literatureValidationResult',
         success: false,
@@ -650,22 +646,57 @@ export class ConfigPageViewProvider {
       return;
     }
 
+    const rpcErrorOf = (data: unknown): string | null => {
+      const msg = (data as { error?: { message?: unknown } } | null)?.error?.message;
+      return typeof msg === 'string' ? msg : null;
+    };
+
     try {
-      const listUrl = `${gatewayOrigin}/mcp-rest/tools/list`;
-      const listResponse = await this._literatureValidateHttpGet(listUrl, authHeaders);
-      if (!listResponse.ok) {
+      // 1) initialize 握手
+      const init = await this._mcpJsonRpc(endpoint, authHeaders, {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2024-11-05',
+          capabilities: {},
+          clientInfo: { name: 'agentsociety-ext', version: '1' },
+        },
+      });
+      if (!init.ok) {
         this._panel.webview.postMessage({
           command: 'literatureValidationResult',
           success: false,
-          error: this._literatureAuthError(listResponse.status, apiKey),
+          error: rpcErrorOf(init.data) ?? this._literatureAuthError(init.status, apiKey),
         });
         return;
       }
 
-      const listData = (await listResponse.json()) as {
-        tools?: Array<{ name?: string }>;
-      };
-      const toolNames = (listData.tools ?? [])
+      // 2) 发送 initialized 通知（无需响应）
+      await this._mcpJsonRpc(endpoint, authHeaders, {
+        jsonrpc: '2.0',
+        method: 'notifications/initialized',
+      });
+
+      // 3) tools/list，确认提供文献检索工具
+      const list = await this._mcpJsonRpc(endpoint, authHeaders, {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/list',
+        params: {},
+      });
+      if (!list.ok) {
+        this._panel.webview.postMessage({
+          command: 'literatureValidationResult',
+          success: false,
+          error: rpcErrorOf(list.data) ?? this._literatureAuthError(list.status, apiKey),
+        });
+        return;
+      }
+      const toolNames = (
+        ((list.data as { result?: { tools?: Array<{ name?: string }> } } | null)?.result?.tools) ??
+        []
+      )
         .map((tool) => tool.name)
         .filter((name): name is string => Boolean(name));
       const missing = this._missingLiteratureTools(toolNames);
@@ -678,6 +709,7 @@ export class ConfigPageViewProvider {
         return;
       }
 
+      // 4) 实际调用 literature_status 验证服务可用（用工具全名，无需 server_id）
       const statusTool = this._pickLiteratureMcpTool(toolNames, 'literature_status');
       if (!statusTool) {
         this._panel.webview.postMessage({
@@ -687,24 +719,24 @@ export class ConfigPageViewProvider {
         });
         return;
       }
-
-      const callUrl = `${gatewayOrigin}/mcp-rest/tools/call`;
-      const callResponse = await this._literatureValidateHttpPost(
-        callUrl,
-        authHeaders,
-        { name: statusTool, arguments: {} }
-      );
-      if (!callResponse.ok) {
+      const call = await this._mcpJsonRpc(endpoint, authHeaders, {
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'tools/call',
+        params: { name: statusTool, arguments: {} },
+      });
+      if (!call.ok) {
         this._panel.webview.postMessage({
           command: 'literatureValidationResult',
           success: false,
-          error: this._literatureAuthError(callResponse.status, apiKey),
+          error: rpcErrorOf(call.data) ?? this._literatureAuthError(call.status, apiKey),
         });
         return;
       }
-
-      const callPayload = (await callResponse.json()) as Array<{ text?: string }>;
-      const textBlock = callPayload.find((block) => block.text)?.text;
+      const content =
+        (call.data as { result?: { content?: Array<{ text?: string }> } } | null)?.result?.content ??
+        [];
+      const textBlock = content.find((block) => block.text)?.text;
       if (!textBlock) {
         this._panel.webview.postMessage({
           command: 'literatureValidationResult',
