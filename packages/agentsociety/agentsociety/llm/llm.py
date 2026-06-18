@@ -170,20 +170,29 @@ class LLMActor:
         for attempt in range(retries):
             response = None
             try:
-                response = await client.chat.completions.create(
-                    model=config.model,
-                    messages=dialog,
-                    response_format=response_format,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    top_p=top_p,
-                    frequency_penalty=frequency_penalty,
-                    presence_penalty=presence_penalty,
-                    stream=False,
-                    timeout=timeout,
-                    tools=tools,
-                    tool_choice=tool_choice,
-                )
+                request: dict[str, Any] = {
+                    "model": config.model,
+                    "messages": dialog,
+                    "temperature": temperature,
+                    "stream": False,
+                    "timeout": timeout,
+                }
+                if response_format is not NOT_GIVEN:
+                    request["response_format"] = response_format
+                if max_tokens is not None:
+                    request["max_tokens"] = max_tokens
+                if top_p is not None:
+                    request["top_p"] = top_p
+                if frequency_penalty is not None:
+                    request["frequency_penalty"] = frequency_penalty
+                if presence_penalty is not None:
+                    request["presence_penalty"] = presence_penalty
+                if tools is not NOT_GIVEN:
+                    request["tools"] = tools
+                if tool_choice is not NOT_GIVEN:
+                    request["tool_choice"] = tool_choice
+
+                response = await client.chat.completions.create(**request)
                 if response.usage is not None:
                     log["input_tokens"] += response.usage.prompt_tokens
                     log["output_tokens"] += response.usage.completion_tokens

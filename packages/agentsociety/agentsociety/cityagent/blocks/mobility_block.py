@@ -260,6 +260,18 @@ class PlaceSelectionBlock(Block):
             next_place = (pois[selected][0], pois[selected][1])
         else:  # Fallback random selection
             all_pois = self.environment.map.get_all_pois()
+            if not all_pois:
+                message = (
+                    "Cannot select a destination because the configured map "
+                    "contains no POIs"
+                )
+                get_logger().warning(f"MobilityBlock: {message}")
+                return {
+                    "success": False,
+                    "evaluation": message,
+                    "consumed_time": 0,
+                    "node_id": None,
+                }
             next_place = random.choice(all_pois)
             next_place = (next_place["name"], next_place["id"])
 
@@ -426,12 +438,26 @@ class MoveBlock(Block):
                     target_positions=next_place[1],
                 )
             else:
-                aois = self.environment.map.get_all_aois()
-                while True:
-                    r_aoi = random.choice(aois)
-                    if len(r_aoi["poi_ids"]) > 0:
-                        r_poi = random.choice(r_aoi["poi_ids"])
-                        break
+                aois_with_pois = [
+                    aoi
+                    for aoi in self.environment.map.get_all_aois()
+                    if aoi["poi_ids"]
+                ]
+                if not aois_with_pois:
+                    message = (
+                        "Cannot move to another place because the configured "
+                        "map contains no AOIs with POIs"
+                    )
+                    get_logger().warning(f"MobilityBlock: {message}")
+                    return {
+                        "success": False,
+                        "evaluation": message,
+                        "to_place": None,
+                        "consumed_time": 0,
+                        "node_id": node_id,
+                    }
+                r_aoi = random.choice(aois_with_pois)
+                r_poi = random.choice(r_aoi["poi_ids"])
                 poi = self.environment.map.get_poi(r_poi)
                 next_place = (poi["name"], poi["aoi_id"])
                 await self.environment.set_aoi_schedules(

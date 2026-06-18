@@ -1,3 +1,122 @@
+## Record and Replay Guidance
+
+This fork adds a record-and-replay workflow for AgentSociety 1.x LLM calls.
+Recording runs a normal AgentSociety scenario and writes each LLM request,
+response, prompt segment, simulation step, phase, and agent chain position to a
+JSONL trace. Replay replays that trace against an OpenAI-compatible LLM backend
+without starting the full simulator, which makes serving benchmark runs
+repeatable.
+
+### Install
+
+From the repository root:
+
+```bash
+pip install -e packages/agentsociety
+pip install openai httpx
+```
+
+You also need an OpenAI-compatible chat-completions backend. For local
+benchmarks, start your backend first and keep its `/v1/chat/completions`
+endpoint reachable, for example:
+
+```text
+http://127.0.0.1:30000/v1
+```
+
+The model used for recording should support tool calling, because the default
+city-agent dispatcher uses OpenAI tool calls to select blocks.
+
+### Prepare A Scenario And Map
+
+Record mode accepts any Python scenario script that exposes a top-level
+`config` object, such as `examples/polarization/control.py`.
+
+The scenario must point to a valid `.pb` map file. You can either keep the map
+path inside the scenario config or override it with `--map-file`. Map creation
+and downloadable sample maps are covered by the upstream documentation:
+
+- [Map preparation in the installation guide](./docs_v1/01-get-started/02-installation.md#使用前准备)
+- [Custom map generation](./docs_v1/02-development-guide/03-map.md)
+- [Official map download page](https://agentsociety.fiblab.net/maps)
+
+### Record
+
+Run a scenario once and write the trace to a directory:
+
+```bash
+python -m agentsociety.record.example_usage \
+  --mode record \
+  --script examples/polarization/control.py \
+  --map-file /path/to/map.pb \
+  --output ./records \
+  --base-url http://127.0.0.1:30000/v1 \
+  --api-key sk-noop \
+  --model /path/or/name/of/model \
+  --concurrency 200
+```
+
+Useful options:
+
+- `--max-steps 1` limits the actual scenario workflow for a smoke record.
+- `--n-steps` stores the expected step count in metadata only.
+- `--rng-seed` stores the scenario seed in metadata only; set the actual random
+  seeds in the scenario itself if deterministic simulation is required.
+- Repeat `--base-url` to record against multiple local backends.
+
+The recorder writes:
+
+```text
+records/<scenario>_<n_agents>_<n_steps>_<rng_seed>.jsonl
+records/<scenario>_<n_agents>_<n_steps>_<rng_seed>.meta.json
+```
+
+### Replay
+
+Replay the recorded LLM calls against an OpenAI-compatible backend:
+
+```bash
+python -m agentsociety.record.example_usage \
+  --mode replay \
+  --input ./records \
+  --base-url http://127.0.0.1:30000/v1 \
+  --api-key sk-noop \
+  --model /path/or/name/of/model \
+  --replay-mode faithful \
+  --max-concurrency 200
+```
+
+Replay modes:
+
+- `faithful` preserves each agent chain's internal request order while allowing
+  different agents in the same stage to run concurrently.
+- `aggressive` ignores agent-chain ordering and only applies the global
+  concurrency limit.
+
+Replay prints request throughput, token throughput, latency percentiles, and
+error counts, then writes a metrics file beside the record:
+
+```text
+<record>.metrics.json
+```
+
+### Analyze
+
+Inspect a trace without contacting an LLM backend:
+
+```bash
+python -m agentsociety.record.example_usage \
+  --mode analyze \
+  --input ./records
+```
+
+This reports template inventory, rough cache-hit estimates, LLM requests per
+simulation step, agent chain lengths, and prompt-segment cardinality.
+
+---
+
+## Below Are The Origin README Contents
+
 <div style="text-align: center; background-color: white; padding: 20px; border-radius: 30px;">
   <img src="./static/agentsociety_logo.png" alt="AgentSociety Logo" width="200" style="display: block; margin: 0 auto;">
   <h1 style="color: black; margin: 0; font-size: 3em;">AgentSociety: LLM Agents in Society</h1>

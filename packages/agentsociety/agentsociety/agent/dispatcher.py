@@ -123,8 +123,14 @@ class BlockDispatcher:
                 tools=[function_schema],
                 tool_choice={"type": "function", "function": {"name": "select_block"}},
             )
+            tool_calls = response.choices[0].message.tool_calls
+            if not tool_calls:
+                raise RuntimeError(
+                    "LLM response contains no tool call. Ensure the model supports "
+                    "tool calling and the inference server enables it."
+                )
             function_args: Any = json_repair.loads(
-                response.choices[0].message.tool_calls[0].function.arguments
+                tool_calls[0].function.arguments
             )
             selected_block = function_args.get("block_name")
             reason = function_args.get("reason", "No reason provided")
