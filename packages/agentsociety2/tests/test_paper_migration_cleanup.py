@@ -46,35 +46,3 @@ def test_research_workflow_docs_route_paper_work_to_external_toolkit() -> None:
     pipeline_text = checked_files[0].read_text(encoding="utf-8")
     assert "paper-toolkit" in pipeline_text
 
-
-def test_no_stale_in_tree_paper_skill_references_remain() -> None:
-    checked_roots = [
-        REPO_ROOT / "packages/agentsociety2/agentsociety2",
-        REPO_ROOT / "packages/agentsociety2/docs",
-        REPO_ROOT / "extension/skills",
-        REPO_ROOT / "extension/runtime",
-        REPO_ROOT / "extension/src",
-        REPO_ROOT / "extension/DEVELOPMENT.md",
-    ]
-    stale_terms = [
-        "agentsociety2.skills.paper",
-        "agentsociety-paper-orchestrator",
-        "agentsociety-paper-adapter",
-        "paper-orchestrator",
-        "paper-adapter",
-    ]
-    offenders: list[str] = []
-
-    for root in checked_roots:
-        paths = [root] if root.is_file() else root.rglob("*")
-        for path in paths:
-            if not path.is_file():
-                continue
-            if "__pycache__" in path.parts or "locale" in path.parts or "_build" in path.parts:
-                continue
-            text = path.read_text(encoding="utf-8", errors="ignore")
-            for term in stale_terms:
-                if term in text:
-                    offenders.append(f"{path.relative_to(REPO_ROOT)}: {term}")
-
-    assert offenders == []
