@@ -7,6 +7,7 @@ extracting function signature, docstring, and implementation code separately.
 
 import ast
 import inspect
+import textwrap
 from typing import Any, Optional, List
 from pydantic import BaseModel, Field
 import black
@@ -65,6 +66,7 @@ class FunctionParser:
         # Try to get source code
         source_code = inspect.getsource(func)
         # Add class wrapper
+        source_code = textwrap.indent(textwrap.dedent(source_code), "    ")
         source_code = f"class ClassWrapper:\n{source_code}"
         # black format
         source_code = black.format_str(source_code, mode=black.Mode())
@@ -265,12 +267,20 @@ class FunctionParser:
         if body_start_idx is None:
             return []
 
-        # Extract body lines
+        body_end_idx = getattr(func_node, "end_lineno", None) or len(lines)
+
+        # Extract body lines and normalize them relative to the function body.
+        # The parser often receives methods wrapped in a synthetic class, so raw
+        # source lines include class+method indentation. Formatters add their own
+        # indentation later and require body_code to be relative.
         body_lines = []
-        for i in range(body_start_idx, len(lines)):
+        for i in range(body_start_idx, min(body_end_idx, len(lines))):
             body_lines.append(lines[i])
 
-        return body_lines
+        if not body_lines:
+            return []
+
+        return textwrap.dedent("\n".join(body_lines)).split("\n")
 
     def _extract_method_from_class_source(
         self, class_source: str, method_name: str

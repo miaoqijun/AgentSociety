@@ -1,34 +1,35 @@
 """
 Public Goods Game Agent
-Agent for Public Goods Game based on V2 framework
+Agent for Public Goods Game based on AgentSociety2
 """
+
+import json
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from agentsociety2.agent.base import AgentBase
 
 
 class PublicGoodsAgent(AgentBase):
-    """Agent for Public Goods Game based on V2 framework"""
+    """Agent for Public Goods Game based on AgentSociety2"""
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP agent module candidate list.
+        Return AI-readable initialization guidance for this agent class.
         Includes parameter descriptions.
         """
         description = f"""{cls.__name__}: Agent for Public Goods Game.
 
-**Description:** {cls.__doc__ or 'No description available'}
+**Description:** {cls.__doc__ or "No description available"}
 
-**Initialization Parameters:**
+**Initialization Parameters (workspace contract):**
 - id (int): The unique identifier for the agent.
 - name (str): The name of the agent.
-- num_rounds (int, optional): Number of rounds in the game (default: 10).
-- num_agents (int, optional): Number of agents in the game (default: 4).
-- initial_endowment (int, optional): Initial coins per agent per round (default: 20).
-- public_pool_multiplier (float, optional): Multiplier for public pool contributions (default: 1.6).
+- config dict keys: num_rounds (int, default 10), num_agents (int, default 4),
+  initial_endowment (int, default 20), public_pool_multiplier (float, default 1.6).
 
 **Game Rules:**
 This agent participates in a multi-round Public Goods Game. Each round, players receive an endowment and can contribute 0 to all coins to a public fund. The total public fund is multiplied and equally shared among all players. Players aim to maximize cumulative coins while balancing individual benefit and collective cooperation.
@@ -37,66 +38,91 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
 ```json
 {{
   "id": 1,
-  "name": "Agent A",
-  "num_rounds": 10,
-  "num_agents": 4,
-  "initial_endowment": 20,
-  "public_pool_multiplier": 1.6
+  "profile": {{"name": "Agent A"}},
+  "config": {{"num_rounds": 10, "num_agents": 4, "initial_endowment": 20, "public_pool_multiplier": 1.6}}
 }}
 ```
 """
         return description
 
-    def __init__(
-        self,
-        id: int,
-        name: str,
-        num_rounds: int = 10,
-        num_agents: int = 4,
-        initial_endowment: int = 20,
-        public_pool_multiplier: float = 1.6,
-    ):
-        """Initialize PublicGoodsAgent
-        
-        Args:
-            id: Agent ID
-            name: Agent name
-            num_rounds: Number of rounds in the game (default: 10)
-            num_agents: Number of agents in the game (default: 4)
-            initial_endowment: Initial coins per agent per round (default: 20)
-            public_pool_multiplier: Multiplier for public pool contributions (default: 1.6)
-        """
-        profile = {"name": name}
-        super().__init__(id=id, profile=profile)
-        self._name = name
-        self.history = []  # Store history records
-        self.num_rounds = num_rounds
-        self.num_agents = num_agents
-        self.initial_endowment = initial_endowment
-        self.public_pool_multiplier = public_pool_multiplier
-        self.max_contribution = initial_endowment  # Maximum contribution amount
-        self.min_contribution = 0  # Minimum contribution amount
+    # ==================== Workspace 契约 ====================
 
-    @property
-    def name(self):
-        """Return agent name"""
-        return self._name
+    @classmethod
+    def create(cls, workspace_path: Path, profile: dict, config: dict) -> None:
+        """Create the initial agent workspace."""
+        workspace_path = Path(workspace_path)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        (workspace_path / "config.json").write_text(
+            json.dumps(config or {}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        agent_id = int(profile.get("id", 0))
+        name = str(profile.get("name") or f"Agent_{agent_id}")
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": agent_id,
+                    "name": name,
+                    "profile": profile,
+                    "step_count": 0,
+                    "history": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
-    async def dump(self) -> dict:
-        """Export agent state"""
-        return {
-            "id": self._id,
-            "name": self._name,
-            "profile": self._profile,
-            "history": self.history,
-        }
+    @classmethod
+    async def from_workspace(
+        cls, workspace_path: Path, service_proxy: Any
+    ) -> "PublicGoodsAgent":
+        """Reconstruct a ready PublicGoodsAgent from its workspace."""
+        agent = cls()
+        await agent._restore(workspace_path, service_proxy)
+        return agent
 
-    async def load(self, dump_data: dict):
-        """Load agent state"""
-        self._id = dump_data.get("id", self._id)
-        self._name = dump_data.get("name", self._name)
-        self._profile = dump_data.get("profile", self._profile)
-        self.history = dump_data.get("history", [])
+    async def _restore(self, workspace_path: Path, service_proxy: Any) -> None:
+        """Restore game-agent state from AGENT.json + config.json (no super() —
+        game agents don't use the skill/workspace runtime that
+        AgentBase._restore binds)."""
+        workspace_path = Path(workspace_path)
+        cfg = {}
+        config_path = workspace_path / "config.json"
+        if config_path.exists():
+            cfg = json.loads(config_path.read_text(encoding="utf-8"))
+        meta = json.loads((workspace_path / "AGENT.json").read_text(encoding="utf-8"))
+        self._id = int(meta.get("agent_id", meta.get("id", 0)))
+        self._profile = meta.get("profile", {"name": meta.get("name")})
+        self._name = meta.get("name") or f"Agent_{self._id}"
+        self._config = dict(cfg or {})
+        self._bind_services(service_proxy)
+        self._step_count = int(meta.get("step_count", 0))
+        # custom attributes
+        self.history = list(meta.get("history", []))
+        self.num_rounds = int(cfg.get("num_rounds", 10))
+        self.num_agents = int(cfg.get("num_agents", 4))
+        self.initial_endowment = int(cfg.get("initial_endowment", 20))
+        self.public_pool_multiplier = float(cfg.get("public_pool_multiplier", 1.6))
+        self.max_contribution = self.initial_endowment
+        self.min_contribution = 0
+
+    async def to_workspace(self, workspace_path: Path) -> None:
+        """Write current dynamic state (history) back to the workspace."""
+        workspace_path = Path(workspace_path)
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": self._id,
+                    "name": self._name,
+                    "profile": self.get_profile(),
+                    "step_count": self._step_count,
+                    "history": self.history,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     async def ask(self, message: str, readonly: bool = True) -> str:
         """Answer questions"""
@@ -120,7 +146,8 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
         """Execute one step - make contribution decision and submit to environment"""
         if self._env is None:
             return f"[{self.name}] Environment not initialized"
-        
+        self._step_count += 1
+
         try:
             # Step 1: Get round history from environment
             history_result, history_response = await self.ask_env(
@@ -130,22 +157,22 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
                 template_mode=True,
             )
             self._logger.debug(f"[{self.name}] History response: {history_response}")
-            
+
             # Parse and update local history
             round_history = self._parse_round_history(history_result, history_response)
             self._sync_history(round_history)
-            
+
             # Determine current round number (next round = len(history) + 1)
             current_round = len(self.history) + 1
-            
+
             # Extract all agent names from history if available
             all_agent_names = self._extract_agent_names()
-            
+
             # Step 2: Decide contribution amount using LLM
             contribution, explanation = await self._decide_contribution(
                 current_round, all_agent_names
             )
-            
+
             # Step 3: Submit contribution to environment
             submit_result, submit_response = await self.ask_env(
                 {
@@ -163,9 +190,9 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
                 f"[{self.name}] Round {current_round}: Submitted contribution={contribution}, "
                 f"explanation={explanation[:50]}..."
             )
-            
+
             return f"[{self.name}] Round {current_round}: Submitted contribution {contribution}"
-            
+
         except Exception as e:
             error_message = f"Step execution failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
@@ -219,7 +246,11 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
             if match:
                 parsed_contribution = int(match.group(1))
 
-                if self.min_contribution <= parsed_contribution <= self.max_contribution:
+                if (
+                    self.min_contribution
+                    <= parsed_contribution
+                    <= self.max_contribution
+                ):
                     contribution = parsed_contribution
                 else:
                     self._logger.warning(
@@ -262,7 +293,9 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
             self._logger.error(f"[{self.name}] [ERROR] {error_message}")
 
             contribution = 0
-            explanation = f"[CRITICAL FAILURE] {error_message}, using default selection: 0"
+            explanation = (
+                f"[CRITICAL FAILURE] {error_message}, using default selection: 0"
+            )
 
         self._logger.debug(f"[{self.name}] [DEBUG] Final selection: {contribution}")
         return contribution, explanation
@@ -287,7 +320,9 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
                 cumulative_payoffs[name] += payoffs.get(name, 0)
 
             history_lines.append(f"Round {r}:")
-            history_lines.append(f"  Total contributed to public fund: {total_contrib} coins.")
+            history_lines.append(
+                f"  Total contributed to public fund: {total_contrib} coins."
+            )
             history_lines.append(f"  Public fund gain: {public_gain:.2f} coins.")
 
             payoff_details = [
@@ -310,7 +345,7 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
         total_contribution = self.num_agents * self.initial_endowment
         public_gain = total_contribution * self.public_pool_multiplier
         per_player_gain = public_gain / self.num_agents
-        
+
         return (
             f"You are {self._name}, a participant in a {self.num_rounds}-round Public Goods Game.\n"
             f"Your goal is to maximize your personal cumulative coins.\n"
@@ -348,9 +383,9 @@ This agent participates in a multi-round Public Goods Game. Each round, players 
         for round_summary in self.history:
             payoffs = round_summary.get("payoffs", {})
             agent_names.update(payoffs.keys())
-        
+
         # If no history, return default names
         if not agent_names:
             return [f"Agent {chr(65 + i)}" for i in range(self.num_agents)]
-        
+
         return sorted(list(agent_names))

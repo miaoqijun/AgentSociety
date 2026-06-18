@@ -1,20 +1,17 @@
 import * as React from 'react';
 import {
   Form,
-  AutoComplete,
   Input,
   InputNumber,
   Tabs,
   Typography,
 } from 'antd';
-import { FileTextOutlined } from '@ant-design/icons';
 import type { FormInstance } from 'antd';
 import type { TFunction } from 'i18next';
 import type { VscodeThemePalette } from '../theme';
 import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from './claudeCodeTypes';
-import type { ValidationState, EasyPaperConfigValues, ImportedModelOptions } from './types';
+import type { ValidationState } from './types';
 import { ClaudeCodeConfigSection } from './ClaudeCodeConfigSection';
-import { EasyPaperConfigSection } from './EasyPaperConfigSection';
 import { ValidationAction } from './ValidationAction';
 import { tabBodyStyle } from './configPageStyles';
 import {
@@ -26,9 +23,9 @@ import {
 
 const { Text } = Typography;
 
-export type AdvancedTopTab = 'models' | 'python' | 'literature' | 'claude' | 'easypaper';
+export type AdvancedTopTab = 'models' | 'python' | 'literature' | 'claude';
 
-type SpecializedLlmKind = 'coder' | 'nano' | 'analysis' | 'embedding';
+type SpecializedLlmKind = 'coder' | 'embedding';
 
 export interface AdvancedConfigSectionProps {
   t: TFunction;
@@ -51,14 +48,9 @@ export interface AdvancedConfigSectionProps {
   claudeCliStatus: ClaudeCodeCliStatus;
   claudeSettingsPath: string;
   onResetClaude: () => void;
-  // EasyPaper
-  easyPaperForm: FormInstance<EasyPaperConfigValues>;
-  defaultLlmApiKey: string;
-  onSaveEasyPaper: () => void;
-  modelOptions: ImportedModelOptions;
 }
 
-const MODEL_TAB_KEYS: SpecializedLlmKind[] = ['coder', 'nano', 'analysis', 'embedding'];
+const MODEL_TAB_KEYS: SpecializedLlmKind[] = ['coder', 'embedding'];
 
 export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
   t,
@@ -81,10 +73,6 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
   claudeCliStatus,
   claudeSettingsPath,
   onResetClaude,
-  easyPaperForm,
-  defaultLlmApiKey,
-  onSaveEasyPaper,
-  modelOptions,
 }) => {
   const linkedKeyPlaceholder = t('configPage.linkedPlaceholders.apiKey', {
     status: hasDefaultLlmKey
@@ -97,8 +85,6 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
 
   const blockedByKind: Record<AdvancedValidationKey, string | null> = {
     coder: validateDisabledByKind.coder,
-    nano: validateDisabledByKind.nano,
-    analysis: validateDisabledByKind.analysis,
     embedding: validateDisabledByKind.embedding,
     python: pythonValidateDisabledReason,
     literature: literatureValidateDisabledReason,
@@ -147,7 +133,7 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
   );
 
   const renderLlmFields = (
-    kind: 'coder' | 'nano' | 'analysis',
+    kind: 'coder',
     hintKey: string,
     fields: { key: string; label: string; placeholder?: string }[]
   ) => (
@@ -159,14 +145,6 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
         <Form.Item key={field.key} name={field.key} label={field.label} style={{ marginBottom: 12 }}>
           {field.key.includes('ApiKey') ? (
             <Input.Password placeholder={field.placeholder ?? linkedKeyPlaceholder} autoComplete="off" />
-          ) : field.key.includes('Model') ? (
-            <AutoComplete
-              placeholder={field.placeholder}
-              options={modelOptions.openaiCompatible.map((model) => ({ value: model }))}
-              filterOption={(input, option) =>
-                String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
           ) : (
             <Input placeholder={field.placeholder} />
           )}
@@ -200,38 +178,12 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
       key: 'coder',
       label: tabLabelWithStatus(t('configPage.coder.shortTitle'), 'coder'),
       children: renderLlmFields('coder', 'configPage.coder.hint', [
-        { key: 'coderLlmApiBase', label: t('configPage.coder.apiBase'), placeholder: linkedBasePlaceholder },
         { key: 'coderLlmApiKey', label: t('configPage.coder.apiKey') },
+        { key: 'coderLlmApiBase', label: t('configPage.coder.apiBase'), placeholder: linkedBasePlaceholder },
         {
           key: 'coderLlmModel',
           label: t('configPage.coder.model'),
           placeholder: t('configPage.coder.modelPlaceholder', { model: defaultLlmModel }),
-        },
-      ]),
-    },
-    {
-      key: 'nano',
-      label: tabLabelWithStatus(t('configPage.advanced.nano.shortTitle'), 'nano'),
-      children: renderLlmFields('nano', 'configPage.advanced.nano.hint', [
-        { key: 'nanoLlmApiBase', label: t('configPage.advanced.nano.apiBase'), placeholder: linkedBasePlaceholder },
-        { key: 'nanoLlmApiKey', label: t('configPage.advanced.nano.apiKey') },
-        {
-          key: 'nanoLlmModel',
-          label: t('configPage.advanced.nano.model'),
-          placeholder: t('configPage.advanced.nano.modelPlaceholder', { model: defaultLlmModel }),
-        },
-      ]),
-    },
-    {
-      key: 'analysis',
-      label: tabLabelWithStatus(t('configPage.analysis.shortTitle'), 'analysis'),
-      children: renderLlmFields('analysis', 'configPage.analysis.hint', [
-        { key: 'analysisLlmApiBase', label: t('configPage.analysis.apiBase'), placeholder: linkedBasePlaceholder },
-        { key: 'analysisLlmApiKey', label: t('configPage.analysis.apiKey') },
-        {
-          key: 'analysisLlmModel',
-          label: t('configPage.analysis.model'),
-          placeholder: t('configPage.analysis.modelPlaceholder', { model: defaultLlmModel }),
         },
       ]),
     },
@@ -243,20 +195,14 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
           <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 12 }}>
             {t('configPage.advanced.embedding.hint')}
           </Text>
-          <Form.Item name="embeddingApiBase" label={t('configPage.advanced.embedding.apiBase')}>
-            <Input placeholder={linkedBasePlaceholder} />
-          </Form.Item>
           <Form.Item name="embeddingApiKey" label={t('configPage.advanced.embedding.apiKey')}>
             <Input.Password placeholder={linkedKeyPlaceholder} autoComplete="off" />
           </Form.Item>
+          <Form.Item name="embeddingApiBase" label={t('configPage.advanced.embedding.apiBase')}>
+            <Input placeholder={linkedBasePlaceholder} />
+          </Form.Item>
           <Form.Item name="embeddingModel" label={t('configPage.advanced.embedding.model')}>
-            <AutoComplete
-              placeholder={t('configPage.advanced.embedding.modelPlaceholder')}
-              options={modelOptions.embedding.map((model) => ({ value: model }))}
-              filterOption={(input, option) =>
-                String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
+            <Input placeholder={t('configPage.advanced.embedding.modelPlaceholder')} />
           </Form.Item>
           <Form.Item name="embeddingDims" label={t('configPage.advanced.embedding.dims')}>
             <InputNumber
@@ -354,29 +300,8 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
             cliStatus={claudeCliStatus}
             settingsPath={claudeSettingsPath}
             onReset={onResetClaude}
-            modelOptions={modelOptions.claudeCode}
           />
         </div>
-      ),
-    },
-    {
-      key: 'easypaper',
-      label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <FileTextOutlined />
-          EasyPaper
-        </span>
-      ),
-      children: (
-        <EasyPaperConfigSection
-          t={t}
-          palette={palette}
-          form={easyPaperForm}
-          defaultLlmApiKey={defaultLlmApiKey}
-          defaultLlmApiBase={defaultLlmApiBase}
-          defaultLlmModel={defaultLlmModel}
-          onSave={onSaveEasyPaper}
-        />
       ),
     },
   ];

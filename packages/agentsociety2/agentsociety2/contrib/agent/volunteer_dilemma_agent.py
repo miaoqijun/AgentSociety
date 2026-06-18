@@ -1,34 +1,35 @@
 """
 Volunteer's Dilemma Game Agent
-Agent for Volunteer's Dilemma game based on V2 framework
+Agent for Volunteer's Dilemma game based on AgentSociety2
 """
+
+import json
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from agentsociety2.agent.base import AgentBase
 
 
 class VolunteerDilemmaAgent(AgentBase):
-    """Agent for Volunteer's Dilemma game based on V2 framework"""
+    """Agent for Volunteer's Dilemma game based on AgentSociety2"""
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP agent module candidate list.
+        Return AI-readable initialization guidance for this agent class.
         Includes parameter descriptions.
         """
         description = f"""{cls.__name__}: Agent for Volunteer's Dilemma Game.
 
-**Description:** {cls.__doc__ or 'No description available'}
+**Description:** {cls.__doc__ or "No description available"}
 
-**Initialization Parameters:**
+**Initialization Parameters (workspace contract):**
 - id (int): The unique identifier for the agent.
 - name (str): The name of the agent.
-- num_rounds (int, optional): Number of rounds in the game (default: 10).
-- num_agents (int, optional): Number of agents in the game (default: 4).
-- benefit_b (int, optional): Benefit for everyone if someone volunteers (default: 100).
-- cost_c (int, optional): Cost for a volunteer (default: 40).
+- config dict keys: num_rounds (int, default 10), num_agents (int, default 4),
+  benefit_b (int, default 100), cost_c (int, default 40).
 
 **Game Rules:**
 This agent participates in a multi-round Volunteer's Dilemma Game. Each round, players choose "Volunteer" or "Stand by":
@@ -44,65 +45,90 @@ Players aim to maximize cumulative coins while balancing personal gain and colle
 ```json
 {{
   "id": 1,
-  "name": "Agent A",
-  "num_rounds": 10,
-  "num_agents": 4,
-  "benefit_b": 100,
-  "cost_c": 40
+  "profile": {{"name": "Agent A"}},
+  "config": {{"num_rounds": 10, "num_agents": 4, "benefit_b": 100, "cost_c": 40}}
 }}
 ```
 """
         return description
 
-    def __init__(
-        self,
-        id: int,
-        name: str,
-        num_rounds: int = 10,
-        num_agents: int = 4,
-        benefit_b: int = 100,
-        cost_c: int = 40,
-    ):
-        """Initialize VolunteerDilemmaAgent
-        
-        Args:
-            id: Agent ID
-            name: Agent name
-            num_rounds: Number of rounds in the game (default: 10)
-            num_agents: Number of agents in the game (default: 4)
-            benefit_b: Benefit for everyone if someone volunteers (default: 100)
-            cost_c: Cost for a volunteer (default: 40)
-        """
-        profile = {"name": name}
-        super().__init__(id=id, profile=profile)
-        self._name = name
-        self.history = []  # Store history records
-        self.decision_options = ["Volunteer", "Stand by"]  # Possible choices
-        self.num_rounds = num_rounds
-        self.num_agents = num_agents
-        self.benefit_b = benefit_b
-        self.cost_c = cost_c
+    # ==================== Workspace 契约 ====================
 
-    @property
-    def name(self):
-        """Return agent name"""
-        return self._name
+    @classmethod
+    def create(cls, workspace_path: Path, profile: dict, config: dict) -> None:
+        """Create the initial agent workspace."""
+        workspace_path = Path(workspace_path)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        (workspace_path / "config.json").write_text(
+            json.dumps(config or {}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        agent_id = int(profile.get("id", 0))
+        name = str(profile.get("name") or f"Agent_{agent_id}")
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": agent_id,
+                    "name": name,
+                    "profile": profile,
+                    "step_count": 0,
+                    "history": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
-    async def dump(self) -> dict:
-        """Export agent state"""
-        return {
-            "id": self._id,
-            "name": self._name,
-            "profile": self._profile,
-            "history": self.history,
-        }
+    @classmethod
+    async def from_workspace(
+        cls, workspace_path: Path, service_proxy: Any
+    ) -> "VolunteerDilemmaAgent":
+        """Reconstruct a ready VolunteerDilemmaAgent from its workspace."""
+        agent = cls()
+        await agent._restore(workspace_path, service_proxy)
+        return agent
 
-    async def load(self, dump_data: dict):
-        """Load agent state"""
-        self._id = dump_data.get("id", self._id)
-        self._name = dump_data.get("name", self._name)
-        self._profile = dump_data.get("profile", self._profile)
-        self.history = dump_data.get("history", [])
+    async def _restore(self, workspace_path: Path, service_proxy: Any) -> None:
+        """Restore game-agent state from AGENT.json + config.json (no super() —
+        game agents don't use the skill/workspace runtime that
+        AgentBase._restore binds)."""
+        workspace_path = Path(workspace_path)
+        cfg = {}
+        config_path = workspace_path / "config.json"
+        if config_path.exists():
+            cfg = json.loads(config_path.read_text(encoding="utf-8"))
+        meta = json.loads((workspace_path / "AGENT.json").read_text(encoding="utf-8"))
+        self._id = int(meta.get("agent_id", meta.get("id", 0)))
+        self._profile = meta.get("profile", {"name": meta.get("name")})
+        self._name = meta.get("name") or f"Agent_{self._id}"
+        self._config = dict(cfg or {})
+        self._bind_services(service_proxy)
+        self._step_count = int(meta.get("step_count", 0))
+        # custom attributes
+        self.history = list(meta.get("history", []))
+        self.decision_options = ["Volunteer", "Stand by"]
+        self.num_rounds = int(cfg.get("num_rounds", 10))
+        self.num_agents = int(cfg.get("num_agents", 4))
+        self.benefit_b = int(cfg.get("benefit_b", 100))
+        self.cost_c = int(cfg.get("cost_c", 40))
+
+    async def to_workspace(self, workspace_path: Path) -> None:
+        """Write current dynamic state (history) back to the workspace."""
+        workspace_path = Path(workspace_path)
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": self._id,
+                    "name": self._name,
+                    "profile": self.get_profile(),
+                    "step_count": self._step_count,
+                    "history": self.history,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     async def ask(self, message: str, readonly: bool = True) -> str:
         """Answer questions"""
@@ -126,7 +152,8 @@ Players aim to maximize cumulative coins while balancing personal gain and colle
         """Execute one step - make choice decision and submit to environment"""
         if self._env is None:
             return f"[{self.name}] Environment not initialized"
-        
+        self._step_count += 1
+
         try:
             # Step 1: Get round history from environment
             history_result, history_response = await self.ask_env(
@@ -136,22 +163,22 @@ Players aim to maximize cumulative coins while balancing personal gain and colle
                 template_mode=True,
             )
             self._logger.debug(f"[{self.name}] History response: {history_response}")
-            
+
             # Parse and update local history
             round_history = self._parse_round_history(history_result, history_response)
             self._sync_history(round_history)
-            
+
             # Determine current round number (next round = len(history) + 1)
             current_round = len(self.history) + 1
-            
+
             # Extract all agent names from history if available
             all_agent_names = self._extract_agent_names()
-            
+
             # Step 2: Decide choice using LLM
             choice, explanation = await self._decide_choice(
                 current_round, all_agent_names
             )
-            
+
             # Step 3: Submit choice to environment
             submit_result, submit_response = await self.ask_env(
                 {
@@ -169,9 +196,9 @@ Players aim to maximize cumulative coins while balancing personal gain and colle
                 f"[{self.name}] Round {current_round}: Submitted choice={choice}, "
                 f"explanation={explanation[:50]}..."
             )
-            
+
             return f"[{self.name}] Round {current_round}: Submitted choice {choice}"
-            
+
         except Exception as e:
             error_message = f"Step execution failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
@@ -287,11 +314,11 @@ Players aim to maximize cumulative coins while balancing personal gain and colle
             agent_names.update(choices.keys())
             payoffs = round_summary.get("payoffs", {})
             agent_names.update(payoffs.keys())
-        
+
         # If no history, return default names
         if not agent_names:
             agent_names = {f"Agent {chr(65 + i)}" for i in range(self.num_agents)}
-        
+
         return sorted(list(agent_names))
 
     def _build_profile_string(self) -> str:

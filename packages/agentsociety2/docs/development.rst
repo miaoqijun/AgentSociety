@@ -74,7 +74,6 @@ AgentSociety 2 使用 `ruff`_ 进行检查和格式化：
    agentsociety2/
    ├── agent/           # Agent implementations
    ├── backend/         # FastAPI backend service (REST API)
-   ├── code_executor/   # Code execution in Docker
    ├── config/          # Configuration and LLM routing
    ├── contrib/         # Contributed agents and environments
    ├── custom/          # Custom module templates
@@ -83,7 +82,8 @@ AgentSociety 2 使用 `ruff`_ 进行检查和格式化：
    ├── registry/        # Module registry for custom components
    ├── skills/          # Research skills (literature, experiment, hypothesis, etc.)
    ├── society/         # Society helper utilities and CLI
-   └── storage/         # Replay storage system
+   ├── storage/         # Replay storage system
+   └── trace/           # Distributed trace span writers
 
 研究技能模块
 -------------------------
@@ -93,7 +93,7 @@ AgentSociety 2 使用 `ruff`_ 进行检查和格式化：
 * **literature**: 学术文献搜索和管理
 * **experiment**: 实验配置和执行
 * **hypothesis**: 假设生成和管理
-* **paper**: 通过外部 ``paper-toolkit`` 插件生成和检查论文工作区
+* **paper**: 通过 paper-orchestrator skill 套件生成 Nature 风格学术论文（重写中）
 * **analysis**: 数据分析和报告
 
 后端 API

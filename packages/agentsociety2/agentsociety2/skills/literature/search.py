@@ -17,12 +17,21 @@ from agentsociety2.skills.literature.formatter import (
     sanitize_filename,
     format_article_as_markdown,
 )
-from agentsociety2.config import get_llm_router
+from agentsociety2.config import build_client_for_role, get_model_name
 from agentsociety2.skills.literature.core import search_literature
 from agentsociety2.skills.literature.full_text import download_open_access_pdfs
 from agentsociety2.logger import get_logger
 
 logger = get_logger()
+
+
+async def _default_acompletion(messages: List[AllMessageValues]):
+    dispatcher = build_client_for_role("default")
+    return await dispatcher.call(
+        model=get_model_name("default"),
+        messages=messages,
+        stream=False,
+    )
 
 
 async def search_literature_and_save(
@@ -40,7 +49,8 @@ async def search_literature_and_save(
 
     :param query: Search query (supports Chinese, will be translated to English)
     :param workspace_path: Path to workspace directory
-    :param router: Optional litellm router (will create if not provided)
+    :param router: Optional litellm router. When omitted, the default LLM
+        dispatcher is used.
     :param limit: Number of articles to return (default: 10)
     :param year_from: Filter by publication year (start)
     :param year_to: Filter by publication year (end)
@@ -50,14 +60,12 @@ async def search_literature_and_save(
 
     :returns: Dictionary with search results and saved file information
     """
-    if router is None:
-        router = get_llm_router("default")
-
     # Build call kwargs
     call_kwargs: Dict[str, Any] = {
         "query": query,
-        "router": router,
     }
+    if router is not None:
+        call_kwargs["router"] = router
     call_kwargs["limit"] = limit
     if year_from is not None:
         call_kwargs["year_from"] = year_from
@@ -121,14 +129,15 @@ async def generate_summary(
     query: str,
     articles: list,
     total: int,
-    router: Any,
+    router: Optional[Any] = None,
 ) -> str:
     """Generate a summary using LLM to guide users on next steps
 
     :param query: Original search query
     :param articles: List of found articles
     :param total: Total number of articles found
-    :param router: LLM router
+    :param router: Optional LLM router. When omitted, the default LLM
+        dispatcher is used.
 
     :returns: Generated summary text
     """
@@ -176,17 +185,17 @@ Please generate a helpful summary and guidance for the user. The summary should:
 
 Format the response as markdown with clear sections. Keep it concise but informative (around 150-200 words)."""
 
-        # Get model name from router
-        model_name = router.model_list[0]["model_name"]
-
-        # Call LLM
         messages: List[AllMessageValues] = [{"role": "user", "content": prompt}]
 
-        response = await router.acompletion(
-            model=model_name,
-            messages=messages,
-            stream=False,
-        )
+        if router is None:
+            response = await _default_acompletion(messages)
+        else:
+            model_name = router.model_list[0]["model_name"]
+            response = await router.acompletion(
+                model=model_name,
+                messages=messages,
+                stream=False,
+            )
 
         # Extract content from response
         if hasattr(response, "choices") and len(response.choices) > 0:

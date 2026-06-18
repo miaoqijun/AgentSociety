@@ -574,24 +574,47 @@ def build_test_report(cls: type[Any]) -> tuple[bool, dict[str, Any]]:
         )
 
     try:
-        description = cls.mcp_description()
+        description = cls.description()
         metadata["description_length"] = len(description)
-        output_lines.append(f"✓ mcp_description() 返回 {len(description)} 字符")
+        output_lines.append(f"✓ description() 返回 {len(description)} 字符")
         checks.append(
             {
-                "name": "mcp_description",
+                "name": "description",
                 "passed": bool(description),
-                "message": "mcp_description() 可调用",
+                "message": "description() 可调用",
                 "details": {"length": len(description)},
             }
         )
     except Exception as exc:
-        output_lines.append(f"✗ mcp_description() 调用失败: {exc}")
+        output_lines.append(f"✗ description() 调用失败: {exc}")
         checks.append(
             {
-                "name": "mcp_description",
+                "name": "description",
                 "passed": False,
-                "message": f"mcp_description() 调用失败: {exc}",
+                "message": f"description() 调用失败: {exc}",
+                "details": {},
+            }
+        )
+
+    try:
+        init_description = cls.init_description()
+        metadata["init_description_length"] = len(init_description)
+        output_lines.append(f"✓ init_description() 返回 {len(init_description)} 字符")
+        checks.append(
+            {
+                "name": "init_description",
+                "passed": bool(init_description),
+                "message": "init_description() 可调用",
+                "details": {"length": len(init_description)},
+            }
+        )
+    except Exception as exc:
+        output_lines.append(f"✗ init_description() 调用失败: {exc}")
+        checks.append(
+            {
+                "name": "init_description",
+                "passed": False,
+                "message": f"init_description() 调用失败: {exc}",
                 "details": {},
             }
         )
@@ -676,15 +699,20 @@ def refresh_env_metadata(
         workspace_path / ".agentsociety" / "env_modules" / f"{cls.__name__.lower()}.json"
     )
     try:
-        description = cls.mcp_description()
+        description = cls.description()
     except Exception:
         description = f"{cls.__name__}: {cls.__doc__ or 'No description available'}"
+    try:
+        init_description = cls.init_description()
+    except Exception:
+        init_description = ""
     write_json(
         metadata_path,
         {
             "type": cls.__name__,
             "class_name": cls.__name__,
             "description": description,
+            "init_description": init_description,
             "is_custom": True,
             "module_path": module_path,
             "file_path": str(file_path),

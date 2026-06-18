@@ -26,6 +26,6 @@ Failure mapping:
 - Design mismatch: go back to `design`
 - Import or codegen failure: go back to `generate`
 - Compatibility or tester failure: inspect structured checks first, then choose `design` or `generate`
-- Mutable state exists but replay or dump/load logic is missing: go back to `design`, fix the persistence plan, then regenerate
+- Mutable state exists but replay-write logic is missing: go back to `design`, fix the persistence plan (declare `_agent_state_columns` / `_env_state_columns`, write via `_write_*`), then regenerate. Replay is the only persistence channel.
 - Replay rows exist but only one step survives after a multi-step run: treat this as a persistence design bug first. Check whether the code used `tick` (duration) where it needed a monotonically increasing replay `step`.
 - Registry visibility failure: fix registry integration, not the prompt wording

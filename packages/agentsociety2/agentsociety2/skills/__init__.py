@@ -8,6 +8,7 @@
 - **literature**: 学术文献搜索与管理，支持检索、索引和格式化
 - **experiment**: 实验配置与执行，支持参数生成和配置验证
 - **hypothesis**: 假设生成与管理，支持创建、读取、列表和删除
+- **paper**: Nature/Science 级学术论文生成，通过 paper-orchestrator 驱动的 6-skill 状态机
 - **analysis**: 数据分析工具层，提供实验上下文读取、EDA 和工具注册能力
 
 使用示例
@@ -28,17 +29,20 @@
         hypothesis="社会网络密度影响信息传播速度"
     )
 
-    # 读取实验数据库摘要
-    db_path = Path("./workspace/hypothesis_1/experiment_1/run/sqlite.db")
-    reader = analysis.DataReader(db_path)
-    summary = reader.read_full_summary()
+    # 读取实验 replay catalog
+    from agentsociety2.storage import ReplayReader
+
+    reader = ReplayReader(Path("./workspace/hypothesis_1/experiment_1/run/replay"))
+    datasets = reader.load_dataset_catalog()
+    reader.close()
 """
 
 from agentsociety2.skills import (
-    analysis,
+    literature,
     experiment,
     hypothesis,
-    literature,
+    paper,
+    analysis,
 )
 
 __all__ = [
@@ -46,4 +50,5 @@ __all__ = [
     "experiment",
     "hypothesis",
     "literature",
+    "paper",
 ]

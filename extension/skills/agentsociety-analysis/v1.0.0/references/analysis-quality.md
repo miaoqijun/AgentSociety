@@ -7,7 +7,7 @@ The harness proves **structure and traceability**. This document defines what **
 Ask yourself:
 
 1. Would a skeptical colleague accept the claim **without** seeing the simulation code?
-2. Can every number in the report be traced to a query or table in `sqlite.db`?
+2. Can every number in the report be traced to a replay dataset query or registered artifact?
 3. Are limitations of **simulation evidence** stated plainly (not buried)?
 4. Is the main message visible in **10 seconds** on each chart?
 

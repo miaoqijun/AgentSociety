@@ -19,25 +19,15 @@ EnvBase
    :undoc-members:
    :show-inheritance:
 
-辅助类型
---------
-
-PersonStepConstraints
-~~~~~~~~~~~~~~~~~~~~~
-
-.. autoclass:: agentsociety2.env.base.PersonStepConstraints
-   :members:
-   :undoc-members:
-
 TokenUsageStats
-~~~~~~~~~~~~~~~
+---------------
 
 .. autoclass:: agentsociety2.env.router_base.TokenUsageStats
    :members:
    :undoc-members:
 
 CacheStats
-~~~~~~~~~~
+----------
 
 .. autoclass:: agentsociety2.env.router_codegen.CacheStats
    :members:
@@ -69,3 +59,44 @@ CodeGenRouter
    :members:
    :undoc-members:
    :show-inheritance:
+
+TwoTierReActRouter
+~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: agentsociety2.env.router_two_tier_react.TwoTierReActRouter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+TwoTierPlanExecuteRouter
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: agentsociety2.env.router_two_tier_plan_execute.TwoTierPlanExecuteRouter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+SearchToolRouter
+~~~~~~~~~~~~~~~~
+
+.. autoclass:: agentsociety2.env.router_search_tool.SearchToolRouter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+环境路由 Actor
+--------------
+
+生产环境下环境路由跑在一个专用的 Ray actor 里（由 ``get_env_router_actor_class`` 动态创建），
+agent 通过 ``EnvRouterProxy`` 句柄与之交互。
+
+EnvRouterProxy
+~~~~~~~~~~~~~~
+
+.. autoclass:: agentsociety2.env.env_router_proxy.EnvRouterProxy
+   :members:
+   :undoc-members:
+
+.. autofunction:: agentsociety2.env.env_router_actor.get_env_router_actor_class
+
+各路由器的选择与权衡见 :doc:`/architecture`。

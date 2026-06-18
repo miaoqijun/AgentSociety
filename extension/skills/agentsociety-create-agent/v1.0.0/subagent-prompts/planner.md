@@ -41,27 +41,31 @@ If the budget is unresolved, mark it as `UNRESOLVED` and include the question ne
 
 | Base Class | When |
 |------------|------|
-| `AgentBase` | Simple behavior, games/benchmarks, you manage state yourself, no skill loop |
-| `PersonAgent` | Skills/tool loop/workspace/checkpoint/WAL needed, heavier runtime |
+| `AgentBase` (minimal / game pattern) | Simple behavior, games/benchmarks, you keep a custom `AGENT.json` and bind services yourself (no skill runtime, no `run_react_loop`) |
+| `AgentBase` (full pattern) | You want the workspace FS + skill runtime + generic `run_react_loop` for free (override `restore` to call `await super().restore(...)`, override `build_react_messages`) |
+| `PersonAgent` | You specifically want the built-in memory runtime + person prompt + `memory_*`/`todo_*` tools on top of `AgentBase` |
 
 **Decision checklist:**
-- Does the agent need LLM-driven skill selection? → PersonAgent
-- Does the agent need workspace persistence (state.json, memory/)? → PersonAgent
-- Is the agent a simple reactive behavior or game participant? → AgentBase
-- Does the hypothesis require complex multi-step reasoning? → PersonAgent
+- Does the agent need LLM-driven skill selection / file tools / TODO list? → full `AgentBase` (or `PersonAgent` if you also want memory)
+- Does the agent need workspace persistence of dynamic state? → `AgentBase` (either pattern handles it via `to_workspace` / `restore`)
+- Is the agent a simple reactive behavior or game participant? → minimal `AgentBase`
+- Does the hypothesis require complex multi-step reasoning? → full `AgentBase` or `PersonAgent`
 
-### 2. Required Methods Override
+### 2. Required Methods / Override Hooks
 
-For each of the four required methods, specify what it should do:
+For each method the subclass will provide, specify its behavior:
 
-| Method | Must Override? | Behavior Specification |
-|--------|---------------|----------------------|
-| `ask` | Yes | What questions the agent handles, how it responds |
-| `step` | Yes | What the agent does each tick, decision logic |
-| `dump` | Yes | What state is serialized for persistence |
-| `load` | Yes | How serialized state is restored |
-| `init` | If needed | Setup logic, env queries at startup |
-| `close` | If needed | Cleanup, state flush |
+| Method | Required? | Behavior Specification |
+|--------|-----------|----------------------|
+| `ask(self, message, readonly=True, *, t=None)` | **Yes** (abstract) | How the agent answers external questions |
+| `step(self, tick, t)` | **Yes** (abstract) | What the agent does each tick, decision logic |
+| `to_workspace(self, workspace_path)` | **Yes** (abstract) | Which dynamic state is written back to the workspace |
+| `restore(self, workspace_path, service_proxy)` | Recommended | Business-state restoration. Minimal agents bind services manually; full agents call `await super().restore(...)` first |
+| `build_react_messages(...)` | Required **iff** you reuse `run_react_loop` | The ReAct prompt hook (base raises `NotImplementedError`) |
+| `build_agent_json(...)` | Optional | Extend `AGENT.json` fields |
+| `dispatch_react_tool(...)` | Optional | Add custom tool-name prefixes (forward unknown to super) |
+| `description()` / `init_description()` | Recommended | Registry + init guidance |
+| `close()` | Optional | Cleanup |
 
 ### 3. Profile Fields
 
@@ -76,7 +80,7 @@ For each state variable:
 - Name, type, initial value
 - When it changes (which method mutates it)
 - Whether it affects decisions
-- Whether it must survive `dump()`/`load()`
+- Whether it must survive a restart (i.e. be written by `to_workspace` and read by `restore`)
 
 ### 5. Environment Interactions
 
@@ -88,8 +92,9 @@ For each interaction:
 
 ### 6. Optional Methods
 
-- `get_system_prompt()`: Is a custom system prompt needed? What persona/instructions?
-- `mcp_description()`: What description for the module picker?
+- `build_react_messages()`: If using `run_react_loop`, what system prompt / persona / observation format?
+- `description()`: What short summary should appear in module lists?
+- `init_description()`: What profile / config-key guidance is needed?
 
 ## Output Format
 
@@ -131,18 +136,19 @@ Produce a JSON-structured spec:
       "env_queries": ["list of env interactions"],
       "state_mutations": ["which state vars change"]
     },
-    "dump": {
+    "to_workspace": {
       "override": true,
-      "behavior": "What state dump() returns",
-      "serialized_fields": ["list of persisted fields"]
+      "behavior": "What dynamic state to_workspace() writes back to the workspace",
+      "persisted_fields": ["list of persisted fields"]
     },
-    "load": {
+    "restore": {
       "override": true,
-      "behavior": "How load() restores serialized state"
+      "calls_super": true/false,
+      "behavior": "How restore() rebuilds business state (minimal agents bind services manually; full agents call await super().restore() first)"
     },
-    "init": {
+    "build_react_messages": {
       "override": true/false,
-      "behavior": "Setup logic if any"
+      "behavior": "ReAct prompt hook — required only if run_react_loop is reused"
     },
     "close": {
       "override": true/false,
@@ -171,8 +177,9 @@ Produce a JSON-structured spec:
   ],
 
   "optional_methods": {
-    "system_prompt": "custom prompt text or null",
-    "mcp_description": "description for module picker"
+    "react_messages": "custom system prompt / persona for build_react_messages, or null",
+    "description": "short module-list summary",
+    "init_description": "profile/config-key guidance"
   }
 }
 ```

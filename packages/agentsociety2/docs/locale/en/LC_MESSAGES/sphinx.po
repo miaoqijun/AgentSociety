@@ -6,7 +6,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-16 13:22+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -34,4 +34,3 @@ msgstr "Dark Logo"
 #: ../../_templates/sidebar/brand.html:17
 msgid "文档"
 msgstr "Docs"
-

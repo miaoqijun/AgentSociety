@@ -2738,14 +2738,15 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
         items.push(artifactsItem);
       }
 
-      // sqlite.db
-      const dbFile = path.join(runDir, 'sqlite.db');
-      if (fs.existsSync(dbFile)) {
+      // replay/_schema.json
+      const replayDir = path.join(runDir, 'replay');
+      const replaySchema = path.join(replayDir, '_schema.json');
+      if (fs.existsSync(replaySchema)) {
         const item = new ProjectItem(
           localize('projectStructure.resultsDatabase'),
-          vscode.TreeItemCollapsibleState.None,
+          vscode.TreeItemCollapsibleState.Collapsed,
           'file',
-          dbFile
+          replayDir
         );
 
         if (element.hypothesisId && element.experimentId) {
@@ -2755,7 +2756,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
             arguments: [{
               hypothesisId: element.hypothesisId,
               experimentId: element.experimentId,
-              filePath: dbFile
+              filePath: replayDir
             }]
           };
           item.contextValue = 'replayableDatabase';
@@ -2792,7 +2793,7 @@ export class ProjectStructureProvider implements vscode.TreeDataProvider<Project
       }
 
       // 其他可读产物（避免把大文件/缓存塞满）
-      const known = new Set(['sqlite.db', 'experiment_results.json', 'pid.json', 'output.log', 'artifacts']);
+      const known = new Set(['replay', 'trace', 'agents', 'experiment_results.json', 'pid.json', 'output.log', 'artifacts']);
       const maxBytes = 50 * 1024 * 1024; // 50MB
       const others = listDirEntriesSafe(runDir)
         .filter(name => !shouldHideFsEntry(name))

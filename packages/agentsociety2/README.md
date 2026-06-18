@@ -34,9 +34,11 @@
 
 - **LLM-Native Design**: Built from the ground up for LLM-driven agents
 - **Flexible Environment System**: Modular environment components with hot-pluggable tools
-- **Multiple Reasoning Patterns**: ReAct, Plan-Execute, Code Generation, and Two-Tier routers
+- **Multiple Reasoning Patterns**: CodeGen (default), ReAct, Plan-Execute, Two-Tier, and Search routers
+- **Scalable Execution**: Agents are workspace-bound stateless records driven by Ray Tasks;
+  env / LLM clients / trace / replay handles are passed behind a single `ServiceProxy`
 - **Developer-Friendly**: Pythonic API with type hints and comprehensive documentation
-- **Experiment Replay**: Full SQLite-based replay system for analysis and debugging
+- **Experiment Replay**: Catalog-driven JSONL replay with DuckDB-powered reads and distributed tracing
 - **MCP Support**: Model Context Protocol integration for tool extensibility
 
 ## Installation
@@ -61,39 +63,44 @@ is imported.
 ```python
 import asyncio
 from datetime import datetime
-from agentsociety2 import PersonAgent
+from pathlib import Path
 from agentsociety2.env import CodeGenRouter
 from agentsociety2.contrib.env import SimpleSocialSpace
 from agentsociety2.society import AgentSociety
 
 async def main():
-    # Create an agent with a profile
-    agent = PersonAgent(
-        id=1,
-        profile={
-            "name": "Alice",
-            "age": 28,
-            "personality": "friendly and curious",
-            "bio": "A software engineer who loves hiking and reading."
+    # Declare agent metadata (id / profile / config); agents are NOT instantiated here.
+    # AgentSociety batch-creates their workspaces during init().
+    agent_specs = [
+        {
+            "id": 1,
+            "profile": {
+                "name": "Alice",
+                "age": 28,
+                "personality": "friendly and curious",
+                "bio": "A software engineer who loves hiking and reading.",
+            },
+            "config": {},
         }
-    )
+    ]
+    names = [(s["id"], s["profile"]["name"]) for s in agent_specs]
 
     # Create environment module with agent info
-    social_env = SimpleSocialSpace(
-        agent_id_name_pairs=[(agent.id, agent.name)]
-    )
+    social_env = SimpleSocialSpace(agent_id_name_pairs=names)
 
-    # Create environment router
+    # Create environment router (in-process CodeGenRouter; production uses an EnvRouterProxy Ray actor)
     env_router = CodeGenRouter(env_modules=[social_env])
 
     # Create the society
     society = AgentSociety(
-        agents=[agent],
+        agent_specs=agent_specs,
+        agent_class_name="PersonAgent",
         env_router=env_router,
         start_t=datetime.now(),
+        run_dir=Path("run"),
     )
 
-    # Initialize (sets up agents with environment)
+    # Initialize (batch-creates agent workspaces, binds the environment)
     await society.init()
 
     # Query (read-only)
@@ -126,10 +133,9 @@ class MyCustomEnvironment(EnvBase):
         return f"Agent {agent_id}'s mood is now {mood}."
 
 # Use the custom module
-from agentsociety2.env import ReActRouter
+from agentsociety2.env import CodeGenRouter
 
-env = ReActRouter()
-env.register_module(MyCustomEnvironment())
+env_router = CodeGenRouter(env_modules=[MyCustomEnvironment()])
 ```
 
 ### Run a Complete Experiment
@@ -138,37 +144,28 @@ env.register_module(MyCustomEnvironment())
 import asyncio
 from datetime import datetime
 from pathlib import Path
-from agentsociety2 import PersonAgent
 from agentsociety2.env import CodeGenRouter
 from agentsociety2.contrib.env import SimpleSocialSpace
-from agentsociety2.storage import ReplayWriter
 from agentsociety2.society import AgentSociety
 
 async def main():
-    # Setup replay writer for environment dataset tracking
-    writer = ReplayWriter(Path("my_experiment.db"))
-    await writer.init()
-
-    # Create agents first (needed for SimpleSocialSpace)
-    agents = [
-        PersonAgent(id=i, profile={"name": f"Player{i}", "personality": "friendly"})
+    # Declare agent metadata
+    agent_specs = [
+        {"id": i, "profile": {"name": f"Player{i}", "personality": "friendly"}, "config": {}}
         for i in range(1, 4)
     ]
+    names = [(s["id"], s["profile"]["name"]) for s in agent_specs]
 
-    # Create environment router
-    env_router = CodeGenRouter(
-        env_modules=[SimpleSocialSpace(
-            agent_id_name_pairs=[(a.id, a.name) for a in agents]
-        )],
-        replay_writer=writer,
-    )
+    # Create environment router (replay is enabled by default -> run/replay/)
+    env_router = CodeGenRouter(env_modules=[SimpleSocialSpace(agent_id_name_pairs=names)])
 
     # Create the society
     society = AgentSociety(
-        agents=agents,
+        agent_specs=agent_specs,
+        agent_class_name="PersonAgent",
         env_router=env_router,
         start_t=datetime.now(),
-        replay_writer=writer,
+        run_dir=Path("run"),
     )
     await society.init()
 
@@ -200,27 +197,29 @@ Agents are autonomous entities that interact with environments through LLM-power
 
 #### Agent Skills
 
-PersonAgent follows a **metadata-first, selected-only** model. Skills are self-contained directories under `agent/skills/`:
+PersonAgent follows a **metadata-first, selected-only** model. Skills are self-contained
+directories; the only built-in skill is `daily-guidance` (daily behavior / needs-decay
+guidance). The old `observation / cognition / plan / memory` skills have been removed —
+those capabilities are now expressed via custom skills + workspace state files + `ask_env`.
 
 ```
 agent/skills/
-├── observation/        # SKILL.md + scripts/validate_observation_artifacts.py
-├── memory/             # SKILL.md + scripts/memory_maintenance.py
-├── cognition/          # SKILL.md + scripts/validate_cognition.py
-└── plan/               # SKILL.md + scripts/validate_plan_state.py
+└── daily-guidance/     # SKILL.md + scripts/daily_guidance.py (pre_step hook)
 ```
 
 Each skill has:
 
-- `SKILL.md` — YAML frontmatter (name, description) + behavior docs
-- `scripts/*.py` — optional subprocess scripts declared by `script:` in frontmatter, or auto-detected as `scripts/<name>.py`
+- `SKILL.md` — YAML frontmatter (`name`, `description`, optional `script` / `hooks`) + behavior docs
+- `scripts/*.py` — optional scripts. By default these run **in-process via an `entrypoint(argv, ctx)`**
+  contract (millisecond, concurrency-safe), with dynamic-wrapper and subprocess fallbacks.
 
 Skills follow metadata-first selection:
 
-- catalog exposes only name/description until activation
-- execution is tool-loop driven (activate/read/execute)
+- the catalog exposes only name/description until activation
+- execution is tool-loop driven (`activate_skill` / `read_skill_file` / `execute_skill_script`)
+- `pre_step` / `post_step` lifecycle hooks are rendered into a dedicated `<skill_hooks>` block
 
-Custom skills can be placed in `workspace/custom/skills/` and hot-loaded at runtime via the API or VSCode extension.
+Custom skills can be placed in `<workspace>/custom/skills/` and hot-loaded at runtime.
 
 ### Environment Modules
 
@@ -248,15 +247,13 @@ Routers mediate agent-environment interactions using different reasoning pattern
 AgentSociety 2 currently has two persistence paths:
 
 ```python
-from agentsociety2.storage import ReplayWriter
+from agentsociety2.storage import ReplayReader, ReplayWriter
 from pathlib import Path
 
-writer = ReplayWriter(Path("experiment.db"))
+writer = ReplayWriter(Path("run/replay"))
 await writer.init()
 
-# Replay catalog tables (auto-created):
-# - replay_dataset_catalog
-# - replay_column_catalog
+# Replay schema sidecar: run/replay/_schema.json
 
 # Environment modules can register and write their own replay tables.
 from agentsociety2.storage import ColumnDef, TableSchema
@@ -269,12 +266,20 @@ schema = TableSchema(
     primary_key=["metric_id"],
 )
 await writer.register_table(schema)
+
+reader = ReplayReader(Path("run/replay"))
+print(reader.load_dataset_catalog())
+reader.close()
 ```
 
-- **ReplayWriter / SQLite**: stores environment replay datasets plus dataset/column catalog metadata.
-- **PersonAgent workspace**: stores per-agent local files under `run/agents/agent_xxxx/`, such as `agent_config.json`, `AGENT.md`, and `.runtime/logs/session_state.json`, `.runtime/logs/tool_calls.jsonl`, `.runtime/logs/thread_messages.jsonl`.
+- **ReplayWriter / ReplayReader**: write sharded JSONL replay datasets plus `_schema.json`
+  metadata, then read them through DuckDB-backed views.
+- **PersonAgent workspace**: stores per-agent local files under `run/agents/agent_xxxx/`, such as
+  `config.json`, `AGENT.json`, `AGENT_MEMORY.md`, `state/*.json`, and `.runtime/logs/*.jsonl`.
+- **Trace**: the `agentsociety2.trace` module writes distributed tracing spans (sharded writer +
+  background-thread actor) for profiling steps and LLM calls.
 
-Legacy SQLite tables like `agent_profile`, `agent_status`, and `agent_dialog` are kept only for compatibility when reading old experiment databases; new runs no longer write them.
+Legacy SQLite tables like `agent_profile`, `agent_status`, and `agent_dialog` are kept only for compatibility when reading old experiment databases; new runs write `run/replay/` instead.
 
 ## Configuration
 
@@ -387,9 +392,7 @@ AgentSociety 2 builds upon excellent open-source projects:
 ## Contact
 
 - **Issues**: [GitHub Issues](https://github.com/tsinghua-fib-lab/agentsociety/issues)
-- **Security**: see [SECURITY.md](../../SECURITY.md)
 - **Discussions**: [GitHub Discussions](https://github.com/tsinghua-fib-lab/agentsociety/discussions)
-- **Contributing**: [CONTRIBUTING.md](../../CONTRIBUTING.md)
 
 ---
 

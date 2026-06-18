@@ -2,8 +2,6 @@ import type { ConfigValues, ValidationState } from './types';
 
 export const ADVANCED_VALIDATION_KEYS = [
   'coder',
-  'nano',
-  'analysis',
   'embedding',
   'python',
   'literature',
@@ -45,20 +43,6 @@ export function getAdvancedKeyFingerprint(
         coderLlmApiBase: env.coderLlmApiBase,
         coderLlmModel: env.coderLlmModel,
       });
-    case 'nano':
-      return JSON.stringify({
-        inherit,
-        nanoLlmApiKey: env.nanoLlmApiKey,
-        nanoLlmApiBase: env.nanoLlmApiBase,
-        nanoLlmModel: env.nanoLlmModel,
-      });
-    case 'analysis':
-      return JSON.stringify({
-        inherit,
-        analysisLlmApiKey: env.analysisLlmApiKey,
-        analysisLlmApiBase: env.analysisLlmApiBase,
-        analysisLlmModel: env.analysisLlmModel,
-      });
     case 'embedding':
       return JSON.stringify({
         inherit,
@@ -84,10 +68,6 @@ export function getAdvancedValidationLabel(
   switch (key) {
     case 'coder':
       return t('configPage.coder.shortTitle');
-    case 'nano':
-      return t('configPage.advanced.nano.shortTitle');
-    case 'analysis':
-      return t('configPage.analysis.shortTitle');
     case 'embedding':
       return t('configPage.advanced.embedding.shortTitle');
     case 'python':

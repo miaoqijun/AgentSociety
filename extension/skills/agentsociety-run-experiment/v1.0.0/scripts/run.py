@@ -11,8 +11,8 @@ The simplified structure means config files are directly in init/:
 - init/init_config.json - Experiment configuration
 - init/steps.yaml - Execution steps
 
-All experiment output (logs, database, etc.) is stored in run/:
-- run/sqlite.db - Simulation database
+All experiment output (logs, replay data, etc.) is stored in run/:
+- run/replay/ - Replay datasets (_schema.json + sharded JSONL)
 - run/stdout.log - Standard output
 - run/stderr.log - Standard error
 - run/pid.json - Process ID file
@@ -370,12 +370,14 @@ Examples:
             # Check file existence
             init_config_exists = default_paths["init_config"].exists()
             steps_exists = default_paths["steps"].exists()
-            sqlite_db_exists = (default_paths["run_dir"] / "sqlite.db").exists()
+            replay_schema_exists = (
+                default_paths["run_dir"] / "replay" / "_schema.json"
+            ).exists()
 
             print(f"\nFiles:")
             print(f"  init/init_config.json: {'✓' if init_config_exists else '✗'}")
             print(f"  init/steps.yaml: {'✓' if steps_exists else '✗'}")
-            print(f"  run/sqlite.db: {'✓' if sqlite_db_exists else '✗'}")
+            print(f"  run/replay/_schema.json: {'✓' if replay_schema_exists else '✗'}")
 
         return 0
 

@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Validate Agent class implementation.
+"""Validate an Agent class implementation against the current AgentBase contract.
 
-Checks that an Agent file correctly implements the AgentBase interface.
+Checks that an Agent file:
+- subclasses ``AgentBase`` (or ``PersonAgent``) directly (AST rule),
+- implements the three required abstracts: ``to_workspace``, ``ask``, ``step`` (async),
+- does not use unsupported legacy lifecycle, state, prompt, or LLM-role APIs,
+- imports and is not abstract at runtime.
 
 Usage:
     $PYTHON_PATH .agentsociety/bin/ags.py create-agent --file custom/agents/my_agent.py
@@ -20,10 +24,23 @@ from pathlib import Path
 from typing import Any
 
 
-REQUIRED_METHODS = ["ask", "step", "dump", "load"]
-OPTIONAL_METHODS = ["init", "mcp_description", "get_system_prompt", "get_profile"]
+# Required abstract methods on AgentBase subclasses.
+REQUIRED_METHODS = ["to_workspace", "ask", "step"]
 
-# Subclass either one directly (PersonAgent subclasses AgentBase)
+# Public override hooks / utilities the skill recognizes (informational only).
+OPTIONAL_METHODS = [
+    "restore",
+    "create",
+    "from_workspace",
+    "build_react_messages",
+    "build_agent_json",
+    "dispatch_react_tool",
+    "description",
+    "init_description",
+    "close",
+]
+
+# Subclass either one directly (PersonAgent subclasses AgentBase).
 ALLOWED_DIRECT_BASES = frozenset({"AgentBase", "PersonAgent"})
 
 
@@ -45,13 +62,41 @@ def _class_direct_agent_bases(class_def: ast.ClassDef) -> set[str]:
     return out & ALLOWED_DIRECT_BASES
 
 
-def _audit_ask_env_calls(tree: ast.AST) -> list[str]:
-    """Detect `ask_env(..., readonly=False, ..., template_mode=True)` pattern.
+def _method_names_in_class(class_def: ast.ClassDef) -> dict[str, ast.AsyncFunctionDef | ast.FunctionDef]:
+    methods: dict[str, ast.AsyncFunctionDef | ast.FunctionDef] = {}
+    for node in class_def.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            methods[node.name] = node
+    return methods
 
-    This is the Pitfall P3 anti-pattern: stateful writes that engage the
-    template cache (keyed on instruction-text similarity + variable names,
-    NOT tool name) and can collide silently across writes.
-    See references/pitfalls.md P3.
+
+def _audit_constructor_contract(class_def: ast.ClassDef) -> list[str]:
+    """Detect constructor signatures that do not match the current contract."""
+    out: list[str] = []
+    methods = _method_names_in_class(class_def)
+    # __init__ must be arg-less (only self).
+    init = methods.get("__init__")
+    if init is not None:
+        params = [a for a in init.args.args if a.arg != "self"]
+        # Allow variadic/keyword args but flag positional params beyond self.
+        extra_positional = [
+            a.arg for a in params if a.arg not in {"kwargs", "args"}
+        ]
+        if extra_positional:
+            out.append(
+                f"__init__ at line {init.lineno} takes positional args "
+                f"{extra_positional}. AgentBase.__init__ is arg-less. "
+                "Put state setup in restore()."
+            )
+    return out
+
+
+def _audit_ask_env_calls(tree: ast.AST) -> list[str]:
+    """Detect `ask_env(..., readonly=False, ..., template_mode=True)` (Pitfall P3).
+
+    Stateful writes that engage the template cache (keyed on instruction-text
+    similarity + variable names, NOT tool name) and can collide silently across
+    writes. See references/pitfalls.md P3.
     """
     warnings_out: list[str] = []
     for node in ast.walk(tree):
@@ -86,37 +131,34 @@ def validate_file(file_path: Path) -> dict[str, Any]:
     - errors: list of error messages
     - warnings: list of warning messages
     - class_name: str or None
-    - has_mcp_description: bool
+    - has_init_description: bool
+    - methods: list of method names found
     """
-    result = {
+    result: dict[str, Any] = {
         "valid": True,
         "errors": [],
         "warnings": [],
         "class_name": None,
-        "has_mcp_description": False,
-        "methods": {},
+        "has_init_description": False,
+        "methods": [],
     }
 
-    # Check file exists
     if not file_path.exists():
         result["valid"] = False
         result["errors"].append(f"File not found: {file_path}")
         return result
 
-    # Check file is Python
     if file_path.suffix != ".py":
         result["valid"] = False
         result["errors"].append(f"Not a Python file: {file_path}")
         return result
 
-    # Check not in examples directory
     if "examples" in file_path.parts:
         result["warnings"].append(
             "File is in 'examples' directory and will not be scanned for registration. "
             "Move it to custom/agents/ directly."
         )
 
-    # Parse AST
     try:
         source = file_path.read_text(encoding="utf-8")
         tree = ast.parse(source)
@@ -125,11 +167,12 @@ def validate_file(file_path: Path) -> dict[str, Any]:
         result["errors"].append(f"Syntax error: {e}")
         return result
 
-    # Find classes that directly extend AgentBase or PersonAgent
-    agent_classes = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and _class_direct_agent_bases(node):
-            agent_classes.append(node)
+    # Find classes that directly extend AgentBase or PersonAgent.
+    agent_classes = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef) and _class_direct_agent_bases(node)
+    ]
 
     if not agent_classes:
         result["valid"] = False
@@ -146,45 +189,54 @@ def validate_file(file_path: Path) -> dict[str, Any]:
             "Only the first will be validated."
         )
 
-    # Validate first agent class
     agent_class = agent_classes[0]
     result["class_name"] = agent_class.name
 
-    # Find methods
-    methods = {}
-    for node in agent_class.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            methods[node.name] = node
-
+    methods = _method_names_in_class(agent_class)
     result["methods"] = list(methods.keys())
 
-    # Check required methods
+    # Required abstract methods.
     for method in REQUIRED_METHODS:
-        if method not in methods:
+        node = methods.get(method)
+        if node is None:
             result["valid"] = False
             result["errors"].append(f"Missing required method: {method}")
-        else:
-            # Check if async
-            method_node = methods[method]
-            if not isinstance(method_node, ast.AsyncFunctionDef):
-                result["valid"] = False
-                result["errors"].append(f"Method '{method}' should be async")
+        elif not isinstance(node, ast.AsyncFunctionDef):
+            result["valid"] = False
+            result["errors"].append(f"Method '{method}' should be async")
 
-    # Check mcp_description
-    if "mcp_description" in methods:
-        result["has_mcp_description"] = True
+    # Constructor contract audit.
+    for issue in _audit_constructor_contract(agent_class):
+        result["valid"] = False
+        result["errors"].append(issue)
+
+    # description / init_description
+    if "description" not in methods:
+        result["warnings"].append(
+            "No description() method. Agent will use AgentBase generic short description."
+        )
+    if "init_description" in methods:
+        result["has_init_description"] = True
     else:
         result["warnings"].append(
-            "No mcp_description() method. Agent will show generic description in module list."
+            "No init_description() method. Agent will use generic initialization guidance."
         )
 
-    # Pitfall P3 audit: template_mode=True with readonly=False
+    # If the class reuses run_react_loop, build_react_messages must be overridden.
+    uses_react_loop = "run_react_loop" in source and "run_react_loop" in methods or _calls_self_attr(tree, "run_react_loop")
+    if uses_react_loop and "build_react_messages" not in methods:
+        result["warnings"].append(
+            "Class calls self.run_react_loop(...) but does not override build_react_messages. "
+            "The base implementation raises NotImplementedError — override it to provide "
+            "ReAct prompt messages."
+        )
+
+    # Pitfall P3 audit (warnings).
     for warn in _audit_ask_env_calls(tree):
         result["warnings"].append(warn)
 
-    # Try to import and instantiate
+    # Import + abstractness check.
     try:
-        # Dynamic import
         module_name = f"validate_module_{id(file_path)}"
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         if spec and spec.loader:
@@ -192,21 +244,18 @@ def validate_file(file_path: Path) -> dict[str, Any]:
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
 
-            # Find the class
             for name, obj in inspect.getmembers(module, inspect.isclass):
                 if obj.__module__ == module_name and hasattr(obj, "__mro__"):
                     mro_names = [c.__name__ for c in obj.__mro__]
                     if "AgentBase" in mro_names and obj.__name__ == agent_class.name:
-                        # Check it's not abstract
                         if inspect.isabstract(obj):
                             result["valid"] = False
                             result["errors"].append(
                                 f"Class '{obj.__name__}' is abstract. "
-                                "Implement all abstract methods."
+                                "Implement to_workspace / ask / step."
                             )
                         break
 
-            # Cleanup
             del sys.modules[module_name]
     except Exception as e:
         result["valid"] = False
@@ -215,7 +264,23 @@ def validate_file(file_path: Path) -> dict[str, Any]:
     return result
 
 
-def main():
+def _calls_self_attr(tree: ast.AST, attr_name: str) -> bool:
+    """Return True if the AST contains a `self.<attr_name>(...)` call."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if (
+            isinstance(func, ast.Attribute)
+            and func.attr == attr_name
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "self"
+        ):
+            return True
+    return False
+
+
+def main() -> int:
     parser = argparse.ArgumentParser(description="Validate Agent implementation")
     parser.add_argument(
         "--file", "-f", type=str, required=True, help="Path to the Agent Python file"
@@ -247,12 +312,12 @@ def main():
                 print(f"  ⚠ {warn}")
 
         if result["valid"]:
-            print(f"\n✓ Agent validation passed!")
+            print("\n✓ Agent validation passed!")
             print("\nNext steps:")
             print("  1. Run VSCode command 'Scan Custom Modules'")
             print("  2. Run VSCode command 'Test Custom Modules'")
         else:
-            print(f"\n✗ Validation failed. Fix the errors above.")
+            print("\n✗ Validation failed. Fix the errors above.")
 
         print()
 

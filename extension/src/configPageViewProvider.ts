@@ -175,12 +175,6 @@ export class ConfigPageViewProvider {
       coderLlmApiKey: envConfig.coderLlmApiKey || '',
       coderLlmApiBase: envConfig.coderLlmApiBase || '',
       coderLlmModel: envConfig.coderLlmModel || '',
-      nanoLlmApiKey: envConfig.nanoLlmApiKey || '',
-      nanoLlmApiBase: envConfig.nanoLlmApiBase || '',
-      nanoLlmModel: envConfig.nanoLlmModel || '',
-      analysisLlmApiKey: envConfig.analysisLlmApiKey || '',
-      analysisLlmApiBase: envConfig.analysisLlmApiBase || '',
-      analysisLlmModel: envConfig.analysisLlmModel || '',
       embeddingApiKey: envConfig.embeddingApiKey || '',
       embeddingApiBase: envConfig.embeddingApiBase || '',
       embeddingModel: envConfig.embeddingModel || 'text-embedding-3-large',
@@ -417,12 +411,6 @@ export class ConfigPageViewProvider {
       coderLlmApiKey: config.coderLlmApiKey,
       coderLlmApiBase: config.coderLlmApiBase,
       coderLlmModel: config.coderLlmModel,
-      nanoLlmApiKey: config.nanoLlmApiKey,
-      nanoLlmApiBase: config.nanoLlmApiBase,
-      nanoLlmModel: config.nanoLlmModel,
-      analysisLlmApiKey: config.analysisLlmApiKey,
-      analysisLlmApiBase: config.analysisLlmApiBase,
-      analysisLlmModel: config.analysisLlmModel,
       embeddingApiKey: config.embeddingApiKey,
       embeddingApiBase: config.embeddingApiBase,
       embeddingModel: config.embeddingModel,
@@ -452,16 +440,6 @@ export class ConfigPageViewProvider {
         apiKey = config.coderLlmApiKey || '';
         apiBase = config.coderLlmApiBase || '';
         model = config.coderLlmModel || defaultModel;
-        break;
-      case 'nano':
-        apiKey = config.nanoLlmApiKey || '';
-        apiBase = config.nanoLlmApiBase || '';
-        model = config.nanoLlmModel || defaultModel;
-        break;
-      case 'analysis':
-        apiKey = config.analysisLlmApiKey || '';
-        apiBase = config.analysisLlmApiBase || '';
-        model = config.analysisLlmModel || defaultModel;
         break;
       case 'embedding':
         apiKey = config.embeddingApiKey || '';

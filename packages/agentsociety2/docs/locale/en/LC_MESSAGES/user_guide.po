@@ -6,9 +6,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-19 11:15+0800\n"
+"POT-Creation-Date: 2026-06-18 09:09+0800\n"
 "PO-Revision-Date: 2026-05-19 12:00+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -30,8 +30,8 @@ msgid ""
 msgstr ""
 "**AI Social Scientist** is the interactive research assistant for "
 "AgentSociety 2, provided as a VSCode extension that offers visual "
-"configuration, backend management, and research orchestration capabilities. "
-"It supports two usage modes:"
+"configuration, backend management, and research orchestration "
+"capabilities. It supports two usage modes:"
 
 #: ../../user_guide.rst:6
 msgid "**在线工作空间**：通过网页平台直接使用，无需本地安装，适合快速上手。"
@@ -54,9 +54,9 @@ msgid ""
 "我们推荐使用在线平台进行实验，平台已预装 agentsociety2 库、AI Social Scientist 插件和 Claude Code "
 "CLI。"
 msgstr ""
-"We recommend using the online platform for experiments. The platform comes "
-"pre-installed with the agentsociety2 library, the AI Social Scientist "
-"extension, and the Claude Code CLI."
+"We recommend using the online platform for experiments. The platform "
+"comes pre-installed with the agentsociety2 library, the AI Social "
+"Scientist extension, and the Claude Code CLI."
 
 #: ../../user_guide.rst:16
 msgid "平台地址：https://agentsociety2.fiblab.net/"
@@ -158,8 +158,8 @@ msgstr "**Operating System**: macOS or Linux (Windows users should use WSL)"
 #: ../../user_guide.rst:83
 msgid "**Python**：3.11 或更高版本，推荐使用 `uv <https://docs.astral.sh/uv/>`_ 管理"
 msgstr ""
-"**Python**: 3.11 or higher. We recommend using `uv <https://docs.astral.sh/uv/>`_ "
-"for management"
+"**Python**: 3.11 or higher. We recommend using `uv "
+"<https://docs.astral.sh/uv/>`_ for management"
 
 #: ../../user_guide.rst:91
 msgid "安装 agentsociety2"
@@ -168,8 +168,8 @@ msgstr "Install agentsociety2"
 #: ../../user_guide.rst:104
 msgid "请确保安装的是最新版本。查看当前最新版本：https://pypi.org/project/agentsociety2/"
 msgstr ""
-"Make sure you are installing the latest version. Check the current latest "
-"version at: https://pypi.org/project/agentsociety2/"
+"Make sure you are installing the latest version. Check the current latest"
+" version at: https://pypi.org/project/agentsociety2/"
 
 #: ../../user_guide.rst:107
 msgid "安装 AI Social Scientist 插件"
@@ -180,15 +180,16 @@ msgid ""
 "从 `Release <https://github.com/tsinghua-fib-lab/AgentSociety/releases>`_ "
 "下载最新版本的 VSIX 文件。"
 msgstr ""
-"Download the latest VSIX file from the `Release page <https://github.com/tsinghua-fib-lab/AgentSociety/releases>`_."
+"Download the latest VSIX file from the `Release page <https://github.com"
+"/tsinghua-fib-lab/AgentSociety/releases>`_."
 
 #: ../../user_guide.rst:110
 msgid ""
 "在 VSCode 中按 ``Cmd/Ctrl + Shift + P``，输入 ``Extensions: Install from "
 "VSIX...``。"
 msgstr ""
-"In VSCode, press ``Cmd/Ctrl + Shift + P``, type ``Extensions: Install from "
-"VSIX...``."
+"In VSCode, press ``Cmd/Ctrl + Shift + P``, type ``Extensions: Install "
+"from VSIX...``."
 
 #: ../../user_guide.rst:111
 msgid "选择下载的 VSIX 文件完成安装。"
@@ -204,8 +205,9 @@ msgid ""
 "目录下。您也可以点击侧边栏的\"同步 AI 助手资源\"手动同步。"
 msgstr ""
 "When the extension initializes a workspace, it automatically syncs AI "
-"Social Scientist skills to the ``.claude/skills/`` directory. You can also "
-"click \"Sync AI Assistant Resources\" in the sidebar to sync manually."
+"Social Scientist skills to the ``.claude/skills/`` directory. You can "
+"also click \"Sync AI Assistant Resources\" in the sidebar to sync "
+"manually."
 
 #: ../../user_guide.rst:118
 msgid "同步 AI 助手资源"
@@ -224,8 +226,9 @@ msgstr ""
 #: ../../user_guide.rst:140
 msgid "也可以安装 Claude Code 的 VSCode 插件，点击扩展侧边栏的\"AI 对话\"后会直接弹出 Claude Code 对话页面："
 msgstr ""
-"You can also install the Claude Code VSCode extension. Clicking \"AI Chat\" "
-"in the extension sidebar will open the Claude Code chat panel directly:"
+"You can also install the Claude Code VSCode extension. Clicking \"AI "
+"Chat\" in the extension sidebar will open the Claude Code chat panel "
+"directly:"
 
 #: ../../user_guide.rst:142
 msgid "Claude Code VSCode 集成"
@@ -236,9 +239,9 @@ msgid ""
 "同步到 ``.claude/skills/`` 的技能可被 Claude Code 和 Cursor 自动识别。插件也会自动为 CodeX "
 "创建符号链接（``.codex``），无需手动操作。"
 msgstr ""
-"Skills synced to ``.claude/skills/`` are automatically recognized by Claude "
-"Code and Cursor. The extension also creates a symbolic link for CodeX "
-"(``.codex``) automatically — no manual action needed."
+"Skills synced to ``.claude/skills/`` are automatically recognized by "
+"Claude Code and Cursor. The extension also creates a symbolic link for "
+"CodeX (``.codex``) automatically — no manual action needed."
 
 #: ../../user_guide.rst:153
 msgid "环境配置"
@@ -251,8 +254,8 @@ msgstr "Create a New Workspace"
 #: ../../user_guide.rst:158
 msgid "在线工作空间中，在左侧文件树新建一个文件夹作为工作区（如 ``demo``），然后通过 ``File → Open Folder`` 打开。"
 msgstr ""
-"In the online workspace, create a new folder in the left file tree as your "
-"workspace (e.g., ``demo``), then open it via ``File → Open Folder``."
+"In the online workspace, create a new folder in the left file tree as "
+"your workspace (e.g., ``demo``), then open it via ``File → Open Folder``."
 
 #: ../../user_guide.rst:160
 msgid "新建工作区文件夹"
@@ -264,17 +267,19 @@ msgstr "Configuration Wizard"
 
 #: ../../user_guide.rst:167
 msgid "初次进入工作区时会弹出配置向导，包含以下步骤："
-msgstr "When entering a workspace for the first time, a configuration wizard will appear with the following steps:"
+msgstr ""
+"When entering a workspace for the first time, a configuration wizard will"
+" appear with the following steps:"
 
 #: ../../user_guide.rst:169
 msgid "**步骤 1：LLM 配置** — 填写大模型 API 信息："
 msgstr "**Step 1: LLM Configuration** — Fill in the LLM API information:"
 
-#: ../../user_guide.rst:175 ../../user_guide.rst:200 ../../user_guide.rst:215
+#: ../../user_guide.rst:175 ../../user_guide.rst:200 ../../user_guide.rst:216
 msgid "参数"
 msgstr "Parameter"
 
-#: ../../user_guide.rst:176 ../../user_guide.rst:201 ../../user_guide.rst:216
+#: ../../user_guide.rst:176 ../../user_guide.rst:201 ../../user_guide.rst:217
 msgid "说明"
 msgstr "Description"
 
@@ -288,7 +293,9 @@ msgstr "LLM API Key"
 
 #: ../../user_guide.rst:179
 msgid "大模型服务的 API Key，用于默认对话、分析等核心功能"
-msgstr "API key for the LLM service, used for default conversations, analysis, and other core features"
+msgstr ""
+"API key for the LLM service, used for default conversations, analysis, "
+"and other core features"
 
 #: ../../user_guide.rst:180 ../../user_guide.rst:183 ../../user_guide.rst:186
 msgid "是"
@@ -322,9 +329,11 @@ msgstr ""
 
 #: ../../user_guide.rst:194
 msgid "**步骤 2：后端服务** — 配置后端服务地址和 Python 环境："
-msgstr "**Step 2: Backend Service** — Configure the backend service address and Python environment:"
+msgstr ""
+"**Step 2: Backend Service** — Configure the backend service address and "
+"Python environment:"
 
-#: ../../user_guide.rst:202 ../../user_guide.rst:217
+#: ../../user_guide.rst:202 ../../user_guide.rst:218
 msgid "推荐值"
 msgstr "Recommended"
 
@@ -341,74 +350,85 @@ msgid "``which python3`` 查看"
 msgstr "Check with ``which python3``"
 
 #: ../../user_guide.rst:207
-msgid "**步骤 3：代码生成 LLM（可选）** — 代码生成专用模型，可留空沿用默认 LLM 配置。"
-msgstr "**Step 3: Code Generation LLM (Optional)** — Dedicated model for code generation; leave empty to use the default LLM configuration."
+msgid "**步骤 3：高级配置** — 展开配置页中的「高级配置」，按需填写专用模型与工具（均可留空，沿用默认 LLM）："
+msgstr ""
+"**Step 3: Advanced configuration** - expand \"Advanced configuration\" on the "
+"configuration page and fill in dedicated models and tools as needed. All fields can be "
+"left empty to use the default LLM:"
 
 #: ../../user_guide.rst:209
-msgid "**步骤 4：高级功能（可选）** — 为不同功能指定专用模型："
-msgstr "**Step 4: Advanced Features (Optional)** — Specify dedicated models for different functions:"
+msgid "``专用模型`` 标签页：代码生成、高频操作、数据分析、Embedding"
+msgstr ""
+"``Dedicated models`` tab: code generation, high-frequency operations, data analysis, "
+"Embedding"
 
-#: ../../user_guide.rst:218
+#: ../../user_guide.rst:210
+msgid "**运行与工具**：Python 路径、学术文献检索 MCP"
+msgstr "**Runtime and tools**: Python path, academic literature search MCP"
+
+#: ../../user_guide.rst:219
 msgid "数据分析 LLM"
 msgstr "Data Analysis LLM"
 
-#: ../../user_guide.rst:219
+#: ../../user_guide.rst:220
 msgid "数据分析、洞察生成和报告撰写使用的模型"
 msgstr "Model used for data analysis, insight generation, and report writing"
 
-#: ../../user_guide.rst:220
+#: ../../user_guide.rst:221
 msgid "编程能力较强的模型"
 msgstr "Model with strong coding capabilities"
 
-#: ../../user_guide.rst:221
+#: ../../user_guide.rst:222
 msgid "高频操作 LLM"
 msgstr "High-Frequency Operations LLM"
 
-#: ../../user_guide.rst:222
+#: ../../user_guide.rst:223
 msgid "高频快速操作的轻量级模型"
 msgstr "Lightweight model for frequent, fast operations"
 
-#: ../../user_guide.rst:223
+#: ../../user_guide.rst:224
 msgid "响应速度快的模型"
 msgstr "Model with fast response times"
 
-#: ../../user_guide.rst:224
+#: ../../user_guide.rst:225
 msgid "Embedding 模型"
 msgstr "Embedding Model"
 
-#: ../../user_guide.rst:225
+#: ../../user_guide.rst:226
 msgid "文本嵌入模型"
 msgstr "Text embedding model"
 
-#: ../../user_guide.rst:226
+#: ../../user_guide.rst:227
 msgid "``text-embedding-3-large``（维度 ``1024``）"
 msgstr "``text-embedding-3-large`` (dimensions ``1024``)"
 
-#: ../../user_guide.rst:227
-msgid "文献检索服务"
+#: ../../user_guide.rst:228
+msgid "学术文献检索"
 msgstr "Literature Search Service"
 
-#: ../../user_guide.rst:228
-msgid "文献检索 API URL"
-msgstr "Literature search API URL"
-
 #: ../../user_guide.rst:229
-msgid "``http://localhost:8008/api/search``"
-msgstr "``http://localhost:8008/api/search``"
+msgid "学术文献检索 MCP 网关地址"
+msgstr "Academic literature search MCP gateway URL"
 
-#: ../../user_guide.rst:231
+#: ../../user_guide.rst:230
+msgid "``https://llmapi.fiblab.net/mcp/``"
+msgstr "Platform URL: https://agentsociety2.fiblab.net/"
+
+#: ../../user_guide.rst:232
 msgid "配置向导 - 高级功能"
 msgstr "Configuration wizard - advanced features"
 
-#: ../../user_guide.rst:235
+#: ../../user_guide.rst:236
 msgid "**步骤 5：完成** — 配置保存到工作区的 ``.env`` 文件中。"
-msgstr "**Step 5: Done** — The configuration is saved to the workspace's ``.env`` file."
+msgstr ""
+"**Step 5: Done** — The configuration is saved to the workspace's ``.env``"
+" file."
 
-#: ../../user_guide.rst:238
+#: ../../user_guide.rst:239
 msgid "启动后端"
 msgstr "Start the Backend"
 
-#: ../../user_guide.rst:240
+#: ../../user_guide.rst:241
 msgid "配置完成后点击\"保存并启动后端\"，系统会自动保存配置并启动后端服务。右下角状态栏显示后端运行状态（含端口号）表示启动成功。"
 msgstr ""
 "After configuration, click \"Save & Start Backend\". The system will "
@@ -416,23 +436,23 @@ msgstr ""
 "status bar in the bottom-right corner showing the backend running status "
 "(with port number) indicates a successful start."
 
-#: ../../user_guide.rst:242
+#: ../../user_guide.rst:243
 msgid "配置验证成功"
 msgstr "Configuration validation successful"
 
-#: ../../user_guide.rst:246
+#: ../../user_guide.rst:247
 msgid "后端运行状态"
 msgstr "Backend running status"
 
-#: ../../user_guide.rst:253
+#: ../../user_guide.rst:254
 msgid "开始研究"
 msgstr "Start Research"
 
-#: ../../user_guide.rst:256 ../../user_guide.rst:260
+#: ../../user_guide.rst:257 ../../user_guide.rst:261
 msgid "初始化工作区"
 msgstr "Initialize Workspace"
 
-#: ../../user_guide.rst:258
+#: ../../user_guide.rst:259
 msgid ""
 "后端启动成功后，在插件页面点击\"初始化工作区\"，输入研究话题（如 \"polarization\"）并回车。系统会自动创建 "
 "``TOPIC.md`` 和相关目录结构。"
@@ -442,124 +462,130 @@ msgstr ""
 "press Enter. The system will automatically create ``TOPIC.md`` and the "
 "relevant directory structure."
 
-#: ../../user_guide.rst:264
+#: ../../user_guide.rst:265
 msgid "``TOPIC.md`` 是贯穿整个研究流程的核心文档，您可以随时手动编辑来补充研究描述、背景信息和研究方向。"
 msgstr ""
-"``TOPIC.md`` is the central document throughout the research process. You "
-"can edit it at any time to add research descriptions, background "
+"``TOPIC.md`` is the central document throughout the research process. You"
+" can edit it at any time to add research descriptions, background "
 "information, and research directions."
 
-#: ../../user_guide.rst:267
+#: ../../user_guide.rst:268
 msgid "与 Claude Code 协作"
 msgstr "Collaborate with Claude Code"
 
-#: ../../user_guide.rst:269
+#: ../../user_guide.rst:270
 msgid "点击插件侧边栏的\"AI 对话\"按钮进入 Claude Code："
 msgstr ""
-"Click the \"AI Chat\" button in the extension sidebar to enter Claude Code:"
+"Click the \"AI Chat\" button in the extension sidebar to enter Claude "
+"Code:"
 
-#: ../../user_guide.rst:271
+#: ../../user_guide.rst:272
 msgid "Claude Code 登录"
 msgstr "Claude Code login"
 
-#: ../../user_guide.rst:275
+#: ../../user_guide.rst:276
 msgid "进入对话界面后，用自然语言描述研究需求即可。平台会将研究流程中的关键操作封装为技能（Skill），Claude Code 会自动识别并调用。"
 msgstr ""
 "Once in the chat interface, describe your research needs in natural "
-"language. The platform encapsulates key research operations as Skills, which "
-"Claude Code automatically recognizes and invokes."
+"language. The platform encapsulates key research operations as Skills, "
+"which Claude Code automatically recognizes and invokes."
 
-#: ../../user_guide.rst:277
+#: ../../user_guide.rst:278
 msgid "Claude Code 对话界面"
 msgstr "Claude Code chat interface"
 
-#: ../../user_guide.rst:282
+#: ../../user_guide.rst:283
 msgid "推荐的研究流程"
 msgstr "Recommended Research Workflow"
 
-#: ../../user_guide.rst:284
+#: ../../user_guide.rst:285
 msgid "我们推荐按以下顺序进行研究，但每个阶段都可以随时回退或跳过："
 msgstr ""
-"We recommend following the sequence below, but each stage can be revisited "
-"or skipped at any time:"
+"We recommend following the sequence below, but each stage can be "
+"revisited or skipped at any time:"
 
-#: ../../user_guide.rst:293
+#: ../../user_guide.rst:294
 msgid "各阶段说明见 :doc:`skills`。"
 msgstr "For details on each stage, see :doc:`skills`."
 
-#: ../../user_guide.rst:296
+#: ../../user_guide.rst:297
 msgid "工作区目录结构"
 msgstr "Workspace Directory Structure"
 
-#: ../../user_guide.rst:298
+#: ../../user_guide.rst:299
 msgid "随着研究推进，工作区会逐步形成以下结构（无需手动创建）："
 msgstr ""
 "As research progresses, the workspace will gradually form the following "
 "structure (no manual creation needed):"
 
-#: ../../user_guide.rst:332
+#: ../../user_guide.rst:333
 msgid "常见问题"
 msgstr "FAQ"
 
-#: ../../user_guide.rst:335
+#: ../../user_guide.rst:336
 msgid "code-server 显示 unhealthy"
 msgstr "code-server shows unhealthy"
 
-#: ../../user_guide.rst:337
+#: ../../user_guide.rst:338
 msgid "初次创建工作空间时，后端服务可能正在启动中。稍等片刻后刷新页面，等待状态变为绿色的 \"Running\"。如果持续出现，可以尝试重启工作区。"
 msgstr ""
-"When creating a workspace for the first time, the backend service may still "
-"be starting. Wait a moment and refresh the page until the status changes to "
-"a green \"Running\". If the issue persists, try restarting the workspace."
+"When creating a workspace for the first time, the backend service may "
+"still be starting. Wait a moment and refresh the page until the status "
+"changes to a green \"Running\". If the issue persists, try restarting the"
+" workspace."
 
-#: ../../user_guide.rst:340
+#: ../../user_guide.rst:341
 msgid "打开 code-server 后显示 502 错误"
 msgstr "502 error when opening code-server"
 
-#: ../../user_guide.rst:342
+#: ../../user_guide.rst:343
 msgid "后端服务未正确启动，请耐心等待后刷新页面。如果问题持续存在，请查看后端日志或联系平台管理员。"
 msgstr ""
-"The backend service has not started correctly. Please wait and refresh the "
-"page. If the problem persists, check the backend logs or contact the "
+"The backend service has not started correctly. Please wait and refresh "
+"the page. If the problem persists, check the backend logs or contact the "
 "platform administrator."
 
-#: ../../user_guide.rst:345
+#: ../../user_guide.rst:346
 msgid "本地 Python 环境路径问题"
 msgstr "Local Python environment path issues"
 
-#: ../../user_guide.rst:347
+#: ../../user_guide.rst:348
 msgid "在线平台预装了 Python 环境，本地使用时（尤其是通过 uv 创建的虚拟环境），需要在高级配置中指定正确的 Python 路径："
 msgstr ""
-"The online platform has Python pre-installed. For local usage (especially "
-"with virtual environments created via uv), you need to specify the correct "
-"Python path in the advanced configuration:"
+"The online platform has Python pre-installed. For local usage (especially"
+" with virtual environments created via uv), you need to specify the "
+"correct Python path in the advanced configuration:"
 
-#: ../../user_guide.rst:354
+#: ../../user_guide.rst:355
 msgid "将输出的路径填入配置向导\"后端服务\"步骤的 Python 路径字段。"
 msgstr ""
-"Enter the output path in the Python path field of the \"Backend Service\" "
-"step in the configuration wizard."
+"Enter the output path in the Python path field of the \"Backend Service\""
+" step in the configuration wizard."
 
-#: ../../user_guide.rst:357
+#: ../../user_guide.rst:358
 msgid "实验运行失败"
 msgstr "Experiment execution failed"
 
-#: ../../user_guide.rst:359
+#: ../../user_guide.rst:360
 msgid "常见原因："
 msgstr "Common causes:"
 
-#: ../../user_guide.rst:361
+#: ../../user_guide.rst:362
 msgid "**LLM API 连接失败**：检查 ``.env`` 中的 API 配置是否正确"
 msgstr "**LLM API connection failure**: Check the API configuration in ``.env``"
 
-#: ../../user_guide.rst:362
-msgid "**模块实例化失败**：检查 ``init_config.json`` 中的参数是否与模块要求一致"
-msgstr "**Module instantiation failure**: Check that the parameters in ``init_config.json`` match the module requirements"
-
 #: ../../user_guide.rst:363
+msgid "**模块实例化失败**：检查 ``init_config.json`` 中的参数是否与模块要求一致"
+msgstr ""
+"**Module instantiation failure**: Check that the parameters in "
+"``init_config.json`` match the module requirements"
+
+#: ../../user_guide.rst:364
 msgid "**内存不足**：减少智能体数量或仿真步数"
 msgstr "**Insufficient memory**: Reduce the number of agents or simulation steps"
 
-#: ../../user_guide.rst:365
+#: ../../user_guide.rst:366
 msgid "更多 CLI 使用方法见 :doc:`cli`，研究技能详见 :doc:`skills`。"
-msgstr "For more CLI usage, see :doc:`cli`. For research skills, see :doc:`skills`."
+msgstr ""
+"For more CLI usage, see :doc:`cli`. For research skills, see "
+":doc:`skills`."

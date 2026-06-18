@@ -40,7 +40,7 @@ digraph run_experiment_flow {
     check [label="confirm init_config.json\nand steps.yaml"];
     start [label="start"];
     status [label="status / logs"];
-    done [label="sqlite.db\nand artifacts present"];
+    done [label="run/replay/_schema.json\nand artifacts present"];
     stop [label="stop"];
     fix [label="inspect logs\nand revise config"];
 
@@ -116,7 +116,7 @@ $PYTHON_PATH -m agentsociety2.society.cli \
 
 | File | Description |
 |------|-------------|
-| `run/sqlite.db` | Simulation database (auto-created) |
+| `run/replay/` | Replay dataset directory (`_schema.json` + sharded JSONL files) |
 | `run/stdout.log` | Standard output |
 | `run/stderr.log` | Standard error |
 | `run/pid.json` | Process ID and final status (auto-created, retained after completion) |
@@ -162,7 +162,7 @@ After starting an experiment:
 $PYTHON .agentsociety/bin/ags.py research-pipeline update-stage run_experiment in_progress
 ```
 
-After experiment completes (sqlite.db exists):
+After experiment completes (`run/replay/_schema.json` exists):
 ```bash
 $PYTHON .agentsociety/bin/ags.py research-pipeline update-stage run_experiment completed
 ```

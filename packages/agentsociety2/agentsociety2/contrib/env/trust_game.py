@@ -1,6 +1,6 @@
 """
 Trust Game Environment
-Environment for Trust Game based on V2 framework
+Environment for Trust Game based on AgentSociety2
 """
 import asyncio
 import logging
@@ -55,7 +55,7 @@ class GetPendingInvestmentResponse(BaseModel):
 
 
 class TrustGameEnv(EnvBase):
-    """Environment for Trust Game based on V2 framework"""
+    """Environment for Trust Game based on AgentSociety2"""
 
     _env_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("round_number", "INTEGER", nullable=False),
@@ -98,8 +98,8 @@ class TrustGameEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
-        """Return a description text for MCP environment module candidate list"""
+    def init_description(cls) -> str:
+        """Return AI-readable initialization guidance for this environment module"""
         description = f"""{cls.__name__}: Trust Game environment module.
 
 **Description:** Manages a Trust Game where Trustors send coins to Trustees, which are multiplied, and Trustees return some coins back.
@@ -120,69 +120,10 @@ class TrustGameEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module"""
-        return f"""You are a Trust Game environment module specialized in managing trustor-trustee bilateral transactions.
-
-**Game Overview:** {self.num_pairs} trustor-trustee pairs play for multiple rounds of strategic trust and return.
-
-**Game Rules:**
-- Trustors and trustees are paired (e.g., Trustor-1 paired with Trustee-1)
-- Each round: Trustor sends 0-{self.initial_funds} coins
-- Sent coins are multiplied by {self.multiplication_factor}x before reaching trustee
-- Trustee receives multiplied amount and chooses how much to return (0 to received amount)
-- Payoffs:
-  * Trustor: {self.initial_funds} - investment + return
-  * Trustee: received amount - return
-- Past round data visible to both partners
-- Goal: Maximize cumulative payoff over rounds
-
-**Your Role Depends on Your Name:**
-- **If you are a Trustor** (name contains "Trustor"): You send coins
-- **If you are a Trustee** (name contains "Trustee"): You receive multiplied coins and decide returns
-
-**Available Operations (you MUST use these within your plan):**
-
-**For Trustors:**
-1. **submit_investment(trustor_name, investment)**: Send coins
-   - trustor_name: Your full name (e.g., "Agent-1_Trustor_G1")
-   - investment: 0 to {self.initial_funds} coins
-   - You MUST submit exactly once per round
-   - **IMPORTANT: After submitting, call the 'done' tool to end your step!**
-
-2. **get_pair_data(trustor_name)**: View partner's last round actions
-   - Returns: Sent amount, received amount, return amount, both payoffs
-   - Use to build trust or adjust strategy
-
-3. **get_round_history()**: View all past rounds
-
-**For Trustees:**
-1. **submit_return(trustee_name, return_amount)**: Return coins to trustor
-   - trustee_name: Your full name (e.g., "Agent-5_Trustee_G1")
-   - return_amount: 0 to received amount
-   - You MUST submit within the round to maximize partner's payoff (or minimize if not trusting)
-   - **IMPORTANT: After submitting, call the 'done' tool to end your step!**
-
-2. **get_trustee_data(trustee_name)**: View your partner's investment and last actions
-   - Returns: Investment sent, received, both payoffs
-   - Use to decide fair returns
-
-3. **get_round_history()**: View all past rounds
-
-**WORKFLOW FOR EACH STEP:**
-1. Observe the current game state
-2. Make your decision (investment or return)
-3. Submit your decision using the appropriate tool
-4. **Call 'done' tool to finish your step** - This is mandatory!
-
-**CRITICAL CONSTRAINTS:**
-- Trustor MUST call submit_investment within your plan - this signals the round should execute
-- Trustee MUST call submit_return within your plan to respond to trustor's investment
-- Both must use their FULL NAME in function calls (e.g., "Agent-1_Trustor_G1", not just "1")
-- If trustor submits but trustee doesn't, trustee's return defaults to 0
-"""
-
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Trust Game environment for trustor-trustee transfer and return decisions."
     def set_partner_mapping(self, partner_mapping: Dict[str, str]):
         """Set partner mapping (trustor_name -> trustee_name, trustee_name -> trustor_name)"""
         self.partner_mapping = partner_mapping
@@ -687,32 +628,5 @@ class TrustGameEnv(EnvBase):
             multiplication_factor=self.multiplication_factor,
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "num_pairs": self.num_pairs,
-            "initial_funds": self.initial_funds,
-            "multiplication_factor": self.multiplication_factor,
-            "round_number": self.round_number,
-            "round_history": self.round_history,
-            "partner_mapping": self.partner_mapping,
-            "pending_investments": self._pending_investments,
-            "pending_returns": self._pending_returns,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.num_pairs = state.get("num_pairs", 4)
-        self.initial_funds = state.get("initial_funds", 10)
-        self.multiplication_factor = state.get("multiplication_factor", 3)
-        self.round_number = state.get("round_number", 0)
-        self.round_history = state.get("round_history", [])
-        self.partner_mapping = state.get("partner_mapping", {})
-        self._pending_investments = state.get("pending_investments", {})
-        self._pending_returns = state.get("pending_returns", {})
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["TrustGameEnv"]

@@ -140,6 +140,8 @@ class SearchToolRouter(RouterBase):
         instruction: str,
         readonly: bool = False,
         template_mode: bool = False,
+        trace_id: str | None = None,
+        parent_span_id: str | None = None,
     ) -> Tuple[dict, str]:
         """
         使用Search Tool模式处理指令。
@@ -151,304 +153,308 @@ class SearchToolRouter(RouterBase):
 
         :returns: (ctx, answer) 元组
         """
-        # 添加当前时间信息到 ctx，以便工具调用可以访问
-        self._add_current_time_to_ctx(ctx)
+        self.set_trace_context(trace_id, parent_span_id)
+        try:
+            # 添加当前时间信息到 ctx，以便工具调用可以访问
+            self._add_current_time_to_ctx(ctx)
 
-        get_logger().info(
-            f"SearchToolRouter: Processing instruction: {instruction}, readonly: {readonly}"
-        )
-
-        if not self.env_modules:
-            get_logger().warning("No environment modules available")
-            results = {"status": "fail", "reason": "No environment modules available"}
-            return (
-                results,
-                "No environment modules available to handle the request.",
+            get_logger().info(
+                f"SearchToolRouter: Processing instruction: {instruction}, readonly: {readonly}"
             )
 
-        # 选择可用的工具列表
-        available_tools = self._all_readonly_tools if readonly else self._all_tools
+            if not self.env_modules:
+                get_logger().warning("No environment modules available")
+                results = {"status": "fail", "reason": "No environment modules available"}
+                return (
+                    results,
+                    "No environment modules available to handle the request.",
+                )
 
-        if not available_tools:
-            results = {
-                "status": "fail",
-                "reason": "No available tools to handle the request",
-            }
-            return results, "No available tools to handle the request."
+            # 选择可用的工具列表
+            available_tools = self._all_readonly_tools if readonly else self._all_tools
 
-        # 构建初始对话，包含ctx和instruction
-        initial_prompt = self._build_initial_prompt(instruction, ctx, readonly)
-        dialog: List[AllMessageValues] = [{"role": "user", "content": initial_prompt}]
-
-        results = {}
-        step_count = 0
-        discovered_tools: set = set()  # 已发现的工具集合
-        execution_log: List[Dict[str, Any]] = []  # 记录执行历史
-        # status 表示用户的指令在环境模块中是否被有效地完成了，还是需要等待一段时间后由用户主动检测指令的完成性
-        status = "success"
-        error = None
-
-        while step_count < self.max_steps:
-            step_count += 1
-            get_logger().debug(f"SearchToolRouter: Step {step_count}/{self.max_steps}")
-
-            # 确定当前可用的工具列表
-            # 如果还没有发现工具，只提供search_tool + set_status
-            # 如果已经发现工具，提供search_tool + set_status + 已发现的工具
-            current_tools: List[ChatCompletionToolParam | Dict[str, Any]] = [
-                self._search_tool_schema,
-                self._set_status_tool_schema,
-            ]
-            if discovered_tools:
-                # 添加已发现的工具
-                for tool_name in discovered_tools:
-                    tool_schema = next(
-                        (
-                            t
-                            for t in available_tools
-                            if t["function"]["name"] == tool_name
-                        ),
-                        None,
-                    )
-                    if tool_schema:
-                        current_tools.append(tool_schema)
-
-            # 调用LLM
-            try:
-                call_kwargs = {
-                    "model": "coder",
-                    "messages": dialog,
+            if not available_tools:
+                results = {
+                    "status": "fail",
+                    "reason": "No available tools to handle the request",
                 }
-                # 只有在提供tools时才设置tool_choice
-                if current_tools:
-                    call_kwargs["tools"] = current_tools
-                    call_kwargs["tool_choice"] = "auto"
+                return results, "No available tools to handle the request."
 
-                response = await self.acompletion_with_system_prompt(**call_kwargs)
-            except Exception as e:
-                get_logger().error(f"SearchToolRouter: LLM call failed: {e!s}")
-                error = str(e)
-                # 构建过程文本
-                process_text = (
-                    json.dumps(execution_log, indent=2, default=str)
-                    if execution_log
-                    else ""
-                )
-                # 使用基类的generate_final_answer生成最终答案
-                final_answer, determined_status = await self.generate_final_answer(
-                    ctx, instruction, results, process_text, "error", error
-                )
-                results["status"] = determined_status
-                results["error"] = error
-                return results, final_answer
+            # 构建初始对话，包含ctx和instruction
+            initial_prompt = self._build_initial_prompt(instruction, ctx, readonly)
+            dialog: List[AllMessageValues] = [{"role": "user", "content": initial_prompt}]
 
-            # 检查tool calls
-            message = response.choices[0].message  # type: ignore
-            tool_calls = getattr(message, "tool_calls", None) or []
-            assistant_content = message.content or ""
+            results = {}
+            step_count = 0
+            discovered_tools: set = set()  # 已发现的工具集合
+            execution_log: List[Dict[str, Any]] = []  # 记录执行历史
+            # status 表示用户的指令在环境模块中是否被有效地完成了，还是需要等待一段时间后由用户主动检测指令的完成性
+            status = "success"
+            error = None
 
-            # 记录assistant响应
-            execution_log.append(
-                {
-                    "step": step_count,
-                    "type": "assistant_response",
-                    "content": assistant_content,
-                    "tool_calls_count": len(tool_calls),
-                }
-            )
+            while step_count < self.max_steps:
+                step_count += 1
+                get_logger().debug(f"SearchToolRouter: Step {step_count}/{self.max_steps}")
 
-            # 添加assistant响应
-            dialog.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_content,
-                    "tool_calls": (
-                        [
-                            {
-                                "id": tc.id,
-                                "type": tc.type,
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments,
-                                },
-                            }
-                            for tc in tool_calls
-                        ]
-                        if tool_calls
-                        else None
-                    ),
-                }
-            )
-
-            # 如果没有tool calls，说明LLM认为任务完成
-            if not tool_calls:
-                get_logger().info(
-                    f"SearchToolRouter: Task completed after {step_count} steps"
-                )
-                # 构建过程文本
-                process_text = (
-                    json.dumps(execution_log, indent=2, default=str)
-                    if execution_log
-                    else ""
-                )
-                # 使用基类的generate_final_answer生成最终答案
-                final_answer, determined_status = await self.generate_final_answer(
-                    ctx, instruction, results, process_text, status, error
-                )
-                results["status"] = determined_status
-                if error:
-                    results["error"] = error
-                return results, final_answer
-
-            # 执行所有tool calls
-            tool_results = []
-            step_tool_calls = []
-            for tool_call in tool_calls:
-                func_name = tool_call.function.name
-                func_args_str = tool_call.function.arguments
-
-                try:
-                    func_args = json_repair.loads(func_args_str)
-                except Exception as e:
-                    tool_results.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": func_name,
-                            "content": json.dumps(
-                                {"error": f"Invalid JSON arguments: {e!s}"}
+                # 确定当前可用的工具列表
+                # 如果还没有发现工具，只提供search_tool + set_status
+                # 如果已经发现工具，提供search_tool + set_status + 已发现的工具
+                current_tools: List[ChatCompletionToolParam | Dict[str, Any]] = [
+                    self._search_tool_schema,
+                    self._set_status_tool_schema,
+                ]
+                if discovered_tools:
+                    # 添加已发现的工具
+                    for tool_name in discovered_tools:
+                        tool_schema = next(
+                            (
+                                t
+                                for t in available_tools
+                                if t["function"]["name"] == tool_name
                             ),
-                        }
-                    )
-                    continue
-
-                # 处理search_tool调用
-                if func_name == "search_tools":
-                    search_result = await self._search_tools(
-                        func_args.get("query", ""),
-                        func_args.get("max_results", 5),
-                        readonly,
-                    )
-                    tool_results.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": func_name,
-                            "content": json.dumps(search_result, indent=2),
-                        }
-                    )
-                    # 记录发现的工具
-                    for tool_info in search_result.get("tools", []):
-                        discovered_tools.add(tool_info["name"])
-                    step_tool_calls.append(
-                        {
-                            "tool": func_name,
-                            "arguments": func_args,
-                            "result": search_result,
-                            "success": True,
-                        }
-                    )
-                elif func_name == "set_status":
-                    status = func_args.get("status", "unknown")
-                    reason = func_args.get("reason", "")
-                    results["status"] = status
-                    if reason:
-                        results["reason"] = reason
-                    tool_results.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": func_name,
-                            "content": json.dumps(
-                                {"status": status, "message": "Status set successfully"}
-                            ),
-                        }
-                    )
-                    step_tool_calls.append(
-                        {
-                            "tool": func_name,
-                            "arguments": func_args,
-                            "result": {"status": status},
-                            "success": True,
-                        }
-                    )
-                    get_logger().info(f"SearchToolRouter: Status set to {status}")
-                else:
-                    # 执行普通工具调用
-                    try:
-                        result = await self._execute_tool(
-                            func_name, func_args, readonly
+                            None,
                         )
-                        result_str = json.dumps(result, default=str)
+                        if tool_schema:
+                            current_tools.append(tool_schema)
+
+                # 调用LLM
+                try:
+                    call_kwargs = {
+                        "model": "coder",
+                        "messages": dialog,
+                    }
+                    # 只有在提供tools时才设置tool_choice
+                    if current_tools:
+                        call_kwargs["tools"] = current_tools
+                        call_kwargs["tool_choice"] = "auto"
+
+                    response = await self.acompletion_with_system_prompt(**call_kwargs)
+                except Exception as e:
+                    get_logger().error(f"SearchToolRouter: LLM call failed: {e!s}")
+                    error = str(e)
+                    # 构建过程文本
+                    process_text = (
+                        json.dumps(execution_log, indent=2, default=str)
+                        if execution_log
+                        else ""
+                    )
+                    # 使用基类的generate_final_answer生成最终答案
+                    final_answer, determined_status = await self.generate_final_answer(
+                        ctx, instruction, results, process_text, "error", error
+                    )
+                    results["status"] = determined_status
+                    results["error"] = error
+                    return results, final_answer
+
+                # 检查tool calls
+                message = response.choices[0].message  # type: ignore
+                tool_calls = getattr(message, "tool_calls", None) or []
+                assistant_content = message.content or ""
+
+                # 记录assistant响应
+                execution_log.append(
+                    {
+                        "step": step_count,
+                        "type": "assistant_response",
+                        "content": assistant_content,
+                        "tool_calls_count": len(tool_calls),
+                    }
+                )
+
+                # 添加assistant响应
+                dialog.append(
+                    {
+                        "role": "assistant",
+                        "content": assistant_content,
+                        "tool_calls": (
+                            [
+                                {
+                                    "id": tc.id,
+                                    "type": tc.type,
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments,
+                                    },
+                                }
+                                for tc in tool_calls
+                            ]
+                            if tool_calls
+                            else None
+                        ),
+                    }
+                )
+
+                # 如果没有tool calls，说明LLM认为任务完成
+                if not tool_calls:
+                    get_logger().info(
+                        f"SearchToolRouter: Task completed after {step_count} steps"
+                    )
+                    # 构建过程文本
+                    process_text = (
+                        json.dumps(execution_log, indent=2, default=str)
+                        if execution_log
+                        else ""
+                    )
+                    # 使用基类的generate_final_answer生成最终答案
+                    final_answer, determined_status = await self.generate_final_answer(
+                        ctx, instruction, results, process_text, status, error
+                    )
+                    results["status"] = determined_status
+                    if error:
+                        results["error"] = error
+                    return results, final_answer
+
+                # 执行所有tool calls
+                tool_results = []
+                step_tool_calls = []
+                for tool_call in tool_calls:
+                    func_name = tool_call.function.name
+                    func_args_str = tool_call.function.arguments
+
+                    try:
+                        func_args = json_repair.loads(func_args_str)
+                    except Exception as e:
                         tool_results.append(
                             {
                                 "role": "tool",
                                 "tool_call_id": tool_call.id,
                                 "name": func_name,
-                                "content": result_str,
+                                "content": json.dumps(
+                                    {"error": f"Invalid JSON arguments: {e!s}"}
+                                ),
                             }
                         )
-                        results[func_name] = result
+                        continue
+
+                    # 处理search_tool调用
+                    if func_name == "search_tools":
+                        search_result = await self._search_tools(
+                            func_args.get("query", ""),
+                            func_args.get("max_results", 5),
+                            readonly,
+                        )
+                        tool_results.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": func_name,
+                                "content": json.dumps(search_result, indent=2),
+                            }
+                        )
+                        # 记录发现的工具
+                        for tool_info in search_result.get("tools", []):
+                            discovered_tools.add(tool_info["name"])
                         step_tool_calls.append(
                             {
                                 "tool": func_name,
                                 "arguments": func_args,
-                                "result": result,
+                                "result": search_result,
                                 "success": True,
                             }
                         )
-                        get_logger().debug(
-                            f"SearchToolRouter: Executed tool {func_name}"
-                        )
-                    except Exception as e:
-                        error_msg = f"Error executing {func_name}: {e!s}"
-                        get_logger().error(f"SearchToolRouter: {error_msg}")
-                        error_result = {"error": error_msg}
+                    elif func_name == "set_status":
+                        status = func_args.get("status", "unknown")
+                        reason = func_args.get("reason", "")
+                        results["status"] = status
+                        if reason:
+                            results["reason"] = reason
                         tool_results.append(
                             {
                                 "role": "tool",
                                 "tool_call_id": tool_call.id,
                                 "name": func_name,
-                                "content": json.dumps(error_result),
+                                "content": json.dumps(
+                                    {"status": status, "message": "Status set successfully"}
+                                ),
                             }
                         )
                         step_tool_calls.append(
                             {
                                 "tool": func_name,
                                 "arguments": func_args,
-                                "result": error_result,
-                                "success": False,
+                                "result": {"status": status},
+                                "success": True,
                             }
                         )
-                        # 记录错误，但status由LLM在summary中判定
-                        error = error_msg
+                        get_logger().info(f"SearchToolRouter: Status set to {status}")
+                    else:
+                        # 执行普通工具调用
+                        try:
+                            result = await self._execute_tool(
+                                func_name, func_args, readonly
+                            )
+                            result_str = json.dumps(result, default=str)
+                            tool_results.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tool_call.id,
+                                    "name": func_name,
+                                    "content": result_str,
+                                }
+                            )
+                            results[func_name] = result
+                            step_tool_calls.append(
+                                {
+                                    "tool": func_name,
+                                    "arguments": func_args,
+                                    "result": result,
+                                    "success": True,
+                                }
+                            )
+                            get_logger().debug(
+                                f"SearchToolRouter: Executed tool {func_name}"
+                            )
+                        except Exception as e:
+                            error_msg = f"Error executing {func_name}: {e!s}"
+                            get_logger().error(f"SearchToolRouter: {error_msg}")
+                            error_result = {"error": error_msg}
+                            tool_results.append(
+                                {
+                                    "role": "tool",
+                                    "tool_call_id": tool_call.id,
+                                    "name": func_name,
+                                    "content": json.dumps(error_result),
+                                }
+                            )
+                            step_tool_calls.append(
+                                {
+                                    "tool": func_name,
+                                    "arguments": func_args,
+                                    "result": error_result,
+                                    "success": False,
+                                }
+                            )
+                            # 记录错误，但status由LLM在summary中判定
+                            error = error_msg
 
-            # 记录工具调用结果
-            execution_log.append(
-                {
-                    "step": step_count,
-                    "type": "tool_execution",
-                    "tool_calls": step_tool_calls,
-                }
+                # 记录工具调用结果
+                execution_log.append(
+                    {
+                        "step": step_count,
+                        "type": "tool_execution",
+                        "tool_calls": step_tool_calls,
+                    }
+                )
+
+                # 将工具执行结果添加到对话
+                dialog.extend(tool_results)
+
+            # 达到最大步数
+            get_logger().warning(f"SearchToolRouter: Reached max steps ({self.max_steps})")
+            # 构建过程文本
+            process_text = (
+                json.dumps(execution_log, indent=2, default=str) if execution_log else ""
             )
-
-            # 将工具执行结果添加到对话
-            dialog.extend(tool_results)
-
-        # 达到最大步数
-        get_logger().warning(f"SearchToolRouter: Reached max steps ({self.max_steps})")
-        # 构建过程文本
-        process_text = (
-            json.dumps(execution_log, indent=2, default=str) if execution_log else ""
-        )
-        # 使用基类的generate_final_answer生成最终答案
-        final_answer, determined_status = await self.generate_final_answer(
-            ctx, instruction, results, process_text, status, error
-        )
-        results["status"] = determined_status
-        if error:
-            results["error"] = error
-        return results, final_answer
+            # 使用基类的generate_final_answer生成最终答案
+            final_answer, determined_status = await self.generate_final_answer(
+                ctx, instruction, results, process_text, status, error
+            )
+            results["status"] = determined_status
+            if error:
+                results["error"] = error
+            return results, final_answer
+        finally:
+            self.clear_trace_context()
 
     async def _search_tools(
         self, query: str, max_results: int, readonly: bool

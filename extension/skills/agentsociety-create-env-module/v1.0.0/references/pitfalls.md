@@ -51,7 +51,7 @@ There is **no runtime schema validator** between your tool and these call sites.
 
 ## P2 — Instruction style: describe operations in prose, not as function-call literals
 
-The `description` property / `mcp_description()` text and your `@tool` docstrings get rendered into a `.pyi`-style class listing for the LLM. From that, the LLM **generates** Python that calls your tool. If your docs phrase the operation as a literal Python call, the LLM tends to echo the literal back instead of writing properly variable-bound code.
+The module `description()` / `init_description()` text and your `@tool` docstrings may be shown to an LLM. From that, the LLM **generates** Python that calls your tool. If your docs phrase the operation as a literal Python call, the LLM tends to echo the literal back instead of writing properly variable-bound code.
 
 ### Anti-pattern
 
@@ -143,6 +143,6 @@ The agent side has the complementary fix: either rename variables when calling, 
 ## Quick self-audit (before validate)
 
 1. Grep your file for `return True`, `return False`, `return {"success":`. Any hit in a `@tool`-decorated method is a P1 bug.
-2. Read your `description` / `mcp_description()` and tool docstrings. Are operations in prose with bold names, or as Python literals?
+2. Read your `description()` / `init_description()` and tool docstrings. Are operations in prose with bold names, or as Python literals?
 3. For every `@tool(readonly=False)` method, identify the write line. Is it idempotent under same-step repeat? If not, add a dedup key or last-write-wins buffer.
 4. If you have two or more write tools, do they share argument names? If yes, rename or document the collision risk.

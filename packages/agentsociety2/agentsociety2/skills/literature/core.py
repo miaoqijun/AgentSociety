@@ -11,7 +11,7 @@ import json
 import re
 from typing import Any, Dict, List, Literal, Optional
 
-from agentsociety2.config import Config, get_llm_router
+from agentsociety2.config import Config, build_client_for_role, get_model_name
 from agentsociety2.skills.literature.mcp_client import call_literature_search_mcp
 from agentsociety2.logger import get_logger
 from litellm import AllMessageValues
@@ -36,12 +36,21 @@ def is_chinese_text(text: str) -> bool:
     return False
 
 
-async def translate_to_english(text: str, router: Router) -> str:
+async def _default_acompletion(messages: List[AllMessageValues]):
+    dispatcher = build_client_for_role("default")
+    return await dispatcher.call(
+        model=get_model_name("default"),
+        messages=messages,
+        stream=False,
+    )
+
+
+async def translate_to_english(text: str, router: Optional[Router] = None) -> str:
     """
     使用LLM将中文文本翻译成英文
 
     :param text: 待翻译的中文文本
-    :param router: LLM router实例
+    :param router: 可选 LLM router；为空时使用统一 dispatcher。
 
     :returns: 翻译后的英文文本
     """
@@ -55,13 +64,15 @@ English translation:"""
 
         messages: List[AllMessageValues] = [{"role": "user", "content": prompt}]
 
-        # Get model name from router
-        model_name = router.model_list[0]["model_name"]
-        response = await router.acompletion(
-            model=model_name,
-            messages=messages,
-            stream=False,
-        )
+        if router is None:
+            response = await _default_acompletion(messages)
+        else:
+            model_name = router.model_list[0]["model_name"]
+            response = await router.acompletion(
+                model=model_name,
+                messages=messages,
+                stream=False,
+            )
 
         translated = response.choices[0].message.content or text
         # 清理可能的额外格式
@@ -128,12 +139,14 @@ def _split_query_by_keywords(query: str) -> List[str]:
     return [query]
 
 
-async def split_query_into_subtopics(query: str, router: Router) -> List[str]:
+async def split_query_into_subtopics(
+    query: str, router: Optional[Router] = None
+) -> List[str]:
     """
     使用LLM将复杂查询拆分为多个子主题，尽量按照查询的字面意思拆分，不扩展原意
 
     :param query: 原始查询文本
-    :param router: LLM router实例
+    :param router: 可选 LLM router；为空时使用统一 dispatcher。
 
     :returns: 子主题列表，如果拆分失败或只有一个主题，返回包含原查询的列表
     """
@@ -171,13 +184,15 @@ Subtopic array:"""
 
         messages: List[AllMessageValues] = [{"role": "user", "content": prompt}]
 
-        # Get model name from router
-        model_name = router.model_list[0]["model_name"]
-        response = await router.acompletion(
-            model=model_name,
-            messages=messages,
-            stream=False,
-        )
+        if router is None:
+            response = await _default_acompletion(messages)
+        else:
+            model_name = router.model_list[0]["model_name"]
+            response = await router.acompletion(
+                model=model_name,
+                messages=messages,
+                stream=False,
+            )
 
         result = response.choices[0].message.content or ""
         result = result.strip()
@@ -364,8 +379,6 @@ async def search_literature(
     :param timeout: MCP request timeout in seconds.
     :returns: Dict with ``articles``, ``total``, ``query``, and optional ``sources``; ``None`` on failure.
     """
-    if router is None:
-        router = get_llm_router("default")
     if not mcp_url:
         mcp_url = Config.get_literature_search_mcp_url()
     if not api_key:

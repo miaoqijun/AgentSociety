@@ -419,15 +419,20 @@ async def list_custom_modules():
         for agent_type, agent_class in get_registered_agent_modules():
             if getattr(agent_class, "_is_custom", False):
                 try:
-                    description = agent_class.mcp_description()
+                    description = agent_class.description()
                 except Exception:
                     description = f"{agent_class.__name__}: {agent_class.__doc__ or 'No description available'}"
+                try:
+                    init_description = agent_class.init_description()
+                except Exception:
+                    init_description = ""
 
                 result["agents"].append(
                     {
                         "type": agent_type,
                         "class_name": agent_class.__name__,
                         "description": description,
+                        "init_description": init_description,
                         "is_custom": True,
                     }
                 )
@@ -436,15 +441,20 @@ async def list_custom_modules():
         for module_type, env_class in get_registered_env_modules():
             if getattr(env_class, "_is_custom", False):
                 try:
-                    description = env_class.mcp_description()
+                    description = env_class.description()
                 except Exception:
                     description = f"{env_class.__name__}: {env_class.__doc__ or 'No description available'}"
+                try:
+                    init_description = env_class.init_description()
+                except Exception:
+                    init_description = ""
 
                 result["envs"].append(
                     {
                         "type": module_type,
                         "class_name": env_class.__name__,
                         "description": description,
+                        "init_description": init_description,
                         "is_custom": True,
                     }
                 )
@@ -554,14 +564,19 @@ async def list_available_classes(
         agents = {}
         for agent_type, agent_class in get_registered_agent_modules():
             try:
-                description = agent_class.mcp_description()
+                description = agent_class.description()
             except Exception:
                 description = f"{agent_class.__name__}: {agent_class.__doc__ or 'No description available'}"
+            try:
+                init_description = agent_class.init_description()
+            except Exception:
+                init_description = ""
 
             agents[agent_type] = {
                 "type": agent_type,
                 "class_name": agent_class.__name__,
                 "description": description,
+                "init_description": init_description,
                 "is_custom": getattr(agent_class, "_is_custom", False),
             }
 
@@ -569,14 +584,19 @@ async def list_available_classes(
         env_modules = {}
         for module_type, env_class in get_registered_env_modules():
             try:
-                description = env_class.mcp_description()
+                description = env_class.description()
             except Exception:
                 description = f"{env_class.__name__}: {env_class.__doc__ or 'No description available'}"
+            try:
+                init_description = env_class.init_description()
+            except Exception:
+                init_description = ""
 
             env_modules[module_type] = {
                 "type": module_type,
                 "class_name": env_class.__name__,
                 "description": description,
+                "init_description": init_description,
                 "is_custom": getattr(env_class, "_is_custom", False),
             }
 

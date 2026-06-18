@@ -36,10 +36,12 @@ AgentSociety 2 支持创建和注册自定义智能体和环境模块，
 创建自定义智能体
 -------------------------
 
-所有自定义智能体必须继承 ``AgentBase`` 并实现必需的方法：
+所有自定义智能体必须继承 ``AgentBase``。智能体是 workspace 绑定的无状态 record：状态在
+``restore()`` 里恢复、在 ``to_workspace()`` 里写回；详见 :doc:`agents`。
 
 .. code-block:: python
 
+   from pathlib import Path
    from agentsociety2.agent.base import AgentBase
    from datetime import datetime
    from typing import Any
@@ -54,7 +56,12 @@ AgentSociety 2 支持创建和注册自定义智能体和环境模块，
        This agent demonstrates custom behavior.
        """
 
-       async def ask(self, message: str, readonly: bool = True) -> str:
+       async def restore(self, workspace_path: Path, service_proxy: Any) -> None:
+           """恢复 workspace / 服务 / 技能，再追加自定义状态。"""
+           await super().restore(workspace_path, service_proxy)
+           self._custom_state: dict = {}
+
+       async def ask(self, message: str, readonly: bool = True, *, t=None) -> str:
            """Respond to questions from the environment"""
            prompt = f"Question: {message}\nPlease answer:"
            response = await self.acompletion([{"role": "user", "content": prompt}])
@@ -64,14 +71,9 @@ AgentSociety 2 支持创建和注册自定义智能体和环境模块，
            """Execute one simulation step"""
            return f"Agent {self.id} executing step {tick}"
 
-       async def dump(self) -> dict:
-           """Serialize agent state"""
-           return {"id": self._id, "profile": self._profile}
-
-       async def load(self, dump_data: dict):
-           """Load agent state"""
-           self._id = dump_data.get("id", self._id)
-           self._profile = dump_data.get("profile", self._profile)
+       async def to_workspace(self, workspace_path: Path) -> None:
+           """把动态状态写回 workspace（AGENT.json 等）。"""
+           self.persist_agent_json(tick=None, t=self._current_time)
 
 必需方法
 ~~~~~~~~~~~~~~~~
@@ -84,13 +86,13 @@ AgentSociety 2 支持创建和注册自定义智能体和环境模块，
    * - ``mcp_description()``
      - 返回模块描述（类方法，建议覆盖；``AgentBase``/``EnvBase`` 有默认描述）
    * - ``ask()``
-     - 回答环境的问题
+     - 回答环境的问题（必须实现）
    * - ``step()``
-     - 执行一个模拟步骤
-   * - ``dump()``
-     - 序列化智能体状态
-   * - ``load()``
-     - 从字典加载智能体状态
+     - 执行一个模拟步骤（必须实现）
+   * - ``to_workspace()``
+     - 把动态状态写回 workspace（必须实现）
+   * - ``restore()``
+     - 在 ``await super().restore(...)`` 之后恢复自定义状态（推荐覆盖）
 
 创建自定义环境
 ------------------------------
@@ -288,7 +290,8 @@ API 端点
 
 **状态管理**
 
-* 使用 ``dump()`` 和 ``load()`` 进行状态持久化
+* 使用 ``restore()`` 从 workspace 恢复状态，使用 ``to_workspace()`` 写回动态状态
+* 自定义 Agent 覆盖 ``restore()`` 时应先调用 ``await super().restore(...)``，以绑定 workspace、技能运行时和服务句柄
 * 在回放中记录重要的状态更改
 * 保持状态可序列化（JSON 兼容）
 

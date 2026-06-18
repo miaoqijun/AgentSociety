@@ -23,13 +23,6 @@ export interface ConfigValues {
   coderLlmApiKey: string;
   coderLlmApiBase: string;
   coderLlmModel: string;
-  nanoLlmApiKey: string;
-  nanoLlmApiBase: string;
-  nanoLlmModel: string;
-  // Analysis LLM (for data analysis, insight generation, and report writing)
-  analysisLlmApiKey: string;
-  analysisLlmApiBase: string;
-  analysisLlmModel: string;
   // Embedding
   embeddingApiKey: string;
   embeddingApiBase: string;

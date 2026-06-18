@@ -23,9 +23,10 @@ The orchestrator will provide:
 
 ### 1. Interface Compliance
 
-- [ ] All four required methods exist: `ask`, `step`, `dump`, `load`
-- [ ] All four are `async def`
-- [ ] `super().__init__()` call matches the chosen base class signature
+- [ ] The three required abstracts exist and are `async def`: `to_workspace`, `ask`, `step`
+- [ ] Runtime state is restored from the workspace and persisted through `to_workspace`
+- [ ] Skill and LLM access use the current framework APIs
+- [ ] If `run_react_loop` is reused, `build_react_messages` is overridden
 - [ ] Inheritance is direct from `AgentBase` or `PersonAgent` (no intermediate bases)
 
 ### 2. Design Consistency
@@ -33,12 +34,14 @@ The orchestrator will provide:
 - [ ] The agent behavior in `ask()` and `step()` matches what the design summary requested
 - [ ] Profile fields referenced in code match the design's field list
 - [ ] Profile access uses `.get(key, default)`, not direct `[]` access
-- [ ] `mcp_description()` is overridden with a meaningful description
+- [ ] `description()` is overridden with a short summary
+- [ ] `init_description()` is overridden with profile/config-key guidance
 
 ### 3. State Management
 
-- [ ] `dump()` returns a JSON-serializable dict
-- [ ] `load()` restores all state that `dump()` exports (symmetric)
+- [ ] `to_workspace` writes JSON-serializable data
+- [ ] `restore` reads back exactly what `to_workspace` wrote (symmetric)
+- [ ] Minimal/game agents call `self._bind_services(service_proxy)` in `restore`; full agents call `await super().restore(...)` first
 - [ ] No blanket `except: pass` or silent exception swallowing in `ask`/`step`
 
 ### 4. Env Interaction Hygiene (see `references/pitfalls.md`)

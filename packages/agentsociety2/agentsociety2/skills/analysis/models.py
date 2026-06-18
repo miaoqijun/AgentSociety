@@ -20,6 +20,7 @@ DIR_CHARTS = (
 )
 DIR_REPORT_ASSETS = "assets"  # presentation 或 synthesis 下 assets: 报告嵌入资源（复制自 charts + run/artifacts），包括图表、报告、分析数据等
 FILE_SQLITE = "sqlite.db"
+DIR_REPLAY = "replay"
 FILE_PID = "pid.json"
 FILE_HYPOTHESIS_MD = "HYPOTHESIS.md"
 FILE_EXPERIMENT_MD = "EXPERIMENT.md"
@@ -49,7 +50,7 @@ class ExperimentPaths(BaseModel):
     hypothesis_base: Path = Field(..., description="hypothesis_<id> directory")
     experiment_path: Path = Field(..., description="experiment_<id> directory")
     run_path: Path = Field(..., description="run directory")
-    db_path: Path = Field(..., description="sqlite.db path")
+    db_path: Path = Field(..., description="replay directory or legacy sqlite.db path")
     pid_path: Path = Field(..., description="pid.json path")
     assets_path: Path = Field(..., description="run/artifacts directory")
 

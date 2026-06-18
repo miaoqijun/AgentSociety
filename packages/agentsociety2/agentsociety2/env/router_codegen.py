@@ -14,6 +14,7 @@ import ast
 import asyncio
 import inspect
 import json
+from contextlib import nullcontext
 import math
 import os
 import pickle
@@ -34,9 +35,6 @@ import faiss
 import numpy as np
 from agentsociety2.config import Config
 from agentsociety2.env.base import EnvBase
-from agentsociety2.env.benchmark import (
-    EnvRouterBenchmarkData,
-)
 from agentsociety2.env.router_base import RouterBase
 from agentsociety2.logger import get_logger
 from litellm import AllMessageValues, aembedding
@@ -47,6 +45,7 @@ __all__ = ["AskContext", "CodeGenRouter"]
 @dataclass
 class CacheStats:
     """缓存统计信息"""
+
 
     request_count: int = 0  # 总请求次数
     predefined_hit_count: int = 0  # 预定义指令命中次数（observe/statistics）
@@ -126,9 +125,104 @@ class CacheEntry:
         return self.success_count / total if total > 0 else 0.0
 
 
+# ═══════════════════════════════════════════════════════════
+# AST guard: ensure LLM-generated code awaits async tool calls
+# ═══════════════════════════════════════════════════════════
+
+
+def _collect_async_tool_names(router: "CodeGenRouter") -> set[str]:
+    """Collect the names of all async ``@tool`` methods across env modules.
+
+    Used by :func:`_ensure_await_async_calls` to know which calls in
+    LLM-generated code need ``await``.
+    """
+    names: set[str] = set()
+    for module in router._modules.values():
+        for entry in getattr(module, "_llm_tools", []):
+            name = entry.get("function", {}).get("name", "")
+            if not name:
+                continue
+            fn = getattr(module, name, None)
+            if fn is not None and inspect.iscoroutinefunction(fn):
+                names.add(name)
+    return names
+
+
+class _EnsureAwaitTransformer(ast.NodeTransformer):
+    """Wrap calls to known async functions in ``Await`` nodes.
+
+    If the LLM forgets ``await`` before an async tool call (e.g.
+    ``person = get_person(agent_id)``), this transformer rewrites it
+    to ``person = await get_person(agent_id)`` at the AST level —
+    no regex, no false positives.
+
+    Already-awaited calls are left untouched (``visit_Await`` skips
+    the direct child Call but still visits its arguments for nested
+    un-awaited calls).
+    """
+
+    def __init__(self, async_names: set[str]) -> None:
+        self._async_names = async_names
+
+    def _targets_async(self, node: ast.Call) -> bool:
+        func = node.func
+        if isinstance(func, ast.Attribute) and func.attr in self._async_names:
+            return True
+        if isinstance(func, ast.Name) and func.id in self._async_names:
+            return True
+        return False
+
+    def visit_Await(self, node: ast.Await) -> Any:
+        """Don't visit the awaited Call itself (prevent double-wrap).
+
+        But DO visit its args/kwargs (nested calls might need await).
+        """
+        if isinstance(node.value, ast.Call):
+            call = node.value
+            call.args = [self.visit(arg) for arg in call.args]
+            for kw in call.keywords:
+                kw.value = self.visit(kw.value)
+        return node
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        self.generic_visit(node)  # nested calls in args first
+        if self._targets_async(node):
+            return ast.Await(value=node)
+        return node
+
+
+def _ensure_await_async_calls(code: str, async_names: set[str]) -> str:
+    """AST-transform generated code so async tool calls use ``await``.
+
+    Multi-layer guard (Layer 1):
+    - Parse the code → AST.
+    - Wrap every un-awaited Call to an async tool in an Await node.
+    - Unparse back to source.
+
+    Layers 2-3 (already present):
+    - ``clean_coroutines_from_results`` catches coroutines in results.
+    - Error-feedback retry on execution failure.
+
+    Falls back to the original code on parse error (SyntaxError).
+    """
+    if not async_names:
+        return code
+    try:
+        tree = ast.parse(code)
+        tree = _EnsureAwaitTransformer(async_names).visit(tree)
+        ast.fix_missing_locations(tree)
+        return ast.unparse(tree)
+    except SyntaxError:
+        return code
+
+
 OBSERVE_INSTRUCTION = (
-    "Builtin observe has collected all readonly kind='observe' tools into results['observations']. "
-    "Summarize the situational information for the agent in clear natural language."
+    "Generate code that calls every available observe tool for this agent, "
+    "extracting the agent id (agent_id / id / person_id) from ctx. After "
+    "collecting the results, print a concise natural-language summary of the "
+    "agent's current situation (status, location, ongoing activity/event, and "
+    "anything notable) as complete sentences — this summary is shown to the "
+    "agent verbatim. Also store the raw results in results['observations']."
 )
 STATISTICS_INSTRUCTION = "Collect environment statistics by calling all available statistics tools. Store all statistics results in results['statistics']."
 
@@ -208,7 +302,7 @@ def _get_debug_info(description: str = "") -> str:
 async def clean_coroutines_from_results(results: dict) -> dict:
     """
     递归检查 results 中的未 await 的 coroutine 并 await 获取其值。
-    供 CodeStage 和 InstructionLogObserver 使用。
+    供 CodeStage 使用。
     """
     visited: set[int] = set()
 
@@ -467,35 +561,6 @@ class PipelineStage(Protocol):
 # --- 观察者具体实现：统一在 on_final 中根据 context 记录 ---
 
 
-class InstructionLogObserver:
-    """记录 instruction 到 instruction_log"""
-
-    def __init__(self, router: "CodeGenRouter"):
-        self._router = router
-
-    async def on_final(self, context: AskContext) -> None:
-        # 执行阶段已清理 ctx；未执行时（如 early_return）需清理以便 pickle
-        ctx = (
-            context.ctx
-            if context.execution_attempted
-            else await clean_coroutines_from_results(context.ctx)
-        )
-        log_entry = EnvRouterBenchmarkData(
-            instruction=context.instruction,
-            context=ctx,
-            readonly=context.readonly,
-        )
-        async with self._router._instruction_log_lock:
-            self._router._instruction_log.append(log_entry)
-            try:
-                with open(self._router._log_path, "wb") as f:
-                    pickle.dump(self._router._instruction_log, f)
-            except Exception as e:
-                get_logger().warning(
-                    f"Failed to pickle instruction log: {e!s}, skipping file write"
-                )
-
-
 class CacheStatsObserver:
     """根据最终 context 更新 CacheStats 统计"""
 
@@ -589,19 +654,12 @@ class CacheAddObserver:
     async def on_final(self, context: AskContext) -> None:
         if context.success_data is None:
             return
-        get_logger().info(f"Try to cache: {context.instruction[:100]}...")
-        get_logger().info(f"context.template_mode: {context.template_mode}")
-        get_logger().info(f"context.cache_entry: {context.cache_entry}")
-        get_logger().info(
-            f"context.is_observe_or_statistics: {context.is_observe_or_statistics}"
-        )
         sd = context.success_data
         if (
             context.template_mode
             and not context.cache_entry
             and not context.is_observe_or_statistics
         ):
-            get_logger().info(f"Adding to cache: {context.instruction[:100]}...")
             await self._add_to_cache(
                 self._router,
                 context.instruction,
@@ -626,6 +684,8 @@ class PredefinedCodeProvider:
     ) -> Optional[str]:
         if not context.is_observe_or_statistics:
             return None
+        if context.instruction_stripped == "<observe>":
+            return router._observe_code if router._observe_code else None
         if context.instruction_stripped == "<statistics>":
             return router._statistics_code if router._statistics_code else None
         return None
@@ -762,7 +822,9 @@ class LLMCodegenProvider:
                 "- This keeps the instruction reusable and improves router cache hits.\n"
             )
         return f"""# Code Generation Task
-You are a code generation assistant. Your task is to generate Python code that calls environment module tools based on the given agent input.
+
+You write Python code that drives simulation environment tools on behalf of a
+simulated agent, then reports what happened in plain language.
 
 ## Available Environment Modules and Tools
 ```python
@@ -779,36 +841,62 @@ ctx = {ctx!r}
 ```
 {template_note}
 
-## Code Generation Requirements
-1. Generate Python code that accomplishes the instruction by calling appropriate tools.
-2. Store results in the `results` dictionary and MUST set results['status'] at the end: 'success', 'in_progress', 'fail', or 'error'.
-3. Provide semantic print statements to explain what you're doing.
+## What to produce
+Generate ONLY Python code — no markdown fences, no prose outside the code.
+Start directly with Python statements. The code must:
 
-## Important Notes
-- Use `ctx`, `modules`, `results`, `print()`. Allowed modules: collections, itertools, functools, operator, copy, decimal, fractions, statistics, string, re, datetime, json, math, random, numpy (as np).
-- Do NOT use dangerous operations. ALWAYS USE `await` TO CALL TOOLS (ASYNC FUNCTIONS).
-- NEVER forget to set results['status'] at the END of your code!
+1. Call the right environment tools to satisfy the instruction.
+2. Store anything useful in the `results` dict and ALWAYS set
+   `results['status']` at the very end: `'success'`, `'in_progress'`,
+   `'fail'`, or `'error'`.
+3. **Report the outcome with `print()` in clear natural language.**
 
-## CRITICAL: Status Handling
-When calling environment tools:
-- Check the return value for a 'status' field
-- If the tool returns successfully, set results['status'] = 'success'
-- If the tool indicates an error or failure, set results['status'] = 'fail'
-- If the operation is ongoing, set results['status'] = 'in_progress'
-- Example code pattern:
-  response = await modules["ModuleName"].some_tool(arg1, arg2)
-  print("Tool response:", response)
-  results["response"] = response
-  results["status"] = response.get("status", "success") if isinstance(response, dict) else "success"
+## CRITICAL — your prints ARE the answer
+The agent does not read raw variables. The text your code `print()`s is handed
+to the agent verbatim as the result of its request (there is no separate
+summary step). So write it the way you would explain the result to a person:
 
-## Output Format
-Generate ONLY the Python code, without markdown. Start directly with Python statements.
+- Write complete, readable sentences. State what was asked, what you did, and
+  what the outcome was.
+- Pull the meaningful fields out of the tool responses and phrase them in
+  natural language, quoting concrete values (ids, times, statuses) inline.
+- Do NOT print raw dicts, reprs, or terse labels like `done` / `ok` /
+  `response:`. Narrate instead.
+- If the action failed or had no effect, say so plainly and give the reason.
+- Keep it concise — a few sentences, not a paragraph.
+
+## Status handling
+- Inspect each tool's return value for a `status` field.
+- Map it: success -> `results['status'] = 'success'`; error -> `'fail'`;
+  still running -> `'in_progress'`.
+- On failure also set `results['reason'] = "<short why>"`.
+
+## Allowed building blocks
+- In scope: `ctx`, `modules`, `results`, `print()`. Importable: collections,
+  itertools, functools, operator, copy, decimal, fractions, statistics, string,
+  re, datetime, json, math, random, numpy (as `np`).
+- Tools are async: ALWAYS `await` them. No dangerous operations.
+- NEVER forget to set `results['status']` at the END of your code.
+
+## Example (imitate the print style, not the exact tools)
+response = await modules["MobilitySpace"].get_status(ctx["id"])
+status = response.get("status") if isinstance(response, dict) else "unknown"
+if status == "success":
+    loc = response.get("aoi_id")
+    print(f"Checked the agent's status: it is currently at AOI {{loc}} and idle.")
+    results["status"] = "success"
+else:
+    print("Could not read the agent's status from the environment.")
+    results["status"] = "fail"
+    results["reason"] = response.get("reason", "unknown")
 
 Your generated code:"""
 
     @staticmethod
     def _build_error_message(previous_errors: List[str]) -> str:
-        errors_text = "\n".join(f"- {i+1}. {e}" for i, e in enumerate(previous_errors))
+        errors_text = "\n".join(
+            f"- {i + 1}. {e}" for i, e in enumerate(previous_errors)
+        )
         return f"""The code I generated failed during execution. Here's what went wrong:
 
 ## Errors
@@ -868,6 +956,13 @@ Please generate the corrected code:"""
         code, token_usage = await self._call_llm(router, context)
         if token_usage:
             context.token_usage_responses.append(token_usage)
+        if code:
+            # Layer 1 guard at generation time: ensure async tool calls use
+            # ``await`` so the code stored in context.code (and thus in the
+            # template cache) is already correct — no per-execution rewrite.
+            code = _ensure_await_async_calls(
+                code, _collect_async_tool_names(router)
+            )
         return code.strip() if code else None
 
 
@@ -1059,6 +1154,12 @@ class CodeStage:
         try:
             is_async = "async" in code or "await" in code
 
+            # Note: the Layer 1 AST await-guard now runs at code-generation
+            # time (see LLMCodegenProvider.get_code and
+            # _generate_initialization_code_with_retry), so the code stored
+            # in _observe_code/_statistics_code and the template cache is
+            # already corrected. No need to re-parse on every execution.
+
             if is_async:
 
                 async def run_async():
@@ -1102,7 +1203,9 @@ class CodeStage:
                 "success": True,
             }
         except asyncio.TimeoutError:
-            raise TimeoutError("Code execution timeout: exceeded 10 seconds limit") from None
+            raise TimeoutError(
+                "Code execution timeout: exceeded 10 seconds limit"
+            ) from None
         except TimeoutError:
             raise
         except Exception as e:
@@ -1119,52 +1222,9 @@ class CodeStage:
     async def process(self, context: AskContext, router: "CodeGenRouter") -> AskContext:
         if context.early_return:
             return context
-        if context.instruction_stripped == "<observe>":
-            context.execution_attempted = True
-            context.code_source = "builtin"
-            try:
-                execution_result = await router._run_builtin_observe(context.ctx)
-            except Exception as e:
-                execution_result = {
-                    "success": False,
-                    "error": str(e),
-                    "results": {},
-                    "print_outputs": [],
-                    "output": "",
-                }
-            context.execution_result = execution_result
-            context.ctx = await clean_coroutines_from_results(context.ctx)
-            if execution_result.get("results"):
-                execution_result["results"] = await clean_coroutines_from_results(
-                    execution_result["results"]
-                )
-            if not execution_result.get("success", False):
-                err = execution_result.get("error", "observe failed")
-                context.early_return = (context.ctx, err)
-                return context
-            results = execution_result.get("results", {})
-            print_outputs = execution_result.get("print_outputs", [])
-            proc_err = execution_result.get("error", "")
-            if print_outputs:
-                process_text = "\n".join(print_outputs)
-            else:
-                process_text = json.dumps(results, ensure_ascii=False, default=str)[
-                    :8000
-                ]
-            if proc_err:
-                process_text += f"\n\nError: {proc_err}"
-            process_text = f"```\n{process_text}\n```"
-            context.success_data = {
-                "ctx": context.ctx,
-                "instruction": context.resolved_instruction,
-                "results": results,
-                "process_text": process_text,
-                "status": results.get("status", "unknown"),
-                "error": proc_err,
-                "code": "<builtin observe>",
-            }
-            context.results = results
-            return context
+        # <observe> / <statistics> flow through the normal codegen path using
+        # the LLM-generated, init-time code from PredefinedCodeProvider
+        # (_observe_code / _statistics_code). No hand-written builtin collection.
         max_retries = router.max_llm_call_retry if context.code is None else 0
         while context.retry_count <= max_retries:
             if context.code is None:
@@ -1188,28 +1248,31 @@ class CodeStage:
                     )
 
                 assert context.code is not None  # set by _acquire_code when ok=True
-                is_safe, safety_violation = self._validate_code_safety(
-                    router, context.code
-                )
-                if not is_safe:
-                    context.retry_count += 1
-                    context.previous_code = context.code
-                    context.previous_errors.append(safety_violation)
-                    if context.retry_count > max_retries:
-                        context.early_return = (
-                            {},
-                            f"Generated code failed safety check after retries: {safety_violation}",
-                        )
-                        return context
-                    context.code = None
-                    continue
+                # AST 安全验证只用于拒绝首次 LLM 生成的代码；
+                # 预定义（init 时生成）和缓存命中（首次已验证）的代码跳过。
+                if context.code_source == "llm":
+                    is_safe, safety_violation = self._validate_code_safety(
+                        router, context.code
+                    )
+                    if not is_safe:
+                        context.retry_count += 1
+                        context.previous_code = context.code
+                        context.previous_errors.append(safety_violation)
+                        if context.retry_count > max_retries:
+                            context.early_return = (
+                                {},
+                                f"Generated code failed safety check after retries: {safety_violation}",
+                            )
+                            return context
+                        context.code = None
+                        continue
 
             code = context.code
             if code is None:
                 return context
             context.execution_attempted = True
             try:
-                async with router._execute_lock:
+                async with router._exec_lock_ctx():
                     execution_result = await self._execute_code(
                         router, code, context.ctx, context.readonly
                     )
@@ -1414,9 +1477,8 @@ class CodeGenRouter(RouterBase):
         max_body_code_lines: int = 15,
         max_steps: int = 10,
         max_llm_call_retry: int = 10,
-        log_path: str = "logs/instruction_log.pkl",
         replay_writer: Optional["ReplayWriter"] = None,
-        final_summary_enabled: bool = True,
+        final_summary_enabled: bool = False,
         code_format: str = "raw_code",
         # Template cache configuration
         template_cache_enabled: bool = True,  # 是否启用模板缓存
@@ -1425,19 +1487,20 @@ class CodeGenRouter(RouterBase):
         template_cache_dir: Optional[
             str
         ] = None,  # 缓存数据库目录，None 则用 {Config.HOME_DIR}/codegen_router_cache
+        # Injected serializable LLM clients. See RouterBase.
+        llm_clients_spec: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
             env_modules=env_modules,
             max_steps=max_steps,
             max_llm_call_retry=max_llm_call_retry,
             replay_writer=replay_writer,
+            llm_clients_spec=llm_clients_spec,
         )
 
         # Pre-generate all tools code in a dictionary: key is (readonly, kind)
         # kind can be None, "observe", "statistics", etc.
         self._tools_pyi_dict: Dict[Tuple[bool, str | None], str] = {}
-        self._log_path = log_path
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
         self._code_format = code_format
         self._max_body_code_lines = max_body_code_lines
@@ -1447,15 +1510,12 @@ class CodeGenRouter(RouterBase):
 
         self._modules = {module.name: module for module in self.env_modules}
 
-        # Statistics 初始化代码由 LLM 在 init 中生成；observe 走内置 _run_builtin_observe
+        # observe / statistics 的初始化代码均由 LLM 在 init 中生成并缓存，每步复用。
+        self._observe_code = ""
         self._statistics_code = ""
 
         # Flag to track if LLM code generation has been attempted
         self._llm_code_generated = False
-
-        # 记录所有agent的指令、context和生成的代码
-        self._instruction_log: List[EnvRouterBenchmarkData] = []
-        self._instruction_log_lock: asyncio.Lock = asyncio.Lock()
 
         # ==================== Template缓存相关 ====================
         self._final_summary_enabled = final_summary_enabled
@@ -1501,14 +1561,18 @@ class CodeGenRouter(RouterBase):
         self._embedding_api_base = Config.EMBEDDING_API_BASE
         self._embedding_dims = Config.EMBEDDING_DIMS
 
-        # 并发锁：仅代码执行需串行（会修改 env 状态），其余（缓存、codegen、generate_final_answer）可并行
+        # 并发锁：仅当代码执行会改动需要互斥的共享 env 状态时才需要串行。若所有 env 模块
+        # 都声明 is_concurrency_safe()，则跳过该锁、env Ray actor 可并行 fan-out。
         self._execute_lock: asyncio.Lock = asyncio.Lock()
+        self._exec_needs_lock: bool = not all(
+            getattr(type(m), "is_concurrency_safe", lambda: False)()
+            for m in self.env_modules
+        )
         self._cache_stats_lock: asyncio.Lock = asyncio.Lock()
         self._embedding_cache_lock: asyncio.Lock = asyncio.Lock()
 
         # 观察者（缓存统计、instruction log、缓存写入）
         self._observers: List[AskObserver] = [
-            InstructionLogObserver(self),
             CacheStatsObserver(self),
             CacheAddObserver(self),
         ]
@@ -1520,13 +1584,25 @@ class CodeGenRouter(RouterBase):
             LLMCodegenProvider(),
         ]
 
+    def _exec_lock_ctx(self):
+        """Return the exec serialization context manager (lock or a no-op).
+
+        Args:
+            None.
+
+        Returns:
+            An async context manager — the lock when any module is not
+            concurrency-safe, otherwise a no-op (parallel exec allowed).
+        """
+        if self._exec_needs_lock:
+            return self._execute_lock
+        return nullcontext()
+
     def _get_tools_code(self, tools_info) -> str:
         if self._code_format == "raw_code":
             return self._format_tools_raw_code(tools_info)
         elif self._code_format == "trimmed":
-            return self._format_tools_pyi_trimmed(
-                tools_info, self._max_body_code_lines
-            )
+            return self._format_tools_pyi_trimmed(tools_info, self._max_body_code_lines)
         elif self._code_format.startswith("ratio:"):
             ratio = float(self._code_format.split(":", 1)[1])
             return self._format_tools_pyi_ratio(tools_info, ratio)
@@ -1559,108 +1635,6 @@ class CodeGenRouter(RouterBase):
             readonly_statistics_tools_info
         )
 
-    @staticmethod
-    def _resolve_subject_id_from_ctx(ctx: dict) -> Optional[int]:
-        for k in ("id", "agent_id", "person_id"):
-            if k not in ctx:
-                continue
-            v = ctx[k]
-            if v is None or isinstance(v, bool):
-                continue
-            if isinstance(v, int):
-                return v
-            if isinstance(v, str) and v.strip():
-                try:
-                    return int(v.strip(), 10)
-                except ValueError:
-                    continue
-        return None
-
-    @staticmethod
-    async def _call_single_observe_tool(
-        module: Any, fn: Any, subject_id: Optional[int]
-    ) -> Any:
-        # tool 装饰器把真实方法包在 *args,**kwargs 里；对 wrapper 做 signature 会得到 param 名 "args"，误传成 observe(args=…)。
-        impl = getattr(fn, "_original_func", fn)
-        sig = inspect.signature(impl)
-        params = list(sig.parameters.values())
-        non_self = [
-            p
-            for p in (params[1:] if params else [])
-            if p.kind
-            in (
-                inspect.Parameter.POSITIONAL_ONLY,
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                inspect.Parameter.KEYWORD_ONLY,
-            )
-        ]
-        if len(non_self) == 0:
-            if inspect.iscoroutinefunction(fn):
-                return await fn(module)
-            return fn(module)
-        if subject_id is None:
-            raise ValueError(
-                "missing subject id in ctx (need id, agent_id, or person_id; integer 0 is valid)"
-            )
-        pname = non_self[0].name
-        kw = {pname: subject_id}
-        if inspect.iscoroutinefunction(fn):
-            return await fn(module, **kw)
-        return fn(module, **kw)
-
-    async def _run_builtin_observe(self, ctx: dict) -> Dict[str, Any]:
-        observe_info = self._filter_tools_info(
-            self._collect_tools_info(), readonly=True, kind="observe"
-        )
-        n_tools = sum(len(m.tools) for m in observe_info.values())
-        if n_tools == 0:
-            return {
-                "success": False,
-                "results": {"observations": {}, "status": "fail"},
-                "print_outputs": [],
-                "output": "",
-                "error": "no observe tools registered",
-            }
-        subject_id = self._resolve_subject_id_from_ctx(ctx)
-        observations: Dict[str, Any] = {}
-        errors: List[str] = []
-        for module_name, module_data in observe_info.items():
-            module = self._modules.get(module_name)
-            if module is None:
-                errors.append(f"{module_name}: module not mounted")
-                continue
-            reg = getattr(module.__class__, "_registered_tools", {})
-            for ti in module_data.tools:
-                tname = ti.name
-                tool_obj = reg.get(tname)
-                fn = getattr(tool_obj, "fn", None) if tool_obj else None
-                if not fn:
-                    errors.append(f"{module_name}.{tname}: tool missing")
-                    continue
-                try:
-                    out = await self._call_single_observe_tool(module, fn, subject_id)
-                    observations[f"{module_name}.{tname}"] = out
-                except Exception as e:
-                    errors.append(f"{module_name}.{tname}: {e}")
-        n_ok = len(observations)
-        if n_ok and not errors:
-            status = "success"
-        elif n_ok and errors:
-            status = "partial"
-        else:
-            status = "fail"
-        results: Dict[str, Any] = {"observations": observations, "status": status}
-        if errors:
-            results["observe_errors"] = errors
-        success = n_ok > 0
-        return {
-            "success": success,
-            "results": results,
-            "print_outputs": [],
-            "output": "",
-            "error": "; ".join(errors) if not success else "",
-        }
-
     async def _notify_observers_final(self, context: AskContext) -> None:
         """流程结束后，将最终 context 交给所有观察者记录"""
         for obs in self._observers:
@@ -1672,6 +1646,8 @@ class CodeGenRouter(RouterBase):
         instruction: str,
         readonly: bool = False,
         template_mode: bool = False,
+        trace_id: str | None = None,
+        parent_span_id: str | None = None,
     ) -> Tuple[dict, str]:
         """
         使用代码生成方式处理指令。通过管道-过滤器架构执行。
@@ -1689,14 +1665,24 @@ class CodeGenRouter(RouterBase):
             readonly=readonly,
             template_mode=template_mode,
         )
-        stages: List[PipelineStage] = [
-            InitStage(),
-            CodeStage(),  # 代码获取 + 验证 + 执行
-            SummaryStage(),
-            ObserveFinalStage(),  # 无论是否 early_return，最后统一交给 observer 记录
-        ]
-        for stage in stages:
-            context = await stage.process(context, self)
+        # Propagate OTel trace context to env modules for @tool tracing
+        self.set_trace_context(trace_id, parent_span_id)
+        # Bind per-ask trace context (ContextVar) so env-side LLM calls inside
+        # CodeStage/SummaryStage emit llm.completion spans parented to this ask.
+        agent_id = ctx.get("agent_id") if isinstance(ctx, dict) else None
+        _trace_token = self._set_trace_context(trace_id, parent_span_id, agent_id)
+        try:
+            stages: List[PipelineStage] = [
+                InitStage(),
+                CodeStage(),  # 代码获取 + 验证 + 执行
+                SummaryStage(),
+                ObserveFinalStage(),  # 无论是否 early_return，最后统一交给 observer 记录
+            ]
+            for stage in stages:
+                context = await stage.process(context, self)
+        finally:
+            self._reset_trace_context(_trace_token)
+            self.clear_trace_context()
         if context.early_return:
             return context.early_return
         return context.results, context.final_answer
@@ -1720,6 +1706,14 @@ class CodeGenRouter(RouterBase):
 
         # Generate code using LLM if not already done
         if not self._llm_code_generated:
+            # Generate observe code using LLM (collects observe tools + narrates)
+            if (True, "observe") in self._tools_pyi_dict:
+                llm_observe_code = await self._generate_observe_code()
+                if llm_observe_code:
+                    self._observe_code = llm_observe_code
+                    get_logger().info("Generated observe code using LLM")
+                else:
+                    raise ValueError("Failed to generate observe code")
             # Generate statistics code using LLM (using same logic as regular code generation)
             if (True, "statistics") in self._tools_pyi_dict:
                 llm_statistics_code = await self._generate_statistics_code()
@@ -1731,115 +1725,9 @@ class CodeGenRouter(RouterBase):
             self._llm_code_generated = True
 
     async def step(self, tick: int, t: datetime):
-        """
-        Run forward one step for all simulation modules, then output cache statistics.
-        每步结束后将本步的统计指标以 JSONL 形式追加写入缓存目录，便于分析缓存带来的性能提升。
-        """
+        """Run forward one step for all simulation modules."""
         await super().step(tick, t)
 
-        # 快照当前累计统计，计算本步增量，写入 JSONL（追加模式，支持多次模拟聚合）
-        async with self._cache_stats_lock:
-            current = CacheStats(
-                request_count=self._cache_stats.request_count,
-                predefined_hit_count=self._cache_stats.predefined_hit_count,
-                cache_hit_count=self._cache_stats.cache_hit_count,
-                cache_miss_count=self._cache_stats.cache_miss_count,
-                total_input_tokens=self._cache_stats.total_input_tokens,
-                total_output_tokens=self._cache_stats.total_output_tokens,
-                code_execution_success_count=self._cache_stats.code_execution_success_count,
-                code_execution_failure_count=self._cache_stats.code_execution_failure_count,
-                total_code_retry_count=self._cache_stats.total_code_retry_count,
-            )
-        prev = self._prev_step_stats or CacheStats()
-        delta = CacheStats(
-            request_count=current.request_count - prev.request_count,
-            predefined_hit_count=current.predefined_hit_count
-            - prev.predefined_hit_count,
-            cache_hit_count=current.cache_hit_count - prev.cache_hit_count,
-            cache_miss_count=current.cache_miss_count - prev.cache_miss_count,
-            total_input_tokens=current.total_input_tokens - prev.total_input_tokens,
-            total_output_tokens=current.total_output_tokens - prev.total_output_tokens,
-            code_execution_success_count=current.code_execution_success_count
-            - prev.code_execution_success_count,
-            code_execution_failure_count=current.code_execution_failure_count
-            - prev.code_execution_failure_count,
-            total_code_retry_count=current.total_code_retry_count
-            - prev.total_code_retry_count,
-        )
-        exec_total = (
-            delta.code_execution_success_count + delta.code_execution_failure_count
-        )
-        code_execution_success_rate = (
-            delta.code_execution_success_count / exec_total if exec_total > 0 else None
-        )
-        record = {
-            "run_id": self._run_id or "",
-            "step": self._step_index,
-            "request_count": delta.request_count,
-            "predefined_hit_count": delta.predefined_hit_count,
-            "cache_hit_count": delta.cache_hit_count,
-            "cache_miss_count": delta.cache_miss_count,
-            "cached_entries_count": len(self._cache_entries),  # 当前已缓存数据条目标数
-            "total_input_tokens": delta.total_input_tokens,
-            "total_output_tokens": delta.total_output_tokens,
-            "code_execution_success_rate": code_execution_success_rate,
-        }
-        try:
-            os.makedirs(self._cache_dir, exist_ok=True)
-            with open(self._cache_stats_jsonl_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(record, ensure_ascii=False) + "\n")
-        except Exception as e:
-            get_logger().warning(f"Failed to write cache stats JSONL: {e}")
-
-        self._prev_step_stats = current
-        self._step_index += 1
-        get_logger().info(self.get_cache_stats_summary())
-
-    async def dump(self) -> dict:
-        """
-        Dump router state to a serializable dict, including instruction logs and cache stats.
-        """
-        # 调用父类的dump方法获取基础状态
-        base_dump = await super().dump()
-
-        # 添加指令日志
-        async with self._instruction_log_lock:
-            base_dump["instruction_log"] = self._instruction_log.copy()
-
-        # 添加缓存统计信息
-        async with self._cache_stats_lock:
-            base_dump["cache_stats"] = {
-                "request_count": self._cache_stats.request_count,
-                "predefined_hit_count": self._cache_stats.predefined_hit_count,
-                "cache_hit_count": self._cache_stats.cache_hit_count,
-                "cache_miss_count": self._cache_stats.cache_miss_count,
-                "total_input_tokens": self._cache_stats.total_input_tokens,
-                "total_output_tokens": self._cache_stats.total_output_tokens,
-                "code_execution_success_count": self._cache_stats.code_execution_success_count,
-                "code_execution_failure_count": self._cache_stats.code_execution_failure_count,
-                "total_code_retry_count": self._cache_stats.total_code_retry_count,
-            }
-
-        return base_dump
-
-    async def load(self, dump_data: dict):
-        """
-        Load router state from a dict produced by dump().
-        """
-        # 调用父类的load方法恢复基础状态
-        await super().load(dump_data)
-
-        # 恢复指令日志
-        try:
-            instruction_log = dump_data.get("instruction_log", [])
-            if isinstance(instruction_log, list):
-                async with self._instruction_log_lock:
-                    self._instruction_log = instruction_log.copy()
-                get_logger().debug(
-                    f"Loaded {len(instruction_log)} instruction log entries"
-                )
-        except Exception as e:
-            get_logger().warning(f"Failed to load instruction log: {e!s}")
 
     async def _generate_initialization_code_with_retry(
         self,
@@ -1894,6 +1782,10 @@ class CodeGenRouter(RouterBase):
                 )
                 continue
 
+            # Layer 1 guard at generation time: ensure async tool calls use
+            # ``await`` so the stored observe/statistics code is correct.
+            code = _ensure_await_async_calls(code, _collect_async_tool_names(self))
+
             dialog_history.append({"role": "assistant", "content": code})
             is_safe, safety_violation = code_stage._validate_code_safety(self, code)
             if not is_safe:
@@ -1913,7 +1805,7 @@ class CodeGenRouter(RouterBase):
                 continue
 
             try:
-                async with self._execute_lock:
+                async with self._exec_lock_ctx():
                     execution_result = await code_stage._execute_code(
                         self, code, ctx, True
                     )
@@ -1954,6 +1846,25 @@ class CodeGenRouter(RouterBase):
 
             return code.strip()
         raise ValueError(f"Failed to generate {kind} code after retries.")
+
+    async def _generate_observe_code(self) -> str:
+        """
+        使用LLM生成观察代码，用于调用所有observe类型的工具并以自然语言汇报。
+        使用与其他普通文本相同的代码生成逻辑，失败时通过多轮对话让LLM修正。
+
+        :returns: 生成的Python代码字符串，如果生成失败则返回空字符串
+        """
+        get_logger().debug(f"{_get_debug_info('开始生成observe代码')}")
+
+        if (True, "observe") not in self._tools_pyi_dict:
+            get_logger().debug(f"{_get_debug_info('observe工具不存在')} - 跳过代码生成")
+            return ""
+
+        instruction = self.OBSERVE_INSTRUCTION
+        ctx = {"id": 123}  # 测试执行用的最小上下文（observe 工具需要 agent id）
+        return await self._generate_initialization_code_with_retry(
+            instruction=instruction, ctx=ctx, kind="observe"
+        )
 
     async def _generate_statistics_code(self) -> str:
         """
@@ -2020,7 +1931,7 @@ class CodeGenRouter(RouterBase):
 - Code Execution Success Rate: {stats.code_execution_success_rate:.2%}
 - Total Code Retries: {stats.total_code_retry_count}
 - Average Code Retries per Request: {stats.avg_retry_count:.2f}
-- Cache Size: {len(self._cache_entries)} entries (env={self._env_class_type_key[:60] + ('...' if len(self._env_class_type_key) > 60 else '')})"""
+- Cache Size: {len(self._cache_entries)} entries (env={self._env_class_type_key[:60] + ("..." if len(self._env_class_type_key) > 60 else "")})"""
 
     async def clear_cache(self) -> None:
         """清空当前 env 的缓存（内存 + 持久化 DB）"""

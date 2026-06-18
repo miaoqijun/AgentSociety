@@ -18,7 +18,8 @@ ENV_COMPATIBILITY_RULES = [
     "环境类必须继承 EnvBase，注册 key 保持 class_name。",
     "至少提供一个合法 @tool 方法。",
     "必须实现 step()，并且默认支持无参实例化 cls()。",
-    "mcp_description() 必须可调用且返回非空描述。",
+    "description() 必须可调用且返回非空短说明。",
+    "init_description() 必须可调用且返回非空初始化参数说明。",
     "若模块需要观察能力，应通过 readonly 的 kind='observe' 工具提供。",
 ]
 
@@ -113,21 +114,42 @@ def build_env_scan_diagnostic(
         )
 
     try:
-        description = cls.mcp_description() if hasattr(cls, "mcp_description") else ""
+        description = cls.description() if hasattr(cls, "description") else ""
         if not description:
             issues.append(
                 CompatibilityIssue(
-                    code="empty_mcp_description",
-                    check="mcp_description",
-                    message=f"{cls.__name__} 的 mcp_description() 为空",
+                    code="empty_description",
+                    check="description",
+                    message=f"{cls.__name__} 的 description() 为空",
                 )
             )
     except Exception as exc:
         issues.append(
             CompatibilityIssue(
-                code="mcp_description_error",
-                check="mcp_description",
-                message=f"{cls.__name__} 的 mcp_description() 调用失败: {exc}",
+                code="description_error",
+                check="description",
+                message=f"{cls.__name__} 的 description() 调用失败: {exc}",
+            )
+        )
+
+    try:
+        init_description = (
+            cls.init_description() if hasattr(cls, "init_description") else ""
+        )
+        if not init_description:
+            issues.append(
+                CompatibilityIssue(
+                    code="empty_init_description",
+                    check="init_description",
+                    message=f"{cls.__name__} 的 init_description() 为空",
+                )
+            )
+    except Exception as exc:
+        issues.append(
+            CompatibilityIssue(
+                code="init_description_error",
+                check="init_description",
+                message=f"{cls.__name__} 的 init_description() 调用失败: {exc}",
             )
         )
 

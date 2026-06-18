@@ -11,7 +11,7 @@ Write the Agent code.
 1. Select appropriate template from `artifacts/templates.md`
 2. Replace placeholders with actual values
 3. Implement custom logic in `ask()` and `step()`
-4. Add `mcp_description()` with profile fields
+4. Add `description()` and `init_description()` with profile fields
 5. Keep the implementation proportional to the simulation scale budget chosen during intake
 
 ## Template Placeholders
@@ -25,7 +25,10 @@ Write the Agent code.
 
 ## Code Quality
 
-- Use async for all required methods
+- Use async for all required methods (`to_workspace`, `ask`, `step`)
+- State setup goes in `restore`
+- Use current framework skill runtime and LLM role APIs
+- If reusing `run_react_loop`, override `build_react_messages`
 - Env or LLM failures should be handled predictably (do not blanket-swallow exceptions)
 - Use `.get(key, default)` for profile access
-- Keep dump/load symmetric
+- Keep `to_workspace` / `restore` symmetric

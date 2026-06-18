@@ -30,6 +30,12 @@ class SetGlobalInformationResponse(BaseModel):
 
 
 class GlobalInformationEnv(EnvBase):
+    @classmethod
+    def is_concurrency_safe(cls) -> bool:
+        # Already self-protected by an internal asyncio.Lock around its single
+        # shared field (_global_information), so concurrent tool calls are safe.
+        return True
+
     _env_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("global_information", "TEXT", nullable=False),
     ]
@@ -47,9 +53,9 @@ class GlobalInformationEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Includes parameter descriptions.
         """
         description = f"""{cls.__name__}: Global information environment module.
@@ -66,12 +72,10 @@ No additional parameters required. This module only requires the llm parameter.
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        return """You are a global information environment module specialized in providing global information to the agent.
-
-Your task is to use the get and set functions with context paths to provide global information to the agent."""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Global information environment for shared simulation-wide key-value context."
 
     @tool(readonly=True, kind="observe")
     async def get(self) -> GetGlobalInformationResponse:
@@ -125,15 +129,3 @@ Your task is to use the get and set functions with context paths to provide glob
             global_information=global_information,
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        return {
-            "global_information": self._global_information,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        self._global_information = state.get(
-            "global_information", self._default_global_information
-        )
-        self._step_counter = state.get("step_counter", 0)

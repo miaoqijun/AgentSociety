@@ -6,17 +6,17 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-09 12:39+0800\n"
+"POT-Creation-Date: 2026-06-18 09:27+0800\n"
 "PO-Revision-Date: 2026-05-19 00:00+0800\n"
 "Last-Translator: AgentSociety Team\n"
-"Language-Team: en <LL@li.org>\n"
 "Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "Generated-By: Babel 2.18.0\n"
 
 #: ../../skill_guide.md:1
@@ -28,10 +28,11 @@ msgid ""
 "本文档介绍如何为 `PersonAgent` 编写自定义 Skill。Skill "
 "的目标不是把所有逻辑写成复杂插件，而是把一种能力的触发条件、输入文件、执行步骤和输出文件说明清楚，让智能体在合适的时候调用它。"
 msgstr ""
-"This document describes how to write a custom Skill for `PersonAgent`. The "
-"goal of Skill is not to write all logic as complex plug-ins, but to clearly "
-"explain the trigger conditions, input files, execution steps and output "
-"files of a capability so that the agent can call it at the appropriate time."
+"This document describes how to write a custom Skill for `PersonAgent`. "
+"The goal of Skill is not to write all logic as complex plug-ins, but to "
+"clearly explain the trigger conditions, input files, execution steps and "
+"output files of a capability so that the agent can call it at the "
+"appropriate time."
 
 #: ../../skill_guide.md:5
 msgid "概述"
@@ -44,103 +45,115 @@ msgstr ""
 "writing:"
 
 #: ../../skill_guide.md:9
-msgid "**Prompt-only**：只写 `SKILL.md`，适合判断、反思、总结、计划等开放任务。"
+msgid "**Prompt-only（推荐）**：只写 `SKILL.md`，适合判断、反思、总结、计划等开放任务。"
 msgstr ""
 "**Prompt-only**: Only write `SKILL.md`, suitable for open tasks such as "
 "judgment, reflection, summary, and planning."
 
 #: ../../skill_guide.md:10
-msgid "**Subprocess script**：额外提供 Python 脚本，适合确定性计算、格式转换、批处理和可重复的数据维护。"
+msgid ""
+"**带脚本**：额外提供 Python 脚本，适合确定性计算、格式转换、批处理和可重复的数据维护。 脚本默认**在 agent 进程内**经 "
+"`entrypoint(argv, ctx)` 执行（毫秒级、并发安全）；无 `entrypoint` 时回退到动态包装器，最后才回退到子进程。"
 msgstr ""
-"**Subprocess script**: Additional Python scripts are provided, suitable for "
-"deterministic calculations, format conversion, batch processing and "
-"repeatable data maintenance."
-
-#: ../../skill_guide.md:12
-msgid "与环境交互时，不需要在 frontmatter 里声明特殊 executor；在正文中说明何时使用 `codegen` 工具即可。"
-msgstr ""
-"When interacting with the environment, there is no need to declare a special"
-" executor in the frontmatter; just explain in the text when to use the "
-"`codegen` tool."
+"**With scripts**: provide additional Python scripts for deterministic "
+"computation, format conversion, batch processing, and repeatable data "
+"maintenance. Scripts execute by default **inside the agent process** "
+"through `entrypoint(argv, ctx)`, which is millisecond-level and "
+"concurrency-safe. Without `entrypoint`, runtime falls back to the dynamic"
+" wrapper, and only then to a subprocess."
 
 #: ../../skill_guide.md:14
+msgid ""
+"与环境交互时，不需要在 frontmatter 里声明特殊 executor；在正文中说明何时使用 `ask_env` 工具即可。 "
+"完整的设计说明见 `agentsociety2/agent/skills/README.md` 与 :doc:`/agent_skills`。"
+msgstr ""
+"For environment interaction, no special executor needs to be declared in "
+"frontmatter; explain in the body when to use the `ask_env` tool. For the "
+"full design, see `agentsociety2/agent/skills/README.md` and "
+":doc:`/agent_skills`."
+
+#: ../../skill_guide.md:17
 msgid "快速开始"
 msgstr "Quick Start"
 
-#: ../../skill_guide.md:16
+#: ../../skill_guide.md:19
 msgid "创建一个简单的Skill"
 msgstr "Create a simple Skill"
 
-#: ../../skill_guide.md:18
+#: ../../skill_guide.md:21
 msgid "在`custom/skills/`目录下创建新文件夹："
 msgstr "Create a new folder in the `custom/skills/` directory:"
 
-#: ../../skill_guide.md:25
+#: ../../skill_guide.md:28
 msgid "编写SKILL.md："
 msgstr "Write SKILL.md:"
 
-#: ../../skill_guide.md:71
+#: ../../skill_guide.md:75
 msgid "无需编程，模型会根据你的描述读取文件、调用工具并写入输出。写得越具体，行为越稳定。"
 msgstr ""
 "No programming required, the model reads files, calls tools, and writes "
-"output based on your description. The more specific it is written, the more "
-"stable the behavior will be."
+"output based on your description. The more specific it is written, the "
+"more stable the behavior will be."
 
-#: ../../skill_guide.md:73
+#: ../../skill_guide.md:77
 msgid "SKILL.md结构详解"
 msgstr "Detailed explanation of SKILL.md structure"
 
-#: ../../skill_guide.md:75
+#: ../../skill_guide.md:79
 msgid "Frontmatter（必需）"
 msgstr "Frontmatter (required)"
 
-#: ../../skill_guide.md:77
+#: ../../skill_guide.md:81
 msgid "Frontmatter是YAML格式的元数据块，位于文件开头："
 msgstr ""
-"Frontmatter is a YAML formatted metadata block located at the beginning of "
-"the file:"
+"Frontmatter is a YAML formatted metadata block located at the beginning "
+"of the file:"
 
-#: ../../skill_guide.md:86
+#: ../../skill_guide.md:90
 msgid ""
-"可选：在同目录下放置 ``scripts/<name>.py``，运行时会作为子进程脚本执行；依赖关系写在正文里，由模型按需 "
-"``activate_skill``。"
+"可选：在同目录下放置 ``scripts/<name>.py``。推荐在脚本顶层定义 ``def entrypoint(argv, ctx) ->"
+" str``，运行时会优先在进程内调用它（缓存 import、无 fork）； 无 ``entrypoint`` 时回退到动态包装器 / "
+"子进程。依赖关系写在正文里，由模型按需 ``activate_skill``。"
 msgstr ""
-"Optional: Place ``scripts/<name>.py`` in the same directory, and it will be "
-"executed as a sub-process script when running; dependencies are written in "
-"the text, and ``activate_skill`` is determined by the model on demand."
+"Optional: place ``scripts/<name>.py`` in the same directory. Define ``def"
+" entrypoint(argv, ctx) -> str`` at script top level; runtime calls it in-"
+"process first with cached imports and no fork. Without ``entrypoint``, it"
+" falls back to the dynamic wrapper / subprocess. Put dependencies in the "
+"body so the model can ``activate_skill`` on demand."
 
-#: ../../skill_guide.md:88
+#: ../../skill_guide.md:94
 msgid "Body（必需）"
 msgstr "Body (required)"
 
-#: ../../skill_guide.md:90
+#: ../../skill_guide.md:96
 msgid "Body是Markdown格式的行为指南，告诉LLM："
 msgstr "Body is a Markdown-formatted behavioral guide that tells LLM:"
 
-#: ../../skill_guide.md:92
+#: ../../skill_guide.md:98
 msgid "**何时使用**：触发条件"
-msgstr "**何时使用**: Trigger condition"
+msgstr "**When to use**: trigger conditions"
 
-#: ../../skill_guide.md:93
+#: ../../skill_guide.md:99
 msgid "**输入**：读取哪些文件"
-msgstr "**输入**: Which files to read"
+msgstr "**Input**: which files to read"
 
-#: ../../skill_guide.md:94
+#: ../../skill_guide.md:100
 msgid "**做什么**：执行步骤"
-msgstr "**做什么**: Execution steps"
+msgstr "**What it does**: execution steps"
 
-#: ../../skill_guide.md:95
+#: ../../skill_guide.md:101
 msgid "**输出**：产生什么文件"
-msgstr "**输出**: What file is generated?"
+msgstr "**Output**: files produced"
 
-#: ../../skill_guide.md:97
+#: ../../skill_guide.md:103
 msgid "可用的内置工具"
 msgstr "Available built-in tools"
 
-#: ../../skill_guide.md:99
-msgid "Skill的Markdown body中可以指导LLM使用以下工具："
+#: ../../skill_guide.md:105
+msgid "Skill 的 Markdown body 中可以指导 LLM 使用 ``PersonAgent`` 的 ReAct 工具（注意实际工具名）："
 msgstr ""
-"The Markdown body of the Skill can instruct LLM to use the following tools:"
+"The Markdown body of the Skill can instruct LLM to use the following "
+"tools:"
 
 #: ../../skill_guide.md
 msgid "工具"
@@ -155,354 +168,318 @@ msgid "示例"
 msgstr "Examples"
 
 #: ../../skill_guide.md
-msgid "`workspace_read`"
-msgstr "`workspace_read`"
+msgid "`read`"
+msgstr "`grep`"
 
 #: ../../skill_guide.md
-msgid "读取文件"
-msgstr "Read file"
+msgid "读取工作区文件"
+msgstr "Read workspace files"
 
 #: ../../skill_guide.md
-msgid "`workspace_read(\"state/observation.txt\")`"
-msgstr "`workspace_read(\"state/observation.txt\")`"
-
-#: ../../skill_guide.md
-msgid "`workspace_write`"
-msgstr "`workspace_write`"
-
-#: ../../skill_guide.md
-msgid "写入文件"
-msgstr "Write file"
-
-#: ../../skill_guide.md
-msgid "`workspace_write(\"state/result.json\", content)`"
+msgid "`read(\"state/needs.json\")`"
 msgstr "`workspace_write(\"state/result.json\", content)`"
 
 #: ../../skill_guide.md
-msgid "`workspace_list`"
-msgstr "`workspace_list`"
+msgid "`write`"
+msgstr "`grep`"
 
 #: ../../skill_guide.md
-msgid "列出文件"
+msgid "写入工作区文件"
+msgstr "Write file"
+
+#: ../../skill_guide.md
+msgid "`write(\"state/result.json\", content)`"
+msgstr "`workspace_write(\"state/result.json\", content)`"
+
+#: ../../skill_guide.md
+msgid "`append`"
+msgstr ""
+
+#: ../../skill_guide.md
+msgid "追加内容"
+msgstr "Append content"
+
+#: ../../skill_guide.md
+msgid "`append(\"state/notes.jsonl\", line)`"
+msgstr "`workspace_write(\"state/result.json\", content)`"
+
+#: ../../skill_guide.md
+msgid "`list`"
+msgstr ""
+
+#: ../../skill_guide.md
+msgid "列出目录文件"
 msgstr "List files"
 
 #: ../../skill_guide.md
-msgid "`workspace_list(\".\")`"
+msgid "`list(\".\")`"
 msgstr "`workspace_list(\".\")`"
-
-#: ../../skill_guide.md
-msgid "`codegen`"
-msgstr "`codegen`"
-
-#: ../../skill_guide.md
-msgid "执行环境指令"
-msgstr "Execute environment instructions"
-
-#: ../../skill_guide.md
-msgid "`codegen(\"<observe>\")`"
-msgstr "`codegen(\"<observe>\")`"
-
-#: ../../skill_guide.md
-msgid "`bash`"
-msgstr "`bash`"
-
-#: ../../skill_guide.md
-msgid "执行命令"
-msgstr "Execute command"
-
-#: ../../skill_guide.md
-msgid "`bash(\"echo hello\")`"
-msgstr "`bash(\"echo hello\")`"
 
 #: ../../skill_guide.md
 msgid "`grep`"
 msgstr "`grep`"
 
 #: ../../skill_guide.md
-msgid "搜索内容"
-msgstr "Search content"
+msgid "在工作区文件中搜索"
+msgstr "Search workspace files"
 
 #: ../../skill_guide.md
 msgid "`grep(\"pattern\", \".\")`"
 msgstr "`grep(\"pattern\", \".\")`"
 
 #: ../../skill_guide.md
-msgid "`glob`"
-msgstr "`glob`"
+msgid "`ask_env`"
+msgstr ""
 
 #: ../../skill_guide.md
-msgid "文件匹配"
-msgstr "File matching"
+msgid "向环境路由器发请求"
+msgstr "Send a request to the environment router"
 
 #: ../../skill_guide.md
-msgid "`glob(\"*.json\")`"
-msgstr "`glob(\"*.json\")`"
+msgid "`ask_env(\"<observe>\")`"
+msgstr "`codegen(\"<observe>\")`"
 
 #: ../../skill_guide.md
-msgid "`done`"
-msgstr "`done`"
+msgid "`activate_skill` / `read_skill_file` / `execute_skill_script`"
+msgstr ""
 
 #: ../../skill_guide.md
-msgid "完成执行"
-msgstr "Finish execution"
+msgid "激活/读取/执行其它 skill"
+msgstr "Activate / read / execute another skill"
 
 #: ../../skill_guide.md
-msgid "表示skill执行完毕"
-msgstr "Indicates that the skill execution is complete"
+msgid "见 :doc:`/agent_skills`"
+msgstr "See :doc:`/agent_skills`"
 
-#: ../../skill_guide.md:112
+#: ../../skill_guide.md
+msgid "`finish`"
+msgstr ""
+
+#: ../../skill_guide.md
+msgid "结束当前仿真步"
+msgstr "End the current simulation step"
+
+#: ../../skill_guide.md
+msgid "带可选 summary"
+msgstr "With an optional summary"
+
+#: ../../skill_guide.md:118
+msgid "没有 `bash` / `glob` / `codegen` / `batch` 工具；环境交互统一走 `ask_env`。"
+msgstr ""
+"There are no `bash` / `glob` / `codegen` / `batch` tools; environment "
+"interaction always goes through `ask_env`."
+
+#: ../../skill_guide.md:120
 msgid "Skill类型"
 msgstr "Skill type"
 
-#: ../../skill_guide.md:114
+#: ../../skill_guide.md:122
 msgid "类型1：纯Prompt驱动（推荐）"
 msgstr "Type 1: Pure prompt-driven (recommended)"
 
-#: ../../skill_guide.md:116
+#: ../../skill_guide.md:124
 msgid "大多数Skill不需要编程，只需要清晰的描述："
 msgstr "Most skills do not require programming, just clear description:"
 
-#: ../../skill_guide.md:144
+#: ../../skill_guide.md:152
 msgid "类型2：带Python脚本"
 msgstr "Type 2: With Python script"
 
-#: ../../skill_guide.md:146
+#: ../../skill_guide.md:154
 msgid "当需要确定性计算时，添加Python脚本："
 msgstr "When deterministic calculations are required, add a Python script:"
 
-#: ../../skill_guide.md:155
+#: ../../skill_guide.md:163
 msgid "SKILL.md:"
 msgstr "SKILL.md:"
 
-#: ../../skill_guide.md:164
-msgid "calc.py:"
-msgstr "calc.py:"
+#: ../../skill_guide.md:172
+msgid "calc.py（提供 ``entrypoint``，进程内执行；CLI 与 entrypoint 共用同一派发）："
+msgstr ""
+"calc.py, providing ``entrypoint`` for in-process execution; CLI and "
+"entrypoint share the same dispatcher:"
 
-#: ../../skill_guide.md:198 ../../skill_guide.md:380
+#: ../../skill_guide.md:231 ../../skill_guide.md:413
 msgid "与环境交互"
 msgstr "Interact with the environment"
 
-#: ../../skill_guide.md:200
+#: ../../skill_guide.md:233
 msgid ""
-"在 SKILL 正文里说明何时调用内置 **`codegen`** 工具即可；不要在 frontmatter 里写 "
+"在 SKILL 正文里说明何时调用内置 **`ask_env`** 工具即可；不要在 frontmatter 里写 "
 "``executor``（框架不解析）。"
 msgstr ""
-"Just state in the SKILL body when to call the built-in **`codegen`** tool; "
-"do not write ``executor`` in the frontmatter (the framework will not parse "
-"it)."
+"Just state in the SKILL body when to call the built-in **`codegen`** "
+"tool; do not write ``executor`` in the frontmatter (the framework will "
+"not parse it)."
 
-#: ../../skill_guide.md:202
+#: ../../skill_guide.md:235
 msgid "最佳实践"
 msgstr "Best practices"
 
-#: ../../skill_guide.md:204
+#: ../../skill_guide.md:237
 msgid "1. 保持单一职责"
 msgstr "1. Maintain a single responsibility"
 
-#: ../../skill_guide.md:206
+#: ../../skill_guide.md:239
 msgid "每个 Skill 只做一件事："
 msgstr "Each Skill only does one thing:"
 
-#: ../../skill_guide.md:208
-msgid "✅ `cognition`: 生成情绪和意图"
-msgstr "✅ `cognition`: Generate emotions and intentions"
+#: ../../skill_guide.md:241
+msgid "✅ `mood-check`: 只更新当前情绪状态"
+msgstr "✅ `mood-check`: updates only current mood state"
 
-#: ../../skill_guide.md:209
-msgid "✅ `memory`: 写入值得长期保留的记忆"
-msgstr "✅ `memory`: Write memories worthy of long-term retention"
+#: ../../skill_guide.md:242
+msgid "✅ `social-reflection`: 只更新社交关系"
+msgstr "✅ `social-reflection`: updates only social relationships"
 
-#: ../../skill_guide.md:210
-msgid "❌ `needs_and_emotion`: 做太多事情"
+#: ../../skill_guide.md:243
+msgid "❌ `mood_and_plan`: 做太多事情"
 msgstr "❌ `needs_and_emotion`: Doing too many things"
 
-#: ../../skill_guide.md:212
+#: ../../skill_guide.md:245
 msgid "2. 在正文写清产出文件"
 msgstr "2. Write the output file clearly in the text"
 
-#: ../../skill_guide.md:214
+#: ../../skill_guide.md:247
 msgid ""
 "在 Markdown 里列出会写入的路径（如 ``state/result.json``）；frontmatter 不解析 "
 "``outputs``、``inputs``、``requires`` 等扩展字段。"
 msgstr ""
 "List the paths that will be written in Markdown (such as "
-"``state/result.json``); frontmatter does not parse extension fields such as "
-"``outputs``, ``inputs``, ``requires``, etc."
+"``state/result.json``); frontmatter does not parse extension fields such "
+"as ``outputs``, ``inputs``, ``requires``, etc."
 
-#: ../../skill_guide.md:216
+#: ../../skill_guide.md:249
 msgid "3. 处理缺失文件"
 msgstr "3. Handle missing files"
 
-#: ../../skill_guide.md:218
+#: ../../skill_guide.md:251
 msgid "Skill应该优雅处理输入文件不存在的情况："
 msgstr ""
-"The skill should handle gracefully the case where the input file does not "
-"exist:"
+"The skill should handle gracefully the case where the input file does not"
+" exist:"
 
-#: ../../skill_guide.md:226
+#: ../../skill_guide.md:259
 msgid "4. 提供示例"
 msgstr "4. Provide examples"
 
-#: ../../skill_guide.md:228
+#: ../../skill_guide.md:261
 msgid "示例帮助LLM理解预期行为："
 msgstr "Examples help LLM understand expected behavior:"
 
-#: ../../skill_guide.md:248
+#: ../../skill_guide.md:281
 msgid "5. 避免冗余描述"
 msgstr "5. Avoid redundant descriptions"
 
-#: ../../skill_guide.md:250
+#: ../../skill_guide.md:283
 msgid "不需要告诉LLM\"仔细思考\"或\"认真分析\"，它会自然地做这些。"
 msgstr ""
 "There is no need to tell LLM to \"think carefully\" or \"analyze "
 "carefully\", it will do this naturally."
 
-#: ../../skill_guide.md:252
+#: ../../skill_guide.md:285
 msgid "文件结构约定"
 msgstr "File structure convention"
 
-#: ../../skill_guide.md:254
+#: ../../skill_guide.md:287
 msgid "推荐使用以下目录结构："
 msgstr "It is recommended to use the following directory structure:"
 
-#: ../../skill_guide.md:267
+#: ../../skill_guide.md:300
 msgid "调试技巧"
 msgstr "Debugging Tips"
 
-#: ../../skill_guide.md:269
+#: ../../skill_guide.md:302
 msgid "**查看workspace文件**：检查输出文件是否正确生成"
 msgstr ""
-"**Check workspace files**: Check whether the output file is generated correctly"
+"**Check workspace files**: Check whether the output file is generated "
+"correctly"
 
-#: ../../skill_guide.md:270
+#: ../../skill_guide.md:303
 msgid "**检查tool_calls.jsonl**：查看LLM调用了哪些工具"
 msgstr "**Check tool_calls.jsonl**: Check which tools are called by LLM"
 
-#: ../../skill_guide.md:271
+#: ../../skill_guide.md:304
 msgid "**简化描述**：如果Skill行为异常，尝试简化描述"
 msgstr ""
-"**Simplify description**: If the Skill behaves abnormally, try to simplify "
-"the description"
+"**Simplify description**: If the Skill behaves abnormally, try to "
+"simplify the description"
 
-#: ../../skill_guide.md:272
+#: ../../skill_guide.md:305
 msgid "**添加示例**：示例通常能显著改善LLM理解"
 msgstr "**Add examples**: Examples often significantly improve LLM understanding"
 
-#: ../../skill_guide.md:274
+#: ../../skill_guide.md:307
 msgid "示例：完整的Skill"
 msgstr "Example: Complete Skill"
 
-#: ../../skill_guide.md:348
+#: ../../skill_guide.md:381
 msgid "常见问题"
 msgstr "FAQ"
 
-#: ../../skill_guide.md:350
+#: ../../skill_guide.md:383
 msgid "**Q: Skill之间如何通信？**"
 msgstr "**Q: How do Skills communicate with each other?**"
 
-#: ../../skill_guide.md:352
+#: ../../skill_guide.md:385
 msgid "A: 通过workspace文件。一个Skill写入文件，另一个Skill读取。"
 msgstr ""
 "A: Through the workspace file. One Skill writes to the file and another "
 "Skill reads."
 
-#: ../../skill_guide.md:354
+#: ../../skill_guide.md:387
 msgid "**Q: 如何控制Skill执行顺序？**"
 msgstr "**Q: How to control Skill execution order?**"
 
-#: ../../skill_guide.md:356
+#: ../../skill_guide.md:389
 msgid ""
-"A: 由主模型在工具循环里决定先 ``activate_skill`` 哪一个；若有硬依赖，在 SKILL.md 正文写清并引导先激活依赖 skill。"
+"A: 由主模型在工具循环里决定先 ``activate_skill`` 哪一个；若有硬依赖，在 SKILL.md 正文写清并引导先激活依赖 "
+"skill。"
 msgstr ""
-"A: The main model decides which ``activate_skill`` to use first in the tool "
-"loop; if there is a hard dependency, write it clearly in the SKILL.md text "
-"and guide the dependent skill to be activated first."
+"A: The main model decides which ``activate_skill`` to use first in the "
+"tool loop; if there is a hard dependency, write it clearly in the "
+"SKILL.md text and guide the dependent skill to be activated first."
 
-#: ../../skill_guide.md:358
+#: ../../skill_guide.md:391
 msgid "**Q: Skill可以调用其他Skill吗？**"
 msgstr "**Q: Can a Skill call other Skills?**"
 
-#: ../../skill_guide.md:360
+#: ../../skill_guide.md:393
 msgid "A: 不直接调用。通过workspace文件松耦合，LLM决定何时激活哪个Skill。"
 msgstr ""
-"A: Not called directly. Loosely coupled through workspace files, LLM decides"
-" when to activate which Skill."
+"A: Not called directly. Loosely coupled through workspace files, LLM "
+"decides when to activate which Skill."
 
-#: ../../skill_guide.md:362
+#: ../../skill_guide.md:395
 msgid "**Q: 如何测试Skill？**"
 msgstr "**Q: How to test a Skill?**"
 
-#: ../../skill_guide.md:364
+#: ../../skill_guide.md:397
 msgid "A: 创建测试workspace，放置输入文件，运行agent，检查输出文件。"
 msgstr ""
-"A: Create a test workspace, place input files, run the agent, and check the "
-"output files."
+"A: Create a test workspace, place input files, run the agent, and check "
+"the output files."
 
-#: ../../skill_guide.md:366
+#: ../../skill_guide.md:399
 msgid "进阶主题"
 msgstr "Advanced topics"
 
-#: ../../skill_guide.md:368
+#: ../../skill_guide.md:401
 msgid "状态管理"
 msgstr "State management"
 
-#: ../../skill_guide.md:370
+#: ../../skill_guide.md:403
 msgid "如果Skill需要维护状态，写入JSON文件："
 msgstr "If the Skill needs to maintain state, write to the JSON file:"
 
-#: ../../skill_guide.md:382
-msgid "使用`codegen`工具与环境交互："
+#: ../../skill_guide.md:415
+msgid "使用`ask_env`工具与环境交互："
 msgstr "Use `codegen` tools to interact with the environment:"
 
-#: ../../skill_guide.md:392
+#: ../../skill_guide.md:425
 msgid "时间感知"
 msgstr "Time awareness"
 
-#: ../../skill_guide.md:394
+#: ../../skill_guide.md:427
 msgid "Skill可以接收时间信息："
 msgstr "Skill can receive time information:"
-
-#~ msgid "Skill编写指南"
-#~ msgstr ""
-
-#~ msgid "本文档介绍如何为PersonAgent编写自定义Skill。"
-#~ msgstr ""
-
-#~ msgid "Skill是PersonAgent的行为模块，每个Skill定义了Agent的一种能力。Skill可以："
-#~ msgstr ""
-
-#~ msgid "纯Prompt驱动（最简单，推荐）"
-#~ msgstr ""
-
-#~ msgid "带Python脚本（用于确定性计算）"
-#~ msgstr ""
-
-#~ msgid "环境路由（codegen模式）"
-#~ msgstr ""
-
-#~ msgid "就这么简单！无需编程，LLM会根据你的描述自动执行。"
-#~ msgstr ""
-
-#~ msgid "`workspace_read(\"observation.txt\")`"
-#~ msgstr ""
-
-#~ msgid "`workspace_write(\"result.json\", content)`"
-#~ msgstr ""
-
-#~ msgid "`workspace_exists`"
-#~ msgstr ""
-
-#~ msgid "检查文件存在"
-#~ msgstr ""
-
-#~ msgid "`workspace_exists(\"needs.json\")`"
-#~ msgstr ""
-
-#~ msgid "每个Skill只做一件事："
-#~ msgstr ""
-
-#~ msgid "✅ `needs`: 管理生理需求"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "在 Markdown 里列出会写入的路径（如 ``needs.json``）；frontmatter 不解析 ``outputs`` 等扩展字段。"
-#~ msgstr ""

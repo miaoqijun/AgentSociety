@@ -106,6 +106,8 @@ class ReActRouter(RouterBase):
         instruction: str,
         readonly: bool = False,
         template_mode: bool = False,
+        trace_id: str | None = None,
+        parent_span_id: str | None = None,
     ) -> Tuple[dict, str]:
         """
         使用ReAct模式处理指令。
@@ -117,275 +119,279 @@ class ReActRouter(RouterBase):
 
         :returns: (ctx, answer) 元组
         """
-        # 添加当前时间信息到 ctx，以便工具调用可以访问
-        self._add_current_time_to_ctx(ctx)
+        self.set_trace_context(trace_id, parent_span_id)
+        try:
+            # 添加当前时间信息到 ctx，以便工具调用可以访问
+            self._add_current_time_to_ctx(ctx)
 
-        get_logger().info(
-            f"ReActRouter: Processing instruction: {instruction}, readonly: {readonly}"
-        )
-
-        if not self.env_modules:
-            get_logger().warning("No environment modules available")
-            results = {"status": "fail", "reason": "No environment modules available"}
-            return (
-                results,
-                "No environment modules available to handle the request.",
+            get_logger().info(
+                f"ReActRouter: Processing instruction: {instruction}, readonly: {readonly}"
             )
 
-        # 选择可用的工具列表
-        available_tools = self._all_readonly_tools if readonly else self._all_tools
+            if not self.env_modules:
+                get_logger().warning("No environment modules available")
+                results = {"status": "fail", "reason": "No environment modules available"}
+                return (
+                    results,
+                    "No environment modules available to handle the request.",
+                )
 
-        if not available_tools:
-            results = {
-                "status": "fail",
-                "reason": "No available tools to handle the request",
-            }
-            return results, "No available tools to handle the request."
+            # 选择可用的工具列表
+            available_tools = self._all_readonly_tools if readonly else self._all_tools
 
-        # 构建初始对话，包含ctx和instruction
-        initial_prompt = self._build_initial_prompt(instruction, ctx, readonly)
-        dialog: List[AllMessageValues] = [{"role": "user", "content": initial_prompt}]
-
-        # 添加set_status工具到可用工具列表
-        tools_with_status = [*available_tools, self._set_status_tool_schema]
-
-        # ReAct循环
-        step_count = 0
-        results = {}
-        execution_log: List[Dict[str, Any]] = []  # 记录执行历史
-        # status 表示用户的指令在环境模块中是否被有效地完成了，还是需要等待一段时间后由用户主动检测指令的完成性
-        status = "success"
-        error: str | None = None
-
-        while step_count < self.max_steps:
-            step_count += 1
-            get_logger().debug(f"ReActRouter: Step {step_count}/{self.max_steps}")
-
-            # 调用LLM，允许function calling
-            try:
-                # 只在第一步提供tools，后续步骤通过对话历史传递工具调用信息
-                tools_for_call = tools_with_status if step_count == 1 else None
-                call_kwargs = {
-                    "model": "coder",
-                    "messages": dialog,
+            if not available_tools:
+                results = {
+                    "status": "fail",
+                    "reason": "No available tools to handle the request",
                 }
-                # 只有在提供tools时才设置tool_choice
-                if tools_for_call:
-                    call_kwargs["tools"] = tools_for_call
-                    call_kwargs["tool_choice"] = "auto"
+                return results, "No available tools to handle the request."
 
-                response = await self.acompletion_with_system_prompt(**call_kwargs)
-            except Exception as e:
-                get_logger().error(f"ReActRouter: LLM call failed: {e!s}")
-                status = "error"
-                error_msg = str(e)
-                results["status"] = status
-                results["error"] = error_msg
-                # 构建过程文本
-                process_text = (
-                    json.dumps(execution_log, indent=2, default=str)
-                    if execution_log
-                    else ""
-                )
-                # 使用基类的generate_final_answer生成最终答案
-                final_answer, determined_status = await self.generate_final_answer(
-                    ctx, instruction, results, process_text, status, error_msg
-                )
-                results["status"] = determined_status
-                return results, final_answer
+            # 构建初始对话，包含ctx和instruction
+            initial_prompt = self._build_initial_prompt(instruction, ctx, readonly)
+            dialog: List[AllMessageValues] = [{"role": "user", "content": initial_prompt}]
 
-            # 检查是否有tool calls
-            message = response.choices[0].message  # type: ignore
-            tool_calls = getattr(message, "tool_calls", None) or []
-            assistant_content = message.content or ""
+            # 添加set_status工具到可用工具列表
+            tools_with_status = [*available_tools, self._set_status_tool_schema]
 
-            # 记录assistant的响应
-            execution_log.append(
-                {
-                    "step": step_count,
-                    "type": "assistant_response",
-                    "content": assistant_content,
-                    "tool_calls_count": len(tool_calls),
-                }
-            )
+            # ReAct循环
+            step_count = 0
+            results = {}
+            execution_log: List[Dict[str, Any]] = []  # 记录执行历史
+            # status 表示用户的指令在环境模块中是否被有效地完成了，还是需要等待一段时间后由用户主动检测指令的完成性
+            status = "success"
+            error: str | None = None
 
-            # 添加assistant的响应到对话
-            dialog.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_content,
-                    "tool_calls": (
-                        [
-                            {
-                                "id": tc.id,
-                                "type": tc.type,
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments,
-                                },
-                            }
-                            for tc in tool_calls
-                        ]
-                        if tool_calls
-                        else None
-                    ),
-                }
-            )
+            while step_count < self.max_steps:
+                step_count += 1
+                get_logger().debug(f"ReActRouter: Step {step_count}/{self.max_steps}")
 
-            # 如果没有tool calls，说明LLM认为任务完成
-            if not tool_calls:
-                get_logger().info(
-                    f"ReActRouter: Task completed after {step_count} steps"
-                )
-                # 构建过程文本
-                process_text = (
-                    json.dumps(execution_log, indent=2, default=str)
-                    if execution_log
-                    else ""
-                )
-                # 使用基类的generate_final_answer生成最终答案
-                final_answer, determined_status = await self.generate_final_answer(
-                    ctx, instruction, results, process_text, status, error
-                )
-                results["status"] = determined_status
-                if error:
-                    results["error"] = error
-                return results, final_answer
-
-            # 执行所有tool calls
-            tool_results = []
-            step_tool_calls = []
-            for tool_call in tool_calls:
-                func_name = tool_call.function.name
-                func_args_str = tool_call.function.arguments
-
+                # 调用LLM，允许function calling
                 try:
-                    func_args = json_repair.loads(func_args_str)
-                except Exception as e:
-                    get_logger().error(
-                        f"ReActRouter: Failed to parse tool arguments: {e}"
-                    )
-                    error_result = {"error": f"Invalid JSON arguments: {e!s}"}
-                    tool_results.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": func_name,
-                            "content": json.dumps(error_result),
-                        }
-                    )
-                    step_tool_calls.append(
-                        {
-                            "tool": func_name,
-                            "arguments": func_args_str,
-                            "result": error_result,
-                            "success": False,
-                        }
-                    )
-                    continue
+                    # 只在第一步提供tools，后续步骤通过对话历史传递工具调用信息
+                    tools_for_call = tools_with_status if step_count == 1 else None
+                    call_kwargs = {
+                        "model": "coder",
+                        "messages": dialog,
+                    }
+                    # 只有在提供tools时才设置tool_choice
+                    if tools_for_call:
+                        call_kwargs["tools"] = tools_for_call
+                        call_kwargs["tool_choice"] = "auto"
 
-                # 处理set_status工具调用
-                if func_name == "set_status":
-                    status = func_args.get("status", "unknown")
-                    reason = func_args.get("reason", "")
+                    response = await self.acompletion_with_system_prompt(**call_kwargs)
+                except Exception as e:
+                    get_logger().error(f"ReActRouter: LLM call failed: {e!s}")
+                    status = "error"
+                    error_msg = str(e)
                     results["status"] = status
-                    if reason:
-                        results["reason"] = reason
-                    tool_results.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": func_name,
-                            "content": json.dumps(
-                                {"status": status, "message": "Status set successfully"}
-                            ),
-                        }
+                    results["error"] = error_msg
+                    # 构建过程文本
+                    process_text = (
+                        json.dumps(execution_log, indent=2, default=str)
+                        if execution_log
+                        else ""
                     )
-                    step_tool_calls.append(
-                        {
-                            "tool": func_name,
-                            "arguments": func_args,
-                            "result": {"status": status},
-                            "success": True,
-                        }
+                    # 使用基类的generate_final_answer生成最终答案
+                    final_answer, determined_status = await self.generate_final_answer(
+                        ctx, instruction, results, process_text, status, error_msg
                     )
-                    get_logger().info(f"ReActRouter: Status set to {status}")
-                    continue
+                    results["status"] = determined_status
+                    return results, final_answer
 
-                # 执行工具调用
-                try:
-                    result = await self._execute_tool(func_name, func_args, readonly)
-                    result_str = json.dumps(result, default=str)
-                    tool_results.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": func_name,
-                            "content": result_str,
-                        }
-                    )
-                    results[func_name] = result
-                    step_tool_calls.append(
-                        {
-                            "tool": func_name,
-                            "arguments": func_args,
-                            "result": result,
-                            "success": True,
-                        }
-                    )
-                    get_logger().debug(
-                        f"ReActRouter: Executed tool {func_name}, result: {result_str[:200]}"
-                    )
-                except Exception as e:
-                    error_msg = f"Error executing {func_name}: {e!s}"
-                    get_logger().error(f"ReActRouter: {error_msg}")
-                    error_result = {"error": error_msg}
-                    tool_results.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": func_name,
-                            "content": json.dumps(error_result),
-                        }
-                    )
-                    step_tool_calls.append(
-                        {
-                            "tool": func_name,
-                            "arguments": func_args,
-                            "result": error_result,
-                            "success": False,
-                        }
-                    )
-                    # 如果工具执行失败，标记为 fail
-                    status = "fail"
-                    error = error_msg
+                # 检查是否有tool calls
+                message = response.choices[0].message  # type: ignore
+                tool_calls = getattr(message, "tool_calls", None) or []
+                assistant_content = message.content or ""
 
-            # 记录工具调用结果
-            execution_log.append(
-                {
-                    "step": step_count,
-                    "type": "tool_execution",
-                    "tool_calls": step_tool_calls,
-                }
+                # 记录assistant的响应
+                execution_log.append(
+                    {
+                        "step": step_count,
+                        "type": "assistant_response",
+                        "content": assistant_content,
+                        "tool_calls_count": len(tool_calls),
+                    }
+                )
+
+                # 添加assistant的响应到对话
+                dialog.append(
+                    {
+                        "role": "assistant",
+                        "content": assistant_content,
+                        "tool_calls": (
+                            [
+                                {
+                                    "id": tc.id,
+                                    "type": tc.type,
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments,
+                                    },
+                                }
+                                for tc in tool_calls
+                            ]
+                            if tool_calls
+                            else None
+                        ),
+                    }
+                )
+
+                # 如果没有tool calls，说明LLM认为任务完成
+                if not tool_calls:
+                    get_logger().info(
+                        f"ReActRouter: Task completed after {step_count} steps"
+                    )
+                    # 构建过程文本
+                    process_text = (
+                        json.dumps(execution_log, indent=2, default=str)
+                        if execution_log
+                        else ""
+                    )
+                    # 使用基类的generate_final_answer生成最终答案
+                    final_answer, determined_status = await self.generate_final_answer(
+                        ctx, instruction, results, process_text, status, error
+                    )
+                    results["status"] = determined_status
+                    if error:
+                        results["error"] = error
+                    return results, final_answer
+
+                # 执行所有tool calls
+                tool_results = []
+                step_tool_calls = []
+                for tool_call in tool_calls:
+                    func_name = tool_call.function.name
+                    func_args_str = tool_call.function.arguments
+
+                    try:
+                        func_args = json_repair.loads(func_args_str)
+                    except Exception as e:
+                        get_logger().error(
+                            f"ReActRouter: Failed to parse tool arguments: {e}"
+                        )
+                        error_result = {"error": f"Invalid JSON arguments: {e!s}"}
+                        tool_results.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": func_name,
+                                "content": json.dumps(error_result),
+                            }
+                        )
+                        step_tool_calls.append(
+                            {
+                                "tool": func_name,
+                                "arguments": func_args_str,
+                                "result": error_result,
+                                "success": False,
+                            }
+                        )
+                        continue
+
+                    # 处理set_status工具调用
+                    if func_name == "set_status":
+                        status = func_args.get("status", "unknown")
+                        reason = func_args.get("reason", "")
+                        results["status"] = status
+                        if reason:
+                            results["reason"] = reason
+                        tool_results.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": func_name,
+                                "content": json.dumps(
+                                    {"status": status, "message": "Status set successfully"}
+                                ),
+                            }
+                        )
+                        step_tool_calls.append(
+                            {
+                                "tool": func_name,
+                                "arguments": func_args,
+                                "result": {"status": status},
+                                "success": True,
+                            }
+                        )
+                        get_logger().info(f"ReActRouter: Status set to {status}")
+                        continue
+
+                    # 执行工具调用
+                    try:
+                        result = await self._execute_tool(func_name, func_args, readonly)
+                        result_str = json.dumps(result, default=str)
+                        tool_results.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": func_name,
+                                "content": result_str,
+                            }
+                        )
+                        results[func_name] = result
+                        step_tool_calls.append(
+                            {
+                                "tool": func_name,
+                                "arguments": func_args,
+                                "result": result,
+                                "success": True,
+                            }
+                        )
+                        get_logger().debug(
+                            f"ReActRouter: Executed tool {func_name}, result: {result_str[:200]}"
+                        )
+                    except Exception as e:
+                        error_msg = f"Error executing {func_name}: {e!s}"
+                        get_logger().error(f"ReActRouter: {error_msg}")
+                        error_result = {"error": error_msg}
+                        tool_results.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": func_name,
+                                "content": json.dumps(error_result),
+                            }
+                        )
+                        step_tool_calls.append(
+                            {
+                                "tool": func_name,
+                                "arguments": func_args,
+                                "result": error_result,
+                                "success": False,
+                            }
+                        )
+                        # 如果工具执行失败，标记为 fail
+                        status = "fail"
+                        error = error_msg
+
+                # 记录工具调用结果
+                execution_log.append(
+                    {
+                        "step": step_count,
+                        "type": "tool_execution",
+                        "tool_calls": step_tool_calls,
+                    }
+                )
+
+                # 将工具执行结果添加到对话
+                dialog.extend(tool_results)
+
+            # 达到最大步数
+            get_logger().warning(f"ReActRouter: Reached max steps ({self.max_steps})")
+            # 构建过程文本
+            process_text = (
+                json.dumps(execution_log, indent=2, default=str) if execution_log else ""
             )
-
-            # 将工具执行结果添加到对话
-            dialog.extend(tool_results)
-
-        # 达到最大步数
-        get_logger().warning(f"ReActRouter: Reached max steps ({self.max_steps})")
-        # 构建过程文本
-        process_text = (
-            json.dumps(execution_log, indent=2, default=str) if execution_log else ""
-        )
-        # 使用基类的generate_final_answer生成最终答案
-        final_answer, determined_status = await self.generate_final_answer(
-            ctx, instruction, results, process_text, status, error
-        )
-        results["status"] = determined_status
-        if error:
-            results["error"] = error
-        return results, final_answer
+            # 使用基类的generate_final_answer生成最终答案
+            final_answer, determined_status = await self.generate_final_answer(
+                ctx, instruction, results, process_text, status, error
+            )
+            results["status"] = determined_status
+            if error:
+                results["error"] = error
+            return results, final_answer
+        finally:
+            self.clear_trace_context()
 
     async def _execute_tool(self, tool_name: str, args: dict, readonly: bool) -> Any:
         """执行工具调用"""

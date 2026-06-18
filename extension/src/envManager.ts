@@ -30,16 +30,6 @@ export interface EnvConfig {
   coderLlmApiBase?: string;
   coderLlmModel?: string;
 
-  // Nano LLM
-  nanoLlmApiKey?: string;
-  nanoLlmApiBase?: string;
-  nanoLlmModel?: string;
-
-  // Analysis LLM (for data analysis, insight generation, and report writing)
-  analysisLlmApiKey?: string;
-  analysisLlmApiBase?: string;
-  analysisLlmModel?: string;
-
   // Embedding
   embeddingApiKey?: string;
   embeddingApiBase?: string;
@@ -68,12 +58,6 @@ const ENV_KEY_MAP: Record<keyof EnvConfig, string> = {
   coderLlmApiKey: 'AGENTSOCIETY_CODER_LLM_API_KEY',
   coderLlmApiBase: 'AGENTSOCIETY_CODER_LLM_API_BASE',
   coderLlmModel: 'AGENTSOCIETY_CODER_LLM_MODEL',
-  nanoLlmApiKey: 'AGENTSOCIETY_NANO_LLM_API_KEY',
-  nanoLlmApiBase: 'AGENTSOCIETY_NANO_LLM_API_BASE',
-  nanoLlmModel: 'AGENTSOCIETY_NANO_LLM_MODEL',
-  analysisLlmApiKey: 'AGENTSOCIETY_ANALYSIS_LLM_API_KEY',
-  analysisLlmApiBase: 'AGENTSOCIETY_ANALYSIS_LLM_API_BASE',
-  analysisLlmModel: 'AGENTSOCIETY_ANALYSIS_LLM_MODEL',
   embeddingApiKey: 'AGENTSOCIETY_EMBEDDING_API_KEY',
   embeddingApiBase: 'AGENTSOCIETY_EMBEDDING_API_BASE',
   embeddingModel: 'AGENTSOCIETY_EMBEDDING_MODEL',
@@ -86,6 +70,15 @@ const ENV_KEY_MAP: Record<keyof EnvConfig, string> = {
   literatureSearchMcpUrl: 'LITERATURE_SEARCH_MCP_URL',
   literatureSearchApiKey: 'LITERATURE_SEARCH_API_KEY',
 };
+
+const OBSOLETE_ENV_KEYS = new Set([
+  'AGENTSOCIETY_NANO_LLM_API_KEY',
+  'AGENTSOCIETY_NANO_LLM_API_BASE',
+  'AGENTSOCIETY_NANO_LLM_MODEL',
+  'AGENTSOCIETY_ANALYSIS_LLM_API_KEY',
+  'AGENTSOCIETY_ANALYSIS_LLM_API_BASE',
+  'AGENTSOCIETY_ANALYSIS_LLM_MODEL',
+]);
 
 /**
  * Default values for configuration
@@ -215,6 +208,9 @@ export class EnvManager {
       const match = trimmed.match(/^([^=]+)=(.*)$/);
       if (match) {
         const key = match[1].trim();
+        if (OBSOLETE_ENV_KEYS.has(key)) {
+          continue;
+        }
         if (Object.values(ENV_KEY_MAP).includes(key)) {
           // Skip if this env key has already been written (handle duplicates)
           if (writtenEnvKeys.has(key)) {
@@ -305,21 +301,6 @@ AGENTSOCIETY_CODER_LLM_API_KEY=
 AGENTSOCIETY_CODER_LLM_API_BASE=
 # Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
 AGENTSOCIETY_CODER_LLM_MODEL=
-
-# ========== Nano LLM / Nano LLM (高频操作) ==========
-# Nano LLM for high-frequency operations / 用于高频操作的轻量级 LLM
-AGENTSOCIETY_NANO_LLM_API_KEY=
-AGENTSOCIETY_NANO_LLM_API_BASE=
-# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
-AGENTSOCIETY_NANO_LLM_MODEL=
-
-# ========== Analysis LLM / Analysis LLM (数据分析) ==========
-# Analysis LLM for data analysis, insight generation, and report writing
-# 用于数据分析、洞察生成和报告撰写的 LLM，建议使用较强的模型
-AGENTSOCIETY_ANALYSIS_LLM_API_KEY=
-AGENTSOCIETY_ANALYSIS_LLM_API_BASE=
-# Leave empty to reuse AGENTSOCIETY_LLM_MODEL / 留空则沿用 AGENTSOCIETY_LLM_MODEL
-AGENTSOCIETY_ANALYSIS_LLM_MODEL=
 
 # ========== Embedding Model / 嵌入模型 ==========
 # Embedding model for vector search / 用于向量搜索的嵌入模型

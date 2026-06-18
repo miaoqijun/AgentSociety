@@ -5,9 +5,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-17 23:13+0800\n"
+"POT-Creation-Date: 2026-06-18 09:27+0800\n"
 "PO-Revision-Date: 2026-03-20 00:00+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -37,7 +37,7 @@ msgid "研究技能模块提供以下功能："
 msgstr "The research skills module provides the following capabilities:"
 
 #: ../../skills.rst:11
-msgid "**文献检索**: 搜索和管理学术论文"
+msgid "**学术文献检索**: 通过 MCP 网关搜索和管理学术论文"
 msgstr "**Literature Search**: Search and manage academic papers"
 
 #: ../../skills.rst:12
@@ -53,8 +53,8 @@ msgstr "**Experiment Design**: Design complete experiment configurations"
 #: ../../skills.rst:14
 msgid "**论文撰写**: 通过 paper-orchestrator skill 套件（重写中）生成 Nature 风格学术论文 PDF"
 msgstr ""
-"**Paper writing**: Generate Nature-style academic paper PDF through the paper-"
-"orchestrator skill suite (under rewriting)"
+"**Paper writing**: Generate Nature-style academic paper PDF through the "
+"paper-orchestrator skill suite (under rewriting)"
 
 #: ../../skills.rst:15
 msgid "**数据分析**: 分析实验数据并生成报告"
@@ -95,7 +95,7 @@ msgstr ""
 "skills/*`, supporting scanning/import/hot reload."
 
 #: ../../skills.rst:30
-msgid "**agentsociety-literature-search** - 文献检索"
+msgid "**agentsociety-literature-search** - 学术文献检索"
 msgstr "**agentsociety-literature-search** - Literature search"
 
 #: ../../skills.rst:31
@@ -287,10 +287,10 @@ msgid "``init_config.json`` + ``steps.yaml``"
 msgstr "``init_config.json`` + ``steps.yaml``"
 
 #: ../../skills.rst:107
-msgid "``run/sqlite.db``、日志、artifacts、``pid.json``"
-msgstr "``run/sqlite.db``, logs, artifacts, ``pid.json``"
+msgid "``run/replay/``、日志、artifacts、``pid.json``"
+msgstr "``run/replay/``, logs, artifacts, and ``pid.json``"
 
-#: ../../skills.rst:109 ../../skills.rst:123
+#: ../../skills.rst:109 ../../skills.rst:125
 msgid "推荐流程："
 msgstr "Recommended process:"
 
@@ -320,10 +320,10 @@ msgstr ""
 "specified for background execution to avoid losing verbose output."
 
 #: ../../skills.rst:115
-msgid "实验完成后检查 ``run/sqlite.db``、日志与 artifacts，再进入分析阶段。"
+msgid "实验完成后检查 ``run/replay/_schema.json``、日志与 artifacts，再进入分析阶段。"
 msgstr ""
-"After the experiment is completed, check ``run/sqlite.db``, logs, and "
-"artifacts before entering the analysis phase."
+"After the experiment is completed, check ``run/replay/_schema.json``, "
+"logs, and artifacts before entering the analysis phase."
 
 #: ../../skills.rst:119
 msgid "分析工作流"
@@ -331,59 +331,64 @@ msgstr "Analysis workflow"
 
 #: ../../skills.rst:121
 msgid ""
-"``agentsociety-analysis`` 面向已完成实验的数据解释、图表和报告生成。它要求目标 run 目录中已经存在 "
-"``sqlite.db``；如果数据库不存在，应回到 ``run-experiment`` 或配置修复阶段。"
+"``agentsociety-analysis`` 面向已完成实验的数据解释、图表和报告生成。当前 replay 数据位于 "
+"``run/replay/``，可通过 ``ReplayReader`` / DuckDB 读取；如果 ``_schema.json`` 不存在，"
+" 应回到 ``run-experiment`` 或配置修复阶段。"
 msgstr ""
-"``agentsociety-analysis`` Data interpretation, graphs and report "
-"generation for completed experiments. It requires that ``sqlite.db`` "
-"already exists in the target run directory; if the database does not "
-"exist, you should fall back to ``run-experiment`` or the configuration "
-"repair phase."
-
-#: ../../skills.rst:125
-msgid "**加载上下文**：读取 hypothesis、experiment config、steps 和 run 元数据。"
-msgstr "**Load context**: Read hypothesis, experiment config, steps, and run metadata."
-
-#: ../../skills.rst:126
-msgid "**确认问题**：明确本次分析是验证假设、解释异常、比较组间差异，还是生成报告。"
-msgstr ""
-"**Clarify the question**: Clarify whether this analysis is to test hypotheses, explain "
-"anomalies, compare differences between groups, or generate a report."
+"``agentsociety-analysis`` handles data interpretation, charts, and report"
+" generation for completed experiments. Replay data lives in "
+"``run/replay/`` and can be read through ``ReplayReader`` / DuckDB. If "
+"``_schema.json`` does not exist, return to ``run-experiment`` or the "
+"configuration repair phase."
 
 #: ../../skills.rst:127
-msgid "**探索数据**：列出 SQLite 表，查看 schema、行数、关键字段和缺失情况。"
+msgid "**加载上下文**：读取 hypothesis、experiment config、steps 和 run 元数据。"
 msgstr ""
-"**Explore data**: List the SQLite tables and view the schema, number of rows, key "
-"fields, and missing values."
+"**Load context**: Read hypothesis, experiment config, steps, and run "
+"metadata."
 
 #: ../../skills.rst:128
-msgid "**提出发现**：先给出可检验发现，再决定需要哪些图表。"
+msgid "**确认问题**：明确本次分析是验证假设、解释异常、比较组间差异，还是生成报告。"
 msgstr ""
-"**Propose findings**: Present testable findings first, then decide which charts "
-"are needed."
+"**Clarify the question**: Clarify whether this analysis is to test "
+"hypotheses, explain anomalies, compare differences between groups, or "
+"generate a report."
 
 #: ../../skills.rst:129
-msgid "**生成图表**：单实验默认最多 5 张图；每张图在报告中必须有一句说明。"
+msgid "**探索数据**：列出 replay dataset，查看 schema、行数、关键字段和缺失情况。"
 msgstr ""
-"**Generate charts**: A single experiment can have up to 5 charts by default; each "
-"chart must have a corresponding explanation in the report."
+"**Explore data**: List replay datasets and view the schema, number of "
+"rows, key fields, and missing values."
 
 #: ../../skills.rst:130
+msgid "**提出发现**：先给出可检验发现，再决定需要哪些图表。"
+msgstr ""
+"**Propose findings**: Present testable findings first, then decide which "
+"charts are needed."
+
+#: ../../skills.rst:131
+msgid "**生成图表**：单实验默认最多 5 张图；每张图在报告中必须有一句说明。"
+msgstr ""
+"**Generate charts**: A single experiment can have up to 5 charts by "
+"default; each chart must have a corresponding explanation in the report."
+
+#: ../../skills.rst:132
 #, python-brace-format
 msgid "**写报告**：单实验输出到 ``presentation/hypothesis_{id}/``，跨实验综合输出到 ``synthesis/``。"
 msgstr ""
-"**Write report**: Single-experiment output goes to ``presentation/hypothesis_{id}/``, "
-"and cross-experiment synthesis output goes to ``synthesis/``."
+"**Write report**: Single-experiment output goes to "
+"``presentation/hypothesis_{id}/``, and cross-experiment synthesis output "
+"goes to ``synthesis/``."
 
-#: ../../skills.rst:132
+#: ../../skills.rst:134
 msgid "常用命令："
 msgstr "Commonly used commands:"
 
-#: ../../skills.rst:143
-msgid "文献检索服务"
+#: ../../skills.rst:149
+msgid "学术文献检索"
 msgstr "Literature search service"
 
-#: ../../skills.rst:145
+#: ../../skills.rst:151
 msgid ""
 "``agentsociety-literature-search`` 通过统一的远程检索服务收集学术文献，并把结果保存到工作区 "
 "``papers/`` "
@@ -394,19 +399,19 @@ msgstr ""
 "``papers/`` directory. All configured data sources are retrieved by "
 "default: ``local``, ``arxiv``, ``crossref``, ``openalex``."
 
-#: ../../skills.rst:147
+#: ../../skills.rst:153
 msgid "配置项："
 msgstr "Configuration:"
 
-#: ../../skills.rst:154
+#: ../../skills.rst:160
 msgid "搜索命令示例："
 msgstr "Search command example:"
 
-#: ../../skills.rst:161
+#: ../../skills.rst:167
 msgid "输出约定："
 msgstr "Output convention:"
 
-#: ../../skills.rst:163
+#: ../../skills.rst:169
 msgid ""
 "``papers/literature_index.json`` 是稳定索引，记录标题、作者、年份、来源、query、分数和本地 "
 "``file_path``。"
@@ -414,7 +419,7 @@ msgstr ""
 "``papers/literature_index.json`` is a stable index, recording title, "
 "author, year, source, query, score and local ``file_path``."
 
-#: ../../skills.rst:164
+#: ../../skills.rst:170
 msgid ""
 "每篇文献保存为 ``papers/<title>_<timestamp>.md``，这是后续 hypothesis、analysis 和 "
 "paper 技能引用的主要本地笔记。"
@@ -423,9 +428,9 @@ msgstr ""
 " main local note cited in subsequent hypothesis, analysis and paper "
 "skills."
 
-#: ../../skills.rst:165
+#: ../../skills.rst:171
 msgid ""
-"原文 PDF 如需下载，应放在 ``papers/full_texts/``，并记录到 "
+"检索完成后会自动尝试下载开放获取 PDF 到 ``papers/full_texts/``，路径写入 "
 "``extra_fields.full_text.file_path``；不要把索引中的 ``file_path`` 从 Markdown "
 "笔记替换成 PDF。"
 msgstr ""
@@ -434,7 +439,7 @@ msgstr ""
 "``extra_fields.full_text.file_path``; do not replace ``file_path`` in the"
 " index from Markdown notes to PDF."
 
-#: ../../skills.rst:166
+#: ../../skills.rst:172
 msgid "文献检索不会自动绕过出版商权限。PDF 下载只处理开放获取或用户授权的文件；没有开放 PDF 时，可以补充本地 Markdown 笔记并记录来源。"
 msgstr ""
 "Literature search does not bypass publisher access controls. PDF "
@@ -442,22 +447,23 @@ msgstr ""
 "PDF is available, local Markdown notes may be added together with the "
 "recorded source."
 
-#: ../../skills.rst:169
+#: ../../skills.rst:175
 msgid "Python API"
 msgstr "Python API"
 
-#: ../../skills.rst:171
+#: ../../skills.rst:177
 msgid "研究技能也可以通过 Python API 直接调用。"
 msgstr "Research skills can also be called directly through the Python API."
 
-#: ../../skills.rst:174
+#: ../../skills.rst:180
 msgid "文献技能 (literature)"
 msgstr "Literature Skill"
 
-#: ../../skills.rst:176
+#: ../../skills.rst:182
 msgid ""
-"文献技能默认使用已经配置好的 ``LITERATURE_SEARCH_API_URL`` 和 "
-"``LITERATURE_SEARCH_API_KEY`` 调用统一检索服务。推荐优先使用 "
+"文献技能通过 **MCP 协议** 连接学术文献检索网关，使用工作区 ``.env`` 中的 "
+"``LITERATURE_SEARCH_MCP_URL`` 和 ``LITERATURE_SEARCH_API_KEY``（无需单独配置 "
+"Claude ``mcp.json``）。网关上的其他 MCP 工具不会被文献技能调用。推荐优先使用 "
 "``search_literature_and_save``，而不是直接调用底层 ``search_literature``： "
 "前者会把检索结果落到工作区中，确保后续 Agent、Claude Code 和论文写作技能 都能通过本地文件继续引用这些文献。"
 msgstr ""
@@ -470,11 +476,11 @@ msgstr ""
 " writing skills can continue to reference these documents through local "
 "files."
 
-#: ../../skills.rst:207
+#: ../../skills.rst:212
 msgid "**保存结果**:"
 msgstr "**Save results**:"
 
-#: ../../skills.rst:209
+#: ../../skills.rst:214
 msgid ""
 "每篇检索结果都会保存为 ``papers/<title>_<timestamp>.md``。 这个 Markdown "
 "文件是稳定的本地文献笔记，包含标题、检索词、年份、期刊、 DOI/URL、摘要、作者和相关内容片段。"
@@ -484,50 +490,50 @@ msgstr ""
 " search terms, year, journal, DOI/URL, abstract, author, and related "
 "content fragments."
 
-#: ../../skills.rst:212
+#: ../../skills.rst:217
 msgid ""
 "``papers/literature_index.json`` 会同步更新。索引中的 ``file_path`` 指向本地 Markdown "
 "文献笔记，因此插件中的 ``@引用`` 可以复制为 ``@papers/<title>_<timestamp>.md``，供 Claude "
 "Code 或 Agent 读取。"
 msgstr ""
 "``papers/literature_index.json`` will be updated simultaneously. "
-"``file_path`` in the index points to the local Markdown literature note, so"
-" the ``@cite`` button in the plug-in can be copied as "
+"``file_path`` in the index points to the local Markdown literature note, "
+"so the ``@cite`` button in the plug-in can be copied as "
 "``@papers/<title>_<timestamp>.md`` for Claude Code or Agent to read."
 
-#: ../../skills.rst:215
+#: ../../skills.rst:220
 msgid "重复运行检索时会生成新的本地文献笔记，并追加到索引中，便于保留不同检索轮次的上下文。"
 msgstr ""
 "When a search is run repeatedly, new local literature notes are generated"
 " and appended to the index, allowing context to be retained across "
 "different search rounds."
 
-#: ../../skills.rst:217
+#: ../../skills.rst:222
 msgid "**原文下载（由 Claude/Agent 按需执行）**:"
 msgstr "**Full-text download (on demand by Claude/Agent)**:"
 
-#: ../../skills.rst:219
+#: ../../skills.rst:224
 msgid ""
 "文献技能不会在 Python API 中硬编码下载策略。检索结果会尽量保留 "
 "``doi``、``url``、``pdf_url``、``full_text_url``、``download_url``、 "
 "``open_access``、``best_oa_location`` 等元信息；Claude Code 或 Agent "
 "可以基于这些线索按需下载开放获取原文。"
 msgstr ""
-"The literature skill does not hardcode download policies in the Python API."
-" The search results will try to retain meta-information such as ``doi``, "
-"``url``, ``pdf_url``, ``full_text_url``, ``download_url``, "
+"The literature skill does not hardcode download policies in the Python "
+"API. The search results will try to retain meta-information such as "
+"``doi``, ``url``, ``pdf_url``, ``full_text_url``, ``download_url``, "
 "``open_access``, ``best_oa_location``; Claude Code or Agent can download "
 "the open access original text on demand based on these clues."
 
-#: ../../skills.rst:224
+#: ../../skills.rst:229
 msgid "建议的下载约定："
 msgstr "Recommended download conventions:"
 
-#: ../../skills.rst:226
+#: ../../skills.rst:231
 msgid "原文 PDF 放在 ``papers/full_texts/*.pdf``。"
 msgstr "The original PDF is located at ``papers/full_texts/*.pdf``."
 
-#: ../../skills.rst:227
+#: ../../skills.rst:232
 msgid ""
 "优先使用 API 返回的 PDF 直链；arXiv 论文可从 ``/abs/<id>`` 转为 "
 "``https://arxiv.org/pdf/<id>.pdf``。"
@@ -536,20 +542,20 @@ msgstr ""
 "can be converted from ``/abs/<id>`` to "
 "``https://arxiv.org/pdf/<id>.pdf``."
 
-#: ../../skills.rst:229
+#: ../../skills.rst:234
 msgid "DOI 仅作为落地页线索，不保证能直接得到 PDF；如果需要下载，应确认最终响应确实是 PDF。"
 msgstr ""
 "The DOI is only used as a landing page clue, and there is no guarantee "
 "that the PDF will be obtained directly; if you need to download it, you "
 "should confirm that the final response is indeed a PDF."
 
-#: ../../skills.rst:230
+#: ../../skills.rst:235
 msgid "下载完成后，可在对应索引条目的 ``extra_fields[\"full_text\"]`` 中记录:"
 msgstr ""
 "After the download is completed, it can be recorded in "
 "``extra_fields[\"full_text\"]`` of the corresponding index entry:"
 
-#: ../../skills.rst:240
+#: ../../skills.rst:245
 #, python-brace-format
 msgid ""
 "如果没有找到开放原文，也可以记录 ``{\"status\": \"no_candidate\"}`` 或 ``{\"status\": "
@@ -560,7 +566,7 @@ msgstr ""
 "\"reason\": \"...\"}`` to facilitate the plug-in page to display the "
 "status."
 
-#: ../../skills.rst:245
+#: ../../skills.rst:250
 msgid ""
 "许多 CrossRef/OpenAlex 结果只提供 DOI 或落地页，不一定有开放 PDF。 Claude/Agent "
 "不应绕过出版商权限，也不应把 HTML 落地页当作 PDF 保存。"
@@ -569,32 +575,37 @@ msgstr ""
 "necessarily an open PDF. Claude/Agent should not bypass publisher "
 "permissions or save HTML landing pages as PDFs."
 
-#: ../../skills.rst:248
+#: ../../skills.rst:253
 msgid ""
 "**数据源**: - ``local``: RAGFlow 本地知识库 - ``arxiv``: arXiv 预印本平台 - "
 "``crossref``: CrossRef DOI 元数据库 - ``openalex``: OpenAlex 学术图谱 (2.5亿+ 论文)"
 msgstr ""
-"**Data sources**: - ``local``: RAGFlow local knowledge base - ``arxiv``: arXiv "
-"preprint platform - ``crossref``: CrossRef DOI metadata repository - "
-"``openalex``: OpenAlex scholarly graph (250 million+ papers)"
+"**Data sources**: - ``local``: RAGFlow local knowledge base - ``arxiv``: "
+"arXiv preprint platform - ``crossref``: CrossRef DOI metadata repository "
+"- ``openalex``: OpenAlex scholarly graph (250 million+ papers)"
 
-#: ../../skills.rst:254
-msgid "**配置**: 需要在 ``.env`` 文件中配置 API:"
-msgstr "**Configuration**: API needs to be configured in the ``.env`` file:"
+#: ../../skills.rst:259
+msgid ""
+"**配置**: 在 workspace ``.env`` 中配置 MCP（无需 Claude ``mcp.json``，除非要让 Claude "
+"独立连接同一网关）:"
+msgstr ""
+"**Configuration**: configure MCP in workspace ``.env``. Claude "
+"``mcp.json`` is not needed unless Claude should independently connect to "
+"the same gateway:"
 
-#: ../../skills.rst:263
+#: ../../skills.rst:268
 msgid "假设技能 (hypothesis)"
 msgstr "Hypothesis Skill"
 
-#: ../../skills.rst:279
+#: ../../skills.rst:284
 msgid "实验技能 (experiment)"
 msgstr "Experiment Skill"
 
-#: ../../skills.rst:300
+#: ../../skills.rst:305
 msgid "分析技能 (analysis)"
 msgstr "Analysis Skill"
 
-#: ../../skills.rst:318
+#: ../../skills.rst:324
 msgid ""
 "跨实验对比不再使用独立综合 skill，而是作为 ``agentsociety-analysis`` 的 Stage 5 在 Claude "
 "Code 中完成。"
@@ -603,26 +614,26 @@ msgstr ""
 "skills, but is completed in Claude Code as Stage 5 of ``agentsociety-"
 "analysis``."
 
-#: ../../skills.rst:322
+#: ../../skills.rst:328
 msgid "论文技能 (paper)"
 msgstr "Paper Skill"
 
-#: ../../skills.rst:324
+#: ../../skills.rst:330
 msgid ""
 "论文生成由 6 个 plugin skill 组成的状态机驱动，通过 ``paper-orchestrator`` "
 "作为唯一入口点调度。Python 包 ``agentsociety2.skills.paper`` 提供非 LLM 逻辑（状态管理、适配器、 "
 "LaTeX 编译）。"
 msgstr ""
-"Paper generation is driven by a state machine composed of 6 plugin skills, "
-"scheduled through ``paper-orchestrator`` as the sole entry point. "
-"The Python package ``agentsociety2.skills.paper`` provides non-LLM logic "
-"(state management, adapters, LaTeX compilation)."
+"Paper generation is driven by a state machine composed of 6 plugin "
+"skills, scheduled through ``paper-orchestrator`` as the sole entry point."
+" The Python package ``agentsociety2.skills.paper`` provides non-LLM logic"
+" (state management, adapters, LaTeX compilation)."
 
-#: ../../skills.rst:329
+#: ../../skills.rst:335
 msgid "**Skill 套件：**"
 msgstr "**Skill suite:**"
 
-#: ../../skills.rst:331
+#: ../../skills.rst:337
 msgid ""
 "``agentsociety-paper-orchestrator`` — 状态机内核，读取 ``paper_state.yaml``，调度 "
 "Task subagent，持久化产出"
@@ -630,23 +641,23 @@ msgstr ""
 "``agentsociety-paper-orchestrator`` — State machine kernel, read "
 "``paper_state.yaml``, schedule Task subagent, persist output"
 
-#: ../../skills.rst:333
+#: ../../skills.rst:339
 msgid "``agentsociety-paper-adapter`` — workspace → ResearchPack 标准化"
 msgstr "``agentsociety-paper-adapter`` — workspace → ResearchPack Standardization"
 
-#: ../../skills.rst:334
+#: ../../skills.rst:340
 msgid "``agentsociety-paper-framing`` — storyline_map 生成（问题、角度、贡献类型）"
 msgstr ""
 "``agentsociety-paper-framing`` — storyline_map generation (issue, angle, "
 "contribution type)"
 
-#: ../../skills.rst:335
+#: ../../skills.rst:341
 msgid "``agentsociety-paper-evidence-expansion`` — 证据缺口审计与补全"
 msgstr ""
 "``agentsociety-paper-evidence-expansion`` — Audit and completion of "
 "evidence gaps"
 
-#: ../../skills.rst:336
+#: ../../skills.rst:342
 msgid ""
 "``agentsociety-paper-architecture`` — claim tree + figure-argument map + "
 "章节大纲 + manuscript 草稿"
@@ -654,7 +665,7 @@ msgstr ""
 "``agentsociety-paper-architecture`` — claim tree + figure-argument map + "
 "chapter outline + manuscript draft"
 
-#: ../../skills.rst:338
+#: ../../skills.rst:344
 msgid ""
 "``agentsociety-paper-skeptical-review`` — 3 审稿人评审轮次（significance-"
 "calibrator / precision-editor / evidence-skeptic）"
@@ -662,11 +673,11 @@ msgstr ""
 "``agentsociety-paper-skeptical-review`` — 3 reviewer review rounds "
 "(significance-calibrator / precision-editor / evidence-skeptic)"
 
-#: ../../skills.rst:341
+#: ../../skills.rst:347
 msgid "**状态机阶段：**"
 msgstr "**State machine stages:**"
 
-#: ../../skills.rst:343
+#: ../../skills.rst:349
 msgid ""
 "``intake → framing → evidence-audit → expansion-plan → manuscript-build →"
 " skeptical-review → revision-router → release-gate``"
@@ -674,19 +685,19 @@ msgstr ""
 "``intake → framing → evidence-audit → expansion-plan → manuscript-build →"
 " skeptical-review → revision-router → release-gate``"
 
-#: ../../skills.rst:346
+#: ../../skills.rst:352
 msgid "**持久化布局：**"
 msgstr "**Persistence layout:**"
 
-#: ../../skills.rst:348
+#: ../../skills.rst:354
 msgid "所有论文状态持久化在 ``<workspace>/paper/`` 下："
 msgstr "The status of all papers is persisted under ``<workspace>/paper/``:"
 
-#: ../../skills.rst:350
+#: ../../skills.rst:356
 msgid "``paper_meta.yaml`` — 标题、作者、机构"
 msgstr "``paper_meta.yaml`` — Title, Author, Institution"
 
-#: ../../skills.rst:351
+#: ../../skills.rst:357
 msgid ""
 "``state/`` — "
 "``paper_state.yaml``、``research_pack.json``、``human_gates.yaml``"
@@ -694,7 +705,7 @@ msgstr ""
 "``state/`` — "
 "``paper_state.yaml``、``research_pack.json``、``human_gates.yaml``"
 
-#: ../../skills.rst:352
+#: ../../skills.rst:358
 msgid ""
 "``artifacts/`` — ``storyline_map.json``、``claim_ledger.json``、 "
 "``evidence_backlog.json``、``figure_argument_map.json``、 "
@@ -704,23 +715,23 @@ msgstr ""
 "``evidence_backlog.json``、``figure_argument_map.json``、 "
 "``manuscript/``（``abstract.md``、``main.md``、``results/``、``discussion.md``）"
 
-#: ../../skills.rst:355
+#: ../../skills.rst:361
 msgid "``reviews/`` — ``review_round_NNN.yaml``"
 msgstr "``reviews/`` — ``review_round_NNN.yaml``"
 
-#: ../../skills.rst:356
+#: ../../skills.rst:362
 msgid "``runs/<TS>/compose/out/paper.pdf`` — 最终交付物"
 msgstr "``runs/<TS>/compose/out/paper.pdf`` — Final deliverable"
 
-#: ../../skills.rst:358
+#: ../../skills.rst:364
 msgid "**CLI 入口：**"
 msgstr "**CLI entry point:**"
 
-#: ../../skills.rst:360
+#: ../../skills.rst:366
 msgid "``$PYTHON_PATH .agentsociety/bin/ags.py paper-orchestrator <subcommand>``"
 msgstr "``$PYTHON_PATH .agentsociety/bin/ags.py paper-orchestrator <subcommand>``"
 
-#: ../../skills.rst:362
+#: ../../skills.rst:368
 msgid ""
 "子命令：init-meta, intake, build-pack, framing, evidence, architecture, "
 "review, compile, run-loop, status。别名 ``paper``、``generate-paper``、 "
@@ -733,164 +744,108 @@ msgstr ""
 "prerequisites apply: the command must run inside an initialized "
 "workspace, and ``.agentsociety/bin/ags.py`` must already be available."
 
-#: ../../skills.rst:368
+#: ../../skills.rst:374
 msgid "完整工作流示例"
 msgstr "Complete Workflow Example"
 
-#: ../../skills.rst:370
+#: ../../skills.rst:376
 msgid "下面是一个使用 Claude Code Skills 的典型研究工作流："
 msgstr "Here's a typical research workflow using Claude Code Skills:"
 
-#: ../../skills.rst:372
+#: ../../skills.rst:378
 msgid "**定义研究话题** - 编辑 ``TOPIC.md``"
 msgstr "**Define research topic** - Edit ``TOPIC.md``"
 
-#: ../../skills.rst:373
+#: ../../skills.rst:379
 msgid "**文献检索** - 使用 ``/agentsociety-literature-search``"
 msgstr "**Literature search** - Use ``/agentsociety-literature-search``"
 
-#: ../../skills.rst:374
+#: ../../skills.rst:380
 msgid "**创建假设** - 使用 ``/agentsociety-hypothesis add``"
 msgstr "**Create hypothesis** - Use ``/agentsociety-hypothesis add``"
 
-#: ../../skills.rst:375
+#: ../../skills.rst:381
 msgid "**配置实验** - 使用 ``/agentsociety-experiment-config validate/prepare/run``"
-msgstr "**Configure experiment** - Use ``/agentsociety-experiment-config validate/prepare/run``"
+msgstr ""
+"**Configure experiment** - Use ``/agentsociety-experiment-config "
+"validate/prepare/run``"
 
-#: ../../skills.rst:376
+#: ../../skills.rst:382
 msgid "**执行实验** - 使用 ``/agentsociety-run-experiment start``"
 msgstr "**Run experiment** - Use ``/agentsociety-run-experiment start``"
 
-#: ../../skills.rst:377
+#: ../../skills.rst:383
 msgid "**分析结果** - 使用 ``/agentsociety-analysis``"
 msgstr "**Analyze results** - Use ``/agentsociety-analysis``"
 
-#: ../../skills.rst:378
+#: ../../skills.rst:384
 msgid "**生成论文** - 使用 ``/agentsociety-paper-orchestrator``（别名 ``/paper``）"
-msgstr "**Generate paper** - Use ``/agentsociety-paper-orchestrator`` (alias ``/paper``)"
+msgstr ""
+"**Generate paper** - Use ``/agentsociety-paper-orchestrator`` (alias "
+"``/paper``)"
 
-#: ../../skills.rst:381
+#: ../../skills.rst:387
 msgid "配置"
 msgstr "Configuration"
 
-#: ../../skills.rst:383
+#: ../../skills.rst:389
 msgid "研究技能使用相同的 LLM 配置。可以通过环境变量为特定技能配置不同的模型："
 msgstr ""
 "Research skills use the same LLM configuration. Different models can be "
 "configured for specific skills via environment variables:"
 
-#: ../../skills.rst:397
+#: ../../skills.rst:403
 msgid "Agent Skills"
 msgstr "Agent Skills"
 
-#: ../../skills.rst:399
-msgid "AgentSociety 2 还支持 Agent Skills，这些是 PersonAgent 的认知能力模块："
+#: ../../skills.rst:405
+msgid ""
+"AgentSociety 2 还支持 Agent Skills。当前 ``PersonAgent`` 使用 metadata-first"
+"、selected-only 模型：LLM 先看到 skill 的 name / description，只有被选择的 skill "
+"才会被激活和读取。 唯一内置 skill 是 ``daily-guidance``；旧的 ``observation`` / "
+"``cognition`` / ``plan`` / ``memory`` 四技能已经移除。自定义 skill 放在 "
+"``custom/skills/``，脚本默认通过进程内 ``entrypoint(argv, ctx)`` 执行。"
 msgstr ""
-"AgentSociety 2 also supports Agent Skills, which are cognitive competency"
-" modules for PersonAgent:"
+"AgentSociety 2 also supports Agent Skills. The current ``PersonAgent`` "
+"uses a metadata-first, selected-only model: the LLM first sees each skill"
+" name / description, and only selected skills are activated and read. The"
+" only built-in skill is ``daily-guidance``; the old ``observation`` / "
+"``cognition`` / ``plan`` / ``memory`` skills have been removed. Custom "
+"skills live under ``custom/skills/``, and scripts execute by default "
+"through the in-process ``entrypoint(argv, ctx)``."
 
-#: ../../skills.rst:401
-msgid "**observation** - 环境感知"
-msgstr "**observation** - Environmental Awareness"
+#: ../../skills.rst:411
+msgid "**daily-guidance** - 日常行为、需求衰减与短时程行动指导"
+msgstr ""
+"**daily-guidance** - daily behavior, needs decay, and short-horizon "
+"action guidance"
 
-#: ../../skills.rst:402
-msgid "**cognition** - 认知与意图"
-msgstr "**cognition** - Cognition and Intention"
+#: ../../skills.rst:412
+msgid "**custom skills** - 工作区级自定义能力，按需激活并可访问 agent workspace"
+msgstr ""
+"**custom skills** - workspace-level custom capabilities, activated on "
+"demand and able to access the agent workspace"
 
-#: ../../skills.rst:403
-msgid "**plan** - 规划与执行"
-msgstr "**plan** - Planning and Execution"
-
-#: ../../skills.rst:404
-msgid "**memory** - 记忆管理"
-msgstr "**memory** - Memory Management"
-
-#: ../../skills.rst:406
+#: ../../skills.rst:414
 msgid "详见 :doc:`agent_skills`。"
 msgstr "See :doc:`agent_skills` for details."
 
-#: ../../skills.rst:409
+#: ../../skills.rst:417
 msgid "参考"
 msgstr "References"
 
-#: ../../skills.rst:411
+#: ../../skills.rst:419
 msgid ":doc:`cli` - 使用 CLI 运行实验"
 msgstr ":doc:`cli` - Run an experiment using the CLI"
 
-#: ../../skills.rst:412
+#: ../../skills.rst:420
 msgid ":doc:`agent_skills` - Agent Skills 详解"
 msgstr ":doc:`agent_skills` - Detailed explanation of Agent Skills"
 
-#: ../../skills.rst:413
+#: ../../skills.rst:421
 msgid ":doc:`custom_modules` - 创建自定义模块"
 msgstr ":doc:`custom_modules` - Create custom modules"
 
-#: ../../skills.rst:414
+#: ../../skills.rst:422
 msgid ":doc:`development` - 开发指南"
 msgstr ":doc:`development` - Development Guide"
-
-#~ msgid "可用技能"
-#~ msgstr "Available Skills"
-
-#~ msgid "网络研究技能 (web_research)"
-#~ msgstr "Web Research Skill"
-
-#~ msgid "智能体技能 (agent)"
-#~ msgstr "Agent Skill"
-
-#~ msgid "最佳实践"
-#~ msgstr "Best Practices"
-
-#~ msgid "扩展研究技能"
-#~ msgstr "Extending Research Skills"
-
-#~ msgid "**网络研究**: 使用 Miro 进行网络搜索和总结"
-#~ msgstr "**Web Research**: Use Miro for web search and summarization"
-
-#~ msgid "**论文撰写**: 使用 EasyPaper 生成学术论文"
-#~ msgstr "**Paper Writing**: Generate academic papers with EasyPaper"
-
-#~ msgid "**agentsociety-analysis** - 数据分析"
-#~ msgstr ""
-
-#~ msgid "**agentsociety-synthesize** - 结果综合"
-#~ msgstr ""
-
-#~ msgid "**agentsociety-generate-paper** - 论文生成"
-#~ msgstr ""
-
-#~ msgid "**agentsociety-quick-web-search** - 快速网络搜索"
-#~ msgstr ""
-
-#~ msgid "**agentsociety-web-research** - 深度网络研究"
-#~ msgstr ""
-
-#~ msgid "**生成论文** - 使用 ``/agentsociety-generate-paper``"
-#~ msgstr ""
-
-#~ msgid "**needs** - 需求系统"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "研究工作流主要通过 Claude Code 的“skills-first”方式提供： "
-#~ "- AgentSociety 内置研究 skills：随 VSCode "
-#~ "插件打包，可在插件树视图中浏览（只读）。 - Agent(Person) 扩展 "
-#~ "skills：由后端 `/api/v1/agent-skills/*` 管理，支持扫描/导入/热重载。"
-#~ msgstr ""
-
-#~ msgid ""
-#~ "``artifacts/`` — "
-#~ "``storyline_map.json``、``claim_ledger.json``、 "
-#~ "``evidence_backlog.json``、``figure_argument_map.json``、 "
-#~ "``manuscript/``（abstract.md, main.md, results/*, "
-#~ "discussion.md）"
-#~ msgstr ""
-
-#~ msgid "**智能体处理**: 智能体选择、生成和过滤"
-#~ msgstr "**Agent Processing**: Agent selection, generation, and filtering"
-
-#~ msgid "使用 ``research-pipeline where-am-i --json`` 确认当前阶段。"
-#~ msgstr ""
-#~ "Use ``research-pipeline where-am-i "
-#~ "--json`` to confirm the current phase."
-

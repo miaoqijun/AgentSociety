@@ -294,19 +294,27 @@ class CreateInstanceRequest(BaseModel):
 ```python
 # custom/agents/my_agent.py
 from agentsociety2.agent.base import AgentBase
-from agentsociety2.env.base import EnvBase
+from pathlib import Path
+from typing import Any
 
 class MyCustomAgent(AgentBase):
     """我的自定义 Agent"""
 
-    def __init__(
-        self,
-        id: int,
-        profile: dict,
-        custom_param: str = "default",  # 自定义参数
-    ):
-        super().__init__(id=id, profile=profile)
-        self.custom_param = custom_param
+    async def restore(self, workspace_path: Path, service_proxy: Any) -> None:
+        await super().restore(workspace_path, service_proxy)
+        self.custom_param = self.config.get("custom_param", "default")
+
+    async def ask(self, message: str, readonly: bool = True, *, t=None) -> str:
+        return await self.run_react_loop(
+            tick=0,
+            t=t,
+            observations=[],
+            question=message,
+            readonly=readonly,
+        )
+
+    async def step(self, tick: int, t) -> str:
+        return await self.run_react_loop(tick=tick, t=t, observations=[])
 ```
 
 ### 4.3 自定义环境模块示例

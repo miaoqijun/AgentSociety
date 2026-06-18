@@ -23,7 +23,7 @@ AGENT_PROFILE_DATASET_CAPABILITY = "agent_profile"
 
 @dataclass
 class ReplayDatasetSpec:
-    """Semantic metadata for a replay dataset backed by a SQLite table."""
+    """Semantic metadata for a replay dataset backed by a JSONL table shard set."""
 
     dataset_id: str
     table_name: str

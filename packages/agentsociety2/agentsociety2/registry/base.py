@@ -250,15 +250,17 @@ class ModuleRegistry:
                 "error": f"Module '{module_type}' not found",
             }
 
-        # Try to get description
+        # Try to get AI-facing descriptions
         description = ""
+        init_description = ""
         try:
-            if hasattr(cls, "mcp_description"):
-                description = cls.mcp_description()
-            else:
-                description = cls.__doc__ or f"{cls.__name__}"
+            description = cls.description()
         except Exception:
             description = f"{cls.__name__}"
+        try:
+            init_description = cls.init_description()
+        except Exception:
+            init_description = ""
 
         # Get constructor signature
         params = {}
@@ -286,6 +288,7 @@ class ModuleRegistry:
             "type": module_type,
             "class_name": cls.__name__,
             "description": description,
+            "init_description": init_description,
             "parameters": params,
             "is_custom": getattr(cls, "_is_custom", False),
         }

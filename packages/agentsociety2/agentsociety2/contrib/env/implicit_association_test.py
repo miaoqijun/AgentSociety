@@ -1,6 +1,6 @@
 """
 Implicit Association Test (IAT) Experiment Environment
-Environment for Implicit Association Test experiment based on V2 framework
+Environment for Implicit Association Test experiment based on AgentSociety2
 """
 import asyncio
 from datetime import datetime
@@ -39,7 +39,7 @@ class SubmitTrialResponse(BaseModel):
 
 
 class ImplicitAssociationTestEnv(EnvBase):
-    """Environment for Implicit Association Test (IAT) experiment based on V2 framework"""
+    """Environment for Implicit Association Test (IAT) experiment based on AgentSociety2"""
 
     _agent_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("completed_trials", "INTEGER", nullable=False),
@@ -228,9 +228,9 @@ class ImplicitAssociationTestEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Includes parameter descriptions and JSON schemas for data models.
         """
         description = f"""{cls.__name__}: Implicit Association Test (IAT) experiment environment module.
@@ -250,52 +250,10 @@ class ImplicitAssociationTestEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        return f"""You are an Implicit Association Test (IAT) experiment environment module specialized in measuring implicit self-esteem.
-
-**Experiment Overview:** {self.num_agents} agents are participating in an IAT experiment to measure implicit associations between self/others and positive/negative concepts.
-
-**Experiment Structure:**
-The IAT consists of 5 blocks with a total of {self.total_trials} trials:
-1. **Identity Practice** (12 trials): Practice categorizing identity words (self vs. others)
-2. **Valence Practice** (12 trials): Practice categorizing valence words (positive vs. negative)
-3. **Congruent Block** (48 trials): Self + Positive, Others + Negative (consistent associations)
-4. **Identity Switch** (12 trials): Practice with reversed identity labels
-5. **Incongruent Block** (48 trials): Self + Negative, Others + Positive (inconsistent associations)
-
-**Task Instructions:**
-- You will see a word (stimulus) in the center of the screen
-- Two category labels are shown at the top (left and right)
-- You must press the correct key (z for left, m for right) as quickly and accurately as possible
-- Respond based on which category the word belongs to
-- Try to respond as fast as you can while maintaining accuracy
-
-**Available Operations (you MUST use these within your plan):**
-1. **get_next_trial(agent_id)**: Get the next trial information
-   - agent_id: Your agent ID (e.g., 101, 102)
-   - Returns: Trial information including stimulus word, labels, correct key, and instruction
-   - You should call this to get each trial before responding
-
-2. **submit_trial_response(agent_id, trial_id, key_press, rt)**: Submit your response for a trial
-   - agent_id: Your agent ID
-   - trial_id: The trial ID from get_next_trial()
-   - key_press: The key you pressed ("z" or "m")
-   - rt: Your response time in seconds (should be a realistic reaction time, typically 0.3-2.0 seconds)
-   - The environment will automatically check correctness and record your response
-
-**CRITICAL CONSTRAINT:**
-⚠️ You MUST complete all {self.total_trials} trials in order.
-⚠️ For each trial, you MUST:
-   1. First call get_next_trial() to get the trial information
-   2. Then call submit_trial_response() with your response
-⚠️ Response times should be realistic (typically 0.3-2.0 seconds for correct responses, may be longer for incorrect ones)
-⚠️ Consider your psychological profile when making associations - your implicit self-esteem may influence your reaction times
-⚠️ In congruent blocks (self+positive), you should respond faster if you have high self-esteem
-⚠️ In incongruent blocks (self+negative), you may respond slower if you have high self-esteem
-"""
-
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Implicit Association Test environment for measuring implicit associations."
     def _get_instruction(self, block_code: str, identity: Optional[str], valence: Optional[str]) -> str:
         """Generate instruction text for a trial"""
         if block_code == "identity_practice":
@@ -572,26 +530,5 @@ The IAT consists of 5 blocks with a total of {self.total_trials} trials:
             agent_id: [response.copy() for response in responses]
             for agent_id, responses in self._responses.items()
         }
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "agent_ids": self.agent_ids,
-            "num_agents": self.num_agents,
-            "total_trials": self.total_trials,
-            "trial_progress": self._trial_progress,
-            "responses": self._responses,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.agent_ids = state.get("agent_ids", [])
-        self.num_agents = state.get("num_agents", len(self.agent_ids))
-        self.total_trials = state.get("total_trials", 0)
-        self._trial_progress = state.get("trial_progress", {})
-        self._responses = state.get("responses", {})
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["ImplicitAssociationTestEnv", "SubmitTrialResponse", "TrialInfo"]

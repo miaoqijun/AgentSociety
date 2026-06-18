@@ -261,9 +261,9 @@ class ReputationGameEnv(EnvBase):
         self._init_state()
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Uses Pydantic's automatic JSON schema generation.
         """
         # Use Pydantic's automatic schema generation
@@ -308,12 +308,10 @@ class ReputationGameEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        return """You are a reputation game environment module specialized in managing donation games with social norms.
-        
-Your task is to use the available functions to manage agent reputations, payoffs, and execute donation decisions based on the context provided."""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Reputation game environment for donation decisions, reputations, and payoffs."
 
     def _init_state(self):
         """Initialize state for all agents."""
@@ -840,29 +838,5 @@ Your task is to use the available functions to manage agent reputations, payoffs
             population_size=self._config.Z,
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        """Serialize state (for save/restore)."""
-        return {
-            "config": self._config.model_dump(),
-            "reputations": {k: v.value for k, v in self._reputations.items()},
-            "payoffs": self._payoffs,
-            "action_log": [log.model_dump() for log in self._action_log[-100:]],  # Only save last 100 entries
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state (for restore)."""
-        config_data = state.get("config", {})
-        self._config = ReputationGameConfig(**config_data)
-        self._reputations = {
-            int(k): Reputation(int(v)) for k, v in state.get("reputations", {}).items()
-        }
-        self._payoffs = {int(k): float(v) for k, v in state.get("payoffs", {}).items()}
-        # Load action log entries
-        action_log_data = state.get("action_log", [])
-        self._action_log = [ActionLogEntry(**entry) for entry in action_log_data]
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["Action", "NormType", "Reputation", "ReputationGameConfig", "ReputationGameEnv"]

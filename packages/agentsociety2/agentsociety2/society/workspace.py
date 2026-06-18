@@ -22,6 +22,7 @@ def get_custom_template_path() -> Path:
     """获取自定义模块模板路径"""
     # 从 agentsociety2.custom 包中获取路径
     from agentsociety2.custom import __file__ as custom_init
+
     return Path(custom_init).parent
 
 
@@ -39,7 +40,7 @@ def init_custom_modules(target_dir: Path, force: bool = False) -> dict:
         "message": "",
         "created": [],
         "skipped": [],
-        "errors": []
+        "errors": [],
     }
 
     try:
@@ -92,8 +93,14 @@ def init_custom_modules(target_dir: Path, force: bool = False) -> dict:
         # 复制 __init__.py 文件
         init_files = [
             (template_path / "__init__.py", custom_dir / "__init__.py"),
-            (template_path / "agents" / "__init__.py", custom_dir / "agents" / "__init__.py"),
-            (template_path / "envs" / "__init__.py", custom_dir / "envs" / "__init__.py"),
+            (
+                template_path / "agents" / "__init__.py",
+                custom_dir / "agents" / "__init__.py",
+            ),
+            (
+                template_path / "envs" / "__init__.py",
+                custom_dir / "envs" / "__init__.py",
+            ),
         ]
 
         for src, dst in init_files:
@@ -103,7 +110,9 @@ def init_custom_modules(target_dir: Path, force: bool = False) -> dict:
                     shutil.copy2(src, dst)
                     result["created"].append(str(dst.relative_to(target_dir)))
                 else:
-                    result["skipped"].append(f"{dst.relative_to(target_dir)} (already exists)")
+                    result["skipped"].append(
+                        f"{dst.relative_to(target_dir)} (already exists)"
+                    )
 
         # 创建 custom/README.md（工作区专用版本）
         custom_readme = custom_dir / "README.md"
@@ -124,29 +133,53 @@ def init_custom_modules(target_dir: Path, force: bool = False) -> dict:
 
 1. 在 `agents/` 目录下创建新的 `.py` 文件
 2. 继承自 `AgentBase`
-3. 实现 `mcp_description()` 类方法
-4. 实现必需方法：`ask()`, `step()`, `dump()`, `load()`
+3. 实现 `init_description()` 类方法
+4. 实现 workspace 契约方法：`create()`, `from_workspace()`, `to_workspace()`
+5. 实现必需方法：`ask()`, `step()`
 
 ```python
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 from agentsociety2.agent.base import AgentBase
-from datetime import datetime, timezone
+from agentsociety2.agent.service_proxy import ServiceProxy
 
 class MyAgent(AgentBase):
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         return \"\"\"MyAgent: 我的自定义 Agent\"\"\"
+
+    @classmethod
+    def create(cls, workspace_path: Path, profile: dict, config: dict) -> None:
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        (workspace_path / "config.json").write_text(
+            json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps({"id": profile["id"], "profile": profile, "step_count": 0}),
+            encoding="utf-8",
+        )
+
+    @classmethod
+    async def from_workspace(cls, workspace_path: Path, service_proxy: ServiceProxy) -> "MyAgent":
+        meta = json.loads((workspace_path / "AGENT.json").read_text(encoding="utf-8"))
+        agent = cls(meta["id"], meta["profile"])
+        agent._bind_services(service_proxy)
+        agent._step_count = meta.get("step_count", 0)
+        return agent
+
+    async def to_workspace(self, workspace_path: Path) -> None:
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps({"id": self._id, "profile": self.get_profile(), "step_count": getattr(self, "_step_count", 0)}),
+            encoding="utf-8",
+        )
 
     async def ask(self, message: str, readonly: bool = True) -> str:
         return f"Answer to: {message}"
 
     async def step(self, tick: int, t: datetime) -> str:
         return f"Step {tick}"
-
-    async def dump(self) -> dict:
-        return {"id": self._id}
-
-    async def load(self, dump_data: dict):
-        self._id = dump_data.get("id", self._id)
 ```
 
 ### 创建自定义环境模块
@@ -160,7 +193,7 @@ from agentsociety2.env import EnvBase, tool
 
 class MyEnv(EnvBase):
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         return \"\"\"MyEnv: 我的自定义环境\"\"\"
 
     @tool(readonly=True, kind="observe")
@@ -250,12 +283,7 @@ async def download_map_file(target_dir: Path, timeout: int = 300) -> dict:
 
     :returns: 包含操作结果的字典
     """
-    result = {
-        "success": False,
-        "message": "",
-        "file_path": "",
-        "errors": []
-    }
+    result = {"success": False, "message": "", "file_path": "", "errors": []}
 
     map_url = "https://tsinghua-agentsociety.oss-cn-beijing.aliyuncs.com/data/map/beijing_map.pb"
     data_dir = target_dir / ".agentsociety" / "data"
@@ -264,7 +292,9 @@ async def download_map_file(target_dir: Path, timeout: int = 300) -> dict:
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(map_url, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+            async with session.get(
+                map_url, timeout=aiohttp.ClientTimeout(total=timeout)
+            ) as response:
                 response.raise_for_status()
 
                 with open(map_file_path, "wb") as f:
@@ -292,15 +322,13 @@ def create_module_info_files(target_dir: Path) -> dict:
 
     :returns: 包含操作结果的字典
     """
-    result = {
-        "success": False,
-        "message": "",
-        "created": [],
-        "errors": []
-    }
+    result = {"success": False, "message": "", "created": [], "errors": []}
 
     try:
-        from agentsociety2.registry import discover_and_register_builtin_modules, get_registry
+        from agentsociety2.registry import (
+            discover_and_register_builtin_modules,
+            get_registry,
+        )
 
         # 确保内置模块已加载
         registry = get_registry()
@@ -316,17 +344,19 @@ def create_module_info_files(target_dir: Path) -> dict:
         # 创建 agent_classes/*.json
         for module_type, agent_class in registry.list_agent_modules():
             try:
-                if hasattr(agent_class, "mcp_description"):
-                    description = agent_class.mcp_description()
-                else:
-                    description = agent_class.__doc__ or "No description available"
+                description = agent_class.description()
             except Exception:
                 description = agent_class.__doc__ or "No description available"
+            try:
+                init_description = agent_class.init_description()
+            except Exception:
+                init_description = ""
 
             agent_info = {
                 "type": module_type,
                 "class_name": agent_class.__name__,
                 "description": description,
+                "init_description": init_description,
                 "is_custom": getattr(agent_class, "_is_custom", False),
             }
 
@@ -337,17 +367,19 @@ def create_module_info_files(target_dir: Path) -> dict:
         # 创建 env_modules/*.json
         for module_type, env_class in registry.list_env_modules():
             try:
-                if hasattr(env_class, "mcp_description"):
-                    description = env_class.mcp_description()
-                else:
-                    description = env_class.__doc__ or "No description available"
+                description = env_class.description()
             except Exception:
                 description = env_class.__doc__ or "No description available"
+            try:
+                init_description = env_class.init_description()
+            except Exception:
+                init_description = ""
 
             module_info = {
                 "type": module_type,
                 "class_name": env_class.__name__,
                 "description": description,
+                "init_description": init_description,
                 "is_custom": getattr(env_class, "_is_custom", False),
             }
 
@@ -373,11 +405,7 @@ def create_path_md(target_dir: Path) -> dict:
 
     :returns: 包含操作结果的字典
     """
-    result = {
-        "success": False,
-        "message": "",
-        "errors": []
-    }
+    result = {"success": False, "message": "", "errors": []}
 
     path_md_content = """# Workspace Path Memory
 
@@ -434,11 +462,7 @@ def create_prefill_params(target_dir: Path, map_file_path: str) -> dict:
 
     :returns: 包含操作结果的字典
     """
-    result = {
-        "success": False,
-        "message": "",
-        "errors": []
-    }
+    result = {"success": False, "message": "", "errors": []}
 
     dot_agentsociety_dir = target_dir / ".agentsociety"
     data_dir = dot_agentsociety_dir / "data"
@@ -455,7 +479,9 @@ def create_prefill_params(target_dir: Path, map_file_path: str) -> dict:
     }
 
     try:
-        with open(dot_agentsociety_dir / "prefill_params.json", "w", encoding="utf-8") as f:
+        with open(
+            dot_agentsociety_dir / "prefill_params.json", "w", encoding="utf-8"
+        ) as f:
             json.dump(prefill_data, f, ensure_ascii=False, indent=2)
         result["success"] = True
         result["message"] = "prefill_params.json created"
@@ -466,7 +492,12 @@ def create_prefill_params(target_dir: Path, map_file_path: str) -> dict:
     return result
 
 
-async def init_workspace(target_dir: Path, topic: str = "", components: list[str] | None = None, force: bool = False) -> dict:
+async def init_workspace(
+    target_dir: Path,
+    topic: str = "",
+    components: list[str] | None = None,
+    force: bool = False,
+) -> dict:
     """
     初始化工作区，创建所需的目录结构
 
@@ -485,7 +516,7 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
         "message": "",
         "created": [],
         "skipped": [],
-        "errors": []
+        "errors": [],
     }
 
     try:
@@ -533,9 +564,11 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
                         "version": "1.0",
                         "created_at": datetime.now(timezone.utc).isoformat(),
                         "updated_at": datetime.now(timezone.utc).isoformat(),
-                        "entries": []
+                        "entries": [],
                     }
-                    index_file.write_text(json.dumps(index_data, indent=2, ensure_ascii=False))
+                    index_file.write_text(
+                        json.dumps(index_data, indent=2, ensure_ascii=False)
+                    )
                     result["created"].append("papers/literature_index.json")
             else:
                 result["skipped"].append("papers/ (already exists)")
@@ -550,24 +583,29 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
         # 创建 .agentsociety 目录结构和文件
         if "agentsociety" in components:
             # 创建目录
-            (target_dir / ".agentsociety" / "agent_classes").mkdir(parents=True, exist_ok=True)
-            (target_dir / ".agentsociety" / "env_modules").mkdir(parents=True, exist_ok=True)
+            (target_dir / ".agentsociety" / "agent_classes").mkdir(
+                parents=True, exist_ok=True
+            )
+            (target_dir / ".agentsociety" / "env_modules").mkdir(
+                parents=True, exist_ok=True
+            )
             (target_dir / ".agentsociety" / "data").mkdir(parents=True, exist_ok=True)
-            (
-                target_dir
-                / ".agentsociety"
-                / "custom_env_skill"
-                / "runs"
-            ).mkdir(parents=True, exist_ok=True)
+            (target_dir / ".agentsociety" / "custom_env_skill" / "runs").mkdir(
+                parents=True, exist_ok=True
+            )
 
             # 下载地图文件
             download_result = await download_map_file(target_dir)
             if download_result["success"]:
                 result["created"].append(".agentsociety/data/beijing_map.pb")
             else:
-                result["errors"].append(f"Map download failed: {download_result['message']}")
+                result["errors"].append(
+                    f"Map download failed: {download_result['message']}"
+                )
                 # 即使下载失败也继续，创建空的 data 目录记录
-                result["skipped"].append(".agentsociety/data/beijing_map.pb (download failed)")
+                result["skipped"].append(
+                    ".agentsociety/data/beijing_map.pb (download failed)"
+                )
 
             map_file_path = download_result["file_path"]
 
@@ -601,16 +639,61 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
                         "current_experiment_id": None,
                     },
                     "stages": {
-                        "literature_search": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
-                        "hypothesis": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
-                        "experiment_config": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
-                        "run_experiment": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
-                        "analysis": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
-                        "generate_paper": {"status": "not_started", "started_at": None, "completed_at": None, "attempts": 0, "error": None, "metadata": {}},
+                        "literature_search": {
+                            "status": "not_started",
+                            "started_at": None,
+                            "completed_at": None,
+                            "attempts": 0,
+                            "error": None,
+                            "metadata": {},
+                        },
+                        "hypothesis": {
+                            "status": "not_started",
+                            "started_at": None,
+                            "completed_at": None,
+                            "attempts": 0,
+                            "error": None,
+                            "metadata": {},
+                        },
+                        "experiment_config": {
+                            "status": "not_started",
+                            "started_at": None,
+                            "completed_at": None,
+                            "attempts": 0,
+                            "error": None,
+                            "metadata": {},
+                        },
+                        "run_experiment": {
+                            "status": "not_started",
+                            "started_at": None,
+                            "completed_at": None,
+                            "attempts": 0,
+                            "error": None,
+                            "metadata": {},
+                        },
+                        "analysis": {
+                            "status": "not_started",
+                            "started_at": None,
+                            "completed_at": None,
+                            "attempts": 0,
+                            "error": None,
+                            "metadata": {},
+                        },
+                        "generate_paper": {
+                            "status": "not_started",
+                            "started_at": None,
+                            "completed_at": None,
+                            "attempts": 0,
+                            "error": None,
+                            "metadata": {},
+                        },
                     },
                     "hypotheses": {},
                 }
-                progress_file.write_text(json.dumps(progress_data, indent=2, ensure_ascii=False), encoding="utf-8")
+                progress_file.write_text(
+                    json.dumps(progress_data, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
                 result["created"].append(".agentsociety/progress.json")
 
             keep_root_files = {"path.md", "prefill_params.json", "progress.json"}
@@ -637,9 +720,7 @@ async def init_workspace(target_dir: Path, topic: str = "", components: list[str
 
 def main():
     """工作区管理 CLI 入口"""
-    parser = argparse.ArgumentParser(
-        description="AgentSociety2 Workspace Management"
-    )
+    parser = argparse.ArgumentParser(description="AgentSociety2 Workspace Management")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # init 命令
@@ -648,48 +729,37 @@ def main():
         "--target-dir",
         type=str,
         default=".",
-        help="Target workspace directory (default: current directory)"
+        help="Target workspace directory (default: current directory)",
     )
-    init_parser.add_argument(
-        "--topic",
-        type=str,
-        default="",
-        help="Research topic"
-    )
+    init_parser.add_argument("--topic", type=str, default="", help="Research topic")
     init_parser.add_argument(
         "--components",
         type=str,
         default="custom,user_data,papers,agentsociety",
-        help="Components to create: custom, user_data, papers, agentsociety (default: all)"
+        help="Components to create: custom, user_data, papers, agentsociety (default: all)",
     )
     init_parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Force overwrite existing files"
+        "--force", action="store_true", help="Force overwrite existing files"
     )
     init_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output result as JSON"
+        "--json", action="store_true", help="Output result as JSON"
     )
 
     # init-custom 命令
-    custom_parser = subparsers.add_parser("init-custom", help="Initialize custom modules only")
+    custom_parser = subparsers.add_parser(
+        "init-custom", help="Initialize custom modules only"
+    )
     custom_parser.add_argument(
         "--target-dir",
         type=str,
         default=".",
-        help="Target workspace directory (default: current directory)"
+        help="Target workspace directory (default: current directory)",
     )
     custom_parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Force overwrite existing files"
+        "--force", action="store_true", help="Force overwrite existing files"
     )
     custom_parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output result as JSON"
+        "--json", action="store_true", help="Output result as JSON"
     )
 
     args = parser.parse_args()
@@ -703,7 +773,11 @@ def main():
     if args.command == "init":
         components = [c.strip() for c in args.components.split(",")]
         # 使用 asyncio 运行异步函数
-        result = asyncio.run(init_workspace(target_dir, topic=args.topic, components=components, force=args.force))
+        result = asyncio.run(
+            init_workspace(
+                target_dir, topic=args.topic, components=components, force=args.force
+            )
+        )
     elif args.command == "init-custom":
         result = init_custom_modules(target_dir, force=args.force)
     else:

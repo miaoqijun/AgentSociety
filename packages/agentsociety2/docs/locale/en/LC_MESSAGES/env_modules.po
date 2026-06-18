@@ -6,17 +6,17 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-02 22:37+0800\n"
+"POT-Creation-Date: 2026-06-18 09:09+0800\n"
 "PO-Revision-Date: 2026-03-05 23:55+0800\n"
 "Last-Translator: AgentSociety Team\n"
-"Language-Team: en <LL@li.org>\n"
 "Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "Generated-By: Babel 2.18.0\n"
 
 #: ../../env_modules.rst:2
@@ -66,8 +66,8 @@ msgstr "Parameters:"
 #: ../../env_modules.rst:25
 msgid "tick: 此步骤的持续时间（秒） t: 此步骤后的当前模拟日期时间"
 msgstr ""
-"tick: Duration of this step in seconds t: Current simulation datetime after "
-"this step"
+"tick: Duration of this step in seconds t: Current simulation datetime "
+"after this step"
 
 #: ../../env_modules.rst:28
 msgid "**使用 @tool 装饰的工具**"
@@ -113,17 +113,18 @@ msgstr "Parameters:"
 
 #: ../../env_modules.rst:77
 msgid ""
-"**readonly** (bool): 工具是否修改环境 * ``True`` = 只读，可用于查询 * ``False`` = 修改状态，可用于干预"
+"**readonly** (bool): 工具是否修改环境 * ``True`` = 只读，可用于查询 * ``False`` = "
+"修改状态，可用于干预"
 msgstr ""
-"**readonly** (bool): Whether the tool modifies the environment * ``True`` = "
-"read-only, can be used in queries * ``False`` = modifies state, can be used "
-"in interventions"
+"**readonly** (bool): Whether the tool modifies the environment * ``True``"
+" = read-only, can be used in queries * ``False`` = modifies state, can be"
+" used in interventions"
 
 #: ../../env_modules.rst:81
 msgid ""
 "**kind** (str): 工具的类型 * ``\"observe\"``: 单参数观察（需要 readonly=True） * "
-"``\"statistics\"``: 聚合查询（无参数，需要 readonly=True） * ``None`` 或省略: 常规工具（任何签名，任何 "
-"readonly 值）"
+"``\"statistics\"``: 聚合查询（无参数，需要 readonly=True） * ``None`` 或省略: "
+"常规工具（任何签名，任何 readonly 值）"
 msgstr ""
 "**kind** (str): The type of tool * ``\"observe\"``: Single-parameter "
 "observations (requires readonly=True) * ``\"statistics\"``: Aggregate "
@@ -140,8 +141,7 @@ msgstr "**observe**: Single-parameter observations (readonly=True required)"
 
 #: ../../env_modules.rst:90
 msgid "**statistics**: 聚合查询（无参数，需要 readonly=True）"
-msgstr ""
-"**statistics**: Aggregate queries (no parameters, readonly=True required)"
+msgstr "**statistics**: Aggregate queries (no parameters, readonly=True required)"
 
 #: ../../env_modules.rst:91
 msgid "**regular**: 任何其他工具（可以是只读或读写）"
@@ -159,50 +159,42 @@ msgstr "Registering Modules"
 msgid "完整示例"
 msgstr "Complete Example"
 
-#: ../../env_modules.rst:159
+#: ../../env_modules.rst:162
+msgid ""
+"生产环境下环境路由跑在一个专用的 Ray actor 里（``EnvRouterProxy``），所有 agent 共享一份 "
+"环境状态；也可在进程内直接用 ``CodeGenRouter``。除默认的 ``CodeGenRouter`` 外还有 "
+"``ReActRouter`` / ``PlanExecuteRouter`` / ``TwoTierReActRouter`` / "
+"``TwoTierPlanExecuteRouter`` / ``SearchToolRouter`` 可选（见 "
+":doc:`architecture`）。"
+msgstr ""
+"In production, environment routing runs in a dedicated Ray actor (``EnvRouterProxy``), "
+"and all agents share the same environment state. ``CodeGenRouter`` can also be used "
+"directly in-process. In addition to the default ``CodeGenRouter``, optional routers "
+"include ``ReActRouter``, ``PlanExecuteRouter``, ``TwoTierReActRouter``, "
+"``TwoTierPlanExecuteRouter``, and ``SearchToolRouter`` (see :doc:`architecture`)."
+
+#: ../../env_modules.rst:168
 msgid "示例"
 msgstr "Examples"
 
-#: ../../env_modules.rst:161
+#: ../../env_modules.rst:170
 msgid "请参阅 ``agentsociety2.contrib.env`` 中的内置环境类（类名以当前代码为准）："
-msgstr "See the built-in environment classes in ``agentsociety2.contrib.env`` (class names follow the current code):"
+msgstr ""
+"See the built-in environment classes in ``agentsociety2.contrib.env`` "
+"(class names follow the current code):"
 
-#: ../../env_modules.rst:163
+#: ../../env_modules.rst:172
 msgid "``SimpleSocialSpace`` — 社交互动"
 msgstr "``SimpleSocialSpace`` — social interaction"
 
-#: ../../env_modules.rst:164
+#: ../../env_modules.rst:173
 msgid "``PublicGoodsEnv`` — 公共物品博弈"
 msgstr "``PublicGoodsEnv`` — public goods game"
 
-#: ../../env_modules.rst:165
+#: ../../env_modules.rst:174
 msgid "``PrisonersDilemmaEnv`` — 囚徒困境"
 msgstr "``PrisonersDilemmaEnv`` — prisoner's dilemma"
 
-#: ../../env_modules.rst:166
+#: ../../env_modules.rst:175
 msgid "``TrustGameEnv`` — 信任博弈"
 msgstr "``TrustGameEnv`` — trust game"
-
-#~ msgid ":mod:`~agentsociety2.contrib.env.SimpleSocialSpace`"
-#~ msgstr ":mod:`~agentsociety2.contrib.env.SimpleSocialSpace`"
-
-#~ msgid ":mod:`~agentsociety2.contrib.env.PublicGoodsGame`"
-#~ msgstr ":mod:`~agentsociety2.contrib.env.PublicGoodsGame`"
-
-#~ msgid ":mod:`~agentsociety2.contrib.env.PrisonersDilemma`"
-#~ msgstr ":mod:`~agentsociety2.contrib.env.PrisonersDilemma`"
-
-#~ msgid ":mod:`~agentsociety2.contrib.env.TrustGame`"
-#~ msgstr ":mod:`~agentsociety2.contrib.env.TrustGame`"
-
-#~ msgid "``SimpleSocialSpace``（社交互动）"
-#~ msgstr "``SimpleSocialSpace`` - Social interaction module"
-
-#~ msgid "``PublicGoodsEnv``（公共物品博弈）"
-#~ msgstr "``PublicGoodsGame`` - Public goods game module"
-
-#~ msgid "``PrisonersDilemmaEnv``（囚徒困境）"
-#~ msgstr "``PrisonersDilemma`` - Prisoner's dilemma module"
-
-#~ msgid "``TrustGameEnv``（信任博弈）"
-#~ msgstr "``TrustGameEnv`` — trust game"

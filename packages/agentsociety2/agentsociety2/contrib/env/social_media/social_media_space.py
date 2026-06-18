@@ -377,9 +377,9 @@ class SocialMediaSpace(EnvBase):
         asyncio.create_task(coro)
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Used by workspace init to generate .agentsociety/env_modules/social_media.json.
         """
         person_schema = SocialMediaPerson.model_json_schema()
@@ -439,18 +439,10 @@ Example payloads (ISO datetimes, keys may be int or string in JSON; constructor 
 """
         return description
 
-    @property
-    def description(self) -> str:
-        """Description of the environment module for router selection and function calling"""
-        return """You are a social media platform environment module specialized in managing social media operations.
-
-Your task is to use the available tools to:
-- Create and view posts (original posts, reposts, comments)
-- Like/unlike posts
-- Follow/unfollow users
-- Generate personalized feeds with recommendation algorithms
-
-Use the available tools based on the agent's request."""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Social media environment for posts, comments, likes, follows, and feeds."
 
     @staticmethod
     def _norm_user_data(data: Any) -> Dict[str, Any]:
@@ -634,138 +626,6 @@ Use the available tools based on the agent's request."""
         super().set_replay_writer(writer)
         if writer is not None:
             self._schedule_replay_task(self._register_event_table())
-
-    def _dump_state(self) -> dict:
-        """
-        Dump internal state（包含新增字段）
-        """
-        state = {
-            "persons": {
-                pid: person.model_dump(mode="json")
-                for pid, person in self._persons.items()
-            },
-            "posts": {
-                pid: post.model_dump(mode="json") for pid, post in self._posts.items()
-            },
-            "comments": {
-                pid: [c.model_dump(mode="json") for c in comment_list]
-                for pid, comment_list in self._comments.items()
-            },
-            "next_post_id": self._next_post_id,
-            "next_comment_id": self._next_comment_id,
-            "pending_events": [
-                self._dump_event_data(event) for event in self._pending_events
-            ],
-            "recent_events": [
-                self._dump_event_data(event) for event in self._recent_events
-            ],
-            "event_id": self._event_id,
-            "step_counter": self._step_counter,
-        }
-
-        return state
-
-    def _load_state(self, state: dict):
-        """
-        Load internal state（包含新增字段）
-        """
-        if not isinstance(state, dict):
-            raise TypeError(f"State must be a dict, got {type(state).__name__}")
-
-        try:
-            persons = self._persons
-            if "persons" in state:
-                persons_data = state["persons"]
-                if not isinstance(persons_data, dict):
-                    raise TypeError(
-                        f"State field 'persons' must be a dict, got {type(persons_data).__name__}"
-                    )
-                persons = {
-                    int(uid): SocialMediaPerson(**self._norm_user_data(data))
-                    for uid, data in persons_data.items()
-                }
-
-            posts = self._posts
-            if "posts" in state:
-                posts_data = state["posts"]
-                if not isinstance(posts_data, dict):
-                    raise TypeError(
-                        f"State field 'posts' must be a dict, got {type(posts_data).__name__}"
-                    )
-                posts = {
-                    int(pid): Post(**self._norm_post_data(data))
-                    for pid, data in posts_data.items()
-                }
-
-            comments = self._comments
-            if "comments" in state:
-                comments_data = state["comments"]
-                if not isinstance(comments_data, dict):
-                    raise TypeError(
-                        f"State field 'comments' must be a dict, got {type(comments_data).__name__}"
-                    )
-                normalized_comments = defaultdict(list)
-                for pid, comment_list in comments_data.items():
-                    normalized_comments[int(pid)] = [
-                        Comment(**self._norm_comment_data(c)) for c in comment_list
-                    ]
-                comments = normalized_comments
-
-            next_post_id = (
-                int(state["next_post_id"])
-                if "next_post_id" in state
-                else self._next_post_id
-            )
-            next_comment_id = (
-                int(state["next_comment_id"])
-                if "next_comment_id" in state
-                else self._next_comment_id
-            )
-
-            pending_events = self._pending_events
-            if "pending_events" in state:
-                pending_events_data = state["pending_events"]
-                if not isinstance(pending_events_data, list):
-                    raise TypeError(
-                        f"State field 'pending_events' must be a list, got {type(pending_events_data).__name__}"
-                    )
-                pending_events = [
-                    self._norm_event_data(event) for event in pending_events_data
-                ]
-
-            recent_events = self._recent_events
-            if "recent_events" in state:
-                recent_events_data = state["recent_events"]
-                if not isinstance(recent_events_data, list):
-                    raise TypeError(
-                        f"State field 'recent_events' must be a list, got {type(recent_events_data).__name__}"
-                    )
-                recent_events = deque(
-                    [self._norm_event_data(event) for event in recent_events_data],
-                    maxlen=200,
-                )
-
-            event_id = int(state["event_id"]) if "event_id" in state else self._event_id
-            step_counter = (
-                int(state["step_counter"])
-                if "step_counter" in state
-                else self._step_counter
-            )
-        except Exception:
-            get_logger().exception("Failed to load social media state")
-            raise
-
-        self._persons = persons
-        self._posts = posts
-        self._comments = comments
-        self._next_post_id = next_post_id
-        self._next_comment_id = next_comment_id
-        self._pending_events = pending_events
-        self._recent_events = recent_events
-        self._event_id = event_id
-        self._step_counter = step_counter
-
-        get_logger().info("State loaded successfully")
 
     @staticmethod
     def _event_time_to_iso(event: dict) -> Optional[str]:

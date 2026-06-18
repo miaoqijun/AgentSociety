@@ -1,7 +1,7 @@
 """
 简单 Agent 示例
 
-这是一个基础的 Agent 示例，展示如何创建自定义 Agent。
+这是一个基础的 Agent 示例，展示如何创建自定义 Agent（workspace 契约）。
 
 创建完成后：
 1. 将文件复制到 custom/agents/ 目录（不要放在 examples/ 中）
@@ -9,8 +9,12 @@
 3. 运行 VSCode 命令 "测试自定义模块" 验证
 """
 
-from agentsociety2.agent.base import AgentBase
+import json
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from agentsociety2.agent.base import AgentBase
 
 
 class SimpleAgent(AgentBase):
@@ -21,15 +25,18 @@ class SimpleAgent(AgentBase):
     """
 
     @classmethod
-    def mcp_description(cls) -> str:
-        """
-        返回 Agent 的描述信息
+    def description(cls) -> str:
+        """返回 Agent 短说明。"""
+        return "简单的 LLM 驱动 Agent 示例。"
 
-        这个描述会显示在模块列表中。
+    @classmethod
+    def init_description(cls) -> str:
+        """
+        返回 Agent 初始化参数说明。
         """
         return """SimpleAgent: 简单的 LLM 驱动 Agent 示例
 
-这是一个基础的 Agent 示例，用于演示如何创建自定义 Agent。
+这是一个基础的 Agent 示例，用于演示如何创建自定义 Agent（workspace 契约）。
 
 **Profile 字段:**
 - name (str): Agent 的名称
@@ -42,10 +49,75 @@ class SimpleAgent(AgentBase):
   "profile": {
     "name": "张三",
     "personality": "友好开朗"
-  }
+  },
+  "config": {}
 }
 ```
 """
+
+    # ==================== Workspace 契约 ====================
+
+    @classmethod
+    def create(cls, workspace_path: Path, profile: dict, config: dict) -> None:
+        """Create the initial agent workspace."""
+        workspace_path = Path(workspace_path)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        (workspace_path / "config.json").write_text(
+            json.dumps(config or {}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        agent_id = int(profile.get("id", 0))
+        name = str(profile.get("name")) if profile.get("name") else f"Agent_{agent_id}"
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": agent_id,
+                    "name": name,
+                    "profile": profile,
+                    "step_count": 0,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    @classmethod
+    async def from_workspace(
+        cls, workspace_path: Path, service_proxy: Any
+    ) -> "SimpleAgent":
+        """Reconstruct a ready SimpleAgent from its workspace."""
+        agent = cls()
+        await agent.restore(workspace_path, service_proxy)
+        return agent
+
+    async def restore(self, workspace_path: Path, service_proxy: Any) -> None:
+        """Restore agent state from AGENT.json (no super() — example agents
+        don't use the skill/workspace runtime that AgentBase.restore binds)."""
+        workspace_path = Path(workspace_path)
+        meta = json.loads((workspace_path / "AGENT.json").read_text(encoding="utf-8"))
+        self._id = int(meta.get("agent_id", meta.get("id", 0)))
+        self._profile = meta.get("profile", {"name": meta.get("name")})
+        self._name = meta.get("name") or f"Agent_{self._id}"
+        self._config = {}
+        self._bind_services(service_proxy)
+        self._step_count = int(meta.get("step_count", 0))
+
+    async def to_workspace(self, workspace_path: Path) -> None:
+        """Write current dynamic state back to the workspace."""
+        workspace_path = Path(workspace_path)
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": self._id,
+                    "name": self._name,
+                    "profile": self.get_profile(),
+                    "step_count": getattr(self, "_step_count", 0),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     async def ask(self, message: str, readonly: bool = True) -> str:
         """
@@ -78,12 +150,11 @@ class SimpleAgent(AgentBase):
 
         :returns: 步骤描述
         """
+        self._step_count += 1
         # 查询环境状态
         try:
             _, observation = await self.ask_env(
-                {"variables": {}},
-                "当前环境状态是什么？",
-                readonly=True
+                {"variables": {}}, "当前环境状态是什么？", readonly=True
             )
         except Exception as e:
             observation = f"无法获取环境状态：{e!s}"
@@ -91,27 +162,3 @@ class SimpleAgent(AgentBase):
         # 记录状态
         action = f"Agent {self.name} 观察到：{observation}，继续活动"
         return action
-
-    async def dump(self) -> dict:
-        """
-        序列化 Agent 状态
-
-        :returns: 状态字典
-        """
-        return {
-            "id": self._id,
-            "profile": self.get_profile(),
-            "name": self._name,
-        }
-
-    async def load(self, dump_data: dict):
-        """
-        从字典加载 Agent 状态
-
-        :param dump_data: 状态字典
-        """
-        self._id = dump_data.get("id", self._id)
-        profile = dump_data.get("profile")
-        if profile:
-            self._profile = profile
-        self._name = dump_data.get("name", self._name)

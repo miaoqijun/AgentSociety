@@ -6,7 +6,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
@@ -157,13 +157,3 @@ msgid "**适时干预**: 在适当的模拟时间进行干预以获得现实效�
 msgstr ""
 "**Intervene at appropriate times**: Intervene at appropriate simulation "
 "times for realistic effects"
-
-#~ msgid "使用时间控制运行"
-#~ msgstr "Running with Time Control"
-
-#~ msgid "**结合 ReplayWriter**: 启用回放记录以进行全面的数据收集"
-#~ msgstr ""
-#~ "**Combine with ReplayWriter**: Enable replay"
-#~ " recording for comprehensive data "
-#~ "collection"
-

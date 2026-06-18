@@ -1,6 +1,6 @@
 """
 Endowment Effect Experiment Environment
-Environment for Endowment Effect experiment based on V2 framework
+Environment for Endowment Effect experiment based on AgentSociety2
 """
 import asyncio
 from datetime import datetime
@@ -35,7 +35,7 @@ class GetMyEvaluationsResponse(BaseModel):
 
 
 class EndowmentEffectEnv(EnvBase):
-    """Environment for Endowment Effect experiment based on V2 framework"""
+    """Environment for Endowment Effect experiment based on AgentSociety2"""
 
     # Valid items for the experiment
     VALID_ITEMS: ClassVar[list[str]] = ["pen", "plate", "glass", "doll"]
@@ -64,9 +64,9 @@ class EndowmentEffectEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Includes parameter descriptions and JSON schemas for data models.
         """
         description = f"""{cls.__name__}: Endowment Effect experiment environment module.
@@ -85,47 +85,10 @@ class EndowmentEffectEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        return f"""You are an Endowment Effect experiment environment module specialized in collecting WTA and WTP evaluations.
-
-**Experiment Overview:** {self.num_agents} agents are participating in an Endowment Effect experiment to evaluate their willingness to accept (WTA) and willingness to pay (WTP) for different items.
-
-**Experiment Task:**
-You need to evaluate 4 items: pen, plate, glass, and doll. For each item, you need to provide two values:
-- **WTA (Willingness to Accept)**: The minimum price you would be willing to accept to sell this item (if you owned it)
-- **WTP (Willingness to Pay)**: The maximum price you would be willing to pay to buy this item
-
-**Evaluation Instructions:**
-- Both WTA and WTP should be non-negative numbers (can be 0 or positive)
-- You should base your evaluations on your personal profile and psychological characteristics
-- Consider the actual value and utility of each item when making your evaluations
-- Think about the endowment effect: people often value items they own more than items they don't own
-
-**Available Operations (you MUST use these within your plan):**
-1. **submit_wta_wtp(agent_id, item, wta, wtp)**: Submit your WTA and WTP evaluation for an item
-   - agent_id: Your agent ID (e.g., 101, 102)
-   - item: Item name - must be one of: "pen", "plate", "glass", "doll"
-   - wta: Your willingness to accept price (non-negative number)
-   - wtp: Your willingness to pay price (non-negative number)
-   - You can submit evaluations for multiple items, one at a time
-   - You can update an evaluation by submitting again for the same item
-
-2. **get_my_evaluations(agent_id)**: View your submitted evaluations
-   - agent_id: Your agent ID
-   - Returns: Your current evaluations, completed items, and remaining items
-
-3. **get_all_evaluations()**: View all agents' evaluations (statistics)
-   - Returns: Dictionary of all agents' evaluations
-   - Use this to see how others are evaluating items
-
-**CRITICAL CONSTRAINT:**
-⚠️ You MUST submit evaluations for all 4 items (pen, plate, glass, doll) within your plan.
-⚠️ Each evaluation requires both WTA and WTP values.
-⚠️ Consider your psychological profile when making these evaluations - your personality traits, values, and preferences should influence your pricing decisions.
-"""
-
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Endowment Effect experiment environment for collecting WTA and WTP evaluations."
     @tool(readonly=False)
     async def submit_wta_wtp(
         self, agent_id: int, item: str, wta: float, wtp: float
@@ -272,22 +235,5 @@ You need to evaluate 4 items: pen, plate, glass, and doll. For each item, you ne
             agent_id: {item: eval_data.copy() for item, eval_data in items.items()}
             for agent_id, items in self._evaluations.items()
         }
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "agent_ids": self.agent_ids,
-            "num_agents": self.num_agents,
-            "evaluations": self._evaluations,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.agent_ids = state.get("agent_ids", [])
-        self.num_agents = state.get("num_agents", len(self.agent_ids))
-        self._evaluations = state.get("evaluations", {})
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["EndowmentEffectEnv"]

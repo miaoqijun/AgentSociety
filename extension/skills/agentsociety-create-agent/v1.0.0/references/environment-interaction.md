@@ -67,7 +67,7 @@ Notes:
 
 ## Context Overlay
 
-Agent identity is automatically merged from `env_codegen_ctx_overlay()`:
+Agent identity is automatically merged from `self.env_ask_env_ctx_overlay()`:
 - `id`, `agent_id`, `person_id`
 
 You don't need to pass these explicitly:

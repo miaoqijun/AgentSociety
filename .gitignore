@@ -198,6 +198,10 @@ examples/
 !packages/agentsociety2/tests/
 !packages/agentsociety2/tests/**
 !packages/agentsociety2/agentsociety2/contrib/env/*_test.py
+!examples/v2/daily_mobility/data/
+!examples/v2/daily_mobility/data/groundtruth/
+!examples/v2/daily_mobility/data/groundtruth/**
+!examples/v2/daily_mobility/data/groundtruth/*.json
 
 # Allow specific text files
 !requirements.txt

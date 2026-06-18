@@ -1,28 +1,31 @@
 """
 Prisoner's Dilemma Game Agent
-Agent for Prisoner's Dilemma game based on V2 framework
+Agent for Prisoner's Dilemma game based on AgentSociety2
 """
+
+import json
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from agentsociety2.agent.base import AgentBase
 
 
 class PrisonersDilemmaAgent(AgentBase):
-    """Agent for Prisoner's Dilemma game based on V2 framework"""
+    """Agent for Prisoner's Dilemma game based on AgentSociety2"""
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP agent module candidate list.
+        Return AI-readable initialization guidance for this agent class.
         Includes parameter descriptions.
         """
         description = f"""{cls.__name__}: Agent for Prisoner's Dilemma game.
 
-**Description:** {cls.__doc__ or 'No description available'}
+**Description:** {cls.__doc__ or "No description available"}
 
-**Initialization Parameters:**
+**Initialization Parameters (workspace contract):**
 - id (int): The unique identifier for the agent.
 - name (str): The name of the agent.
 
@@ -36,44 +39,80 @@ This agent participates in a 10-round Prisoner's Dilemma game where two players 
 ```json
 {{
   "id": 1,
-  "name": "Agent A"
+  "profile": {{"name": "Agent A"}},
+  "config": {{}}
 }}
 ```
 """
         return description
 
-    def __init__(self, id: int, name: str):
-        """Initialize PrisonersDilemmaAgent
-        
-        Args:
-            id: Agent ID
-            name: Agent name
-        """
-        profile = {"name": name}
-        super().__init__(id=id, profile=profile)
-        self._name = name
-        self.history = []  # Store history records
+    # ==================== Workspace 契约 ====================
 
-    @property
-    def name(self):
-        """Return agent name"""
-        return self._name
+    @classmethod
+    def create(cls, workspace_path: Path, profile: dict, config: dict) -> None:
+        """Create the initial agent workspace."""
+        workspace_path = Path(workspace_path)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        (workspace_path / "config.json").write_text(
+            json.dumps(config or {}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        agent_id = int(profile.get("id", 0))
+        name = str(profile.get("name") or f"Agent_{agent_id}")
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": agent_id,
+                    "name": name,
+                    "profile": profile,
+                    "step_count": 0,
+                    "history": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
-    async def dump(self) -> dict:
-        """Export agent state"""
-        return {
-            "id": self._id,
-            "name": self._name,
-            "profile": self._profile,
-            "history": self.history,
-        }
+    @classmethod
+    async def from_workspace(
+        cls, workspace_path: Path, service_proxy: Any
+    ) -> "PrisonersDilemmaAgent":
+        """Reconstruct a ready PrisonersDilemmaAgent from its workspace."""
+        agent = cls()
+        await agent._restore(workspace_path, service_proxy)
+        return agent
 
-    async def load(self, dump_data: dict):
-        """Load agent state"""
-        self._id = dump_data.get("id", self._id)
-        self._name = dump_data.get("name", self._name)
-        self._profile = dump_data.get("profile", self._profile)
-        self.history = dump_data.get("history", [])
+    async def _restore(self, workspace_path: Path, service_proxy: Any) -> None:
+        """Restore game-agent state from AGENT.json (no super() — game agents
+        don't use the skill/workspace runtime that AgentBase._restore binds)."""
+        workspace_path = Path(workspace_path)
+        meta = json.loads((workspace_path / "AGENT.json").read_text(encoding="utf-8"))
+        self._id = int(meta.get("agent_id", meta.get("id", 0)))
+        self._profile = meta.get("profile", {"name": meta.get("name")})
+        self._name = meta.get("name") or f"Agent_{self._id}"
+        self._config = {}
+        self._bind_services(service_proxy)
+        self._step_count = int(meta.get("step_count", 0))
+        # custom attributes
+        self.history = list(meta.get("history", []))
+
+    async def to_workspace(self, workspace_path: Path) -> None:
+        """Write current dynamic state (history) back to the workspace."""
+        workspace_path = Path(workspace_path)
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": self._id,
+                    "name": self._name,
+                    "profile": self.get_profile(),
+                    "step_count": self._step_count,
+                    "history": self.history,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     async def ask(self, message: str, readonly: bool = True) -> str:
         """Answer questions"""
@@ -97,7 +136,8 @@ This agent participates in a 10-round Prisoner's Dilemma game where two players 
         """Execute one step - make action decision and submit to environment"""
         if self._env is None:
             return f"[{self.name}] Environment not initialized"
-        
+        self._step_count += 1
+
         try:
             # Step 1: Get round history from environment
             history_result, history_response = await self.ask_env(
@@ -107,22 +147,22 @@ This agent participates in a 10-round Prisoner's Dilemma game where two players 
                 template_mode=True,
             )
             self._logger.debug(f"[{self.name}] History response: {history_response}")
-            
+
             # Parse and update local history
             round_history = self._parse_round_history(history_result, history_response)
             self._sync_history(round_history)
-            
+
             # Determine current round number (next round = len(history) + 1)
             current_round = len(self.history) + 1
-            
+
             # Extract opponent name from history if available
             opponent_name = self._extract_opponent_name()
-            
+
             # Step 2: Decide action using LLM
             action, explanation = await self._decide_action(
                 current_round, opponent_name
             )
-            
+
             # Step 3: Submit action to environment
             submit_result, submit_response = await self.ask_env(
                 {
@@ -140,15 +180,17 @@ This agent participates in a 10-round Prisoner's Dilemma game where two players 
                 f"[{self.name}] Round {current_round}: Submitted action={action}, "
                 f"explanation={explanation[:50]}..."
             )
-            
+
             return f"[{self.name}] Round {current_round}: Submitted action {action}"
-            
+
         except Exception as e:
             error_message = f"Step execution failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
             return f"[{self.name}] [ERROR] {error_message}"
 
-    async def _decide_action(self, round_num: int, opponent_name: str) -> tuple[str, str]:
+    async def _decide_action(
+        self, round_num: int, opponent_name: str
+    ) -> tuple[str, str]:
         """Decide action using LLM - determine cooperate or defect"""
         # Build history string
         history_str = self._build_history_string(opponent_name)
@@ -201,7 +243,9 @@ This agent participates in a 10-round Prisoner's Dilemma game where two players 
 
                 # Extract Explanation
                 explanation_match = re.search(
-                    r"<explanation>(.*?)</explanation>", content, re.DOTALL | re.IGNORECASE
+                    r"<explanation>(.*?)</explanation>",
+                    content,
+                    re.DOTALL | re.IGNORECASE,
                 )
                 if explanation_match:
                     explanation = explanation_match.group(1).strip()
@@ -213,7 +257,9 @@ This agent participates in a 10-round Prisoner's Dilemma game where two players 
                 )
             else:
                 # Fallback: single-line matching
-                self._logger.warning(f"[{self.name}] [WARNING] XML 解析失败，尝试单行匹配...")
+                self._logger.warning(
+                    f"[{self.name}] [WARNING] XML 解析失败，尝试单行匹配..."
+                )
                 lines = content.strip().split("\n")
                 first_line = lines[0].strip()
 
@@ -222,17 +268,20 @@ This agent participates in a 10-round Prisoner's Dilemma game where two players 
                 if match:
                     action = match.group(1).capitalize()
                     explanation = (
-                        " ".join(lines[1:]).strip()
-                        or "单行匹配成功，无详细解释"
+                        " ".join(lines[1:]).strip() or "单行匹配成功，无详细解释"
                     )
-                    self._logger.info(f"[{self.name}] [FALLBACK] 单行匹配成功: action={action}")
+                    self._logger.info(
+                        f"[{self.name}] [FALLBACK] 单行匹配成功: action={action}"
+                    )
                 else:
                     # Final fallback: keyword search
                     keyword_match = re.search(r"\b(yes|no)\b", content, re.IGNORECASE)
                     if keyword_match:
                         action = keyword_match.group(1).capitalize()
                         explanation = f"从响应中提取关键词：{action}"
-                        self._logger.info(f"[{self.name}] [KEYWORD] 关键词匹配成功: action={action}")
+                        self._logger.info(
+                            f"[{self.name}] [KEYWORD] 关键词匹配成功: action={action}"
+                        )
                     else:
                         raise ValueError(f"无法解析有效动作，内容:\n{content[:200]}")
 
@@ -292,7 +341,7 @@ This agent participates in a 10-round Prisoner's Dilemma game where two players 
         for round_data in round_history:
             agent_a_action = round_data.get("agent_a_action", "")
             agent_b_action = round_data.get("agent_b_action", "")
-            
+
             # Determine which action is mine based on agent name
             if agent_a_action and agent_b_action:
                 # For now, assume we're Agent A (will be determined by actual agent name)

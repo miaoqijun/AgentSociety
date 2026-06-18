@@ -495,7 +495,6 @@ class LiteratureSearchTool:
         self.workspace_path = Path(workspace_path)
 
     async def execute(self, arguments: Dict[str, Any]) -> ToolResult:
-        from agentsociety2.config import get_llm_router
         from agentsociety2.skills.literature import search_literature_and_save
 
         query = arguments.get("query", "")
@@ -504,7 +503,6 @@ class LiteratureSearchTool:
         result = await search_literature_and_save(
             query=query,
             workspace_path=self.workspace_path,
-            router=get_llm_router("default"),
             limit=limit,
         )
 

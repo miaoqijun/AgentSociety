@@ -74,9 +74,10 @@ pip install agentsociety2
 
 - **LLM-Native Design**: Built from the ground up for LLM-driven agents
 - **Flexible Environment System**: Modular environment components with hot-pluggable tools
-- **Multiple Reasoning Patterns**: ReAct, Plan-Execute, Code Generation, Two-Tier routers
-- **Research Skills**: Literature search, hypothesis generation, experiment design, analysis, and paper workflows (via external `paper-toolkit` plugin)
-- **Experiment Replay**: Full SQLite-based replay system
+- **Multiple Reasoning Patterns**: CodeGen (default), ReAct, Plan-Execute, Two-Tier, and Search routers
+- **Scalable Execution**: Agents are workspace-bound stateless records driven by Ray Tasks, with env / LLM clients / trace / replay handles behind a single `ServiceProxy`
+- **Research Skills**: Literature search, hypothesis generation, experiment design, paper writing
+- **Experiment Replay**: Catalog-driven JSONL replay with DuckDB-powered reads and distributed tracing
 - **MCP Support**: Model Context Protocol integration for tool extensibility
 
 **Documentation:** [agentsociety2.readthedocs.io](https://agentsociety2.readthedocs.io/)
@@ -105,28 +106,8 @@ pip install agentsociety
 
 ## Other Packages
 
-Legacy packages remain in this monorepo for reference but are **not part of active development, CI, or security scanning**:
-
-- **[agentsociety-community](./packages/agentsociety-community/)**: Community contributions for custom agents and blocks (legacy)
-- **[agentsociety-benchmark](./packages/agentsociety-benchmark/)**: Benchmarking utilities for agent evaluation (legacy)
-
-Active work focuses on **AgentSociety 2** (`packages/agentsociety2`), the **VS Code extension** (`extension/`), and the **web frontend** (`frontend/`). See [`.github/agentsociety2-scope.yml`](./.github/agentsociety2-scope.yml).
-
-## Releases
-
-AgentSociety 2 uses semantic versioning with Git tags:
-
-```text
-agentsociety2-v{major}.{minor}.{patch}
-```
-
-Example: `agentsociety2-v2.5.2` publishes:
-
-- **PyPI**: `agentsociety2==2.5.2`
-- **VS Code extension**: `ai-social-scientist` (version in `extension/package.json`)
-- **GitHub Release**: wheel, sdist, and `.vsix` attachments
-
-Changelog: [CHANGELOG.md](./CHANGELOG.md)
+- **[agentsociety-community](./packages/agentsociety-community/)**: Community contributions for custom agents and blocks
+- **[agentsociety-benchmark](./packages/agentsociety-benchmark/)**: Benchmarking utilities for agent evaluation
 
 ## Project Structure
 
@@ -147,31 +128,25 @@ AgentSociety/
 
 ### AgentSociety 2
 
-Set LLM environment variables before running examples (`agentsociety2` validates them at import time):
-
-```bash
-export AGENTSOCIETY_LLM_API_KEY="your-api-key"
-export AGENTSOCIETY_LLM_API_BASE="https://api.openai.com/v1"
-export AGENTSOCIETY_LLM_MODEL="gpt-5.5"
-```
-
 ```python
 import asyncio
 from datetime import datetime
-from agentsociety2 import PersonAgent
+from pathlib import Path
 from agentsociety2.env import CodeGenRouter
 from agentsociety2.contrib.env import SimpleSocialSpace
 from agentsociety2.society import AgentSociety
 
 async def main():
-    agent = PersonAgent(
-        id=1,
-        profile={"name": "Alice", "personality": "friendly and curious"},
+    # Agents are declared as metadata (specs); AgentSociety creates their workspaces in init().
+    agent_specs = [{"id": 1, "profile": {"name": "Alice"}, "config": {}}]
+    env = CodeGenRouter(env_modules=[SimpleSocialSpace(agent_id_name_pairs=[(1, "Alice")])])
+    society = AgentSociety(
+        agent_specs=agent_specs,
+        agent_class_name="PersonAgent",
+        env_router=env,
+        start_t=datetime.now(),
+        run_dir=Path("run"),
     )
-    env = CodeGenRouter(
-        env_modules=[SimpleSocialSpace(agent_id_name_pairs=[(agent.id, agent.name)])]
-    )
-    society = AgentSociety(agents=[agent], env_router=env, start_t=datetime.now())
     await society.init()
     response = await society.ask("What's your name?")
     print(response)
@@ -220,9 +195,6 @@ If you use AgentSociety in your research, please cite:
 
 ## Contact
 
-- **Issues**: [GitHub Issues](https://github.com/tsinghua-fib-lab/agentsociety/issues) (public bugs and feature requests)
-- **Security**: see [SECURITY.md](./SECURITY.md)
+- **Issues**: [GitHub Issues](https://github.com/tsinghua-fib-lab/agentsociety/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/tsinghua-fib-lab/agentsociety/discussions)
-- **Contributing**: [CONTRIBUTING.md](./CONTRIBUTING.md)
-- **Agent guide** (Cursor / coding agents): [AGENTS.md](./AGENTS.md)
 - **Email**: agentsociety.fiblab2025@gmail.com

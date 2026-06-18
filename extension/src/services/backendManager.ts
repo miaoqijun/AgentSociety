@@ -244,15 +244,6 @@ export class BackendManager {
     if (envConfig.coderLlmApiBase) { env.AGENTSOCIETY_CODER_LLM_API_BASE = envConfig.coderLlmApiBase; }
     if (envConfig.coderLlmModel) { env.AGENTSOCIETY_CODER_LLM_MODEL = envConfig.coderLlmModel; }
 
-    // Nano LLM 配置
-    if (envConfig.nanoLlmApiKey) { env.AGENTSOCIETY_NANO_LLM_API_KEY = envConfig.nanoLlmApiKey; }
-    if (envConfig.nanoLlmApiBase) { env.AGENTSOCIETY_NANO_LLM_API_BASE = envConfig.nanoLlmApiBase; }
-    if (envConfig.nanoLlmModel) { env.AGENTSOCIETY_NANO_LLM_MODEL = envConfig.nanoLlmModel; }
-
-    if (envConfig.analysisLlmApiKey) { env.AGENTSOCIETY_ANALYSIS_LLM_API_KEY = envConfig.analysisLlmApiKey; }
-    if (envConfig.analysisLlmApiBase) { env.AGENTSOCIETY_ANALYSIS_LLM_API_BASE = envConfig.analysisLlmApiBase; }
-    if (envConfig.analysisLlmModel) { env.AGENTSOCIETY_ANALYSIS_LLM_MODEL = envConfig.analysisLlmModel; }
-
     // Embedding 配置
     if (envConfig.embeddingApiKey) { env.AGENTSOCIETY_EMBEDDING_API_KEY = envConfig.embeddingApiKey; }
     if (envConfig.embeddingApiBase) { env.AGENTSOCIETY_EMBEDDING_API_BASE = envConfig.embeddingApiBase; }

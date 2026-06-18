@@ -30,7 +30,10 @@ Example::
 
 import asyncio
 import time
+import uuid
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
 from typing import (
     Tuple,
@@ -43,7 +46,6 @@ from typing import (
     TYPE_CHECKING,
     Type,
     TypeVar,
-    ClassVar,
 )
 from pathlib import Path
 
@@ -52,17 +54,12 @@ if TYPE_CHECKING:
 
 from pydantic import BaseModel, ValidationError
 from litellm import AllMessageValues
-from litellm.exceptions import RateLimitError
 from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
 from litellm.types.utils import ModelResponse
-
-try:
-    from litellm.types.router import RouterRateLimitError
-except Exception:  # pragma: no cover - compatibility across litellm versions
-    RouterRateLimitError = None
+import yaml
 
 from agentsociety2.env.base import EnvBase
-from agentsociety2.config import get_llm_router_and_model, extract_json
+from agentsociety2.config import LLMDispatchError, get_model_name, extract_json
 from agentsociety2.logger import get_logger
 from agentsociety2.env.function_parser import FunctionParser, FunctionParts
 from agentsociety2.env.pydantic_collector import PydanticModelCollector
@@ -73,199 +70,36 @@ import json_repair
 T = TypeVar("T", bound=BaseModel)
 
 
-def _is_rate_limit_like_error(error: Exception) -> bool:
-    """判断异常是否“类似速率限制”。
+def _env_skill_catalog_row(skill_md: Path, *, module_name: str) -> str:
+    """Return one Markdown table row for an environment-provided skill."""
+    try:
+        raw = skill_md.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    meta: dict[str, Any] = {}
+    if raw.startswith("---"):
+        parts = raw.split("---", 2)
+        if len(parts) >= 3:
+            loaded = yaml.safe_load(parts[1]) or {}
+            meta = loaded if isinstance(loaded, dict) else {}
+    name = str(meta.get("name") or skill_md.parent.name).strip()
+    description = str(meta.get("description") or "").strip() or "No description."
 
-    :param error: 捕获到的异常对象。
-    :returns: 若可判定为 429/Router cooldown/无可用 deployments 等限流相关错误则返回 ``True``。
-    """
-    if isinstance(error, RateLimitError):
-        return True
-    if RouterRateLimitError is not None and isinstance(error, RouterRateLimitError):
-        return True
-    # Fallback for version differences where RouterRateLimitError class is not importable.
-    err_type_name = type(error).__name__
-    err_text = str(error).lower()
-    return (
-        err_type_name == "RouterRateLimitError"
-        or "routerratelimiterror" in err_text
-        or "no deployments available for selected model" in err_text
-        or "try again in" in err_text
+    def cell(value: Any) -> str:
+        return str(value or "-").replace("\n", " ").replace("|", "\\|").strip()
+
+    return f"| {cell(name)} | {cell(module_name)} | {cell(description)} |"
+
+
+def _empty_env_skill_catalog() -> str:
+    """Return an empty Markdown table for environment skill catalog prompts."""
+    return "\n".join(
+        [
+            "| name | env_module | description |",
+            "| --- | --- | --- |",
+            "| - | - | No environment skills were declared by modules. |",
+        ]
     )
-
-
-# ═══════════════════════════════════════════════════════════
-# 自适应并发控制
-# ═══════════════════════════════════════════════════════════
-
-
-class _AdjustableSemaphore:
-    """容量可动态调整的 asyncio 信号量（基于 Condition）。"""
-
-    def __init__(self, capacity: int) -> None:
-        self._capacity = capacity
-        self._available = capacity
-        self._cond = asyncio.Condition()
-
-    @property
-    def capacity(self) -> int:
-        return self._capacity
-
-    async def acquire(self) -> None:
-        async with self._cond:
-            while self._available <= 0:
-                await self._cond.wait()
-            self._available -= 1
-
-    async def release(self) -> None:
-        async with self._cond:
-            self._available += 1
-            self._cond.notify(1)
-
-    async def set_capacity(self, new_capacity: int) -> int:
-        if new_capacity < 0:
-            new_capacity = 0
-        async with self._cond:
-            old = self._capacity
-            delta = new_capacity - old
-            self._capacity = new_capacity
-            if delta > 0:
-                self._available += delta
-                self._cond.notify(delta)
-            elif delta < 0:
-                self._available = max(0, self._available + delta)
-            return old
-
-
-class AdaptiveSemaphore:
-    """TCP AIMD 式自适应并发信号量。
-
-    过载信号来源：
-    1. 429/rate-limit 错误
-    2. 延迟超过基线 2x（API 排队/过载）
-
-    每轮（max(round_size, limit) 个请求完成后评估）：
-    - combined_overload > threshold → 乘法降窗 + 3 轮冷却
-    - combined_overload ≤ threshold → 加法增窗（步长指数增长）
-    """
-
-    def __init__(
-        self,
-        initial: int = 10,
-        min_limit: int = 1,
-        max_limit: int = 100,
-        decrease_factor: float = 0.7,
-        overload_threshold: float = 0.1,
-        min_round_size: int = 20,
-        latency_degrade_factor: float = float("inf"),
-    ) -> None:
-        self._sem = _AdjustableSemaphore(initial)
-        self._limit = initial
-        self._min = min_limit
-        self._max = max_limit
-        self._decrease_factor = decrease_factor
-        self._overload_threshold = overload_threshold
-        self._min_round_size = min_round_size
-        self._latency_degrade_factor = latency_degrade_factor
-
-        self._step = 1
-        self._round_finished = 0
-        self._round_overloaded = 0
-        self._round_slow = 0
-        self._adjust_lock = asyncio.Lock()
-        self._cooldown_remaining = 0
-
-        self._baseline_latency_ms: float | None = None
-        self._baseline_samples: list[float] = []
-        self._baseline_target = 10
-
-    @property
-    def limit(self) -> int:
-        return self._limit
-
-    async def acquire(self) -> None:
-        await self._sem.acquire()
-
-    async def release(self, overloaded: bool = False) -> None:
-        self._round_finished += 1
-        if overloaded:
-            self._round_overloaded += 1
-
-        await self._sem.release()
-
-        window = max(self._min_round_size, self._limit)
-        if self._round_finished >= window:
-            await self._adjust()
-
-    def record_latency(self, latency_ms: float, is_error: bool = False) -> None:
-        """记录请求延迟，更新基线和慢请求计数。"""
-        if is_error:
-            return
-
-        # 收集基线样本
-        if self._baseline_latency_ms is None:
-            self._baseline_samples.append(latency_ms)
-            if len(self._baseline_samples) >= self._baseline_target:
-                self._baseline_samples.sort()
-                self._baseline_latency_ms = self._baseline_samples[
-                    len(self._baseline_samples) // 2
-                ]
-
-        # 检测延迟退化
-        if (
-            self._baseline_latency_ms is not None
-            and latency_ms > self._baseline_latency_ms * self._latency_degrade_factor
-        ):
-            self._round_slow += 1
-
-    async def _adjust(self) -> None:
-        async with self._adjust_lock:
-            finished = self._round_finished
-            overloaded = self._round_overloaded
-            slow = self._round_slow
-            self._round_finished = 0
-            self._round_overloaded = 0
-            self._round_slow = 0
-
-            if finished == 0:
-                return
-
-            combined = (overloaded + slow) / finished
-            old_limit = self._limit
-
-            if combined > self._overload_threshold:
-                new_limit = max(
-                    self._min, int(self._limit * self._decrease_factor)
-                )
-                self._step = 1
-                self._cooldown_remaining = 3
-                get_logger().info(
-                    "[AdaptiveSem] ↓ DECREASE: 429=%d/%d slow=%d/%d "
-                    "→ %d → %d (cooldown=3)",
-                    overloaded, finished, slow, finished,
-                    old_limit, new_limit,
-                )
-            else:
-                if self._cooldown_remaining > 0:
-                    self._cooldown_remaining -= 1
-                    get_logger().debug(
-                        "[AdaptiveSem] ─ COOLDOWN: left=%d, stays %d",
-                        self._cooldown_remaining, old_limit,
-                    )
-                    return
-
-                new_limit = min(self._max, self._limit + self._step)
-                next_step = min(self._step * 2, 16)
-                get_logger().info(
-                    "[AdaptiveSem] ↑ INCREASE: → %d → %d (next_step=%d)",
-                    old_limit, new_limit, next_step,
-                )
-                self._step = next_step
-
-            if new_limit != old_limit:
-                await self._sem.set_capacity(new_limit)
-
-            self._limit = new_limit
 
 
 class TokenUsageStats(BaseModel):
@@ -335,25 +169,10 @@ class RouterBase(ABC):
     Router 用于协调 agent 与环境模块（:class:`~agentsociety2.env.base.EnvBase`）的交互，职责包括：
 
     - 聚合并过滤环境工具（函数调用 schema）
-    - 维护仿真时钟（``self.t``）
-    - 提供统一 LLM 调用封装（重试与 token 统计）
+    - 接收编排器推送的仿真时钟（:meth:`set_current_time`），供 env 模块在 agent 阶段读取
+    - 提供统一 LLM 调用封装（重试）
     - 生成 world description（可选，用于 PersonAgent 的提示词）
     """
-
-    _adaptive_sem: ClassVar[AdaptiveSemaphore | None] = None
-
-    @classmethod
-    def configure_llm_concurrency(cls, max_concurrent: int) -> None:
-        """配置全局 LLM 自适应并发控制。
-
-        :param max_concurrent: 初始并发上限。``> 0`` 启用 AIMD 自适应控制；``0`` 禁用。
-        """
-        if max_concurrent > 0:
-            cls._adaptive_sem = AdaptiveSemaphore(
-                initial=max_concurrent,
-                min_limit=max(1, max_concurrent // 4),
-                max_limit=max_concurrent * 8,
-            )
 
     def __init__(
         self,
@@ -361,6 +180,7 @@ class RouterBase(ABC):
         max_steps: int = 10,
         max_llm_call_retry: int = 10,
         replay_writer: Optional["ReplayWriter"] = None,
+        llm_clients_spec: Optional[Dict[str, Any]] = None,
     ):
         """创建路由器实例。
 
@@ -368,13 +188,26 @@ class RouterBase(ABC):
         :param max_steps: 最大执行步数（由具体 router 实现解释）。
         :param max_llm_call_retry: LLM 调用最大重试次数下限（至少为 1）。
         :param replay_writer: 可选回放写入器；若提供会自动注入到各 env module。
+        :param llm_clients_spec: 可选。注入的 :class:`LLMClient` 句柄映射，
+            例如 ``{"coder": "LLMClient", "default": "LLMClient"}``。提供时
+            router 使用注入的 client；为空时按配置构建本地 client。
         """
-        # Get router and model names from environment-based configuration
+        # Get model names from environment-based configuration
         # ReAct/codegen uses coder model
-        self.coder_router, self.codegen_model_name = get_llm_router_and_model("coder")
+        self.codegen_model_name = get_model_name("coder")
         # Summary uses default model
-        self.summary_router, self.summary_model_name = get_llm_router_and_model(
-            "default"
+        self.summary_model_name = get_model_name("default")
+
+        # LLM clients: prefer injected handles (carrying connection params);
+        # otherwise build them from config. Each client builds its own Router +
+        # AIMD semaphore in its own event loop on first call — no module-global
+        # pool.
+        spec = llm_clients_spec or {}
+        from agentsociety2.config.llm_dispatcher import build_client_for_role
+
+        self._coder_dispatcher = spec.get("coder") or build_client_for_role("coder")
+        self._summary_dispatcher = (
+            spec.get("default") or build_client_for_role("default")
         )
 
         self.env_modules = env_modules
@@ -389,9 +222,6 @@ class RouterBase(ABC):
         # Current datetime
         self.t = datetime.now()
 
-        # Token usage statistics: {model_name: TokenUsageStats}
-        self._token_usage_stats: Dict[str, TokenUsageStats] = {}
-
         # Pydantic model collector for collecting BaseModel types from tool functions
         self._pydantic_collector = PydanticModelCollector()
 
@@ -399,10 +229,88 @@ class RouterBase(ABC):
         self._world_description = None
         self._generate_world_description_lock = asyncio.Lock()
 
-        # Configure adaptive LLM concurrency control
-        from agentsociety2.config import Config
+        # Trace: optional sync sharded-writer adapter (append_record/flush) used
+        # to emit env-side LLM spans. None = no tracing. Per-ask trace context
+        # (trace_id, parent_span_id, agent_id) is carried in a ContextVar so
+        # concurrent ask() calls on the same router don't clobber each other.
+        self._trace_sink: Any = None
+        self._trace_ctx: ContextVar[tuple] = ContextVar(
+            f"envrouter_trace_ctx_{id(self)}", default=(None, None, None)
+        )
 
-        self.configure_llm_concurrency(Config.LLM_MAX_CONCURRENT)
+    def set_trace_sink(self, sink: Any) -> None:
+        """Inject a sync sharded-writer adapter for env-side trace spans.
+
+        :param sink: An object exposing ``append_record(record_dict)`` (and
+            optionally ``flush()``), e.g. the adapter built by
+            :func:`~agentsociety2.trace.build_local_sink`.
+            Pass ``None`` to disable tracing.
+        """
+        self._trace_sink = sink
+
+    def _set_trace_context(
+        self, trace_id: str | None, parent_span_id: str | None, agent_id: Any
+    ):
+        """Bind the current ask()'s trace context (returns a reset token)."""
+        return self._trace_ctx.set((trace_id, parent_span_id, agent_id))
+
+    def _reset_trace_context(self, token) -> None:
+        """Reset the trace context to its prior value."""
+        self._trace_ctx.reset(token)
+
+    @contextmanager
+    def _llm_completion_span(self, model_name: str, message_count: int):
+        """Emit an ``llm.completion`` span for an env-side LLM call.
+
+        No-op when no trace sink or trace context is bound. The span is parented
+        to the current ask()'s ``parent_span_id`` so env codegen/summary LLM
+        calls appear in the agent's trace tree (previously a blind spot).
+        """
+        trace_id, parent_span_id, agent_id = self._trace_ctx.get()
+        sink = self._trace_sink
+        if sink is None or trace_id is None:
+            yield
+            return
+        span_id = uuid.uuid4().hex[:16]
+        start = time.time_ns()
+        status = "ok"
+        message = ""
+        try:
+            yield
+        except Exception as exc:  # noqa: BLE001 - record then re-raise
+            status = "error"
+            message = str(exc)
+            raise
+        finally:
+            record = {
+                "resource": {
+                    "service.name": "agentsociety2.env_router",
+                    "agent.id": agent_id if agent_id is not None else 0,
+                },
+                "scope": {
+                    "name": "agentsociety2.env.codegen",
+                    "version": "1",
+                },
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "parent_span_id": parent_span_id,
+                "name": "llm.completion",
+                "kind": "internal",
+                "start_time_unix_nano": start,
+                "end_time_unix_nano": time.time_ns(),
+                "status": {"code": status, "message": message},
+                "attributes": {
+                    "operation.type": "llm",
+                    "llm.model": model_name or "",
+                    "llm.source": "env_router",
+                    "input.message_count": message_count,
+                },
+                "events": [],
+            }
+            try:
+                sink.append_record(record)
+            except Exception:  # noqa: BLE001 - never let tracing break the call
+                pass
 
     def _add_current_time_to_ctx(self, ctx: dict) -> None:
         """向 ctx 注入当前时间信息（原地修改）。"""
@@ -413,14 +321,19 @@ class RouterBase(ABC):
             "timestamp": self.t.timestamp(),
         }
 
-    def sync_simulation_clock(self, t: datetime) -> None:
-        """与编排器当前仿真时刻对齐。
+    def set_current_time(self, t: datetime) -> None:
+        """Push the society's current clock to the router and env modules.
 
-        ``ask``/codegen 的 InitStage 用 ``self.t`` 写入 ``ctx['current_time']``。
-        若仅在 ``env_router.step`` 末尾才更新 ``self.t``，而 agent 先执行，则整步内时钟落后一步。
-        任何复制 ``AgentSociety.step`` 顺序（先 agent 后 env.step）的代码都应在 agent 开始前调用本方法。
+        This is NOT time advancement — the society advances its own clock in
+        ``step()`` and calls this so that, during the agent phase (which runs
+        before :meth:`step`), env modules observe the correct simulation time.
+        Several env modules read ``self.t`` inside ``@tool`` methods (e.g. event
+        scheduling, social-media post timestamps), so the time must be set
+        before agents start querying the environment.
         """
         self.t = t
+        for env_module in self.env_modules:
+            env_module.t = t
 
     @abstractmethod
     async def ask(
@@ -429,6 +342,8 @@ class RouterBase(ABC):
         instruction: str,
         readonly: bool = False,
         template_mode: bool = False,
+        trace_id: str | None = None,
+        parent_span_id: str | None = None,
     ) -> Tuple[dict, str]:
         """与环境交互的统一入口（由子类实现具体路由策略）。
 
@@ -436,6 +351,8 @@ class RouterBase(ABC):
         :param instruction: 指令文本。模板模式下会进行变量替换后再执行。
         :param readonly: 是否只读（只读时应避免改变环境状态）。
         :param template_mode: 是否启用模板模式。
+        :param trace_id: OTel trace ID（UUID hex），用于跨 agent/env 的追踪关联。
+        :param parent_span_id: OTel parent span ID，用于构建 span 层级。
         :returns: ``(ctx, answer)``，其中 ctx 可能被环境更新。
         """
         raise NotImplementedError
@@ -456,10 +373,7 @@ class RouterBase(ABC):
         :param t: 本步结束后的仿真时间。
         """
         self.t = t
-        tasks = []
-        for env_module in self.env_modules:
-            tasks.append(env_module.step(tick, self.t))
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*[m.step(tick, self.t) for m in self.env_modules])
 
     async def close(self):
         """关闭路由器（关闭所有环境模块）。"""
@@ -489,6 +403,28 @@ class RouterBase(ABC):
         """清空所有环境模块的工具调用历史。"""
         for env_module in self.env_modules:
             env_module.reset_tool_call_history()
+
+    # ==================== Trace Context Methods ====================
+
+    def set_trace_context(
+        self, trace_id: str | None, parent_span_id: str | None
+    ) -> None:
+        """为所有环境模块设置当前 OTel trace 上下文。
+
+        Router 子类应在 ``ask`` 入口处调用此方法，使 ``@tool``
+        装饰器能将 ``trace_id`` 写入 tool call history。
+
+        :param trace_id: OTel trace ID（UUID hex）。
+        :param parent_span_id: OTel parent span ID。
+        """
+        ctx = {"trace_id": trace_id, "parent_span_id": parent_span_id}
+        for env_module in self.env_modules:
+            env_module._current_trace_context = ctx
+
+    def clear_trace_context(self) -> None:
+        """清除所有环境模块的 trace 上下文。"""
+        for env_module in self.env_modules:
+            env_module._current_trace_context = {}
 
     # ==================== Replay Data Methods ====================
 
@@ -544,7 +480,7 @@ class RouterBase(ABC):
         max_delay: float = 60.0,
         **kwargs: Any,
     ):
-        """封装 LiteLLM Router 的 acompletion（含自适应并发控制、重试与 token 统计）。
+        """封装 LLM 调度（Dispatcher 负责并发控制与 HTTP 重试）。
 
         :param model: ``coder`` 或 ``summary``。
         :param messages: 消息列表（不自动追加 system prompt；若需要请用 :meth:`acompletion_with_system_prompt`）。
@@ -555,121 +491,32 @@ class RouterBase(ABC):
         :returns: LLM 响应对象（stream=False 时为 :class:`litellm.types.utils.ModelResponse`）。
         :raises ValueError: 超过重试次数仍失败时抛出。
         """
-        sem = self.__class__._adaptive_sem
-        if sem is None:
-            return await self._do_acompletion_inner(
-                model, messages, stream, max_retries, base_delay, max_delay, **kwargs
-            )
-
-        await sem.acquire()
-        t0 = time.monotonic()
-        try:
-            result = await self._do_acompletion_inner(
-                model, messages, stream, max_retries, base_delay, max_delay, **kwargs
-            )
-            latency_ms = (time.monotonic() - t0) * 1000
-            sem.record_latency(latency_ms, is_error=False)
-            await sem.release(overloaded=False)
-            return result
-        except Exception as e:
-            latency_ms = (time.monotonic() - t0) * 1000
-            overloaded = _is_rate_limit_like_error(e)
-            sem.record_latency(latency_ms, is_error=overloaded)
-            await sem.release(overloaded=overloaded)
-            raise
-
-    async def _do_acompletion_inner(
-        self,
-        model: Literal["coder", "summary"],
-        messages: list[AllMessageValues],
-        stream: bool = False,
-        max_retries: int | None = None,
-        base_delay: float = 1.0,
-        max_delay: float = 60.0,
-        **kwargs: Any,
-    ):
-        """acompletion 的内部实现（重试循环 + token 统计），不含并发控制。"""
-        logger = get_logger()
-
         if max_retries is None:
             max_retries = self.max_llm_call_retry
         else:
             max_retries = max(max_retries, 1)
 
-        if model == "coder":
-            router = self.coder_router
-            model_name = self.codegen_model_name
-        elif model == "summary":
-            router = self.summary_router
-            model_name = self.summary_model_name
-        else:
-            raise ValueError(f"Invalid model: {model}")
-
-        last_error = None
-
-        for attempt in range(max_retries + 1):
-            try:
-                response = await router.acompletion(
-                    model=model_name,
-                    messages=messages,
-                    stream=stream,
-                    **kwargs,
-                )
-
-                # Record token usage (only for non-streaming responses)
-                if not stream:
-                    # Type check: response should be ModelResponse when stream=False
-                    if isinstance(response, ModelResponse):
-                        usage = getattr(response, "usage", None)
-                        if usage is not None:
-                            if model not in self._token_usage_stats:
-                                self._token_usage_stats[model] = TokenUsageStats()
-
-                            stats = self._token_usage_stats[model]
-                            stats.call_count += 1
-                            stats.input_tokens += getattr(usage, "prompt_tokens", 0)
-                            stats.output_tokens += getattr(
-                                usage, "completion_tokens", 0
-                            )
-
-                return response
-
-            except Exception as e:
-                if _is_rate_limit_like_error(e):
-                    # If this is the last attempt, raise the error
-                    if attempt >= max_retries:
-                        raise ValueError(
-                            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
-                        ) from e
-
-                    # For rate-limit-like errors, use exponential backoff
-                    delay = min(base_delay * (2**attempt), max_delay)
-                    logger.warning(
-                        f"Rate limit-like error detected for model '{model}' "
-                        f"(attempt {attempt + 1}/{max_retries + 1}). "
-                        f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {e!s}"
-                    )
-                    await asyncio.sleep(delay)
-                    last_error = e
-                    continue
-
-                # If this is the last attempt, raise the error
-                if attempt >= max_retries:
-                    raise ValueError(
-                        f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
-                    ) from e
-
-                # For other errors, retry immediately
-                logger.warning(
-                    f"Request failed for model '{model}' (attempt {attempt + 1}/{max_retries + 1}). "
-                    f"Retrying immediately. Error: {e!s}"
-                )
-                last_error = e
-
-        # This should never be reached, but just in case
-        raise ValueError(
-            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {last_error!s}"
+        dispatcher = (
+            self._coder_dispatcher if model == "coder" else self._summary_dispatcher
         )
+        model_name = (
+            self.codegen_model_name if model == "coder" else self.summary_model_name
+        )
+
+        with self._llm_completion_span(model_name, len(messages)):
+            response = await dispatcher.call(
+                model_name,
+                messages,
+                stream=stream,
+                max_retries=max_retries,
+                base_delay=base_delay,
+                max_delay=max_delay,
+                **kwargs,
+            )
+
+        # Token accounting is handled centrally by the shared TokenStatsActor
+        # (per-process token stats; see get_dispatch_token_stats).
+        return response
 
     async def acompletion_with_system_prompt(
         self,
@@ -713,8 +560,8 @@ class RouterBase(ABC):
         :param model_type: 用于校验的 Pydantic 模型类型。
         :param messages: 消息列表（会自动追加 system prompt）。
         :param max_retries: 最大重试次数（不含首次尝试）。
-        :param base_delay: 429 类错误指数退避基准延迟。
-        :param max_delay: 指数退避最大延迟。
+        :param base_delay: 传给 LLM dispatcher 的指数退避基准延迟。
+        :param max_delay: 传给 LLM dispatcher 的指数退避最大延迟。
         :param error_feedback_prompt: 可选。自定义错误反馈模板（需包含 ``{error_message}`` 与 ``{model_schema}`` 占位符）。
         :returns: 校验通过的 Pydantic 实例。
         :raises ValueError: 解析/校验在重试后仍失败时抛出。
@@ -759,6 +606,9 @@ Your corrected response:
                     model=model,
                     messages=request_messages,
                     stream=False,
+                    max_retries=max_retries,
+                    base_delay=base_delay,
+                    max_delay=max_delay,
                     **kwargs,
                 )
 
@@ -820,30 +670,8 @@ Your corrected response:
                     # No delay for validation errors
 
             except Exception as e:
-                if _is_rate_limit_like_error(e):
-                    # If this is the last attempt, raise the error
-                    if attempt >= max_retries:
-                        raise ValueError(
-                            f"Failed to get valid response after {max_retries + 1} attempts. Last error: {e!s}"
-                        ) from e
-
-                    # For rate-limit-like errors, use exponential backoff
-                    delay = min(base_delay * (2**attempt), max_delay)
-                    logger.warning(
-                        f"Rate limit-like error detected (attempt {attempt + 1}/{max_retries + 1}). "
-                        f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {e!s}"
-                    )
-                    await asyncio.sleep(delay)
-                    # delete the last assistant message
-                    if (
-                        conversation_messages
-                        and conversation_messages[-1]["role"] == "assistant"
-                    ):
-                        conversation_messages.pop()
-
-                    # record the error
-                    last_error = e
-                    continue
+                if isinstance(e, LLMDispatchError):
+                    raise
 
                 # If this is the last attempt, raise the error
                 if attempt >= max_retries:
@@ -876,72 +704,33 @@ Your corrected response:
         )
 
     def get_token_usages(self):
-        return self._token_usage_stats.copy()
+        """Return aggregated token usage from this router's LLM clients.
 
-    def reset_token_usages(self):
-        self._token_usage_stats.clear()
+        Each dispatcher (:class:`LLMClient`) tracks its own per-loop usage; we
+        snapshot them here (without clearing). Returns
+        ``{model: TokenUsageStats}``.
+        """
+        from agentsociety2.config.llm_dispatcher import merge_token_stats
 
-    async def dump(self) -> dict:
-        """
-        Dump router state to a serializable dict.
-        Subclasses should override this to include router-specific state.
-        """
-        modules_dump: list[dict] = []
-        for m in self.env_modules:
-            try:
-                d = await m.dump()
-            except Exception:
-                continue
-            # Skip MCP modules
-            if isinstance(d, dict) and d.get("mcp") is True:
-                continue
-            modules_dump.append(
-                {
-                    "class": m.__class__.__name__,
-                    "dump": d,
-                }
-            )
+        deltas = []
+        for dispatcher in (self._coder_dispatcher, self._summary_dispatcher):
+            if dispatcher is not None and hasattr(dispatcher, "snapshot_token_stats"):
+                deltas.append(dispatcher.snapshot_token_stats())
+        snapshot = merge_token_stats(*deltas) if deltas else {}
         return {
-            "t": self.t.isoformat(),
-            "modules": modules_dump,
+            model: TokenUsageStats(
+                call_count=int(s.get("calls", 0)),
+                input_tokens=int(s.get("input", 0)),
+                output_tokens=int(s.get("output", 0)),
+            )
+            for model, s in snapshot.items()
         }
 
-    async def load(self, dump_data: dict):
-        """
-        Load router state from a dict produced by dump().
-        Subclasses should override this to restore router-specific state.
-        """
-        try:
-            from datetime import datetime as _dt
-
-            t_str = dump_data.get("t")
-            if isinstance(t_str, str) and len(t_str) > 0:
-                self.t = _dt.fromisoformat(t_str)
-        except Exception:
-            pass
-
-        items = dump_data.get("modules") or []
-        if not isinstance(items, list):
-            return
-
-        # Map existing envs by class name
-        name2env: dict[str, EnvBase] = {}
-        for e in self.env_modules:
-            name2env.setdefault(e.__class__.__name__, e)
-
-        for item in items:
-            try:
-                cls_name = item.get("class")
-                d = item.get("dump") or {}
-                env = name2env.get(cls_name)
-                if env is None:
-                    continue
-                # Skip MCP dumps
-                if isinstance(d, dict) and d.get("mcp") is True:
-                    continue
-                await env.load(d)
-            except Exception:
-                continue
+    def reset_token_usages(self):
+        """Reset aggregated token usage on this router's LLM clients (drain)."""
+        for dispatcher in (self._coder_dispatcher, self._summary_dispatcher):
+            if dispatcher is not None and hasattr(dispatcher, "take_token_stats"):
+                dispatcher.take_token_stats()
 
     @staticmethod
     def get_status_descriptions() -> Dict[str, str]:
@@ -974,154 +763,119 @@ Your corrected response:
                     )
         return self._world_description
 
-    async def generate_world_description_from_tools(self) -> str:
+    async def generate_world_description_from_tools(
+        self, max_retries: int | None = None
+    ) -> str:
         """
-        根据环境路由器的所有工具信息（包括可写和只读工具），使用LLM生成世界描述文本。
+        根据环境路由器的模块信息生成简短世界描述。
 
-        这个函数将工具信息转换为对PersonAgent有用的world_description，帮助agent理解：
-        1. 环境中可用的模块和工具
-        2. 如何通过自然语言指令与router交互
-        3. 每个工具的功能和用途
-        4. 如何正确使用这些工具来实现目标
+        world_description 只承担“这个仿真世界大概是什么、如何通过 ask_env
+        与环境交互”的轻量背景说明。模块级细节应由 env skill、工具 schema 或
+        router 自身处理，避免 world section 挤占 prompt 中 env skill 的空间。
 
-        :returns: str: 生成的世界描述文本，可直接作为PersonAgent的world_description参数
+        :returns: str: 简短世界描述文本，可直接作为 PersonAgent 的 world section
         """
         logger = get_logger()
-        logger.info("\n【生成世界描述】从环境工具信息生成world_description...")
+        logger.info("\n【生成世界描述】从环境模块摘要生成简短world_description...")
 
         try:
-            # 收集所有工具信息（包括可写和只读工具）
             all_tools_info = self._collect_tools_info()
-
-            # 使用 pyi 格式构建工具信息
             tools_pyi = self._format_tools_pyi(all_tools_info, 0)
 
-            # 构建LLM prompt
-            prompt = f"""# Task: Generate World Description for PersonAgent
+            module_descriptions = [
+                f"- {module.name}: {module.description()}"
+                for module in self.env_modules
+            ]
 
-You are tasked with generating a comprehensive world description that will help a PersonAgent understand how to interact with the environment through a code generation router.
+            env_skill_catalog_rows = [
+                "| name | env_module | description |",
+                "| --- | --- | --- |",
+            ]
+            for env_module in self.env_modules:
+                try:
+                    skill_dirs = env_module.skill_dirs()
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to get env skill dirs from {env_module.name}: {e}"
+                    )
+                    skill_dirs = []
+                for skills_dir in skill_dirs:
+                    try:
+                        base = Path(skills_dir)
+                        if not base.is_dir():
+                            continue
+                        for child in sorted(base.iterdir()):
+                            skill_md = child / "SKILL.md"
+                            if not child.is_dir() or not skill_md.is_file():
+                                continue
+                            row = _env_skill_catalog_row(
+                                skill_md,
+                                module_name=env_module.name,
+                            )
+                            if row:
+                                env_skill_catalog_rows.append(row)
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to summarize env skills from {skills_dir}: {e}"
+                        )
+            env_skill_catalog = (
+                "\n".join(env_skill_catalog_rows)
+                if len(env_skill_catalog_rows) > 2
+                else _empty_env_skill_catalog()
+            )
 
-## Context
+            prompt = f"""Generate a short world description for a simulated person agent.
 
-The PersonAgent is an autonomous agent that:
-1. Makes decisions based on its needs (satiety, energy, safety, social)
-2. Generates intentions and plans to fulfill its goals
-3. Interacts with the environment by sending natural language instructions to a router
-4. The router uses code generation to call environment module tools based on these instructions
+The world section should be a compact orientation, not a full tool manual. It must:
+- Briefly describe what environment modules exist and what kind of interaction they support, based on the module descriptions and pyi tool information.
+- Tell the agent to use ask_env for concrete observation/action requests.
+- Explicitly guide the agent to inspect and activate environment-module skills from the skill catalog when it needs module-specific behavior rules.
+- Use the provided environment skill catalog to mention what kinds of env skills are relevant.
+- Avoid listing every tool in prose.
+- Do not copy or summarize the pyi signatures one by one.
+- Keep it under 500 words.
 
-## Available Environment Tools
-
-The following Python code (similar to .pyi stub files) contains all available environment modules and their tools:
-
+Available environment tools in pyi format:
 ```python
 {tools_pyi}
 ```
 
-## Requirements
+Module descriptions:
+{chr(10).join(module_descriptions) if module_descriptions else "- None."}
 
-Generate a comprehensive world description that:
+Environment skill catalog:
+{env_skill_catalog}
 
-1. **Describes the Environment**: Explain what kind of world/simulation environment the agent is operating in, based on the available modules and tools.
+Generated world description:"""
 
-2. **Explains Available Capabilities**: Clearly describe what actions the agent can take in this world, organized by module and tool. For each major capability, explain:
-   - What the tool does
-   - When and why the agent might want to use it
-   - What kind of natural language instruction would trigger its use
-
-3. **Provides Interaction Guidelines**: Explain how the agent should interact with the router:
-   - The agent sends natural language instructions (e.g., "I want to move to location X", "Find nearby restaurants")
-   - The router interprets these instructions and calls appropriate tools
-   - The router returns results that the agent can use to make decisions
-   - Instructions should be clear, specific, and actionable
-
-4. **Guides Decision Making**: Help the agent understand:
-   - How different tools relate to satisfying different needs (satiety, energy, safety, social)
-   - What kinds of activities are possible in this environment
-   - How to combine multiple tools to achieve complex goals
-   - What constraints or limitations exist in the environment
-
-5. **Maintains Consistency**: The description should be written from the agent's perspective, as if the agent is learning about its world. Use natural, descriptive language that helps the agent understand its capabilities and environment.
-
-## Output Format
-
-Generate a clear, well-structured but short world description text. The text should:
-- Be comprehensive but concise
-- Use clear sections and formatting
-- Be written in a way that helps the agent understand its world and capabilities
-- Focus on practical guidance for interacting with the environment
-- Not include code or technical implementation details (focus on what the agent can do, not how the router works)
-
-Your generated world description:"""
-
-            # 调用LLM生成描述
             dialog: list[AllMessageValues] = [{"role": "user", "content": prompt}]
-
-            router, model_name = get_llm_router_and_model("coder")
-            max_retries = self.max_llm_call_retry
-
-            for attempt in range(max_retries + 1):
-                try:
-                    response = await router.acompletion(
-                        model=model_name,  # 使用coder模型生成描述性文本
-                        messages=dialog,
-                        stream=False,
-                    )
-                    world_description = response.choices[0].message.content or ""  # type: ignore
-                    break
-                except Exception as e:
-                    if _is_rate_limit_like_error(e):
-                        if attempt >= max_retries:
-                            raise e
-                        delay = min(1.0 * (2**attempt), 60.0)
-                        logger.warning(
-                            f"Rate limit-like error detected when generating world description "
-                            f"(attempt {attempt + 1}/{max_retries + 1}). "
-                            f"Retrying after {delay:.2f} seconds with exponential backoff. Error: {e!s}"
-                        )
-                        await asyncio.sleep(delay)
-                        continue
-
-                    if attempt >= max_retries:
-                        raise e
-                    logger.warning(
-                        f"Request failed when generating world description (attempt {attempt + 1}/{max_retries + 1}). "
-                        f"Retrying immediately. Error: {e!s}"
-                    )
+            completion_kwargs: dict[str, Any] = {
+                "model": "summary",
+                "messages": dialog,
+                "stream": False,
+            }
+            if max_retries is not None:
+                completion_kwargs["max_retries"] = max_retries
+            response = await self.acompletion(**completion_kwargs)
+            world_description = response.choices[0].message.content or ""  # type: ignore
             logger.info(f"  ✓ 生成世界描述的response: {world_description}")
 
-            if not world_description:
-                logger.warning("  ⚠ LLM返回空描述，使用默认描述")
-                world_description = (
-                    "You are operating in a simulated environment with various tools and capabilities. "
-                    "Use natural language instructions to interact with the environment router to accomplish your goals."
-                )
-
-            # Append custom world descriptions from environment modules
-            custom_descriptions = []
-            for env_module in self.env_modules:
-                if hasattr(env_module, "get_world_description") and callable(
-                    env_module.get_world_description
-                ):
-                    try:
-                        custom_desc = env_module.get_world_description()
-                        if (
-                            custom_desc
-                            and isinstance(custom_desc, str)
-                            and custom_desc.strip()
-                        ):
-                            custom_descriptions.append(custom_desc.strip())
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to get custom world description from {env_module.name}: {e}"
-                        )
-
-            if custom_descriptions:
-                world_description = (
-                    world_description + "\n\n" + "\n\n".join(custom_descriptions)
-                )
+            if not world_description.strip():
+                logger.warning("  ⚠ LLM返回空描述，使用默认简短描述")
+                lines = [
+                    "You are operating in a simulated environment.",
+                    "Use ask_env with clear natural-language instructions to observe or act.",
+                    "When module-specific behavior rules are needed, inspect the skill catalog and activate relevant env module skills.",
+                ]
+                if all_tools_info:
+                    lines.append(
+                        "Available environment modules: "
+                        + ", ".join(sorted(all_tools_info.keys()))
+                        + "."
+                    )
+                world_description = "\n".join(lines)
 
             logger.info(f"  ✓ 成功生成世界描述（长度: {len(world_description)} 字符）")
-
             return world_description.strip()
 
         except Exception as e:
@@ -1192,7 +946,7 @@ Your generated world description:"""
 
             if tools_list:  # 只添加有工具的模块
                 modules_info[module.name] = ModuleToolsInfo(
-                    description=module.description,
+                    description=module.description(),
                     tools=tools_list,
                 )
 
@@ -1402,9 +1156,7 @@ Your generated world description:"""
             get_logger().warning(f"Failed to format trimmed pyi code with black: {e}")
             return code
 
-    def _format_tools_pyi_ratio(
-        self, modules_info: ToolsInfoDict, ratio: float
-    ) -> str:
+    def _format_tools_pyi_ratio(self, modules_info: ToolsInfoDict, ratio: float) -> str:
         """将工具信息格式化为按比例保留函数体的代码。
 
         :param modules_info: 按模块组织的工具信息字典。
@@ -1486,7 +1238,9 @@ Your generated world description:"""
         lines: List[str] = []
         lines.append("# Type definitions for environment modules")
         lines.append("from pydantic import BaseModel, Field")
-        lines.append("from typing import Any, Optional, Union, List, Dict, Literal, Tuple")
+        lines.append(
+            "from typing import Any, Optional, Union, List, Dict, Literal, Tuple"
+        )
         lines.append("from datetime import datetime")
         lines.append("")
 
@@ -1501,7 +1255,9 @@ Your generated world description:"""
 
         if len(modules_info) > 0:
             lines.append("# Environment modules (raw source code)")
-            lines.append("# These are what you can call to interact with the environment.")
+            lines.append(
+                "# These are what you can call to interact with the environment."
+            )
         else:
             lines.append("# No environment modules")
         lines.append("")

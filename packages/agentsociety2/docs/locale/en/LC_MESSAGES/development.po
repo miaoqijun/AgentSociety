@@ -6,7 +6,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-17 23:13+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
@@ -136,15 +136,15 @@ msgstr "Enhanced logging system support:"
 
 #: ../../development.rst:127
 msgid "**彩色控制台输出**: 按日志级别着色"
-msgstr "**彩色控制台输出**: Colored by log level"
+msgstr "**Colored console output**: colorized by log level"
 
 #: ../../development.rst:128
 msgid "**文件日志**: 使用 ``add_file_handler()`` 写入日志文件"
-msgstr "**文件日志**: Use ``add_file_handler()`` to write to the log file"
+msgstr "**File logging**: write log files with ``add_file_handler()``"
 
 #: ../../development.rst:129
 msgid "**LiteLLM 集成**: 自定义回调日志记录 LLM 调用"
-msgstr "**LiteLLM 集成**: Custom callback logging for LLM calls"
+msgstr "**LiteLLM integration**: custom callback logger for LLM calls"
 
 #: ../../development.rst:145
 msgid "贡献"
@@ -193,16 +193,3 @@ msgstr "Push: ``git push --tags``"
 #: ../../development.rst:173
 msgid "GitHub Actions 将构建并发布到 PyPI"
 msgstr "GitHub Actions will build and publish to PyPI"
-
-#~ msgid "设计器模块"
-#~ msgstr "Designer Module"
-
-#~ msgid "**web_research**: 使用 Miro 进行网络研究"
-#~ msgstr ""
-
-#~ msgid "**paper**: 使用 EasyPaper 生成学术论文"
-#~ msgstr ""
-
-#~ msgid "**agent**: 智能体处理、选择、生成和过滤"
-#~ msgstr "**agent**: Agent processing, selection, generation and filtering"
-

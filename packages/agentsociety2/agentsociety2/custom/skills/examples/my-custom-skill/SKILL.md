@@ -15,30 +15,31 @@ There are **two valid skill patterns** in the current architecture:
 
 No `script` field in frontmatter. This SKILL.md is injected into the LLM's context
 when `activate_skill` is called. The LLM then uses built-in atomic tools
-(bash, codegen, workspace_read/write, glob, grep) to accomplish the task.
+(read, write, append, list, grep, ask_env) to accomplish the task.
 
 This is the **primary extension mechanism** — like Claude Code's slash commands.
 
-### Pattern B: Subprocess Script
+### Pattern B: Script
 
 Add `script: scripts/my-script.py` to frontmatter. The script is executed as a
-subprocess with `--args-json` and must communicate via stdout (JSON) and file I/O
-in the agent workspace (`AGENT_WORK_DIR`). Scripts **cannot** access the LLM or
-environment router — use this only for deterministic computation.
+cached in-process module via `entrypoint(argv, ctx)` when available, with dynamic
+wrapper/subprocess fallback. It should communicate via the returned stdout string
+and file I/O under `ctx.workspace_root`. Scripts **cannot** access the LLM or
+environment router directly — use this only for deterministic computation.
 
 ## Behavioral Guidelines (Edit for Your Skill)
 
 When this skill is activated:
 
-1. Use `codegen` to query the environment for relevant information.
-2. Use `workspace_read` / `workspace_write` to persist state.
-3. Use `bash` to run any computation or data processing.
-4. Call `done` with a summary when finished.
+1. Use `ask_env` to query the environment for relevant information.
+2. Use `read` / `write` / `append` to persist state.
+3. Use `execute_skill_script` for deterministic computation when a script exists.
+4. Call `finish` with a summary when finished.
 
 ## Example: A "Daily Journal" Skill
 
 When activated, the agent should:
-1. `codegen` with instruction: "What happened recently? Summarize recent events."
-2. `workspace_read` path `journal.jsonl` to load previous entries.
-3. `workspace_write` path `journal.jsonl` to append today's entry.
-4. `done` with summary of what was journaled.
+1. `ask_env` with instruction: "What happened recently? Summarize recent events."
+2. `read` path `journal.jsonl` to load previous entries if it exists.
+3. `append` path `journal.jsonl` to add today's entry.
+4. `finish` with summary of what was journaled.

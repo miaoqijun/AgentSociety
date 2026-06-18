@@ -578,36 +578,36 @@ class Map:
         for journey in route_res.journeys:
             if is_walk:
                 assert journey.type == routing_pb2.JOURNEY_TYPE_WALKING
+                route_ids = list(journey.walking.route)
             else:
                 assert journey.type == routing_pb2.JOURNEY_TYPE_DRIVING
-            # 处理起点处的截断
+                route_ids = list(journey.driving.road_ids)
+            if not route_ids:
+                continue
             lane_id, geo = (
-                self._get_walking_geo(journey.walking.route[0])
+                self._get_walking_geo(route_ids[0])
                 if is_walk
-                else self._get_driving_geo(journey.driving.road_ids[0])
+                else self._get_driving_geo(route_ids[0])
             )
             start_s = self._get_lane_s(route_req.start, lane_id)
-            if len(journey.walking.route) == 1:
+            if len(route_ids) == 1:
                 end_s = self._get_lane_s(route_req.end, lane_id)
                 geo = substring(geo, start_s, end_s)
             else:
                 geo = substring(geo, start_s, geo.length)
             coordinates += list(geo.coords)
-            # 处理中间的路段
-            if is_walk:
-                for route in journey.walking.route[1:-1]:
-                    _, geo = self._get_walking_geo(route)
-                    coordinates += list(geo.coords)
-            else:
-                for road_id in journey.driving.road_ids[1:-1]:
-                    _, geo = self._get_driving_geo(road_id)
-                    coordinates += list(geo.coords)
-            if len(journey.walking.route) > 1:
-                # 处理终点处的截断
-                lane_id, geo = (
-                    self._get_walking_geo(journey.walking.route[-1])
+            for segment_id in route_ids[1:-1]:
+                _, geo = (
+                    self._get_walking_geo(segment_id)
                     if is_walk
-                    else self._get_driving_geo(journey.driving.road_ids[-1])
+                    else self._get_driving_geo(segment_id)
+                )
+                coordinates += list(geo.coords)
+            if len(route_ids) > 1:
+                lane_id, geo = (
+                    self._get_walking_geo(route_ids[-1])
+                    if is_walk
+                    else self._get_driving_geo(route_ids[-1])
                 )
                 end_s = self._get_lane_s(route_req.end, lane_id)
                 geo = substring(geo, 0, end_s)

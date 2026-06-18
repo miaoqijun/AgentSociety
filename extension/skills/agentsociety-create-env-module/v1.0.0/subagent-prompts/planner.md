@@ -62,7 +62,7 @@ For each piece of global (environment-level) state:
 - Name, type, initial value
 - Which tools/methods read it
 - Which tools/methods mutate it
-- **Persistence classification**: Replay only / Dump-load only / Both / Neither
+- **Persistence classification**: Replay (env-level) / In-memory only (rebuilt from kwargs + replay on each run)
 
 ### 4. Per-Agent State
 
@@ -70,26 +70,28 @@ For each piece of per-agent state:
 - Name, type, initial value (default for new agents)
 - Which tools read it
 - Which tools mutate it
-- **Persistence classification**: Replay only / Dump-load only / Both / Neither
+- **Persistence classification**: Replay (per-agent) / In-memory only
 
 ### 5. Persistence Design
 
+Persistence is **replay-only**. In-memory structures that need to survive a restart
+must be reconstructable from constructor kwargs + replay data.
+
 Based on the state classifications above, specify:
 
-**Replay tables** (for queryable snapshots over time):
-- `_agent_state_columns`: column definitions for per-agent replay
-- `_env_state_columns`: column definitions for global replay
-- Write points: where `_write_agent_state()` / `_write_env_state()` are called
+**Replay tables** (the only persistence channel):
+- `_agent_state_columns`: column definitions for per-agent replay (keyed by `agent_id + step`)
+- `_env_state_columns`: column definitions for global replay (keyed by `step`)
+- Write points: where `_write_agent_state()` / `_write_agent_state_batch()` / `_write_env_state()` are called (usually in `step()`)
 
-**Dump/load** (for in-memory state that must survive save/restore):
-- What `_dump_state()` serializes
-- What `_load_state()` reconstructs
-- Types that need JSON conversion (datetime, sets, custom objects)
+**In-memory state** (derived/cached):
+- Which structures are kept in memory for fast access
+- How they are rebuilt on each run (from kwargs + replay reads, or recomputed lazily)
 
 **Step counter**:
 - Internal counter variable name
 - Where incremented (always once per `step()`)
-- Must be persisted in `_dump_state()` if step-index matters for future behavior
+- Passed as the `step` argument to the `_write_*` helpers (never `tick`)
 
 ## Output Format
 
@@ -132,8 +134,8 @@ Produce a JSON-structured spec:
       "initial": "initial value",
       "read_by": ["tool1", "step"],
       "mutated_by": ["tool2", "step"],
-      "persistence": "replay|dump_load|both|neither",
-      "replay_column": {"name": "col_name", "type": "SQL type"} // if replay or both
+      "persistence": "replay|in_memory",
+      "replay_column": {"name": "col_name", "type": "SQL type"} // if persistence=replay
     }
   ],
 
@@ -144,15 +146,15 @@ Produce a JSON-structured spec:
       "initial": "default value for new agents",
       "read_by": ["tool1"],
       "mutated_by": ["tool2"],
-      "persistence": "replay|dump_load|both|neither",
-      "replay_column": {"name": "col_name", "type": "SQL type"} // if replay or both
+      "persistence": "replay|in_memory",
+      "replay_column": {"name": "col_name", "type": "SQL type"} // if persistence=replay
     }
   ],
 
   "persistence": {
     "agent_replay_columns": ["col1", "col2"],  // or empty
     "env_replay_columns": ["col1"],             // or empty
-    "dump_state_fields": ["field1", "field2"],   // or empty
+    "in_memory_fields": ["field1", "field2"],   // rebuilt from kwargs + replay; or empty
     "step_counter": "self._step_index",
     "write_points": [
       {"method": "step()", "writes": ["agent_state_batch", "env_state"]}
@@ -172,7 +174,7 @@ After the JSON, include a brief prose summary (3-5 sentences) explaining how the
 - Every `readonly=False` tool's `returns` must include `status: str` (one of `"success"|"fail"|"in_progress"|"error"`) — never `bool`, never `{"success": True}` (see `references/pitfalls.md` P1)
 - Every `readonly=False` tool must specify, in its `side_effects` field, an explicit idempotency plan (last-write-wins / set-based dedup / explicit dedup-key with per-step reset) — see `references/pitfalls.md` P3
 - If 2+ write tools share parameter names (e.g. both take `post_id`), call this out as a known collision risk and either rename or flag for the agent author (see `references/pitfalls.md` P4)
-- `mcp_description()` and the `description` property must phrase operations in prose with bold function names, NOT as Python call literals (see `references/pitfalls.md` P2)
+- `init_description()` and tool docstrings must phrase operations in prose with bold function names, NOT as Python call literals (see `references/pitfalls.md` P2)
 - Persistence classification must be explicit for every mutable state variable
 - `step_counter` must be specified if any replay table uses step-keyed writes
 - Do NOT use `tick` (duration parameter) as the replay step index

@@ -23,7 +23,7 @@ class EnvModuleInitConfig(BaseModel):
 
     args: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Module initialization arguments (excluding llm). These arguments are passed directly to the module constructor. See mcp_description() for the module's expected parameters and JSON schemas.",
+        description="Module initialization arguments (excluding llm). These arguments are passed directly to the module constructor. See init_description() for the module's expected parameters and JSON schemas.",
     )
 
 
@@ -38,7 +38,7 @@ class AgentInitConfig(BaseModel):
 
     args: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Agent initialization arguments (excluding llm and env which are set via init() method). All other parameters including 'id', 'profile', 'memory_config', etc. should be included here. See mcp_description() for the agent's expected parameters.",
+        description="Agent initialization arguments (excluding llm and env which are set via init() method). All other parameters including 'id', 'profile', 'memory_config', etc. should be included here. See init_description() for the agent's expected parameters.",
     )
 
 

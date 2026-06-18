@@ -1,6 +1,6 @@
 """
 Commons Tragedy Game Environment
-Environment for Tragedy of the Commons game based on V2 framework
+Environment for Tragedy of the Commons game based on AgentSociety2
 """
 import asyncio
 from datetime import datetime
@@ -39,7 +39,7 @@ class GetRoundHistoryResponse(BaseModel):
 
 
 class CommonsTragedyEnv(EnvBase):
-    """Environment for Tragedy of the Commons game based on V2 framework"""
+    """Environment for Tragedy of the Commons game based on AgentSociety2"""
 
     _env_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("round_number", "INTEGER", nullable=False),
@@ -86,8 +86,8 @@ class CommonsTragedyEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
-        """Return a description text for MCP environment module candidate list"""
+    def init_description(cls) -> str:
+        """Return AI-readable initialization guidance for this environment module"""
         description = f"""{cls.__name__}: Commons Tragedy game environment module.
 
 **Description:** Manages a Tragedy of the Commons game where agents extract resources from a shared pool. The pool is depletable and if total extraction exceeds available resources, allocations are proportional.
@@ -108,41 +108,10 @@ class CommonsTragedyEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module"""
-        return f"""You are a Commons Tragedy game environment module specialized in managing resource extraction from a shared pool.
-
-**Game Overview:** Tragedy of the Commons - A strategic resource extraction game with {self.num_agents} agents over 10 rounds.
-
-**Game Rules:**
-- Initial pool: {self.initial_pool_resources} units
-- Each round: You must extract between 1-{self.max_extraction_per_agent} units (inclusive)
-- Your payoff per round = actual extraction amount (1 point per unit)
-- Pool is depletable: If total extraction > remaining pool, allocations are proportional to requests
-- Extractions execute simultaneously at round end
-- You won't see outcomes until next round
-
-**Available Operations (you MUST use these within your plan):**
-1. **submit_extraction(agent_name, requested_extraction)**: Submit your extraction decision
-   - agent_name: Your full name (e.g., "Agent-1")
-   - requested_extraction: 1 to {self.max_extraction_per_agent} units
-   - You MUST submit exactly once per round before the round executes
-
-2. **get_pool_resources()**: Query current pool state
-   - Returns: current pool size and initial pool size
-   - Use this to inform your extraction decisions
-
-3. **get_round_history(round_num=None)**: View past results
-   - Returns: All rounds or specific round data
-   - Shows: extractions, actual allocations, payoffs by agent
-
-**CRITICAL CONSTRAINT:**
-⚠️ You MUST complete your extraction decision (call submit_extraction) within your plan for this round.
-The environment executes the round when all agents submit, so you have limited time.
-If you don't submit, other agents' submissions will be delayed.
-"""
-
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Commons Tragedy game environment for shared-pool resource extraction decisions."
     @tool(readonly=True, kind="observe")
     async def get_pool_resources(self) -> GetPoolResourcesResponse:
         """
@@ -350,34 +319,5 @@ If you don't submit, other agents' submissions will be delayed.
             max_extraction_per_agent=self.max_extraction_per_agent,
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "num_agents": self.num_agents,
-            "initial_pool_resources": self.initial_pool_resources,
-            "max_extraction_per_agent": self.max_extraction_per_agent,
-            "current_pool_resources": self.current_pool_resources,
-            "round_number": self.round_number,
-            "round_history": self.round_history,
-            "pending_extractions": self._pending_extractions,
-            "agents_submitted_in_current_round": list(self._agents_submitted_in_current_round),
-            "last_round_executed": self._last_round_executed,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.num_agents = state.get("num_agents", 4)
-        self.initial_pool_resources = state.get("initial_pool_resources", 100)
-        self.max_extraction_per_agent = state.get("max_extraction_per_agent", 10)
-        self.current_pool_resources = state.get("current_pool_resources", 0)
-        self.round_number = state.get("round_number", 0)
-        self.round_history = state.get("round_history", [])
-        self._pending_extractions = state.get("pending_extractions", {})
-        self._agents_submitted_in_current_round = set(state.get("agents_submitted_in_current_round", []))
-        self._last_round_executed = state.get("last_round_executed", -1)
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["CommonsTragedyEnv"]

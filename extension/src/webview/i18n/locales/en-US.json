@@ -229,7 +229,7 @@
       "requiredTag": "Required",
       "apiKey": "LLM API Key",
       "apiKeyRequired": "LLM API Key *",
-      "apiKeyRequiredHint": "For core functions like default chat, analysis, etc.",
+      "apiKeyRequiredHint": "For core functions like default chat and research workflows.",
       "apiKeyPlaceholder": "Enter your API key",
       "apiBase": "LLM API Base URL",
       "apiBasePlaceholder": "Default: https://api.openai.com/v1",
@@ -259,17 +259,6 @@
     "starting": "Starting backend...",
     "validationSuccess": "Validation Successful",
     "validationFailed": "Validation Failed",
-    "analysis": {
-      "shortTitle": "Analysis",
-      "title": "Data Analysis LLM",
-      "hint": "For data analysis, insight generation, and report writing (API key/base can be left blank to reuse the default LLM configuration above)",
-      "apiKey": "API Key",
-      "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
-      "apiBase": "API URL",
-      "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
-      "model": "Model",
-      "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
-    },
     "overview": {
       "backend": "Backend",
       "backendRunning": "Running :{{port}}",
@@ -330,17 +319,6 @@
         "modelPlaceholder": "Default: text-embedding-3-large",
         "dims": "Vector Dimensions",
         "dimsPlaceholder": "1024"
-      },
-      "nano": {
-        "shortTitle": "Nano",
-        "title": "High-frequency LLM",
-        "hint": "Lightweight model for high-frequency operations; leave blank to reuse the default LLM configuration above",
-        "apiKey": "High-Frequency LLM API Key",
-        "apiKeyPlaceholder": "Leave blank to reuse the default LLM key above",
-        "apiBase": "High-Frequency LLM API Base URL",
-        "apiBasePlaceholder": "Leave blank to reuse the default LLM API base URL above",
-        "model": "High-Frequency LLM Model",
-        "modelPlaceholder": "Leave blank to reuse the default LLM model above (current: {{model}})"
       },
       "literature": {
         "title": "Academic literature search",

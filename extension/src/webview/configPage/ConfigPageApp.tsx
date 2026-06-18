@@ -50,12 +50,6 @@ const DEFAULT_VALUES: ConfigValues = {
   coderLlmApiKey: '',
   coderLlmApiBase: 'https://api.openai.com/v1',
   coderLlmModel: '',
-  nanoLlmApiKey: '',
-  nanoLlmApiBase: 'https://api.openai.com/v1',
-  nanoLlmModel: '',
-  analysisLlmApiKey: '',
-  analysisLlmApiBase: 'https://api.openai.com/v1',
-  analysisLlmModel: '',
   embeddingApiKey: '',
   embeddingApiBase: 'https://api.openai.com/v1',
   embeddingModel: 'text-embedding-3-large',
@@ -161,10 +155,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     switch (llmType) {
       case 'coder':
         return (values.coderLlmApiKey || values.llmApiKey || '').trim();
-      case 'nano':
-        return (values.nanoLlmApiKey || values.llmApiKey || '').trim();
-      case 'analysis':
-        return (values.analysisLlmApiKey || values.llmApiKey || '').trim();
       case 'embedding':
         return (values.embeddingApiKey || values.llmApiKey || '').trim();
       default:
@@ -176,10 +166,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     switch (llmType) {
       case 'coder':
         return (values.coderLlmApiBase || values.llmApiBase || '').trim();
-      case 'nano':
-        return (values.nanoLlmApiBase || values.llmApiBase || '').trim();
-      case 'analysis':
-        return (values.analysisLlmApiBase || values.llmApiBase || '').trim();
       case 'embedding':
         return (values.embeddingApiBase || values.llmApiBase || '').trim();
       default:
@@ -217,8 +203,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
 
   const defaultValidateDisabledReason = getValidationDisabledReason('default', effectiveConfigValues);
   const coderValidateDisabledReason = getValidationDisabledReason('coder', effectiveConfigValues);
-  const nanoValidateDisabledReason = getValidationDisabledReason('nano', effectiveConfigValues);
-  const analysisValidateDisabledReason = getValidationDisabledReason('analysis', effectiveConfigValues);
   const embeddingValidateDisabledReason = getValidationDisabledReason('embedding', effectiveConfigValues);
   const pythonValidateDisabledReason = null;
   const literatureValidateDisabledReason = getValidationDisabledReason('literature', effectiveConfigValues);
@@ -235,8 +219,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   const [validationState, setValidationState] = React.useState<Record<string, ValidationState>>({
     default: { validating: false, valid: null, error: null },
     coder: { validating: false, valid: null, error: null },
-    nano: { validating: false, valid: null, error: null },
-    analysis: { validating: false, valid: null, error: null },
     embedding: { validating: false, valid: null, error: null },
     python: { validating: false, valid: null, error: null },
     literature: { validating: false, valid: null, error: null },
@@ -343,18 +325,14 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
   const advancedBlockedByKind = React.useMemo(
     (): Record<AdvancedValidationKey, string | null> => ({
       coder: coderValidateDisabledReason,
-      nano: nanoValidateDisabledReason,
-      analysis: analysisValidateDisabledReason,
       embedding: embeddingValidateDisabledReason,
       python: pythonValidateDisabledReason,
       literature: literatureValidateDisabledReason,
     }),
     [
-      analysisValidateDisabledReason,
       coderValidateDisabledReason,
       embeddingValidateDisabledReason,
       literatureValidateDisabledReason,
-      nanoValidateDisabledReason,
       pythonValidateDisabledReason,
     ]
   );
@@ -492,8 +470,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
     setValidationState({
       default: { validating: false, valid: null, error: null },
       coder: { validating: false, valid: null, error: null },
-      nano: { validating: false, valid: null, error: null },
-      analysis: { validating: false, valid: null, error: null },
       embedding: { validating: false, valid: null, error: null },
       python: { validating: false, valid: null, error: null },
       literature: { validating: false, valid: null, error: null },
@@ -593,7 +569,7 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
         return;
       }
 
-      if (['coder', 'nano', 'analysis', 'embedding'].includes(llmType)) {
+      if (['coder', 'embedding'].includes(llmType)) {
         const effectiveApiKey = getEffectiveApiKey(values, llmType);
         if (!effectiveApiKey) {
           failLocal(t('configPage.validation.needsApiKey'));
@@ -1535,8 +1511,6 @@ export const ConfigPageApp: React.FC<ConfigPageAppProps> = ({ vscode }) => {
                           validationState={validationState}
                           validateDisabledByKind={{
                             coder: coderValidateDisabledReason,
-                            nano: nanoValidateDisabledReason,
-                            analysis: analysisValidateDisabledReason,
                             embedding: embeddingValidateDisabledReason,
                           }}
                           pythonValidateDisabledReason={pythonValidateDisabledReason}

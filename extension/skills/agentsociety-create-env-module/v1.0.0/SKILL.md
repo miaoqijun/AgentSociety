@@ -80,7 +80,7 @@ Use the Python interpreter from `.env`. See `CLAUDE.md` for setup.
 | Forgetting `@tool` decorator on environment methods | Every public method agents can call needs `@tool(readonly=...)` |
 | Defining class in `__init__.py` instead of the module file | Define the class directly in `custom/envs/<module>.py` |
 | `@tool` returning `bool` or `{"success": bool}` | Return a dict / Pydantic model with `status: str` ∈ `{success, fail, in_progress, error}` — see `references/pitfalls.md` P1 |
-| `mcp_description` / `description` phrasing operations as Python call literals | Use prose with bold function names and parameter descriptions — see `references/pitfalls.md` P2 |
+| `init_description` / tool docstrings phrase operations as Python call literals | Use prose with bold function names and parameter descriptions — see `references/pitfalls.md` P2 |
 | `readonly=False` tool not idempotent within one step (counter `+= 1`, list `.append`) | Use last-write-wins, set-based dedup, or explicit dedup-key — see `references/pitfalls.md` P3 |
 | 2+ write tools sharing argument names (`post_id` on both `read_post` and `share_post`) | Rename to distinct argument names or document the agent-side cache-collision mitigation — see `references/pitfalls.md` P4 |
 
@@ -88,7 +88,7 @@ Use the Python interpreter from `.env`. See `CLAUDE.md` for setup.
 
 Stages 3-4 (design + code generation) are the most context-intensive steps. Delegate to subagents when:
 
-- The env module has complex state persistence (replay tables, dump/load, agent state tracking)
+- The env module has complex state persistence (replay tables via `_agent_state_columns` / `_env_state_columns` + `_write_*` helpers, agent state tracking)
 - Multiple `@tool` methods with intricate parameter validation are needed
 - The hypothesis requires specific env behaviors tied to experiment variables
 - You are mid-pipeline and context is becoming a concern

@@ -20,7 +20,7 @@ import inspect
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, List, Optional, Tuple, Type
 
 
 def setup_workspace(workspace_path: Path) -> Path:
@@ -101,12 +101,16 @@ def get_module_info(
 
     # 获取描述
     try:
-        if hasattr(module_class, "mcp_description"):
-            info["description"] = module_class.mcp_description()
+        if hasattr(module_class, "description"):
+            info["description"] = module_class.description()
         else:
             info["description"] = module_class.__doc__ or f"{module_class.__name__}"
     except Exception:
         info["description"] = f"{module_class.__name__}"
+    try:
+        info["init_description"] = module_class.init_description()
+    except Exception:
+        info["init_description"] = ""
 
     # 获取文件位置
     try:
@@ -201,7 +205,7 @@ def format_module_list(
 
             for agent_type, agent_class in filtered_agents:
                 try:
-                    desc = getattr(agent_class, 'mcp_description', lambda: "N/A")()
+                    desc = getattr(agent_class, "description", lambda: "N/A")()
                 except Exception:
                     desc = "N/A"
 
@@ -236,7 +240,7 @@ def format_module_list(
 
             for env_type, env_class in filtered_envs:
                 try:
-                    desc = getattr(env_class, 'mcp_description', lambda: "N/A")()
+                    desc = getattr(env_class, "description", lambda: "N/A")()
                 except Exception:
                     desc = "N/A"
 
@@ -489,12 +493,18 @@ def cmd_validate(args: argparse.Namespace, workspace_path: Path) -> int:
         print(f"✗ Signature check failed: {e}", file=sys.stderr)
         return 1
 
-    # 检查 mcp_description
+    # 检查 description / init_description
     try:
-        desc = cls.mcp_description()
-        print(f"✓ mcp_description: {desc[:50]}...")
+        desc = cls.description()
+        print(f"✓ description: {desc[:50]}...")
     except Exception:
-        print(f"! mcp_description not available")
+        print("! description not available")
+
+    try:
+        desc = cls.init_description()
+        print(f"✓ init_description: {desc[:50]}...")
+    except Exception:
+        print("! init_description not available")
 
     print(f"\n✓ {args.type.capitalize()} '{args.name}' is valid")
     return 0

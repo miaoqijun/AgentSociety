@@ -26,7 +26,6 @@ from pycityproto.city.geo.v2 import geo_pb2 as geo_pb2
 from pycityproto.city.map.v2 import map_pb2 as map_pb2
 from pycityproto.city.trip.v2.trip_pb2 import TripMode
 from pydantic import BaseModel, ConfigDict, Field
-from shapely import wkt
 from shapely.geometry import LineString
 
 __all__ = [
@@ -43,6 +42,7 @@ POI_START_ID = 7_0000_0000
 DRIVING_SPEED_RATIO = 0.8  # the speed of driving is 80% of the max speed of the road
 WALKING_SPEED = 1.34  # the speed of walking is 1.34 m/s
 DRIVING_SPEED = 8.0  # the speed of driving is 8.0 m/s (approx 28.8 km/h)
+BENCHMARK_SLOT_TICK_SEC = 1800
 
 
 class PositionInit(BaseModel):
@@ -67,6 +67,10 @@ class Position(BaseModel):
         None,
         description="POI ID, which is a continuous integer starting from 700000000 (optional when initializing a person)",
     )
+    poi_category: Optional[str] = Field(
+        None,
+        description="Second-level POI category when standing at a POI",
+    )
     xy: Tuple[float, float] = Field(..., description="XY coordinates of the position")
     lnglat: Tuple[float, float] = Field(
         ..., description="Lnglat coordinates of the position"
@@ -78,6 +82,12 @@ class MobilityPersonInit(BaseModel):
 
     id: int = Field(..., description="Person ID")
     position: PositionInit = Field(..., description="The position of the person.")
+    work_aoi: Optional[int] = Field(
+        None, description="Work AOI ID for scheduled commute."
+    )
+    home_aoi: Optional[int] = Field(
+        None, description="Home AOI ID for scheduled return."
+    )
 
 
 class Target(BaseModel):
@@ -102,6 +112,8 @@ class MobilityPerson(BaseModel):
     )
     position: Position = Field(..., description="The position of the person.")
     target: Optional[Target] = Field(None, description="The target of the person.")
+    work_aoi: Optional[int] = Field(None, description="Work AOI ID.")
+    home_aoi: Optional[int] = Field(None, description="Home AOI ID.")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -116,6 +128,15 @@ class TargetResponse(BaseModel):
     )
 
 
+class NearbyPoiSummary(BaseModel):
+    """Summary of nearby POIs in a category."""
+
+    category: str = Field(..., description="POI first-level category")
+    count: int = Field(..., description="Number of POIs in this category nearby")
+    nearest_name: str = Field(..., description="Name of the nearest POI")
+    nearest_distance: float = Field(..., description="Distance to nearest POI (meters)")
+
+
 class GetPersonResponse(BaseModel):
     """Response model for get_person() function"""
 
@@ -125,6 +146,11 @@ class GetPersonResponse(BaseModel):
     target: Optional[TargetResponse] = Field(
         None, description="The target of the person"
     )
+    nearby_pois: Optional[List[NearbyPoiSummary]] = Field(
+        None, description="Summary of nearby POIs by category (only when idle)"
+    )
+    work_aoi: Optional[int] = Field(None, description="Work AOI ID")
+    home_aoi: Optional[int] = Field(None, description="Home AOI ID")
 
 
 class Poi(BaseModel):
@@ -134,6 +160,7 @@ class Poi(BaseModel):
     name: str = Field(..., description="POI name")
     category: str = Field(..., description="POI category")
     position: dict = Field(..., description="POI position (x, y coordinates)")
+    aoi_id: Optional[int] = Field(None, description="AOI containing this POI")
     distance: Optional[float] = Field(
         None, description="Distance from search center (only for find_nearby_pois)"
     )
@@ -150,16 +177,38 @@ class MobilitySpace(EnvBase):
     The environment, including map data, simulator clients, and environment variables.
     """
 
+    @classmethod
+    def is_concurrency_safe(cls) -> bool:
+        # Routing is HTTP (aiohttp async POST to a standalone routing server)
+        # which handles concurrent requests natively. Mutable state is per-agent
+        # (_persons / _person_trajectories / _person_visited_aois are keyed by
+        # agent_id) and the map is read-only after init. Different agents never
+        # touch the same mutable slot (and one agent never calls concurrently
+        # with itself), so concurrent ask calls are safe. Society runs env
+        # step() only after all agents' asks complete, so _step_counter never
+        # overlaps an ask.
+        return True
+
     # 声明式状态持久化
     _agent_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("lng", "REAL"),
         ColumnDef("lat", "REAL"),
+        ColumnDef("aoi_id", "INTEGER"),
+        ColumnDef("poi_id", "INTEGER"),
+        ColumnDef("status", "TEXT"),
     ]
 
     TRIPMODE2STR: ClassVar[dict] = {
         TripMode.TRIP_MODE_WALK_ONLY: "walking",
         TripMode.TRIP_MODE_DRIVE_ONLY: "driving",
     }
+
+    # ---- Skill Discovery ----
+
+    @classmethod
+    def skill_dirs(cls) -> list[Path]:
+        skills_dir = Path(__file__).parent / "agent_skills"
+        return [skills_dir] if skills_dir.is_dir() else []
 
     def __init__(
         self,
@@ -240,11 +289,13 @@ class MobilitySpace(EnvBase):
                     status="idle",
                     position=position,
                     target=None,
+                    work_aoi=person_init.work_aoi,
+                    home_aoi=person_init.home_aoi,
                 )
             )
 
         self._persons: dict[int, MobilityPerson] = {p.id: p for p in person_objects}
-        
+
         # Step counter for replay data
         self._step_counter: int = 0
 
@@ -345,9 +396,9 @@ class MobilitySpace(EnvBase):
         return {pid: aois.copy() for pid, aois in self._person_visited_aois.items()}
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Includes parameter descriptions and JSON schemas for data models.
         """
         import json
@@ -389,27 +440,10 @@ class MobilitySpace(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        return """Mobility management module for urban navigation and location tracking.
-
-**Available Operations:**
-1. Person Location & Status: Query current position, movement state, and trip progress by calling the `get_person` function
-2. Move to: Plan and execute trips to POIs/AOIs with walking or driving modes by calling the `move_to` function.
-3. Find Nearby POIs: Search nearby places by category within specified radius by calling the `find_nearby_pois` function
-4. Get POI Details: Get information about specific POIs by calling the `get_poi` function
-
-**Key Concepts:**
-- AOI (Area of Interest): Large city zones like districts or neighborhoods (identified by aoi_id)
-- POI (Point of Interest): Specific locations like shops, restaurants, landmarks (identified by poi_id, starts from 700000000)
-- Categories: Two-level hierarchy (first-level: 'restaurant', 'outdoor_activity'; second-level: 'cafe', 'park')
-- Travel Modes: 'walking' or 'driving'
-- Coordinates: Longitude/latitude pairs for precise positioning
-
-**Usage Tips:**
-- Use category filters to narrow POI searches
-"""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Mobility environment for urban navigation, location tracking, and POI/AOI movement."
 
     async def init(self, start_datetime: datetime) -> Any:
         """
@@ -546,12 +580,162 @@ class MobilitySpace(EnvBase):
                 mode=person.target.mode,
             )
 
+        # Build nearby POI summary when idle
+        nearby_summary = None
+        if person.status == "idle" and self._map is not None:
+            try:
+                from agentsociety2.contrib.env.mobility_space.utils.const import (
+                    POI_CATG_DICT,
+                )
+
+                pos = person.position
+                center = (pos.xy[0], pos.xy[1])
+                nearby_summary = []
+                for cat_name in POI_CATG_DICT:
+                    pois_raw = self._get_around_pois(
+                        center=center,
+                        radius=3000,
+                        poi_type=[cat_name],
+                        limit=50,
+                    )
+                    if pois_raw:
+                        nearest = min(pois_raw, key=lambda p: p["distance"])
+                        nearby_summary.append(
+                            NearbyPoiSummary(
+                                category=cat_name,
+                                count=len(pois_raw),
+                                nearest_name=nearest["poi"].get("name", "unknown"),
+                                nearest_distance=round(nearest["distance"], 1),
+                            )
+                        )
+            except Exception:
+                nearby_summary = None
+
         return GetPersonResponse(
             id=person.id,
             status=person.status,
-            position=person.position,
+            position=self._person_position_for_response(person),
             target=target_response,
+            nearby_pois=nearby_summary,
+            work_aoi=person.work_aoi,
+            home_aoi=person.home_aoi,
         )
+
+    def mobility_person(self, person_id: int) -> MobilityPerson:
+        if person_id not in self._persons:
+            raise ValueError(f"Person {person_id} not found")
+        return self._persons[person_id]
+
+    def _poi_category_for_id(self, poi_id: int | None) -> str | None:
+        if poi_id is None:
+            return None
+        poi = self._map.get_poi(poi_id)
+        if poi is None:
+            return None
+        category = poi.get("category")
+        if isinstance(category, list) and category:
+            return str(category[-1])
+        if isinstance(category, str) and category:
+            return category
+        return None
+
+    def _person_position_for_response(self, person: MobilityPerson) -> Position:
+        pos = person.position
+        if pos.poi_id is None:
+            return pos
+        category = self._poi_category_for_id(pos.poi_id)
+        if category and pos.poi_category != category:
+            return pos.model_copy(update={"poi_category": category})
+        return pos
+
+    def anchor_idle_position(self, person: MobilityPerson) -> None:
+        """Fill aoi/poi on idle positions left on a lane after stop_trip or mid-route."""
+        if person.status != "idle":
+            return
+        pos = person.position
+        if pos.aoi_id is not None and pos.kind == "aoi":
+            return
+        if pos.xy is None:
+            return
+        x, y = float(pos.xy[0]), float(pos.xy[1])
+        pois = self._get_around_pois(center=(x, y), radius=200.0, limit=5)
+        if pois:
+            hit = min(pois, key=lambda item: item["distance"])
+            if float(hit["distance"]) <= 150.0:
+                poi = hit["poi"]
+                px, py = poi["position"]["x"], poi["position"]["y"]
+                person.position = Position(
+                    kind="aoi",
+                    aoi_id=int(poi["aoi_id"]),
+                    poi_id=int(poi["id"]),
+                    poi_category=self._poi_category_for_id(int(poi["id"])),
+                    xy=(px, py),
+                    lnglat=self._map.projector(px, py, inverse=True),
+                )
+                return
+        aois = self._map.query_aois((x, y), radius=800.0, limit=1)
+        if aois:
+            aoi, _dist = aois[0]
+            ax, ay = aoi["shapely_xy"].centroid.x, aoi["shapely_xy"].centroid.y
+            person.position = Position(
+                kind="aoi",
+                aoi_id=int(aoi["id"]),
+                poi_id=None,
+                xy=(ax, ay),
+                lnglat=self._map.projector(ax, ay, inverse=True),
+            )
+
+    def _snap_person_to_target_position(self, person: MobilityPerson) -> None:
+        if person.target is None:
+            get_logger().warning(
+                "Person %s: _snap_person_to_target_position called with target=None — resetting to idle",
+                person.id,
+            )
+            person.status = "idle"
+            return
+        person.status = "idle"
+        person.position = person.target.position.model_copy(deep=True)
+        person.position.kind = "aoi"
+        assert person.position.aoi_id is not None
+        if person.position.poi_id is not None:
+            poi = self._map.get_poi(person.position.poi_id)
+            assert poi is not None
+            x, y = poi["position"]["x"], poi["position"]["y"]
+            person.position.xy = (x, y)
+            person.position.lnglat = self._map.projector(x, y, inverse=True)
+            category = self._poi_category_for_id(person.position.poi_id)
+            if category:
+                person.position.poi_category = category
+        else:
+            aoi = self._map.get_aoi(person.position.aoi_id)
+            assert aoi is not None
+            x, y = aoi["shapely_xy"].centroid.x, aoi["shapely_xy"].centroid.y
+            person.position.xy = (x, y)
+            person.position.lnglat = self._map.projector(x, y, inverse=True)
+        person.target = None
+
+    async def stop_trip(self, person_id: int) -> dict:
+        if person_id not in self._persons:
+            raise ValueError(f"Person {person_id} not found")
+        person = self._persons[person_id]
+        if person.status != "moving" or person.target is None:
+            return {"status": "ok", "was_moving": False}
+        xy = person.target.path.interpolate(person.target.path_s)
+        person.position.xy = (xy.x, xy.y)
+        person.position.lnglat = self._map.projector(xy.x, xy.y, inverse=True)
+        person.status = "idle"
+        person.target = None
+        self.anchor_idle_position(person)
+        return {"status": "ok", "was_moving": True}
+
+    async def finish_trip(self, person_id: int) -> dict:
+        if person_id not in self._persons:
+            raise ValueError(f"Person {person_id} not found")
+        person = self._persons[person_id]
+        if person.status != "moving" or person.target is None:
+            return {"status": "ok", "was_moving": False}
+        self._snap_person_to_target_position(person)
+        return {"status": "ok", "was_moving": True, "finished": True}
 
     @tool(readonly=False)
     async def move_to(
@@ -567,12 +751,15 @@ class MobilitySpace(EnvBase):
         :param aoi_id_or_poi_id: The target location ID (AOI ID or POI ID starting from 700000000)
         :param mode: The travel mode (walking or driving)
 
-        :returns: Empty response indicating success
+        :returns: Dict with status and details
         """
         if person_id not in self._persons:
             raise ValueError(f"Person {person_id} not found")
 
         person = self._persons[person_id]
+
+        if person.status == "moving":
+            return {"status": "fail", "reason": f"Person {person_id} is already moving"}
 
         # 1. choose mode
 
@@ -595,7 +782,10 @@ class MobilitySpace(EnvBase):
                     break
                 radius *= 2
             if len(lanes) == 0:
-                return
+                return {
+                    "status": "fail",
+                    "reason": f"No road found near position {person.position.xy} within 10km for mode {mode}",
+                }
             lane, s, _ = lanes[0]
             start_position = {
                 "lane_position": {
@@ -608,7 +798,10 @@ class MobilitySpace(EnvBase):
         if aoi_id_or_poi_id >= POI_START_ID:
             poi = self._map.get_poi(aoi_id_or_poi_id)
             if poi is None:
-                return
+                return {
+                    "status": "fail",
+                    "reason": f"POI {aoi_id_or_poi_id} not found",
+                }
             destination_position = {
                 "aoi_position": {
                     "aoi_id": poi["aoi_id"],
@@ -617,7 +810,10 @@ class MobilitySpace(EnvBase):
         else:
             aoi = self._map.get_aoi(aoi_id_or_poi_id)
             if aoi is None:
-                return
+                return {
+                    "status": "fail",
+                    "reason": f"AOI {aoi_id_or_poi_id} not found",
+                }
             destination_position = {
                 "aoi_position": {
                     "aoi_id": aoi_id_or_poi_id,
@@ -635,23 +831,52 @@ class MobilitySpace(EnvBase):
             "start": start_position,
             "end": destination_position,
         }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=request_data) as response:
-                response_data = await response.json()
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=request_data) as response:
+                    if response.status != 200:
+                        return {
+                            "status": "fail",
+                            "reason": f"Routing service returned status {response.status}",
+                        }
+                    response_data = await response.json()
+        except Exception as e:
+            return {
+                "status": "fail",
+                "reason": f"Routing service error: {e}",
+            }
         eta = self._map.estimate_route_time(request_data, response_data)
-        xys = self._map._route_to_xys(request_data, response_data)
+        try:
+            xys = self._map._route_to_xys(request_data, response_data)
+        except (IndexError, ValueError) as e:
+            return {
+                "status": "fail",
+                "reason": f"Could not build route geometry: {e}",
+            }
+        if xys.shape[0] < 2:
+            return {
+                "status": "fail",
+                "reason": "Route geometry has fewer than 2 points",
+            }
         path = LineString(xys)
-        path_v = path.length / eta if eta > 0 else 1
+        if path.length <= 0:
+            return {"status": "fail", "reason": "Route path length is zero"}
+        path_v = path.length / eta if eta > 0 else 1.0
+        if path.length > 0:
+            min_path_v = path.length / BENCHMARK_SLOT_TICK_SEC
+            path_v = max(path_v, min_path_v)
 
-        # Update person state
-        person.status = "moving"
         # Determine destination position with poi_id if applicable
         dest_aoi_id = destination_position["aoi_position"]["aoi_id"]
         dest_poi_id = aoi_id_or_poi_id if aoi_id_or_poi_id >= POI_START_ID else None
         if dest_poi_id is not None:
             # Use POI position
             poi = self._map.get_poi(dest_poi_id)
-            assert poi is not None
+            if poi is None:
+                return {
+                    "status": "fail",
+                    "reason": f"POI {dest_poi_id} not found",
+                }
             x, y = poi["position"]["x"], poi["position"]["y"]
             poi_xy = (x, y)
             poi_lnglat = self._map.projector(poi_xy[0], poi_xy[1], inverse=True)
@@ -679,6 +904,8 @@ class MobilitySpace(EnvBase):
             path_s=0.0,
             path_v=path_v,
         )
+        # Update person state ONLY after target is set
+        person.status = "moving"
         xy = path.interpolate(0)
         person.position = Position(
             kind="lane",
@@ -688,7 +915,13 @@ class MobilitySpace(EnvBase):
             lnglat=self._map.projector(xy.x, xy.y, inverse=True),
         )
 
-        return
+        return {
+            "status": "success",
+            "person_id": person_id,
+            "destination_id": aoi_id_or_poi_id,
+            "mode": mode,
+            "eta": eta,
+        }
 
     @tool(readonly=True)
     async def find_nearby_pois(
@@ -717,6 +950,7 @@ class MobilitySpace(EnvBase):
                 name=p["poi"]["name"],
                 position=p["poi"]["position"],
                 category=p["poi"]["category"][-1],
+                aoi_id=self.poi_id_2_aoi_id.get(p["poi"]["id"]),
                 distance=p["distance"],
             )
             clean_pois.append(clean_poi)
@@ -741,10 +975,92 @@ class MobilitySpace(EnvBase):
             name=poi["name"],
             category=poi["category"][-1],
             position=poi["position"],
+            aoi_id=poi.get("aoi_id"),
             distance=None,
         )
 
         return poi_obj
+
+    @tool(readonly=True)
+    async def recommend_poi_by_gravity(
+        self,
+        person_id: int,
+        category: str | None = None,
+        radius: float = 1200,
+        exclude_home_work: bool = True,
+    ) -> dict:
+        """Recommend a nearby POI using a gravity model that balances distance and density.
+
+        The gravity model prefers POIs that are closer and located in areas with
+        higher density of similar POIs, producing a natural spatial distribution.
+
+        :param person_id: The ID of the person to find a POI for
+        :param category: POI category filter (e.g. 'restaurant'); None for all
+        :param radius: Search radius in meters (default 1200)
+        :param exclude_home_work: Exclude POIs at the person's home/work AOI
+        :returns: Dict with recommended POI details and suggested travel mode
+        """
+        if person_id not in self._persons:
+            raise ValueError(f"Person {person_id} not found")
+
+        from agentsociety2.contrib.env.mobility_space.utils.poi_gravity import (
+            filter_out_of_anchor_aoi_pois,
+            gravity_model,
+            poi_travel_mode,
+        )
+
+        person = self._persons[person_id]
+        center = person.position.xy
+
+        raw_pois = self._get_around_pois(
+            center=center,
+            radius=radius,
+            poi_type=category,
+            limit=self._poi_search_limit,
+        )
+
+        # Normalize to standard dicts with distance
+        candidates: list[dict] = []
+        for item in raw_pois:
+            poi = item["poi"]
+            dist = item["distance"]
+            candidates.append({
+                "poi_id": poi["id"],
+                "name": poi["name"],
+                "category": poi["category"][-1] if isinstance(poi["category"], list) and poi["category"] else str(poi.get("category", "")),
+                "distance": dist,
+                "aoi_id": poi.get("aoi_id") or self.poi_id_2_aoi_id.get(poi["id"]),
+            })
+
+        if not candidates:
+            return {"status": "no_candidates", "reason": "No POIs found in search area"}
+
+        if exclude_home_work:
+            candidates = filter_out_of_anchor_aoi_pois(
+                candidates,
+                home_aoi=person.home_aoi,
+                work_aoi=person.work_aoi,
+            )
+
+        if not candidates:
+            return {"status": "no_candidates", "reason": "All POIs filtered by home/work exclusion"}
+
+        selected = gravity_model(candidates)
+        if selected is None:
+            return {"status": "no_candidates", "reason": "Gravity model returned no result"}
+
+        distance = float(selected.get("distance", 0))
+        mode = poi_travel_mode(distance)
+
+        return {
+            "status": "success",
+            "poi_id": selected["poi_id"],
+            "name": selected.get("name", "unknown"),
+            "category": selected.get("category", ""),
+            "distance": distance,
+            "aoi_id": selected.get("aoi_id"),
+            "recommended_mode": mode,
+        }
 
     async def close(self):
         """Terminate the simulation process and export trajectory data."""
@@ -762,7 +1078,7 @@ class MobilitySpace(EnvBase):
         if not self._home_dir:
             return
         export_path = Path(self._home_dir).parent / "mobility_metrics_export.json"
-        trajs = self.get_all_person_trajectories()
+        trajs = self.get_all_persons_trajectories()
         vis = self.get_all_persons_visited_aois()
         if not trajs:
             return
@@ -771,7 +1087,9 @@ class MobilitySpace(EnvBase):
             "visited_aois": {str(k): sorted(v) for k, v in vis.items()},
         }
         export_path.write_text(json.dumps(data), encoding="utf-8")
-        get_logger().info(f"Exported mobility data to {export_path} ({len(trajs)} agents)")
+        get_logger().info(
+            f"Exported mobility data to {export_path} ({len(trajs)} agents)"
+        )
 
     async def step(self, tick: int, t: datetime):
         """
@@ -783,32 +1101,18 @@ class MobilitySpace(EnvBase):
         # Update all moving persons
         for person in self._persons.values():
             if person.status == "moving":
-                assert person.target is not None
+                if person.target is None:
+                    get_logger().warning(
+                        "Person %s: status=moving but target is None — resetting to idle",
+                        person.id,
+                    )
+                    person.status = "idle"
+                    self.anchor_idle_position(person)
+                    continue
                 distance_to_move = person.target.path_v * tick
                 person.target.path_s += distance_to_move
                 if person.target.path_s >= person.target.path.length:
-                    person.status = "idle"
-                    person.position = person.target.position
-                    person.target = None
-                    # update position - use POI position if poi_id exists, otherwise use AOI centroid
-                    assert person.position.aoi_id is not None
-                    if person.position.poi_id is not None:
-                        # Use POI position
-                        poi = self._map.get_poi(person.position.poi_id)
-                        assert poi is not None
-                        x, y = poi["position"]["x"], poi["position"]["y"]
-                        person.position.xy = (x, y)
-                        person.position.lnglat = self._map.projector(x, y, inverse=True)
-                    else:
-                        # Use AOI centroid
-                        aoi = self._map.get_aoi(person.position.aoi_id)
-                        assert aoi is not None
-                        x, y = (
-                            aoi["shapely_xy"].centroid.x,
-                            aoi["shapely_xy"].centroid.y,
-                        )
-                        person.position.xy = (x, y)
-                        person.position.lnglat = self._map.projector(x, y, inverse=True)
+                    self._snap_person_to_target_position(person)
                 else:
                     # update position
                     xy = person.target.path.interpolate(person.target.path_s)
@@ -819,65 +1123,21 @@ class MobilitySpace(EnvBase):
 
             # 【关键】每步记录person的位置（用于轨迹收集）
             self.record_person_position(person.id)
-            
+
             # Write position to replay database
             lng, lat = person.position.lnglat
             await self._write_agent_state(
-                agent_id=person.id, step=self._step_counter, t=t, lng=lng, lat=lat,
+                agent_id=person.id,
+                step=self._step_counter,
+                t=t,
+                lng=lng,
+                lat=lat,
+                aoi_id=person.position.aoi_id,
+                poi_id=person.position.poi_id,
+                status=person.status,
             )
 
         self.t = t
         self._step_counter += 1
 
     # ==================== Replay Data Methods ====================
-
-    def _dump_state(self) -> dict:
-        """
-        Dump the internal state of MobilitySpace for serialization.
-
-        :returns: dict: A dictionary containing all necessary state information
-        """
-        # Serialize persons
-        persons_data = {}
-        for person_id, person in self._persons.items():
-            person_dict = person.model_dump()
-            # Convert shapely LineString to WKT (Well-Known Text) format if present
-            if person.target is not None and person.target.path is not None:
-                person_dict["target"]["path"] = person.target.path.wkt
-            persons_data[person_id] = person_dict
-
-        return {
-            "file_path": self._file_path,
-            "home_dir": self._home_dir,
-            "poi_search_limit": self._poi_search_limit,
-            "persons": persons_data,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """
-        Load the internal state of MobilitySpace from serialized data.
-
-        :param state: The state dictionary produced by _dump_state()
-        """
-        # Restore configuration parameters
-        self._poi_search_limit = state.get("poi_search_limit", 10)
-        if "step_counter" in state:
-            self._step_counter = state["step_counter"]
-
-        # Restore persons
-        persons_data = state.get("persons", {})
-        self._persons = {}
-        for person_id_str, person_dict in persons_data.items():
-            person_id = int(person_id_str)
-            # Convert WKT back to shapely LineString if present
-            if (
-                person_dict.get("target") is not None
-                and person_dict["target"].get("path") is not None
-            ):
-                path_wkt = person_dict["target"]["path"]
-                person_dict["target"]["path"] = wkt.loads(path_wkt)
-
-            # Reconstruct MobilityPerson from dict
-            person = MobilityPerson.model_validate(person_dict)
-            self._persons[person_id] = person

@@ -121,9 +121,9 @@ class SimpleSocialSpace(EnvBase):
         self._total_messages_sent: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Includes parameter descriptions and JSON schemas for data models.
         """
 
@@ -147,12 +147,10 @@ class SimpleSocialSpace(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        return """You are a social communication environment module specialized in managing social interactions between agents.
-        
-Your task is to use the available social functions to manage individual mailboxes and group communications based on the context provided."""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Social communication environment for direct messages and group interactions."
 
     # Mailbox functions
     @tool(readonly=False)
@@ -412,41 +410,3 @@ Your task is to use the available social functions to manage individual mailboxe
             total_agents=len(self._agent_names),
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        return {
-            "mailboxes": {
-                str(k): [m.model_dump() for m in v]
-                for k, v in self._mailboxes.items()
-            },
-            "groups": {
-                str(k): v.model_dump() for k, v in self._groups.items()
-            },
-            "next_group_id": self._next_group_id,
-            "next_message_id": self._next_message_id,
-            "agent_names": {str(k): v for k, v in self._agent_names.items()},
-            "total_messages_sent": self._total_messages_sent,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        if "mailboxes" in state:
-            self._mailboxes = defaultdict(list, {
-                int(k): [Message.model_validate(m) for m in v]
-                for k, v in state["mailboxes"].items()
-            })
-        if "groups" in state:
-            self._groups = {
-                int(k): Group.model_validate(v)
-                for k, v in state["groups"].items()
-            }
-        if "next_group_id" in state:
-            self._next_group_id = state["next_group_id"]
-        if "next_message_id" in state:
-            self._next_message_id = state["next_message_id"]
-        if "agent_names" in state:
-            self._agent_names = {int(k): v for k, v in state["agent_names"].items()}
-        if "total_messages_sent" in state:
-            self._total_messages_sent = state["total_messages_sent"]
-        if "step_counter" in state:
-            self._step_counter = state["step_counter"]

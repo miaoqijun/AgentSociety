@@ -14,7 +14,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import subprocess
 import sys
@@ -30,6 +29,12 @@ if env_file.exists():
 
 # 添加 Python 路径
 sys.path.insert(0, str(workspace_root / "packages" / "agentsociety2"))
+
+get_registered_env_modules: Any = None
+get_registered_agent_modules: Any = None
+get_registry: Any = None
+InitConfig: Any = None
+StepsConfig: Any = None
 
 
 def _ensure_agentsociety2() -> None:
@@ -144,7 +149,6 @@ def action_validate(
         result["errors"].append("SIM_SETTINGS.json 中未选择环境模块")
 
     # 验证模块在注册表中存在
-    registry = get_registry()
     available_agents = dict(get_registered_agent_modules())
     available_envs = dict(get_registered_env_modules())
 
@@ -350,7 +354,7 @@ print(f"- steps.yaml: {{steps_file}}")
 
     return {
         "success": True,
-        "message": f"已创建 init/ 目录",
+        "message": "已创建 init/ 目录",
         "config_params": str(paths["config_params"]),
         "init_config": str(paths["init_config"]),
         "steps_yaml": str(paths["steps_yaml"]),
@@ -367,7 +371,6 @@ def action_info(
     agent_classes = sim_settings.get("agentClasses", [])
     env_modules = sim_settings.get("envModules", [])
 
-    registry = get_registry()
     result = {
         "agent_classes": [],
         "env_modules": [],
@@ -381,25 +384,29 @@ def action_info(
             info = {
                 "type": agent_type,
                 "class": agent_class.__name__,
-                "description": getattr(
-                    agent_class, "mcp_description", lambda: "N/A"
+                "description": getattr(agent_class, "description", lambda: "N/A")(),
+                "init_description": getattr(
+                    agent_class, "init_description", lambda: "N/A"
                 )(),
             }
-            # 尝试获取参数信息
-            try:
-                import inspect
-                sig = inspect.signature(agent_class.__init__)
-                params = []
-                for name, param in list(sig.parameters.items())[1:]:  # 跳过 self
-                    param_info = {"name": name}
-                    if param.annotation != inspect.Parameter.empty:
-                        param_info["type"] = str(param.annotation)
-                    if param.default != inspect.Parameter.empty:
-                        param_info["default"] = str(param.default)
-                    params.append(param_info)
-                info["parameters"] = params
-            except Exception:
-                pass
+            # 新 API：__init__ 是无参的；真正的初始化参数在 init_description() 里
+            # 文档化（profile 字段 + config 键）。这里展示标准 config 键集合 + init_description。
+            info["parameters"] = [
+                {"name": "id", "type": "int", "purpose": "unique agent id (in kwargs/profile)"},
+                {"name": "name", "type": "str", "purpose": "display name (in kwargs/profile)"},
+                {"name": "max_react_turns", "type": "int", "default": "10",
+                 "purpose": "runtime config key (split into config record by CLI)"},
+                {"name": "enable_memory", "type": "bool", "default": "True",
+                 "purpose": "runtime config key (PersonAgent)"},
+                {"name": "enable_todo_list", "type": "bool", "default": "True",
+                 "purpose": "runtime config key"},
+            ]
+            info["construction_note"] = (
+                "New API: agents are created via AgentBase.create(workspace_path, profile, config) "
+                "and reconstructed via from_workspace(...). __init__ is arg-less; the CLI splits "
+                "agent kwargs into profile (id + persona) + config (runtime keys). See "
+                "references/config-structure.md."
+            )
             result["agent_classes"].append(info)
 
     # 获取 env 模块信息
@@ -410,8 +417,9 @@ def action_info(
             info = {
                 "type": env_type,
                 "class": env_class.__name__,
-                "description": getattr(
-                    env_class, "mcp_description", lambda: "N/A"
+                "description": getattr(env_class, "description", lambda: "N/A")(),
+                "init_description": getattr(
+                    env_class, "init_description", lambda: "N/A"
                 )(),
             }
             # 尝试获取参数信息
@@ -533,10 +541,6 @@ def action_check(
         return result
 
     # 尝试实例化模块（严格验证）
-    sim_settings = read_sim_settings(paths["hypothesis"])
-    agent_types = sim_settings.get("agentClasses", [])
-    env_module_types = sim_settings.get("envModules", [])
-
     env_type_map = dict(get_registered_env_modules())
     agent_type_map = dict(get_registered_agent_modules())
 
@@ -553,13 +557,13 @@ def action_check(
 
         env_class = env_type_map[module_type]
         try:
-            instance = env_class(**module_config.kwargs)
+            _ = env_class(**module_config.kwargs)
             result["details"][f"env_{module_type}"] = "实例化成功"
         except Exception as e:
             result["errors"].append(f"环境模块 '{module_type}' 实例化失败: {e}")
             result["success"] = False
 
-    # 验证 agent（抽样验证第一个）
+    # 验证 agent（抽样验证第一个）—— 使用新的 workspace 契约
     if init_config.agents:
         agent_config = init_config.agents[0]
         agent_type = agent_config.agent_type
@@ -571,15 +575,33 @@ def action_check(
         else:
             agent_class = agent_type_map[agent_type]
             try:
-                kwargs = agent_config.kwargs.copy()
-                if "id" not in kwargs:
-                    kwargs["id"] = int(agent_config.agent_id)
-                else:
-                    kwargs["id"] = int(kwargs["id"])
-                instance = agent_class(**kwargs)
-                result["details"][f"agent_{agent_type}"] = "实例化成功"
+                kwargs = dict(agent_config.kwargs)
+                agent_id_int = int(kwargs.pop("id", agent_config.agent_id))
+                # 新 API：profile = id + persona fields；config = 已识别的运行时配置键。
+                # CLI 的 _build_agent_specs 用同样的 config_keys 集合做切分。
+                config_keys = {
+                    "max_react_turns",
+                    "enable_memory",
+                    "enable_todo_list",
+                    "force_template_mode",
+                    "allow_template_mode",
+                    "disabled_skill_ids",
+                    "default_activated_skill_ids",
+                }
+                agent_config_dict = {
+                    k: kwargs.pop(k) for k in list(kwargs.keys()) if k in config_keys
+                }
+                profile = dict(kwargs)
+                profile["id"] = agent_id_int
+                # 验证 AgentBase 契约：arg-less __init__ + create 可写入 workspace。
+                import tempfile
+                # 新契约 __init__ 无参；真正的状态在 restore() 里设置。
+                _ = agent_class()
+                with tempfile.TemporaryDirectory() as tmp_ws:
+                    agent_class.create(Path(tmp_ws), profile, agent_config_dict)
+                result["details"][f"agent_{agent_type}"] = "create() 写入 workspace 成功"
             except Exception as e:
-                result["errors"].append(f"Agent '{agent_type}' 实例化失败: {e}")
+                result["errors"].append(f"Agent '{agent_type}' create() 失败: {e}")
                 result["success"] = False
 
     return result

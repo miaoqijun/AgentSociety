@@ -300,7 +300,7 @@ def validate_chart_file(
                 "chart_missing",
                 phase="refine",
                 message=f"Chart file not found: {chart_path}",
-                fix_hint="Run run-code to generate the chart",
+                fix_hint="Generate the missing chart",
             )
         )
         return blocked(issues)

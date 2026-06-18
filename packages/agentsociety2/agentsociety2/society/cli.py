@@ -1,7 +1,7 @@
 """命令行入口：按 ``steps.yaml`` 驱动 :class:`~agentsociety2.society.society.AgentSociety` 实验。
 
-启动前会校验 ``AGENTSOCIETY_LLM_API_KEY`` 以及可供 CodeGenRouter / AgentBase 使用的
-coder、nano 相关密钥（可与主密钥相同）。环境与模块发现见 :mod:`agentsociety2.registry`。
+启动前会校验 ``AGENTSOCIETY_LLM_API_KEY`` 以及可供 CodeGenRouter 使用的 coder
+相关密钥（可与主密钥相同）。环境与模块发现见 :mod:`agentsociety2.registry`。
 """
 
 import argparse
@@ -14,49 +14,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-# 强制禁用遥测（在任何导入之前）
-# 禁用 mem0 遥测（避免连接 Posthog/Facebook）
-os.environ["MEM0_TELEMETRY"] = "False"
-# 禁用 ChromaDB 遥测（同样使用 Posthog）
-os.environ["ANONYMIZED_TELEMETRY"] = "False"
-
-
-# 禁用 Posthog 客户端创建（在导入前）
-def _disable_posthog_import():
-    """在模块导入前禁用 Posthog"""
-    import sys
-
-    # 创建一个假模块来阻止 posthog 导入
-    class FakePosthog:
-        class Posthog:
-            def __init__(self, *args, **kwargs):
-                pass
-
-            def capture(self, *args, **kwargs):
-                pass
-
-            def disable(self):
-                pass
-
-        def __getattr__(self, *args, **kwargs):
-            return self.Posthog()
-
-    # 将 posthog 添加到 sys.modules 以阻止其导入
-    sys.modules["posthog"] = FakePosthog()
-    sys.modules["posthog.client"] = FakePosthog()
-    sys.modules["posthog.capture"] = lambda *a, **k: None
-
-
-_disable_posthog_import()
-
-from agentsociety2.agent import AgentBase
-from agentsociety2.env import CodeGenRouter, EnvBase
+from agentsociety2.config import Config
+from agentsociety2.env import EnvBase
+from agentsociety2.env.env_router_actor import get_env_router_actor_class
+from agentsociety2.env.env_router_proxy import EnvRouterProxy
 from agentsociety2.registry import (
     get_registered_env_modules,
     get_registered_agent_modules,
     scan_and_register_custom_modules,
 )
-from agentsociety2.storage import ReplayWriter
 from agentsociety2.society.models import (
     InitConfig,
     RunStep,
@@ -85,23 +51,6 @@ def _validate_env_early() -> None:
     coder_api_key = os.getenv("AGENTSOCIETY_CODER_LLM_API_KEY") or llm_api_key
     if not coder_api_key or not coder_api_key.strip():
         errors.append("AGENTSOCIETY_CODER_LLM_API_KEY (or AGENTSOCIETY_LLM_API_KEY)")
-
-    # 检查 nano LLM（用于 fallback）
-    nano_api_key = os.getenv("AGENTSOCIETY_NANO_LLM_API_KEY") or llm_api_key
-    if not nano_api_key or not nano_api_key.strip():
-        errors.append("AGENTSOCIETY_NANO_LLM_API_KEY (or AGENTSOCIETY_LLM_API_KEY)")
-
-    # 确认 mem0 遥测已禁用
-    mem0_telemetry = os.getenv("MEM0_TELEMETRY", "False").lower()
-    if mem0_telemetry not in ("false", "0", "no", ""):
-        errors.append(f"MEM0_TELEMETRY must be 'False', currently: {mem0_telemetry}")
-
-    # 确认 ChromaDB 遥测已禁用
-    chroma_telemetry = os.getenv("ANONYMIZED_TELEMETRY", "False").lower()
-    if chroma_telemetry not in ("false", "0", "no", ""):
-        errors.append(
-            f"ANONYMIZED_TELEMETRY must be 'False', currently: {chroma_telemetry}"
-        )
 
     if errors:
         print("❌ Environment configuration error:", file=sys.stderr)
@@ -132,9 +81,9 @@ class ExperimentRunner:
 
         # 文件路径
         self.pid_file = self.run_dir / "pid.json"
-        self.db_file = self.run_dir / "sqlite.db"
 
         self.society: Optional[AgentSociety] = None
+        self._env_router: Any = None
         self._should_terminate = False
 
     def _validate_environment(self) -> None:
@@ -155,27 +104,6 @@ class ExperimentRunner:
                 "Missing required environment variable: AGENTSOCIETY_CODER_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
             )
 
-        # 检查 nano LLM 配置（用于 fallback）
-        nano_api_key = os.getenv("AGENTSOCIETY_NANO_LLM_API_KEY") or llm_api_key
-        if not nano_api_key or not nano_api_key.strip():
-            errors.append(
-                "Missing required environment variable: AGENTSOCIETY_NANO_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
-            )
-
-        # 检查 mem0 遥测是否禁用
-        mem0_telemetry = os.getenv("MEM0_TELEMETRY", "False").lower()
-        if mem0_telemetry not in ("false", "0", "no", ""):
-            errors.append(
-                f"MEM0_TELEMETRY must be disabled (set to 'False'), currently: {mem0_telemetry}"
-            )
-
-        # 检查 ChromaDB 遥测是否禁用
-        chroma_telemetry = os.getenv("ANONYMIZED_TELEMETRY", "False").lower()
-        if chroma_telemetry not in ("false", "0", "no", ""):
-            errors.append(
-                f"ANONYMIZED_TELEMETRY must be disabled (set to 'False'), currently: {chroma_telemetry}"
-            )
-
         # 如果有错误，打印详细信息并退出
         if errors:
             logger.error("Environment validation failed:")
@@ -194,10 +122,6 @@ class ExperimentRunner:
             sys.exit(1)
 
         logger.info("Environment validation passed")
-        # 确认遥测已禁用
-        logger.info(
-            "Telemetry disabled: MEM0_TELEMETRY=False, ANONYMIZED_TELEMETRY=False"
-        )
 
     def _load_config(self, config_path: Path) -> InitConfig:
         """加载并验证配置文件"""
@@ -258,49 +182,91 @@ class ExperimentRunner:
 
         return env_modules
 
-    def _create_agents(
+    def _build_agent_specs(
         self,
         agent_args: List[Dict[str, Any]],
-    ) -> List[AgentBase]:
-        """创建 agent 实例。"""
-        agents = []
+    ) -> tuple[List[dict], str]:
+        """Build record-based agent specs (no agent objects instantiated).
+
+        Emits ``{"id", "profile", "config"}`` specs. The ``AgentSociety`` then
+        batch-creates workspaces via ``create_agents_batch`` Ray Tasks, and
+        agents are reconstructed on demand (``from_workspace``) inside
+        step/query tasks.
+
+        The agent class is resolved from the registry and validated to be unique
+        across the population (the streaming model assumes a single agent class
+        per society — the common case).
+
+        Args:
+            agent_args: Per-agent config dicts (``agent_id`` / ``agent_type`` / ``kwargs``).
+
+        Returns:
+            ``(agent_specs, agent_class_name)``.
+        """
         agent_type_map = {
             agent_type: agent_class
             for agent_type, agent_class in get_registered_agent_modules()
         }
 
+        specs: List[dict] = []
+        class_names: set[str] = set()
         for agent_arg in agent_args:
             agent_type = agent_arg.get("agent_type")
             agent_id = agent_arg.get("agent_id")
 
             if not agent_type:
                 raise ValueError(f"Agent config missing agent_type: {agent_arg}")
-
             if agent_id is None:
                 raise ValueError(f"Agent config missing agent_id: {agent_arg}")
-
             if agent_type not in agent_type_map:
                 raise ValueError(
                     f"Agent type '{agent_type}' not found in registry. "
                     f"Available types: {list(agent_type_map.keys())}"
                 )
-
-            agent_class = agent_type_map[agent_type]
-
             if "kwargs" not in agent_arg:
                 raise ValueError(f"Agent config missing 'kwargs' field: {agent_arg}")
 
-            init_kwargs = agent_arg["kwargs"].copy()
+            agent_class = agent_type_map[agent_type]
+            class_names.add(agent_class.__name__)
 
-            if "id" not in init_kwargs:
-                init_kwargs["id"] = int(agent_id)
-            else:
-                init_kwargs["id"] = int(init_kwargs["id"])
+            kwargs = dict(agent_arg["kwargs"] or {})
+            agent_id_int = int(kwargs.get("id", agent_id))
+            kwargs["id"] = agent_id_int
 
-            agent = agent_class(**init_kwargs)
-            agents.append(agent)
+            # profile = all kwargs except config-ish keys; config = the agent's
+            # static config fields (see PersonAgent.init_description). For
+            # PersonAgent, config keys are max_react_turns / enable_todo_list /
+            # enable_memory / etc. We extract recognized config keys out of kwargs
+            # if present, defaulting the rest.
+            config_keys = {
+                "max_react_turns",
+                "enable_memory",
+                "enable_todo_list",
+                "disabled_skill_ids",
+                "default_activated_skill_ids",
+            }
+            config = {k: kwargs.pop(k) for k in list(kwargs.keys()) if k in config_keys}
+            # profile carries id + the remaining kwargs (name, age, persona, ...).
+            profile = dict(kwargs)
+            # Ensure id is present in profile (AgentBase.create expects profile["id"]).
+            profile["id"] = agent_id_int
 
-        return agents
+            specs.append(
+                {
+                    "id": agent_id_int,
+                    "profile": profile,
+                    "config": config,
+                }
+            )
+
+        if not class_names:
+            raise ValueError("No agent configs provided.")
+        if len(class_names) > 1:
+            raise ValueError(
+                f"Streaming mode supports a single agent class per society; "
+                f"got multiple: {sorted(class_names)}"
+            )
+        return specs, class_names.pop()
 
     def _update_pid_file(self, status: str, **kwargs):
         """更新 pid.json 文件"""
@@ -345,6 +311,9 @@ class ExperimentRunner:
         config_path: Path,
         steps_path: Path,
         experiment_id: Optional[str] = None,
+        num_llm_workers: Optional[int] = None,
+        replay_disable: bool = False,
+        batch_size: int = 256,
     ):
         """
         运行实验
@@ -352,6 +321,9 @@ class ExperimentRunner:
         :param config_path: 配置文件路径（init_config.json）
         :param steps_path: steps.yaml 文件路径
         :param experiment_id: 实验ID（可选）
+        :param num_llm_workers: 可选。兼容保留的 Ray CPU 预算提示
+            （覆盖 ``AGENTSOCIETY_LLM_RAY_WORKERS``）。
+        :param replay_disable: 为 True 时构造一个禁用的 ``ReplayProxy``（无 replay JSONL 写）。
         """
         try:
             # 验证环境变量（必须在任何操作之前）
@@ -401,36 +373,107 @@ class ExperimentRunner:
             else:
                 logger.info("No custom/ directory found, skipping custom module scan")
 
-            # 创建环境模块
-            logger.info("Creating environment modules...")
-            env_modules = self._create_env_modules(env_module_types, env_kwargs)
-
-            # 若启用回放则先创建并初始化 ReplayWriter，再传入 env router
-            replay_writer: Optional[ReplayWriter] = None
-            if self.run_dir is not None:
-                replay_writer = ReplayWriter(self.run_dir / "sqlite.db")
-                await replay_writer.init()
-                logger.info("ReplayWriter initialized")
-
-            env_router = CodeGenRouter(
-                env_modules=env_modules,
-                replay_writer=replay_writer,
-                final_summary_enabled=config.codegen_router.final_summary_enabled,
+            # Initialize Ray / per-process LLM dispatch support. ``init_dispatchers``
+            # is idempotent; the compatibility worker override affects only the
+            # Ray CPU budget hint.
+            from agentsociety2.config.llm_dispatcher import (
+                init_dispatchers,
             )
-            # Expose experiment root to helpers/skills
-            env_router.run_dir = self.run_dir.resolve()
 
-            logger.info(f"Creating {len(agent_args)} agents...")
-            agents = self._create_agents(agent_args)
+            if num_llm_workers is not None:
+                Config.LLM_RAY_WORKERS = int(num_llm_workers)
+            await init_dispatchers()
 
-            logger.info("Creating AgentSociety instance...")
+            # ── Replay: distributed ReplayProxy (JSONL sink) ──────────────────────
+            # Replay is distributed & lock-free: ReplayProxy carries only the
+            # replay dir; env/society/agents each build their own local
+            # ReplaySink and append sharded JSONL. ``--replay-disable`` yields a
+            # disabled proxy (enabled=False) so writes are no-ops.
+            from agentsociety2.storage.replay_proxy import ReplayProxy
+
+            replay_proxy: Optional[ReplayProxy] = None
+            replay_enabled = not replay_disable
+            if self.run_dir is not None:
+                replay_dir = (self.run_dir / "replay").resolve()
+                replay_proxy = ReplayProxy(
+                    replay_dir=str(replay_dir), enabled=replay_enabled
+                )
+                logger.info(
+                    "Replay proxy initialized (enabled=%s, dir=%s)",
+                    replay_enabled,
+                    replay_dir,
+                )
+
+            # Build injected LLM clients for the env actor. Each carries only
+            # connection params; the actor builds its own Router + AIMD semaphore
+            # in its own event loop on first call (no module-global pool).
+            from agentsociety2.config.llm_dispatcher import build_client_for_role
+
+            llm_clients_spec = {
+                "coder": build_client_for_role("coder"),
+                "default": build_client_for_role("default"),
+            }
+            # 并发度：所有 env 模块都声明 is_concurrency_safe() 才开并行 ask，否则串行。
+            env_type_map = dict(get_registered_env_modules())
+            all_safe = all(
+                env_type_map[t].is_concurrency_safe()
+                for t in env_module_types
+                if t in env_type_map
+            )
+            max_concurrency = Config.ENV_ACTOR_MAX_CONCURRENCY if all_safe else 1
+
+            # Trace wiring: distributed & lock-free now. TraceProxy just carries
+            # the output dir; both the env router actor and the agents' own
+            # ServiceProxy build local ShardedAppendSinks from it (otherwise
+            # env-side codegen/summary LLM calls are untraced).
+            from agentsociety2.trace import TraceProxy
+
+            trace_proxy: TraceProxy | None = None
+            if self.run_dir is not None:
+                trace_base = (self.run_dir / "trace").resolve()
+                trace_proxy = TraceProxy(trace_dir=str(trace_base))
+
+            actor_cls = get_env_router_actor_class(max_concurrency=max_concurrency)
+            env_actor = actor_cls.remote(
+                env_module_types,
+                env_kwargs,
+                str(self.run_dir.resolve()) if self.run_dir is not None else None,
+                {
+                    "final_summary_enabled": config.codegen_router.final_summary_enabled,
+                },
+                llm_clients_spec,
+                replay_proxy,
+                trace_proxy,
+            )
+            env_router = EnvRouterProxy(env_actor, run_dir=self.run_dir.resolve())
+            self._env_router = env_router
+
+            # Compose the agent ServiceProxy with serializable LLM clients plus
+            # the same trace proxy and replay proxy used by the env router.
+            from agentsociety2.agent.service_proxy import build_service_proxy
+
+            service_proxy = build_service_proxy(
+                env_router,
+                run_dir=self.run_dir,
+                trace=trace_proxy if trace_proxy is not None else True,
+                replay=replay_proxy,
+            )
+
+            logger.info(f"Building {len(agent_args)} agent specs (record-based)...")
+            agent_specs, agent_class_name = self._build_agent_specs(agent_args)
+
+            logger.info(
+                "Creating AgentSociety instance (record-based, no agent objects)..."
+            )
             self.society = AgentSociety(
-                agents=agents,
+                agent_specs=agent_specs,
+                agent_class_name=agent_class_name,
                 env_router=env_router,
                 start_t=start_t,
                 run_dir=self.run_dir,
-                enable_replay=True,
-                replay_writer=replay_writer,
+                service_proxy=service_proxy,
+                batch_size=int(batch_size),
+                enable_replay=not replay_disable,
             )
 
             await self.society.init()
@@ -584,6 +627,12 @@ class ExperimentRunner:
         except Exception as e:
             logger.error(f"Experiment failed: {e}", exc_info=True)
             self._update_pid_file("failed", error=str(e))
+            # Ensure routing subprocesses are cleaned up on failure
+            if self.society is not None:
+                try:
+                    await self.society.close()
+                except Exception:
+                    pass
             raise
 
 
@@ -630,6 +679,30 @@ def main():
         type=str,
         help="Path to log file (optional). If not specified, logs go to stdout/stderr only.",
     )
+    parser.add_argument(
+        "--num-llm-workers",
+        type=int,
+        default=None,
+        help=(
+            "Compatibility Ray CPU budget hint for LLM-heavy runs "
+            "(overrides AGENTSOCIETY_LLM_RAY_WORKERS)."
+        ),
+    )
+    parser.add_argument(
+        "--replay-disable",
+        action="store_true",
+        help="Disable replay writing (no-op ReplayProxy; useful at 1M-agent scale).",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=256,
+        help=(
+            "Number of agents per step_agent_batch Ray Task (streaming mode). "
+            "Smaller → more parallel tasks / scheduling overhead; larger → fewer "
+            "tasks but a slow agent can stall its batch. Default 256."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -661,6 +734,9 @@ def main():
                 config_path=config_path,
                 steps_path=steps_path,
                 experiment_id=args.experiment_id,
+                num_llm_workers=args.num_llm_workers,
+                replay_disable=args.replay_disable,
+                batch_size=args.batch_size,
             )
         )
     except KeyboardInterrupt:

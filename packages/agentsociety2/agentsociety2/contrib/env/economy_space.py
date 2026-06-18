@@ -134,9 +134,9 @@ class EconomySpace(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Includes parameter descriptions and JSON schemas for data models.
         """
 
@@ -172,12 +172,10 @@ class EconomySpace(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        return """You are an economy management environment module specialized in handling economic simulation operations.
-
-Your task is to use the available economy functions to manage persons, their finances, and economic attributes based on the context provided."""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Economy environment for managing agents' currency, income, consumption, and skills."
 
     @tool(readonly=True, kind="observe")
     async def get_person(self, id: int) -> EconomyPerson:
@@ -375,33 +373,3 @@ Your task is to use the available economy functions to manage persons, their fin
             bank_interest_rate=self._bank_interest_rate,
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        return {
-            "persons": {str(pid): p.model_dump() for pid, p in self._persons.items()},
-            "bank_interest_rate": self._bank_interest_rate,
-            "last_run_datetime": self._last_run_datetime.isoformat(),
-            "gov_tax_brackets": [
-                {"cutoff": b.cutoff, "rate": b.rate} for b in self._gov_tax_brackets
-            ],
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        if "persons" in state:
-            self._persons = {
-                int(k): EconomyPerson.model_validate(v)
-                for k, v in state["persons"].items()
-            }
-        if "bank_interest_rate" in state:
-            self._bank_interest_rate = state["bank_interest_rate"]
-        if "last_run_datetime" in state:
-            self._last_run_datetime = datetime.fromisoformat(
-                state["last_run_datetime"]
-            )
-        if "gov_tax_brackets" in state:
-            self._gov_tax_brackets = [
-                TaxBracket(**b) for b in state["gov_tax_brackets"]
-            ]
-        if "step_counter" in state:
-            self._step_counter = state["step_counter"]

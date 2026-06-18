@@ -14,12 +14,6 @@ from agentsociety2.skills.analysis.harness.gates import (
     gate_status_hypothesis,
     prior_phase_gate_issues,
 )
-from agentsociety2.skills.analysis.harness.guidance import (
-    get_chart_scaffold,
-    get_harness_guidance,
-    get_payload_template,
-    list_payload_templates,
-)
 from agentsociety2.skills.analysis.harness.models import (
     HYPOTHESIS_PHASE_ORDER,
     AnalysisPhase,
@@ -325,39 +319,6 @@ def cmd_memory_context(
     return {"memory_context": _experience_memory_context(workspace, hypothesis_id)}
 
 
-def cmd_guidance(topic: str = "workflow") -> Dict[str, Any]:
-    try:
-        return {"guidance": get_harness_guidance(topic)}
-    except KeyError:
-        return {
-            "error": "unknown_guidance_topic",
-            "topic": topic,
-            "available_topics": get_harness_guidance("workflow")["available_topics"],
-        }
-
-
-def cmd_payload_template(name: str) -> Dict[str, Any]:
-    try:
-        return {"template_name": name, "template": get_payload_template(name)}
-    except KeyError:
-        return {
-            "error": "unknown_payload_template",
-            "template_name": name,
-            "available_templates": list_payload_templates(),
-        }
-
-
-def cmd_chart_scaffold() -> Dict[str, Any]:
-    return {
-        "filename": "chart_NN_slug.py",
-        "scaffold": get_chart_scaffold(),
-        "recommended_next_step": (
-            "Save under presentation/hypothesis_{id}/charts/, adapt SQL/data loading, "
-            "then run validate-chart --code before run-code."
-        ),
-    }
-
-
 def cmd_record_feedback(
     workspace: Path,
     hypothesis_id: Optional[str],
@@ -404,7 +365,7 @@ def cmd_intake(
             "state": st.model_dump(mode="json"),
             "db_path": str(paths.db_path),
             "db_ready": False,
-            "warning": "sqlite.db not found; complete run-experiment first",
+            "warning": "run/replay/_schema.json not found; complete run-experiment first",
             "memory_context": _experience_memory_context(workspace, hypothesis_id),
             "feedback_prompt": _feedback_prompt(workspace, hypothesis_id),
         }
@@ -485,193 +446,6 @@ def cmd_record_phase_artifacts(
     st.phase_artifacts[phase] = list(artifacts)
     harness_state.save_hypothesis_state(workspace, hypothesis_id, st)
     return {"phase": phase, "artifacts": artifacts}
-
-
-def _workspace_relative_paths(workspace: Path, paths: List[str]) -> List[str]:
-    root = workspace.resolve()
-    rel: List[str] = []
-    for raw in paths:
-        p = Path(raw)
-        if not p.is_absolute():
-            p = (workspace / p).resolve()
-        else:
-            p = p.resolve()
-        try:
-            rel.append(p.relative_to(root).as_posix())
-        except ValueError:
-            rel.append(str(p))
-    return rel
-
-
-def cmd_run_explore_eda(
-    workspace: Path, hypothesis_id: str, experiment_id: str
-) -> Dict[str, Any]:
-    """Run EDA from analysis_plan and register explore phase artifacts."""
-    from agentsociety2.skills.analysis.data import DataReader
-    from agentsociety2.skills.analysis.output import EDAGenerator
-
-    plan = harness_state.load_plan(workspace, hypothesis_id)
-    st = harness_state.load_hypothesis_state(workspace, hypothesis_id)
-    db = (
-        Path(st.db_path)
-        if st.db_path
-        else experiment_paths(workspace, hypothesis_id, experiment_id).db_path
-    )
-    if not db.exists():
-        return {
-            "error": "db_missing",
-            "db_path": str(db),
-            "fix_hint": "Complete run-experiment before run-explore-eda",
-        }
-
-    pres = presentation_paths(
-        workspace / DIR_PRESENTATION, hypothesis_id, experiment_id
-    )
-    data_dir = pres.output_dir / DIR_DATA
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    generator = EDAGenerator()
-    reader = DataReader(db)
-    requested = plan.target_tables or None
-    _, selected, invalid = generator.resolve_table_selection(reader, requested)
-    if requested and not selected:
-        return {
-            "error": "no_target_tables",
-            "invalid_tables": invalid,
-            "fix_hint": "Fix analysis_plan.target_tables or sqlite schema",
-        }
-
-    profile = plan.eda_profile
-    files: List[str] = []
-    hub: Optional[Path] = None
-
-    if profile == "bundle":
-        bundle_profiles = [
-            p for p in plan.resolved_eda_profiles() if p not in ("bundle", "eda-hub")
-        ]
-        files, hub = generator.generate_eda_bundle(
-            db,
-            data_dir,
-            profiles=bundle_profiles or None,
-            tables=selected or None,
-        )
-    elif profile == "quick-stats":
-        content = generator.generate_quick_stats(db, tables=selected)
-        qs = data_dir / "eda_quick_stats.md"
-        qs.write_text(content or "", encoding="utf-8")
-        files = [str(qs)]
-    elif profile == "eda-hub":
-        hub = generator.generate_eda_hub(data_dir)
-        files = [str(hub)]
-    else:
-        runners = {
-            "ydata": lambda: generator.generate_ydata_profile(
-                db, data_dir, tables=selected
-            ),
-            "sweetviz": lambda: generator.generate_sweetviz_profile(
-                db, data_dir, tables=selected
-            ),
-            "missingno": lambda: generator.generate_missingno_report(
-                db, data_dir, tables=selected
-            ),
-            "correlation": lambda: generator.generate_correlation_report(
-                db, data_dir, tables=selected
-            ),
-            "pygwalker": lambda: generator.generate_pygwalker_profile(
-                db, data_dir, tables=selected
-            ),
-            "datatable": lambda: generator.generate_datatable_profile(
-                db, data_dir, tables=selected
-            ),
-            "plotly-profile": lambda: generator.generate_plotly_profile(
-                db, data_dir, tables=selected
-            ),
-        }
-        runner = runners.get(profile)
-        if runner is None:
-            return {"error": f"unsupported eda_profile: {profile}"}
-        result = runner()
-        if result is not None:
-            files = [str(result)]
-
-    rel_files = _workspace_relative_paths(workspace, files)
-    registered = cmd_record_phase_artifacts(
-        workspace, hypothesis_id, "explore", rel_files
-    )
-    return {
-        "command": "run-explore-eda",
-        "eda_profile": profile,
-        "files": rel_files,
-        "hub": _workspace_relative_paths(workspace, [str(hub)])[0] if hub else None,
-        "selected_tables": selected,
-        "invalid_tables": invalid,
-        "registered": registered,
-        "recommended_next_step": "Review EDA outputs; explain takeaways to user; then validate-explore",
-    }
-
-
-def cmd_prepare_produce(
-    workspace: Path, hypothesis_id: str, experiment_id: str
-) -> Dict[str, Any]:
-    """Aggregate report context and sync chart/EDA assets before release validation."""
-    context = cmd_build_report_context(workspace, hypothesis_id)
-    assets = cmd_sync_report_assets(workspace, hypothesis_id, experiment_id)
-    return {
-        "command": "prepare-produce",
-        "report_context": context,
-        "sync_assets": assets,
-        "recommended_next_step": "Dispatch report-producer with data/report_context.md",
-    }
-
-
-def _completion_epilogue(workspace: Path, hypothesis_id: str) -> Dict[str, Any]:
-    """Optional post-pipeline user debrief — never blocks gates."""
-    syn = harness_state.load_synthesis_state(workspace)
-    st = harness_state.load_hypothesis_state(workspace, hypothesis_id)
-    pipeline_ready = (
-        st.hypothesis_release == ReleaseStatus.ready
-        and syn.workspace_release == ReleaseStatus.ready
-    )
-    feedback = harness_state.load_feedback(workspace, hypothesis_id)
-    has_feedback = bool(
-        feedback.comments.strip()
-        or feedback.requested_changes
-        or feedback.preference_candidates
-        or feedback.lesson_candidates
-        or feedback.rating is not None
-        or feedback.satisfied is not None
-    )
-    return {
-        "active": pipeline_ready,
-        "blocking": False,
-        "skip_ok": True,
-        "purpose": "Optional user debrief and experience capture after pipeline complete",
-        "conversation_prompts": [
-            "哪些结论最有说服力？哪些结论你还存疑？",
-            "报告/图表里有什么希望下次固定或改掉的？",
-            "有没有值得沉淀成项目经验的方法或踩坑？",
-        ],
-        "has_feedback": has_feedback,
-        "suggested_flow": [
-            "1. Chat with user (prompts above)",
-            "2. record-feedback (if user answered)",
-            "3. draft-reflection → user review → record-reflection",
-            "4. review-reflection → promote-reflection",
-            "5. promote-reflection --include-preferences only after explicit user OK",
-            "6. memory-context (verify next intake injection)",
-        ],
-        "commands": {
-            "record_feedback": "record-feedback",
-            "draft_reflection": f"draft-reflection --hypothesis-id {hypothesis_id}",
-            "promote": "promote-reflection",
-            "memory_context": "memory-context",
-        },
-        "recommended_next_step": (
-            "Pipeline complete. Optional: debrief with user, then record-feedback / draft-reflection / promote-reflection."
-            if pipeline_ready
-            else "Finish validate-synthesis and update research-pipeline before epilogue."
-        ),
-    }
 
 
 def cmd_validate_plan(workspace: Path, hypothesis_id: str) -> Dict[str, Any]:
@@ -926,13 +700,8 @@ def cmd_sync_report_assets(
     from agentsociety2.skills.analysis.harness.report_assets import (
         sync_report_assets_from_reports,
     )
-    from agentsociety2.skills.analysis.harness.report_bundle import (
-        cmd_embed_interactive_eda,
-    )
 
-    result = sync_report_assets_from_reports(pres.output_dir)
-    result["interactive_eda"] = cmd_embed_interactive_eda(workspace, hypothesis_id)
-    return result
+    return sync_report_assets_from_reports(pres.output_dir)
 
 
 def cmd_validate_release(
@@ -1068,21 +837,17 @@ def cmd_gate_status(
     workspace: Path, hypothesis_id: Optional[str] = None
 ) -> Dict[str, Any]:
     out: Dict[str, Any] = {"workspace": str(workspace.resolve())}
-    syn_st = harness_state.load_synthesis_state(workspace)
     if hypothesis_id:
         st = harness_state.load_hypothesis_state(workspace, hypothesis_id)
         out["hypothesis"] = gate_status_hypothesis(st)
         out["memory_context"] = _experience_memory_context(workspace, hypothesis_id)
         out["feedback_prompt"] = _feedback_prompt(workspace, hypothesis_id)
-        if (
-            st.hypothesis_release == ReleaseStatus.ready
-            and syn_st.workspace_release == ReleaseStatus.ready
-        ):
-            out["epilogue"] = _completion_epilogue(workspace, hypothesis_id)
     else:
         out["memory_context"] = _experience_memory_context(workspace)
         out["feedback_prompt"] = _feedback_prompt(workspace)
-    out["synthesis"] = syn_st.model_dump(mode="json")
+    out["synthesis"] = harness_state.load_synthesis_state(workspace).model_dump(
+        mode="json"
+    )
     return out
 
 
@@ -1094,44 +859,20 @@ def cmd_run_loop(
     workspace: Path, hypothesis_id: str, experiment_id: str
 ) -> Dict[str, Any]:
     st = harness_state.load_hypothesis_state(workspace, hypothesis_id)
-    syn_st = harness_state.load_synthesis_state(workspace)
     memory_context = _experience_memory_context(workspace, hypothesis_id)
-    if (
-        st.hypothesis_release == ReleaseStatus.ready
-        and syn_st.workspace_release == ReleaseStatus.ready
-    ):
-        epilogue = _completion_epilogue(workspace, hypothesis_id)
-        return {
-            "current_phase": "complete",
-            "hypothesis_release": st.hypothesis_release.value,
-            "workspace_release": syn_st.workspace_release.value,
-            "recommended_next_step": epilogue["recommended_next_step"],
-            "epilogue": epilogue,
-            "checkpoints": gate_status_hypothesis(st),
-            "memory_context": memory_context,
-            "feedback_prompt": _feedback_prompt(workspace, hypothesis_id),
-        }
     phase = st.current_phase.value
     cp = st.phase_checkpoints.get(phase, {})
     rubric = PHASE_RUBRIC_KEYS.get(phase, [])
     llm_focus = {
         "frame": "Co-design analysis_plan with user; interpret hypothesis and experiment design",
-        "explore": "Review run-explore-eda outputs; explain limitations — do not finalize claims yet",
+        "explore": "Inspect schema, run EDA, explain limitations — do not finalize claims yet",
         "claims": "Propose confirmatory vs exploratory claims; negotiate with user",
         "refine": "Figure contracts; validate-chart per file; validate-refine before attestation",
-        "produce": "Dispatch report-producer with data/report_context.md from prepare-produce",
+        "produce": "Run build-report-context; write bilingual narratives from data/report_context.md",
     }.get(phase, "")
-    if phase == "explore":
+    if phase == "produce":
         steps = [
-            "1. Mechanical: run-explore-eda (EDA from analysis_plan + auto record-phase-artifacts)",
-            f"2. LLM: {llm_focus}",
-            "3. Mechanical: validate-explore",
-            f"4. LLM: record-attestation --phase {phase} (rubric: {rubric})",
-        ]
-        advance_n = "5"
-    elif phase == "produce":
-        steps = [
-            "1. Mechanical: prepare-produce (build-report-context + sync-report-assets)",
+            "1. Mechanical: build-report-context",
             "2. LLM: report-producer → bilingual reports + JSON metadata",
             "3. LLM: report-reviewer (independent) → record-report-review PASS",
             "4. Mechanical: validate-report-quality (optional pre-check)",
@@ -1157,8 +898,6 @@ def cmd_run_loop(
             "1. LLM: synthesis-producer → synthesis reports + brief",
             "2. LLM: synthesis-reviewer → record-synthesis-review PASS",
             "3. validate-synthesis + record-attestation --phase synthesis",
-            "4. research-pipeline update-stage analysis completed",
-            "5. Optional epilogue: user debrief → record-feedback / draft-reflection / promote-reflection (non-blocking)",
         ]
     if memory_context["active"]:
         steps.insert(

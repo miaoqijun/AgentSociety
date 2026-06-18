@@ -2,6 +2,17 @@
 
 For advanced usage, import the runner functions directly.
 
+> **Preferred path:** run experiments via the CLI (`python -m agentsociety2.society.cli`
+> or `.agentsociety/bin/ags.py run-experiment start …`). The functions below are for
+> programmatic orchestration; most experiments never construct `AgentSociety` directly.
+>
+> If you do need to construct `AgentSociety`, note it is now **record-based**:
+> `AgentSociety(agent_specs=[{"id","profile","config"}], agent_class_name="...",
+> env_router=..., service_proxy=...)`. There is no `agents=[<objects>]` parameter — the
+> society batch-creates agent workspaces from the specs and reconstructs agents on demand
+> via `from_workspace`. The CLI's `_build_agent_specs` builds these specs from
+> `init_config.json`.
+
 ## Available Functions
 
 ```python

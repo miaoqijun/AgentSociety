@@ -95,7 +95,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Social Scientist Backend API",
     description="Backend API service for AI Social Scientist VSCode extension",
-    version="2.3.0",
+    version="2.6.0",
     lifespan=lifespan,
 )
 
@@ -122,7 +122,7 @@ async def root():
     """:returns: 后端服务基本信息与 endpoints 列表。"""
     return {
         "service": "AI Social Scientist Backend API",
-        "version": "2.3.0",
+        "version": "2.6.0",
         "status": "running",
         "endpoints": {
             "prefill_params": "/api/v1/prefill-params",

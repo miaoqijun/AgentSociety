@@ -63,9 +63,15 @@ class QuestionnaireResponse(BaseModel):
     target_agent_ids: list[int]
     questions: list[QuestionItem]
     responses: list[AgentQuestionnaireResult]
+    context_snapshots: list[dict] = Field(default_factory=list)
 
 
-def _build_question_prompt(questionnaire: Questionnaire, question: QuestionItem) -> str:
+def _build_question_prompt(
+    questionnaire: Questionnaire,
+    question: QuestionItem,
+    *,
+    t: datetime | None = None,
+) -> str:
     lines = []
     if questionnaire.title:
         lines.append(f"Questionnaire Title: {questionnaire.title}")
@@ -74,13 +80,20 @@ def _build_question_prompt(questionnaire: Questionnaire, question: QuestionItem)
     lines.append(f"Question ID: {question.id}")
     lines.append(f"Question: {question.prompt}")
     lines.append("")
-    lines.append("Answer as yourself based on your own current beliefs, plans, emotions, and memory.")
     lines.append(
-        'Return valid JSON with exactly two top-level fields: '
-        '"answer" and "reason".'
+        "Answer as yourself based on your own current beliefs, plans, emotions, and memory."
     )
     lines.append(
-        '"reason" should briefly explain why you gave that answer, grounded in your own beliefs, memory, plans, or emotions.'
+        "Return valid JSON with exactly two top-level fields in this order: "
+        '"reason" and then "answer".'
+    )
+    lines.append(
+        '"reason" should briefly decide the answer from your current state before '
+        "writing the final answer."
+    )
+    lines.append(
+        '"answer" must be your final decision after the reason; if the reason changes '
+        "your mind, the answer field must match that final conclusion."
     )
 
     if question.response_type == "integer":
@@ -92,7 +105,9 @@ def _build_question_prompt(questionnaire: Questionnaire, question: QuestionItem)
         lines.append(f"Options: {options}")
         lines.append('"answer" must be one option exactly as written.')
     elif question.response_type == "json":
-        lines.append('"answer" must itself be valid JSON that directly answers the question.')
+        lines.append(
+            '"answer" must itself be valid JSON that directly answers the question.'
+        )
     else:
         lines.append('"answer" must be concise plain text.')
 
@@ -121,7 +136,9 @@ def _stringify_answer_value(value: Any) -> str:
     return str(value).strip()
 
 
-def _parse_question_answer(question: QuestionItem, raw_text: str) -> QuestionnaireAnswer:
+def _parse_question_answer(
+    question: QuestionItem, raw_text: str
+) -> QuestionnaireAnswer:
     full_response = (raw_text or "").strip()
     answer_payload: Any = full_response
     answer_text = full_response
@@ -166,18 +183,35 @@ def _parse_question_answer(question: QuestionItem, raw_text: str) -> Questionnai
                     raise ValueError("no number found")
                 parsed_value = float(match.group(0))
         elif question.response_type == "choice":
+            if not answer_text or len(answer_text) > 80:
+                raise ValueError("empty or oversized choice answer")
+            if any(
+                bad in answer_text
+                for bad in ('{"', "def ", "import ", "codegen", "await ", "\n    ")
+            ):
+                raise ValueError("answer looks like code, not a choice label")
             normalized = answer_text.casefold()
-            exact = next((choice for choice in question.choices if choice.casefold() == normalized), None)
-            if exact is None:
+            exact = next(
+                (
+                    choice
+                    for choice in question.choices
+                    if choice.casefold() == normalized
+                ),
+                None,
+            )
+            if exact is None and len(normalized) >= 3:
                 matches = [
                     choice
                     for choice in question.choices
-                    if choice.casefold() in normalized or normalized in choice.casefold()
+                    if choice.casefold() in normalized
+                    or normalized in choice.casefold()
                 ]
                 if len(matches) == 1:
                     exact = matches[0]
             if exact is None:
-                raise ValueError(f"answer does not match any choice: {question.choices}")
+                raise ValueError(
+                    f"answer does not match any choice: {question.choices}"
+                )
             parsed_value = exact
         elif question.response_type == "json":
             if isinstance(structured_payload, dict) and "answer" in structured_payload:
@@ -222,7 +256,9 @@ class QuestionnaireRunner:
             selected_agents = list(agents)
             target_ids = [agent.id for agent in selected_agents]
         else:
-            missing = [agent_id for agent_id in target_agent_ids if agent_id not in by_id]
+            missing = [
+                agent_id for agent_id in target_agent_ids if agent_id not in by_id
+            ]
             if missing:
                 raise ValueError(f"Unknown target_agent_ids: {missing}")
             selected_agents = [by_id[agent_id] for agent_id in target_agent_ids]
@@ -232,15 +268,39 @@ class QuestionnaireRunner:
             agent.id: [] for agent in selected_agents
         }
 
+        intention_q = "intention" in questionnaire.questionnaire_id
+
         for question in questionnaire.questions:
-            prompt = _build_question_prompt(questionnaire, question)
+            prompt = _build_question_prompt(questionnaire, question, t=t)
+            # 初次询问：所有 agent 并行（_ask_agents 内部 asyncio.gather，结果保序）。
             raw_answers = await self._ask_agents(
                 agents=selected_agents,
                 prompt=prompt,
                 t=t,
             )
-            for agent, raw_answer in zip(selected_agents, raw_answers, strict=False):
-                answers_by_agent[agent.id].append(_parse_question_answer(question, raw_answer))
+            answers = [_parse_question_answer(question, raw) for raw in raw_answers]
+            # 收集解析失败的 choice 题目，整体并行重试，而不是逐个 await。
+            needs_retry = intention_q and question.response_type == "choice"
+            retry_indices = [
+                idx
+                for idx, answer in enumerate(answers)
+                if needs_retry and not answer.parse_success
+            ]
+            if retry_indices:
+                retry_prompt = (
+                    prompt + "\n\nINVALID PREVIOUS ANSWER. Return JSON only with "
+                    '"answer" as exactly one listed option (copy verbatim) and a short "reason".'
+                )
+                retry_agents = [selected_agents[idx] for idx in retry_indices]
+                retry_raws = await self._ask_agents(
+                    agents=retry_agents,
+                    prompt=retry_prompt,
+                    t=t,
+                )
+                for idx, retry_raw in zip(retry_indices, retry_raws, strict=False):
+                    answers[idx] = _parse_question_answer(question, retry_raw)
+            for agent, answer in zip(selected_agents, answers, strict=False):
+                answers_by_agent[agent.id].append(answer)
 
         return QuestionnaireResponse(
             questionnaire_id=questionnaire.questionnaire_id,
@@ -267,12 +327,12 @@ class QuestionnaireRunner:
         prompt: str,
         t: datetime,
     ) -> list[str]:
-        coroutines = [
-            agent.answer_external_question(
-                prompt,
-                t=t,
-                response_type="json",
-            )
-            for agent in agents
-        ]
+        """Ask every agent the same prompt through the standard ``ask`` interface.
+
+        Each agent runs its own reasoning loop and returns its answer text as a
+        string; the caller parses that text into a structured answer. The request
+        is readonly so answering never mutates environment or workspace state.
+        ``t`` is the authoritative simulation time so agents reason as of now.
+        """
+        coroutines = [agent.ask(prompt, readonly=True, t=t) for agent in agents]
         return list(await asyncio.gather(*coroutines))

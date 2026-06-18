@@ -35,7 +35,12 @@ class AdvancedEnv(EnvBase):
         self._agent_consumptions: Dict[int, float] = {}
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def description(cls) -> str:
+        """返回环境模块短说明。"""
+        return "高级资源管理环境，支持多 Agent 资源消耗、贡献和统计。"
+
+    @classmethod
+    def init_description(cls) -> str:
         return """AdvancedEnv: 高级资源管理环境示例
 
 展示带有资源管理、多 Agent 交互的环境模块。

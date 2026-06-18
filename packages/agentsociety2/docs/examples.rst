@@ -34,19 +34,28 @@
 
 .. code-block:: python
 
-   # Create agent with profile
-   agent = PersonAgent(
-       id=1,
-       profile={
-           "name": "Alice",
-           "age": 28,
-           "personality": "friendly, curious, optimistic",
-           "bio": "A software engineer who loves hiking and reading."
+   # Declare agent metadata (agents are created from specs during init)
+   agent_specs = [
+       {
+           "id": 1,
+           "profile": {
+               "name": "Alice",
+               "age": 28,
+               "personality": "friendly, curious, optimistic",
+               "bio": "A software engineer who loves hiking and reading.",
+           },
+           "config": {},
        }
-   )
+   ]
 
    # Create environment and society
-   society = AgentSociety(agents=[agent], env_router=..., start_t=datetime.now())
+   society = AgentSociety(
+       agent_specs=agent_specs,
+       agent_class_name="PersonAgent",
+       env_router=env_router,
+       start_t=datetime.now(),
+       run_dir=Path("run"),
+   )
    await society.init()
 
    # Interact

@@ -2,16 +2,12 @@
 """Core analysis CLI subcommands for context, schema, and query access."""
 
 import argparse
-import asyncio
-import ast
 import dataclasses
 import json
 import os
 import re
-import shutil
 import sqlite3
 import sys
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -42,8 +38,6 @@ EDAGenerator: type[Any] | None = None
 AssetManager: type[Any] | None = None
 ReportAsset: type[Any] | None = None
 SUPPORTED_IMAGE_FORMATS: set[str] | None = None
-DependencyDetector: type[Any] | None = None
-LocalCodeExecutor: type[Any] | None = None
 _DEFAULT_IMAGE_FORMATS = {".png", ".jpg", ".jpeg", ".svg", ".pdf", ".webp"}
 
 
@@ -57,19 +51,10 @@ def _ensure_analysis_dependencies() -> None:
     global AssetManager
     global ReportAsset
     global SUPPORTED_IMAGE_FORMATS
-    global DependencyDetector
-    global LocalCodeExecutor
-
     if ContextLoader is not None:
         return
 
     try:
-        from agentsociety2.code_executor.dependency_detector import (
-            DependencyDetector as _DependencyDetector,
-        )
-        from agentsociety2.code_executor.local_executor import (
-            LocalCodeExecutor as _LocalCodeExecutor,
-        )
         from agentsociety2.skills.analysis import (
             AssetManager as _AssetManager,
             ContextLoader as _ContextLoader,
@@ -95,8 +80,6 @@ def _ensure_analysis_dependencies() -> None:
     AssetManager = _AssetManager
     ReportAsset = _ReportAsset
     SUPPORTED_IMAGE_FORMATS = _SUPPORTED_IMAGE_FORMATS
-    DependencyDetector = _DependencyDetector
-    LocalCodeExecutor = _LocalCodeExecutor
 
 
 class _ArgumentParseError(Exception):
@@ -154,44 +137,32 @@ def _build_parser() -> argparse.ArgumentParser:
     load_context_parser.add_argument("--hypothesis-id", required=True)
     load_context_parser.add_argument("--experiment-id", required=True)
 
+    def _add_data_path_argument(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            "--data-path",
+            "--db-path",
+            dest="data_path",
+            required=True,
+            help="Replay directory path; --db-path is accepted for legacy sqlite.db workflows",
+        )
+
     list_tables_parser = subparsers.add_parser("list-tables")
-    list_tables_parser.add_argument("--db-path", required=True)
+    _add_data_path_argument(list_tables_parser)
 
     data_summary_parser = subparsers.add_parser("data-summary")
-    data_summary_parser.add_argument("--db-path", required=True)
+    _add_data_path_argument(data_summary_parser)
 
     query_data_parser = subparsers.add_parser("query-data")
-    query_data_parser.add_argument("--db-path", required=True)
+    _add_data_path_argument(query_data_parser)
     query_data_parser.add_argument("--sql", required=True)
 
-    run_code_parser = subparsers.add_parser("run-code")
-    run_code_parser.add_argument("--db-path")
-    run_code_parser.add_argument("--code", required=True)
-    run_code_parser.add_argument("--timeout", type=int, default=120)
-    run_code_parser.add_argument("--extra-files")
-
     run_eda_parser = subparsers.add_parser("run-eda")
-    run_eda_parser.add_argument("--db-path", required=True)
+    _add_data_path_argument(run_eda_parser)
     run_eda_parser.add_argument("--output-dir", required=True)
     run_eda_parser.add_argument(
         "--type",
         required=True,
-        choices=[
-            "ydata",
-            "sweetviz",
-            "missingno",
-            "correlation",
-            "quick-stats",
-            "pygwalker",
-            "datatable",
-            "plotly-profile",
-            "eda-hub",
-            "bundle",
-        ],
-    )
-    run_eda_parser.add_argument(
-        "--profiles",
-        help="Comma-separated EDA types for --type bundle (default: quick-stats,ydata,pygwalker,datatable,plotly-profile)",
+        choices=["ydata", "sweetviz", "missingno", "correlation", "quick-stats"],
     )
     run_eda_parser.add_argument("--tables")
     run_eda_parser.add_argument("--workspace", default=workspace_default)
@@ -267,13 +238,6 @@ def _build_parser() -> argparse.ArgumentParser:
     sync_assets_parser.add_argument("--hypothesis-id", required=True)
     sync_assets_parser.add_argument("--experiment-id", required=True)
 
-    embed_eda_parser = subparsers.add_parser(
-        "embed-interactive-eda",
-        help="Inject multi-tab interactive EDA section into report_*.html",
-    )
-    _add_harness_workspace(embed_eda_parser)
-    embed_eda_parser.add_argument("--hypothesis-id", required=True)
-
     validate_release_parser = subparsers.add_parser("validate-release")
     _add_harness_workspace(validate_release_parser)
     validate_release_parser.add_argument("--hypothesis-id", required=True)
@@ -346,22 +310,6 @@ def _build_parser() -> argparse.ArgumentParser:
         "--artifacts", required=True, help="JSON array of file paths"
     )
 
-    run_explore_eda_parser = subparsers.add_parser(
-        "run-explore-eda",
-        help="Run EDA from analysis_plan and register explore phase artifacts",
-    )
-    _add_harness_workspace(run_explore_eda_parser)
-    run_explore_eda_parser.add_argument("--hypothesis-id", required=True)
-    run_explore_eda_parser.add_argument("--experiment-id", required=True)
-
-    prepare_produce_parser = subparsers.add_parser(
-        "prepare-produce",
-        help="Build report context and sync chart/EDA assets before release validation",
-    )
-    _add_harness_workspace(prepare_produce_parser)
-    prepare_produce_parser.add_argument("--hypothesis-id", required=True)
-    prepare_produce_parser.add_argument("--experiment-id", required=True)
-
     gate_status_parser = subparsers.add_parser("gate-status")
     _add_harness_workspace(gate_status_parser)
     gate_status_parser.add_argument("--hypothesis-id")
@@ -431,38 +379,6 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_harness_workspace(memory_context_parser)
     memory_context_parser.add_argument("--hypothesis-id")
 
-    guidance_parser = subparsers.add_parser(
-        "guidance",
-        help="Show built-in analysis harness guidance for required mechanics",
-    )
-    _add_harness_workspace(guidance_parser)
-    guidance_parser.add_argument(
-        "--topic",
-        default="workflow",
-        choices=[
-            "workflow",
-            "paths",
-            "attestation",
-            "charts",
-            "reports",
-            "reflection",
-            "optional-refs",
-        ],
-    )
-
-    payload_template_parser = subparsers.add_parser(
-        "payload-template",
-        help="Show a built-in JSON payload template for a harness command",
-    )
-    _add_harness_workspace(payload_template_parser)
-    payload_template_parser.add_argument("--name", required=True)
-
-    chart_scaffold_parser = subparsers.add_parser(
-        "chart-scaffold",
-        help="Print the built-in chart script scaffold used by harness validators",
-    )
-    _add_harness_workspace(chart_scaffold_parser)
-
     return parser
 
 
@@ -478,59 +394,6 @@ def _parse_csv_list(raw_value: str | None) -> list[str] | None:
         seen.add(normalized)
         items.append(normalized)
     return items or None
-
-
-def _read_code_payload(code_arg: str) -> tuple[str, Path]:
-    if code_arg == "-":
-        return sys.stdin.read(), Path.cwd()
-
-    code_path = Path(code_arg).resolve()
-    return code_path.read_text(encoding="utf-8"), code_path.parent
-
-
-def _copy_into_work_dir(
-    source: Path, destination_dir: Path, name: str | None = None
-) -> Path:
-    target = destination_dir / (name or source.name)
-    shutil.copy2(source, target)
-    return target
-
-
-def _collect_artifacts(
-    work_dir: Path,
-    output_dir: Path,
-    artifact_paths: list[str],
-) -> list[str]:
-    allowed_suffixes = {
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".svg",
-        ".pdf",
-        ".webp",
-        ".csv",
-        ".json",
-        ".txt",
-    }
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    collected: list[str] = []
-    for artifact in artifact_paths:
-        rel_path = Path(artifact)
-        source_path = work_dir / rel_path
-        if (
-            source_path.suffix.lower() not in allowed_suffixes
-            or not source_path.exists()
-        ):
-            continue
-
-        destination_path = output_dir / rel_path
-        destination_path.parent.mkdir(parents=True, exist_ok=True)
-        if source_path.resolve() != destination_path.resolve():
-            shutil.copy2(source_path, destination_path)
-        collected.append(str(destination_path))
-
-    return sorted(collected)
 
 
 def _get_supported_image_formats() -> set[str]:
@@ -568,206 +431,46 @@ def _validate_read_only_sql(sql: str) -> str:
     return normalized_sql
 
 
-_CJK_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
-
-
-def _contains_cjk(text: str) -> bool:
-    return bool(_CJK_RE.search(text or ""))
-
-
-def _extract_string_literals(node: ast.AST | None) -> list[str]:
-    if node is None:
-        return []
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return [node.value]
-    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
-        values: list[str] = []
-        for element in node.elts:
-            values.extend(_extract_string_literals(element))
-        return values
-    return []
-
-
-def _validate_legend_language(code: str) -> None:
-    """Reject plotting code that hardcodes CJK text into legend labels."""
-
-    try:
-        tree = ast.parse(code)
-    except SyntaxError:
-        return
-
-    violations: list[str] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-
-        func = node.func
-        func_name = (
-            func.attr
-            if isinstance(func, ast.Attribute)
-            else (func.id if isinstance(func, ast.Name) else "")
-        )
-
-        for keyword in node.keywords:
-            if keyword.arg not in {"label", "labels", "title"}:
-                continue
-            if keyword.arg == "title" and func_name != "legend":
-                continue
-
-            for literal in _extract_string_literals(keyword.value):
-                if _contains_cjk(literal):
-                    violations.append(f"{keyword.arg}={literal!r}")
-
-        if func_name != "legend":
-            continue
-
-        if node.args:
-            for literal in _extract_string_literals(node.args[0]):
-                if _contains_cjk(literal):
-                    violations.append(f"legend({literal!r})")
-
-    if violations:
-        details = ", ".join(dict.fromkeys(violations))
-        raise ValueError(
-            "run-code requires chart legends to use English only. "
-            f"Found non-English legend text in: {details}"
-        )
-
-
-def _attribute_path(node: ast.AST | None) -> str:
-    if node is None:
-        return ""
-    if isinstance(node, ast.Name):
-        return node.id
-    if isinstance(node, ast.Attribute):
-        base = _attribute_path(node.value)
-        return f"{base}.{node.attr}" if base else node.attr
-    return ""
-
-
-def _collect_import_aliases(tree: ast.AST) -> tuple[set[str], set[str], set[str]]:
-    matplotlib_aliases: set[str] = set()
-    pyplot_aliases: set[str] = set()
-    seaborn_aliases: set[str] = set()
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name == "matplotlib":
-                    matplotlib_aliases.add(alias.asname or alias.name)
-                elif alias.name == "matplotlib.pyplot":
-                    pyplot_aliases.add(alias.asname or alias.name)
-                elif alias.name == "seaborn":
-                    seaborn_aliases.add(alias.asname or alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            if node.module == "matplotlib":
-                for alias in node.names:
-                    if alias.name == "pyplot":
-                        pyplot_aliases.add(alias.asname or alias.name)
-                    elif alias.name == "use":
-                        matplotlib_aliases.add(alias.asname or alias.name)
-            elif node.module == "matplotlib.pyplot":
-                for alias in node.names:
-                    pyplot_aliases.add(alias.asname or alias.name)
-            elif node.module == "seaborn":
-                for alias in node.names:
-                    seaborn_aliases.add(alias.asname or alias.name)
-
-    return matplotlib_aliases, pyplot_aliases, seaborn_aliases
-
-
-def _extract_constant_strings(node: ast.AST | None) -> set[str]:
-    return set(_extract_string_literals(node))
-
-
 def _validate_plotting_conventions(code: str) -> None:
-    """Validate core matplotlib conventions required by the analysis skill."""
+    """Require the publication plotting scaffold used by generated chart scripts."""
 
-    try:
-        tree = ast.parse(code)
-    except SyntaxError:
-        return
+    text = code or ""
+    compact = re.sub(r"\s+", "", text)
+    missing: list[str] = []
 
-    matplotlib_aliases, pyplot_aliases, seaborn_aliases = _collect_import_aliases(tree)
-    if not (matplotlib_aliases or pyplot_aliases or seaborn_aliases):
-        return
+    if not re.search(r"(?:matplotlib|mpl)\.use\(\s*['\"]Agg['\"]\s*\)", text):
+        missing.append('matplotlib backend configured to "Agg"')
 
-    agg_configured = False
-    font_family_configured = False
-    sans_serif_configured = False
-    svg_fonttype_configured = False
+    has_font_family = (
+        'rcParams["font.family"]' in text
+        or "rcParams['font.family']" in text
+        or '"font.family":' in text
+        or "'font.family':" in text
+    )
+    if not has_font_family:
+        missing.append('`font.family = "sans-serif"`')
 
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            path = _attribute_path(node.func)
+    has_sans_serif = (
+        'rcParams["font.sans-serif"]' in text
+        or "rcParams['font.sans-serif']" in text
+        or '"font.sans-serif":' in text
+        or "'font.sans-serif':" in text
+    )
+    if not has_sans_serif:
+        missing.append("`font.sans-serif` configured with readable fallbacks")
 
-            if path in matplotlib_aliases or path == "use":
-                if node.args and "Agg" in _extract_constant_strings(node.args[0]):
-                    agg_configured = True
-            elif any(path == f"{alias}.use" for alias in matplotlib_aliases):
-                if node.args and "Agg" in _extract_constant_strings(node.args[0]):
-                    agg_configured = True
-            elif any(path == f"{alias}.switch_backend" for alias in pyplot_aliases):
-                if node.args and "Agg" in _extract_constant_strings(node.args[0]):
-                    agg_configured = True
+    has_svg_fonttype_none = (
+        'rcParams["svg.fonttype"]="none"' in compact
+        or "rcParams['svg.fonttype']='none'" in compact
+        or '"svg.fonttype":"none"' in compact
+        or "'svg.fonttype':'none'" in compact
+    )
+    if not has_svg_fonttype_none:
+        missing.append('`svg.fonttype = "none"`')
 
-            rcparams_update_aliases = pyplot_aliases | matplotlib_aliases
-            if any(
-                path == f"{alias}.rcParams.update" for alias in rcparams_update_aliases
-            ):
-                dict_nodes = [arg for arg in node.args if isinstance(arg, ast.Dict)]
-                dict_nodes.extend(
-                    keyword.value
-                    for keyword in node.keywords
-                    if keyword.arg is None and isinstance(keyword.value, ast.Dict)
-                )
-                for dict_node in dict_nodes:
-                    for key_node, value_node in zip(dict_node.keys, dict_node.values):
-                        key_strings = _extract_constant_strings(key_node)
-                        value_strings = _extract_constant_strings(value_node)
-                        if (
-                            "font.family" in key_strings
-                            and "sans-serif" in value_strings
-                        ):
-                            font_family_configured = True
-                        if "font.sans-serif" in key_strings:
-                            sans_serif_configured = True
-                        if "svg.fonttype" in key_strings and "none" in value_strings:
-                            svg_fonttype_configured = True
-
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if not isinstance(target, ast.Subscript):
-                    continue
-                target_path = _attribute_path(target.value)
-                if not any(
-                    target_path == f"{alias}.rcParams"
-                    for alias in (pyplot_aliases | matplotlib_aliases)
-                ):
-                    continue
-                key_strings = _extract_constant_strings(target.slice)
-                value_strings = _extract_constant_strings(node.value)
-                if "font.family" in key_strings and "sans-serif" in value_strings:
-                    font_family_configured = True
-                if "font.sans-serif" in key_strings:
-                    sans_serif_configured = True
-                if "svg.fonttype" in key_strings and "none" in value_strings:
-                    svg_fonttype_configured = True
-
-    missing_requirements: list[str] = []
-    if not agg_configured:
-        missing_requirements.append('matplotlib backend configured to "Agg"')
-    if not font_family_configured:
-        missing_requirements.append('`plt.rcParams["font.family"] = "sans-serif"`')
-    if not sans_serif_configured:
-        missing_requirements.append("a `font.sans-serif` rcParams setting")
-    if not svg_fonttype_configured:
-        missing_requirements.append('`svg.fonttype = "none"` for editable SVG text')
-
-    if missing_requirements:
+    if missing:
         raise ValueError(
-            "run-code requires analysis charts to include the plotting style scaffold. "
-            "Missing: " + ", ".join(missing_requirements)
+            "Plotting script must include: " + "; ".join(missing)
         )
 
 
@@ -1072,23 +775,23 @@ def _run_load_context(args: argparse.Namespace) -> int:
     context = ContextLoader(workspace).load_context(
         args.hypothesis_id, args.experiment_id
     )
-    db_path = (
+    data_path = (
         workspace
         / f"hypothesis_{context.hypothesis_id}"
         / f"experiment_{context.experiment_id}"
         / "run"
-        / "sqlite.db"
+        / "replay"
     )
     return _ok(
         context=context,
-        paths={"db_path": db_path},
+        paths={"data_path": data_path, "db_path": data_path},
     )
 
 
 def _run_list_tables(args: argparse.Namespace) -> int:
     _ensure_analysis_dependencies()
-    db_path = Path(args.db_path)
-    schema = extract_database_schema(db_path)
+    data_path = Path(args.data_path)
+    schema = extract_database_schema(data_path)
     tables = [
         {"name": name, "column_count": len(columns)}
         for name, columns in sorted(schema.items())
@@ -1098,9 +801,10 @@ def _run_list_tables(args: argparse.Namespace) -> int:
 
 def _run_data_summary(args: argparse.Namespace) -> int:
     _ensure_analysis_dependencies()
-    summary = DataReader(Path(args.db_path)).read_full_summary()
+    summary = DataReader(Path(args.data_path)).read_full_summary()
     return _ok(
         summary={
+            "data_path": summary.db_path,
             "db_path": summary.db_path,
             "tables": summary.tables,
             "row_counts": summary.row_counts,
@@ -1113,8 +817,22 @@ def _run_data_summary(args: argparse.Namespace) -> int:
 
 
 def _run_query_data(args: argparse.Namespace) -> int:
-    db_path = Path(args.db_path).resolve()
+    db_path = Path(args.data_path).resolve()
     sql = _validate_read_only_sql(args.sql)
+    replay_schema = db_path / "_schema.json" if db_path.is_dir() else None
+    if replay_schema is not None and replay_schema.exists():
+        from agentsociety2.storage import ReplayReader
+
+        reader = ReplayReader(db_path)
+        try:
+            for dataset in reader.load_dataset_catalog():
+                reader._ensure_view(dataset)
+            cursor = reader._connection().execute(sql)
+            columns = [column[0] for column in cursor.description or []]
+            rows = [list(row) for row in cursor.fetchall()]
+            return _ok(columns=columns, rows=rows, count=len(rows))
+        finally:
+            reader.close()
     db_uri = db_path.as_uri() + "?mode=ro"
     with sqlite3.connect(db_uri, uri=True) as conn:
         cursor = conn.execute(sql)
@@ -1123,50 +841,9 @@ def _run_query_data(args: argparse.Namespace) -> int:
     return _ok(columns=columns, rows=rows, count=len(rows))
 
 
-def _run_code(args: argparse.Namespace) -> int:
-    _ensure_analysis_dependencies()
-    code, persistent_output_dir = _read_code_payload(args.code)
-    _validate_legend_language(code)
-    _validate_plotting_conventions(code)
-    persistent_output_dir.mkdir(parents=True, exist_ok=True)
-    work_dir = Path(tempfile.mkdtemp(prefix="analysis_run_", dir=persistent_output_dir))
-
-    try:
-        if args.db_path:
-            db_path = Path(args.db_path).resolve()
-            _copy_into_work_dir(db_path, work_dir, name="sqlite.db")
-
-        for extra_file in _parse_csv_list(args.extra_files) or []:
-            _copy_into_work_dir(Path(extra_file).resolve(), work_dir)
-
-        dependencies = DependencyDetector().detect(code)
-        result = asyncio.run(
-            LocalCodeExecutor(work_dir=work_dir).execute(
-                code,
-                dependencies=dependencies,
-                timeout=args.timeout,
-            )
-        )
-        artifacts = _collect_artifacts(
-            work_dir, persistent_output_dir, result.artifacts
-        )
-        _emit(
-            {
-                "success": result.success,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "return_code": result.return_code,
-                "artifacts": artifacts,
-            }
-        )
-        return 0 if result.success else 1
-    finally:
-        shutil.rmtree(work_dir, ignore_errors=True)
-
-
 def _run_eda(args: argparse.Namespace) -> int:
     _ensure_analysis_dependencies()
-    db_path = Path(args.db_path)
+    db_path = Path(args.data_path)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     tables = _parse_csv_list(args.tables)
@@ -1200,41 +877,11 @@ def _run_eda(args: argparse.Namespace) -> int:
             invalid_tables=invalid_tables,
         )
 
-    if args.type == "bundle":
-        profiles = _parse_csv_list(args.profiles) if args.profiles else None
-        files, hub = generator.generate_eda_bundle(
-            db_path, output_dir, profiles=profiles, tables=selected_tables
-        )
-        _maybe_record_eda_artifacts(args, files)
-        return _ok(
-            type=args.type,
-            files=files,
-            hub=str(hub) if hub else None,
-            requested_tables=requested_tables,
-            selected_tables=selected_tables,
-            invalid_tables=invalid_tables,
-        )
-
-    if args.type == "eda-hub":
-        hub = generator.generate_eda_hub(output_dir)
-        files = [str(hub)]
-        _maybe_record_eda_artifacts(args, files)
-        return _ok(
-            type=args.type,
-            files=files,
-            requested_tables=requested_tables,
-            selected_tables=selected_tables,
-            invalid_tables=invalid_tables,
-        )
-
     method_map = {
         "ydata": generator.generate_ydata_profile,
         "sweetviz": generator.generate_sweetviz_profile,
         "missingno": generator.generate_missingno_report,
         "correlation": generator.generate_correlation_report,
-        "pygwalker": generator.generate_pygwalker_profile,
-        "datatable": generator.generate_datatable_profile,
-        "plotly-profile": generator.generate_plotly_profile,
     }
     output_path = method_map[args.type](db_path, output_dir, tables=selected_tables)
     files = [str(output_path)] if output_path else []
@@ -1362,19 +1009,6 @@ def _dispatch_harness(args: argparse.Namespace) -> int:
         )
     if cmd == "validate-refine":
         return _ok(**harness_cli.cmd_validate_refine(workspace, args.hypothesis_id))
-    if cmd == "run-explore-eda":
-        result = harness_cli.cmd_run_explore_eda(
-            workspace, args.hypothesis_id, args.experiment_id
-        )
-        if result.get("error"):
-            return _error(result["error"])
-        return _ok(**result)
-    if cmd == "prepare-produce":
-        return _ok(
-            **harness_cli.cmd_prepare_produce(
-                workspace, args.hypothesis_id, args.experiment_id
-            )
-        )
     if cmd == "build-report-context":
         return _ok(
             **harness_cli.cmd_build_report_context(workspace, args.hypothesis_id)
@@ -1407,12 +1041,6 @@ def _dispatch_harness(args: argparse.Namespace) -> int:
                 workspace, args.hypothesis_id, args.experiment_id
             )
         )
-    if cmd == "embed-interactive-eda":
-        from agentsociety2.skills.analysis.harness.report_bundle import (
-            cmd_embed_interactive_eda,
-        )
-
-        return _ok(**cmd_embed_interactive_eda(workspace, args.hypothesis_id))
     if cmd == "validate-release":
         return _ok(
             **harness_cli.cmd_validate_release(
@@ -1513,18 +1141,6 @@ def _dispatch_harness(args: argparse.Namespace) -> int:
                 workspace, getattr(args, "hypothesis_id", None)
             )
         )
-    if cmd == "guidance":
-        result = harness_cli.cmd_guidance(args.topic)
-        if result.get("error"):
-            return _error(result["error"])
-        return _ok(**result)
-    if cmd == "payload-template":
-        result = harness_cli.cmd_payload_template(args.name)
-        if result.get("error"):
-            return _error(result["error"])
-        return _ok(**result)
-    if cmd == "chart-scaffold":
-        return _ok(**harness_cli.cmd_chart_scaffold())
     return _error(f"unknown harness command: {cmd}")
 
 
@@ -1541,8 +1157,6 @@ def main() -> int:
             return _run_data_summary(args)
         if args.command == "query-data":
             return _run_query_data(args)
-        if args.command == "run-code":
-            return _run_code(args)
         if args.command == "run-eda":
             return _run_eda(args)
         if args.command == "collect-assets":
@@ -1560,7 +1174,6 @@ def main() -> int:
             "validate-chart",
             "validate-refine",
             "sync-report-assets",
-            "embed-interactive-eda",
             "validate-release",
             "validate-report-quality",
             "record-report-review",
@@ -1572,8 +1185,6 @@ def main() -> int:
             "run-loop",
             "record-attestation",
             "record-phase-artifacts",
-            "run-explore-eda",
-            "prepare-produce",
             "build-report-context",
             "gate-status",
             "draft-reflection",
@@ -1582,9 +1193,6 @@ def main() -> int:
             "memory-context",
             "record-feedback",
             "review-reflection",
-            "guidance",
-            "payload-template",
-            "chart-scaffold",
         }
         if args.command in harness_commands:
             return _dispatch_harness(args)

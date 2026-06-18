@@ -264,8 +264,8 @@ class CustomModuleScanner:
 
     def _get_safe_description(self, cls: type[Any]) -> str:
         try:
-            if hasattr(cls, "mcp_description"):
-                return cls.mcp_description()
+            if hasattr(cls, "description"):
+                return cls.description()
             return cls.__doc__ or f"{cls.__name__}: 无描述"
         except Exception:
             return f"{cls.__name__}: 描述获取失败"

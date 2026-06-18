@@ -89,9 +89,15 @@ $PYTHON_PATH .agentsociety/bin/ags.py create-agent --file /path/to/workspace/cus
 $PYTHON_PATH .agentsociety/bin/ags.py create-agent --file ... --json
 ```
 
-The script checks: AST shows a **direct** base named **`AgentBase`** or **`PersonAgent`**, all four required methods are **`async def`**, the module imports, and the class is not abstract. That is **stricter** than **Scan Custom Modules**: the scanner treats any in-file class with `issubclass(cls, AgentBase)` as a candidate and only verifies `hasattr` for the four names (no `async` check). Intermediate bases (`class MyAgent(MyMiddle, AgentBase)`) are fine at runtime but may fail this skill's AST rule -- fix by satisfying the import/MRO note in `stages/validate.md` or adjust the inheritance shape.
+The script checks: AST shows a **direct** base named **`AgentBase`** or **`PersonAgent`**,
+the three required abstracts (`to_workspace`, `ask`, `step`) are **`async def`**,
+the module imports, and the class is not abstract. That is **stricter**
+than **Scan Custom Modules**: the scanner treats any in-file class with
+`issubclass(cls, AgentBase)` as a candidate and only verifies `hasattr` for the three
+abstract names (no `async` check).
 
-`AgentBase` already defines a default `mcp_description`; overriding it is still recommended for real modules.
+`AgentBase` already defines default `description()` and `init_description()` methods;
+overriding both is still recommended for real modules.
 
 For the full human checklist see `stages/validate.md` and `checklists/compatibility.md`.
 
@@ -99,8 +105,10 @@ For the full human checklist see `stages/validate.md` and `checklists/compatibil
 
 | Mistake | Fix |
 |---------|-----|
+| Putting runtime state in construction code | Put state setup in `restore(self, workspace_path, service_proxy)` and persist state through `to_workspace` |
+| Reusing `run_react_loop` without overriding `build_react_messages` | The base raises `NotImplementedError`. Always override `build_react_messages` when you call `run_react_loop` |
 | Using intermediate base classes that fail the AST validation rule | Ensure direct inheritance from `AgentBase` or `PersonAgent`, or follow the MRO note in `stages/validate.md` |
-| Forgetting to make required methods async | All four required methods must be `async def` |
+| Forgetting to make required methods async | `to_workspace` / `ask` / `step` must all be `async def` |
 | Not running the validator after creating the agent | Always run `.agentsociety/bin/ags.py create-agent --file ...` as the final step |
 | Adding files under an `examples/` path | The scanner skips any path containing an `examples/` segment; place files directly under `custom/agents/` |
 | Phrasing `ask_env` message as a Python call literal (`"tool(arg=val)"`) | Use natural language `"Please call tool_name() using <args> from ctx['variables'] ..."` — see `references/pitfalls.md` P2 |

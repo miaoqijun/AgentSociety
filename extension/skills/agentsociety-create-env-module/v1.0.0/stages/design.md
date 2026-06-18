@@ -30,11 +30,15 @@ Minimum design fields:
 
 The `persistence` section should answer these questions explicitly:
 
-- Which per-agent fields must be queryable from replay tables
-- Which environment/global fields must be queryable from replay tables
-- Which in-memory structures must survive `dump()` and `load()`
+- Which per-agent fields must be queryable from replay tables (declare in `_agent_state_columns`)
+- Which environment/global fields must be queryable from replay tables (declare in `_env_state_columns`)
+- Which in-memory structures are derived/cached and can be rebuilt from kwargs + replay data on each run (no persistence needed)
 - Where replay writes happen, usually `step()` or another canonical mutation boundary
-- Whether `_dump_state()` and `_load_state()` are required, and what they must serialize
+- Which `_write_*` helper (`_write_agent_state` / `_write_agent_state_batch` / `_write_env_state`) each write uses
+
+Persistence is replay-only: declare columns, let the framework auto-register tables,
+and write rows via the `_write_*` helpers. In-memory state is reconstructed by the
+constructor + replay on each run.
 
 Persist:
 

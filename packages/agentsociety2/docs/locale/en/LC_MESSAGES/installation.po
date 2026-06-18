@@ -6,9 +6,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-16 13:22+0800\n"
+"POT-Creation-Date: 2026-06-18 09:36+0800\n"
 "PO-Revision-Date: 2026-03-05 23:50+0800\n"
 "Last-Translator: AgentSociety Team\n"
 "Language: en\n"
@@ -88,8 +88,8 @@ msgid "**必需配置**"
 msgstr "**Required Configuration**"
 
 #: ../../installation.rst:73
-msgid "**可选配置**"
-msgstr "**Optional Configuration**"
+msgid "**高级配置**"
+msgstr "**Required Configuration**"
 
 #: ../../installation.rst:75
 msgid "对于专门的任务，您可以配置单独的 LLM 实例。如果未设置这些选项， 它们将回退到默认 LLM 配置："
@@ -120,30 +120,54 @@ msgstr "``AGENTSOCIETY_LLM_*``: global LLM API settings for model calls"
 #: ../../installation.rst:141
 msgid "``AGENT_*``: Agent 行为配置，如上下文窗口大小、工具循环轮数等"
 msgstr ""
-"``AGENT_*``: agent behavior settings such as context window size and tool-"
-"loop limits"
+"``AGENT_*``: agent behavior settings such as context window size and "
+"tool-loop limits"
 
 #: ../../installation.rst:144
+msgid "LLM 调度与本地并发控制"
+msgstr "LLM Dispatch and Local Concurrency Control"
+
+#: ../../installation.rst:146
+msgid ""
+"LLM 调度由可序列化的 ``LLMClient`` 完成。每个 Ray task、env router actor 或 driver "
+"进程在自己的 事件循环中首次调用 LLM 时，本地创建 litellm Router 与 ``AdaptiveSemaphore``。 "
+"``AdaptiveSemaphore`` 基于近期延迟和 rate-limit 错误做 AIMD 自适应并发。"
+msgstr ""
+"LLM dispatch is handled by serializable ``LLMClient`` instances. When each Ray task, env "
+"router actor, or driver process calls an LLM for the first time in its own event loop, "
+"it creates a local litellm Router and ``AdaptiveSemaphore``. ``AdaptiveSemaphore`` "
+"adapts concurrency with AIMD based on recent latency and rate-limit errors."
+
+#: ../../installation.rst:164
+msgid ""
+"若你的 LLM 网关有明确的 QPS / 并发上限，优先调低 ``AGENTSOCIETY_LLM_RAY_CONCURRENCY``； "
+"实际总并发还取决于同时运行的 Ray task / actor 数量。"
+msgstr ""
+"If your LLM gateway has explicit QPS / concurrency limits, lower "
+"``AGENTSOCIETY_LLM_RAY_CONCURRENCY`` first. Actual total concurrency also depends on the "
+"number of Ray tasks / actors running at the same time."
+
+#: ../../installation.rst:168
 msgid "支持的 LLM 提供商"
 msgstr "Supported LLM Providers"
 
-#: ../../installation.rst:146
+#: ../../installation.rst:170
 msgid ""
 "AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用 OpenAI 兼容的 Chat Completions "
 "接口："
 msgstr ""
-"AgentSociety 2 routes model calls through LiteLLM. Default examples in the "
-"docs use an OpenAI-compatible Chat Completions API:"
+"AgentSociety 2 routes model calls through LiteLLM. Default examples in "
+"the docs use an OpenAI-compatible Chat Completions API:"
 
-#: ../../installation.rst:148
+#: ../../installation.rst:172
 msgid "``AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1``"
 msgstr "``AGENTSOCIETY_LLM_API_BASE=https://api.openai.com/v1``"
 
-#: ../../installation.rst:149
+#: ../../installation.rst:173
 msgid "``AGENTSOCIETY_LLM_MODEL=gpt-5.5``"
 msgstr "``AGENTSOCIETY_LLM_MODEL=gpt-5.5``"
 
-#: ../../installation.rst:151
+#: ../../installation.rst:175
 msgid ""
 "如果你使用其它 LiteLLM 支持的 OpenAI 兼容网关，请保持同样的环境变量结构，并把 "
 "``AGENTSOCIETY_LLM_API_BASE`` 与模型名替换为该网关提供的值。"
@@ -151,71 +175,3 @@ msgstr ""
 "If you use another LiteLLM-supported OpenAI-compatible gateway, keep the "
 "same variable names and set ``AGENTSOCIETY_LLM_API_BASE`` and the model "
 "name to values provided by that gateway."
-
-#~ msgid "OpenAI (GPT-4, GPT-3.5)"
-#~ msgstr "OpenAI (GPT-4, GPT-3.5)"
-
-#~ msgid "AgentSociety 2 使用 `litellm`_，支持许多 LLM 提供商："
-#~ msgstr "AgentSociety 2 uses `litellm`_ which supports many LLM providers:"
-
-#~ msgid "OpenAI 及兼容网关（模型 id 以供应商文档为准）"
-#~ msgstr "OpenAI and compatible gateways (model IDs per provider documentation)"
-
-#~ msgid "Anthropic (Claude)"
-#~ msgstr "Anthropic (Claude)"
-
-#~ msgid "Azure OpenAI"
-#~ msgstr "Azure OpenAI"
-
-#~ msgid "Google (Gemini)"
-#~ msgstr "Google (Gemini)"
-
-#~ msgid "Cohere"
-#~ msgstr "Cohere"
-
-#~ msgid "以及更多..."
-#~ msgstr "And many more..."
-
-#~ msgid "查看 `litellm 文档`_ 获取完整列表。"
-#~ msgstr "See `litellm docs`_ for a complete list."
-
-#~ msgid "底层仍由 `litellm`_ 路由模型调用。"
-#~ msgstr "Under the hood, model calls are still routed through `litellm`_."
-
-#~ msgid ""
-#~ "AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用"
-#~ " OpenAI 兼容的 Chat Completions 接口："
-#~ msgstr ""
-#~ "AgentSociety 2 routes model calls through LiteLLM. Default examples in the "
-#~ "docs use an OpenAI-compatible Chat Completions API:"
-
-#~ msgid ""
-#~ "如果你使用其它 LiteLLM 支持的 OpenAI "
-#~ "兼容网关，请保持同样的环境变量结构，并把 ``AGENTSOCIETY_LLM_API_BASE`` "
-#~ "与模型名替换为该网关提供的值。"
-#~ msgstr ""
-#~ "If you use another LiteLLM-supported OpenAI-compatible gateway, keep the "
-#~ "same variable names and set ``AGENTSOCIETY_LLM_API_BASE`` and the model "
-#~ "name to values provided by that gateway."
-
-#~ msgid "因此，OpenAI 是推荐示例，不是唯一可用后端。"
-#~ msgstr "Therefore, OpenAI is the recommended example, not the only available backend."
-
-#~ msgid ""
-#~ "AgentSociety 2 通过 LiteLLM 路由模型调用；文档中的默认示例使用"
-#~ " OpenAI endpoint 与 ``gpt-5.5``，这只是示例配置："
-#~ msgstr ""
-#~ "AgentSociety 2 routes model calls through LiteLLM. Default examples in the "
-#~ "docs use the OpenAI endpoint with ``gpt-5.5``; this is merely an example "
-#~ "configuration:"
-
-#~ msgid ""
-#~ "如果你使用 Anthropic 或其它 LiteLLM 支持的 "
-#~ "provider，请保持同样的环境变量结构，并把 ``AGENTSOCIETY_LLM_API_BASE`` "
-#~ "与模型名替换为对应 provider/网关提供的值；具体 model id 以你的 "
-#~ "provider 和 LiteLLM 配置为准。"
-#~ msgstr ""
-#~ "If you use Anthropic or another LiteLLM-supported provider, keep the "
-#~ "same variable names and set ``AGENTSOCIETY_LLM_API_BASE`` and the model "
-#~ "name to values provided by that provider/gateway; the exact model ID "
-#~ "depends on your provider and LiteLLM configuration."

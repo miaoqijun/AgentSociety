@@ -41,5 +41,5 @@ prompt = f"You are {profile.get('name')}, age {profile.get('age')}."
 
 - Keep values JSON-serializable
 - Use sensible defaults with `.get(key, default)`
-- Document expected fields in `mcp_description()`
+- Document expected fields in `init_description()` and keep `description()` short
 - Don't store sensitive data

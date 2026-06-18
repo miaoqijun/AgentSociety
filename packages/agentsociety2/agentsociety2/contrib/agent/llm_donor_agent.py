@@ -1,6 +1,8 @@
 import asyncio
+import json
 import random
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from agentsociety2.agent.base import AgentBase
@@ -38,9 +40,9 @@ class LLMDonorAgent(AgentBase):
     TOP_AGENTS_COUNT = 5
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP agent module candidate list.
+        Return AI-readable initialization guidance for this agent class.
         Includes parameter descriptions.
         """
         description = f"""{cls.__name__}: LLM-driven donor agent with memory and learning capabilities.
@@ -79,40 +81,96 @@ This agent participates in a reputation-based donation game where it can choose 
 """
         return description
 
-    def __init__(
-        self,
-        id: int,
-        profile: Any,
-        memory_config: dict | None = None,
-        learning_frequency: int = 5,
-    ):
-        super().__init__(id=id, profile=profile)
+    # ==================== Workspace 契约 ====================
+
+    @classmethod
+    def create(cls, workspace_path: Path, profile: dict, config: dict) -> None:
+        """Create the initial agent workspace.
+
+        .. note::
+           The mem0 external memory system is NOT persisted in the workspace
+           (it has its own backend). Only the LLM-decision state is round-tripped.
+        """
+        workspace_path = Path(workspace_path)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        (workspace_path / "config.json").write_text(
+            json.dumps(config or {}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        agent_id = int(profile.get("id", 0))
+        name = str(profile.get("name") or f"Agent_{agent_id}")
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": agent_id,
+                    "name": name,
+                    "profile": profile,
+                    "step_count": 0,
+                    "decision_history": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    @classmethod
+    async def from_workspace(
+        cls, workspace_path: Path, service_proxy: Any
+    ) -> "LLMDonorAgent":
+        """Reconstruct a ready LLMDonorAgent from its workspace.
+
+        Restores decision_history, step_count, personality, mood, and
+        risk_tolerance from ``AGENT.json``. The mem0 memory system is
+        re-initialized from config (mem0 manages its own persistence).
+        """
+        agent = cls()
+        await agent._restore(workspace_path, service_proxy)
+        return agent
+
+    async def _restore(self, workspace_path: Path, service_proxy: Any) -> None:
+        """Restore game-agent state from AGENT.json + config.json (no super() —
+        game agents don't use the skill/workspace runtime that
+        AgentBase._restore binds)."""
+        workspace_path = Path(workspace_path)
+        cfg = {}
+        config_path = workspace_path / "config.json"
+        if config_path.exists():
+            cfg = json.loads(config_path.read_text(encoding="utf-8"))
+        meta = json.loads((workspace_path / "AGENT.json").read_text(encoding="utf-8"))
+        self._id = int(meta.get("agent_id", meta.get("id", 0)))
+        self._profile = meta.get("profile", cfg.get("profile", {}))
+        self._name = meta.get("name") or f"Agent_{self._id}"
+        self._config = dict(cfg or {})
+        self._bind_services(service_proxy)
+        self._step_count = int(meta.get("step_count", 0))
 
         # 记忆系统（mem0）
-        self._memory_user_id = f"agent_{id}"
+        resolved_memory_config = cfg.get("memory_config")
+        self._memory_user_id = f"agent_{self._id}"
         self._memory: AsyncMemory | None = None
-        
-        # Initialize memory from config if provided
-        if memory_config is not None:
-            memory_config_obj = MemoryConfig.model_validate(memory_config)
+        if resolved_memory_config is not None:
+            memory_config_obj = MemoryConfig.model_validate(resolved_memory_config)
             self._memory = AsyncMemory(config=memory_config_obj)
 
         # 学习配置
-        custom_fields = self._extract_custom_fields(profile)
+        custom_fields = self._extract_custom_fields(self._profile)
         learning_freq = (
             custom_fields.get("learning_frequency")
             if isinstance(custom_fields, dict)
             else None
         )
+        resolved_learning_frequency = cfg.get(
+            "learning_frequency", self.DEFAULT_LEARNING_FREQUENCY
+        )
         self._learning_frequency = self._coerce_int(
             learning_freq,
-            learning_frequency if learning_frequency is not None else self.DEFAULT_LEARNING_FREQUENCY,
+            int(resolved_learning_frequency)
+            if resolved_learning_frequency is not None
+            else self.DEFAULT_LEARNING_FREQUENCY,
         )
 
         # 状态追踪
-        self._step_count = 0
-        self._decision_history: List[Dict] = []
-
+        self._decision_history: List[Dict] = list(meta.get("decision_history", []))
         # 缓存 Z 值（种群大小），第一次使用时从环境查询
         self._cached_Z: Optional[int] = None
 
@@ -122,10 +180,49 @@ This agent participates in a reputation-based donation game where it can choose 
         )
         self._mood = self._coerce_float(
             custom_fields.get("initial_mood"), random.uniform(-1.0, 1.0)
-        )  # -1.0 (消极) 到 1.0 (积极)
+        )
         self._risk_tolerance = self._coerce_float(
             custom_fields.get("risk_tolerance"), random.uniform(0.0, 1.0)
-        )  # 0.0 (保守) 到 1.0 (冒险)
+        )
+        # Restore subjective state if persisted; otherwise keep init defaults.
+        if "personality" in meta:
+            self._personality = str(meta["personality"])
+        if "mood" in meta:
+            self._mood = float(meta["mood"])
+        if "risk_tolerance" in meta:
+            self._risk_tolerance = float(meta["risk_tolerance"])
+
+    async def to_workspace(self, workspace_path: Path) -> None:
+        """Write current dynamic state back to the workspace.
+
+        Persists decision_history, step_count, personality, mood, and
+        risk_tolerance. The mem0 memory system is NOT flushed here.
+        """
+        workspace_path = Path(workspace_path)
+        profile_data = self._profile
+        if hasattr(self._profile, "to_dict"):
+            profile_data = self._profile.to_dict()
+        elif not isinstance(profile_data, dict):
+            profile_data = {"raw": str(profile_data)}
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": self._id,
+                    "name": self._name,
+                    "profile": profile_data,
+                    "step_count": self._step_count,
+                    "decision_history": self._decision_history[
+                        -self.DECISION_HISTORY_LIMIT :
+                    ],
+                    "personality": self._personality,
+                    "mood": self._mood,
+                    "risk_tolerance": self._risk_tolerance,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     def _generate_random_personality(self) -> str:
         """生成随机个性描述（仅在未提供 personality 时使用，作为后备方案）"""
@@ -315,18 +412,18 @@ This agent participates in a reputation-based donation game where it can choose 
 {self._personality}
 
 Current situation:
-- Your ID: {context_info['my_id']}
-- Your current reputation: {context_info['my_reputation']}
-- Your cumulative payoff: {context_info['my_payoff']:.2f}
+- Your ID: {context_info["my_id"]}
+- Your current reputation: {context_info["my_reputation"]}
+- Your cumulative payoff: {context_info["my_payoff"]:.2f}
 - Recipient ID: {recipient_id}
-- Recipient's reputation: {context_info['recipient_reputation']}
+- Recipient's reputation: {context_info["recipient_reputation"]}
 
 Your subjective state:
 - Current mood: {mood_description} (mood value: {self._mood:.2f}, range: -1.0 to 1.0)
 - Risk preference: {risk_description} (risk tolerance: {self._risk_tolerance:.2f}, range: 0.0 to 1.0)
 
 Historical memories:
-{context_info['memory_summary'] if context_info['memory_summary'] else '(No memories yet)'}
+{context_info["memory_summary"] if context_info["memory_summary"] else "(No memories yet)"}
 
 Action options:
 1. Cooperate: Pay cost c=1, recipient gains benefit b=5
@@ -350,7 +447,10 @@ Only return "cooperate" or "defect", do not return any other content.
         # 安全地提取响应内容
         if not response or not response.choices or not response.choices[0].message:
             # 如果响应无效，使用默认决策逻辑
-            if self._mood < self.MOOD_THRESHOLD_NEGATIVE or self._risk_tolerance < self.RISK_THRESHOLD_LOW:
+            if (
+                self._mood < self.MOOD_THRESHOLD_NEGATIVE
+                or self._risk_tolerance < self.RISK_THRESHOLD_LOW
+            ):
                 decision = "defect"
             else:
                 decision = "cooperate"
@@ -577,33 +677,6 @@ Please answer the question."""
                 return "I'm sorry, I couldn't generate a response."
         except Exception as e:
             return f"I encountered an error while processing your question: {e!s}"
-
-    async def dump(self) -> dict:
-        """序列化状态"""
-        profile_data = self._profile
-        if hasattr(self._profile, "to_dict"):
-            profile_data = self._profile.to_dict()
-        elif not isinstance(profile_data, dict):
-            profile_data = {"raw": str(profile_data)}
-        return {
-            "profile": profile_data,
-            "decision_history": self._decision_history[-self.DECISION_HISTORY_LIMIT :],
-            "step_count": self._step_count,
-            "personality": self._personality,
-            "mood": self._mood,
-            "risk_tolerance": self._risk_tolerance,
-        }
-
-    async def load(self, dump_data: dict):
-        """反序列化状态"""
-        await super().load(dump_data)
-        self._decision_history = dump_data.get("decision_history", [])
-        self._step_count = dump_data.get("step_count", 0)
-        self._personality = dump_data.get(
-            "personality", self._generate_random_personality()
-        )
-        self._mood = dump_data.get("mood", 0.0)
-        self._risk_tolerance = dump_data.get("risk_tolerance", 0.5)
 
     async def close(self):
         """清理资源"""

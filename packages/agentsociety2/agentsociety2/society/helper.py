@@ -34,16 +34,18 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, List
 
 import json_repair
 from litellm import AllMessageValues
 from pydantic import BaseModel
 
-from agentsociety2.agent import AgentBase
-from agentsociety2.config import extract_json, get_llm_router_and_model
+from agentsociety2.config import build_client_for_role, extract_json, get_model_name
 from agentsociety2.env import RouterBase
 from agentsociety2.logger import get_logger
+
+if TYPE_CHECKING:
+    from agentsociety2.society.society import AgentSociety
 
 __all__ = ["AgentSocietyHelper"]
 
@@ -89,14 +91,32 @@ class AgentSocietyHelper:
     def __init__(
         self,
         env_router: RouterBase,
-        agents: Sequence[AgentBase],
+        society: "AgentSociety",
         max_steps: int = 8,
         max_replans: int = 2,
         max_llm_call_retry: int = 10,
     ):
-        self._router, self._model_name = get_llm_router_and_model("coder")
+        """Create a plan-and-execute helper bound to a record-based society.
+
+        The helper holds the :class:`AgentSociety` handle and reconstructs
+        target agents on demand via ``society._reconstruct_agent`` /
+        ``society._reconstruct_agents`` (low-volume external queries; workspaces
+        are on local disk). Filter-by-profile over the full population works on
+        the society's **specs** (no reconstruction) when the profile field is
+        directly readable from the spec.
+
+        Args:
+            env_router: Environment router (in-process or ``EnvRouterProxy``).
+            society: The record-based :class:`AgentSociety` (holds specs/ids +
+                reconstruction callbacks). Required.
+            max_steps: Max plan steps per ask/intervene.
+            max_replans: Max replan attempts on failure.
+            max_llm_call_retry: Max LLM retries per planning/summary call.
+        """
+        self._dispatcher = build_client_for_role("coder")
+        self._model_name = get_model_name("coder")
         self._env_router = env_router
-        self._agents = agents
+        self._society = society
         self._max_steps = max(1, max_steps)
         self._max_replans = max(0, max_replans)
         self._max_llm_call_retry = max(1, max_llm_call_retry)
@@ -134,14 +154,14 @@ class AgentSocietyHelper:
     # ---- internal: Plan-and-Execute loop ----
     async def _run(self, text: str, readonly: bool) -> str:
         mode = "Ask" if readonly else "Intervene"
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"AgentSocietyHelper Starting ({mode} Mode)")
         print(f"Task: {text}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         self._current_readonly = readonly
 
-        # Phase 1: Planning
+        # Planning stage
         plan = await self._create_plan(text, readonly)
         if isinstance(plan, str):
             # Planning returned direct answer or error
@@ -152,7 +172,7 @@ class AgentSocietyHelper:
             print(f"  {i}. {step.description}")
         print()
 
-        # Phase 2: Execution with dynamic replanning
+        # Execution stage with dynamic replanning
         replan_count = 0
         execution_history: List[Dict[str, Any]] = []
 
@@ -214,10 +234,10 @@ class AgentSocietyHelper:
         final_answer = await self._generate_final_answer(
             text, plan, execution_history, readonly
         )
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"✓ Completed ({len(execution_history)} steps executed)")
         print(f"Final Answer: {final_answer}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         return final_answer
 
     async def _create_plan(self, task: str, readonly: bool) -> str | List[PlanStep]:
@@ -244,7 +264,7 @@ class AgentSocietyHelper:
             ]
 
             try:
-                resp = await self._router.acompletion(
+                resp = await self._dispatcher.call(
                     model=self._model_name,
                     messages=messages,
                     stream=False,
@@ -302,7 +322,9 @@ class AgentSocietyHelper:
                 if retry < self._max_llm_call_retry - 1:
                     error_history.append(
                         {
-                            "response": resp.choices[0].message.content if "resp" in locals() else "No response",  # type: ignore
+                            "response": resp.choices[0].message.content
+                            if "resp" in locals()
+                            else "No response",  # type: ignore
                             "error": str(e),
                         }
                     )
@@ -357,7 +379,7 @@ class AgentSocietyHelper:
                     {"role": "user", "content": current_prompt}
                 ]
 
-                resp = await self._router.acompletion(
+                resp = await self._dispatcher.call(
                     model=self._model_name,
                     messages=messages,
                     stream=False,
@@ -454,7 +476,7 @@ class AgentSocietyHelper:
                     {"role": "user", "content": current_prompt}
                 ]
 
-                resp = await self._router.acompletion(
+                resp = await self._dispatcher.call(
                     model=self._model_name,
                     messages=messages,
                     stream=False,
@@ -826,33 +848,58 @@ Generate the final answer. Your JSON response:"""
     # ---- tool impls ----
 
     async def _tool_get_current_time(self) -> Dict[str, Any]:
-        return {"current_time": self._env_router.t.isoformat()}
-
-    # removed agent direct-inspection helpers to respect agent-only interfaces
+        return {"current_time": self._society.current_time.isoformat()}
 
     async def _tool_filter_agents_by_profile(
         self, field: str, value: Any
     ) -> Dict[str, Any]:
+        """Filter agents by a profile field.
+
+        Operates on the society's **specs** first (cheap, no reconstruction).
+        If every spec exposes the field directly in its ``profile`` dict, no
+        agent is reconstructed. Only when the field is absent from all profiles
+        do we reconstruct and ask each agent (expensive, rare).
+        """
+        specs = self._society.agent_specs
+        target_norm = str(value).strip().lower()
         ids: List[int] = []
-        # Ask each agent for the requested field via its LLM interface
-        tasks: List[Any] = []
-        order: List[int] = []
-        question = (
-            f"Please return your `{field}` field value, only output the original value."
-        )
-        for a in self._agents:
-            order.append(a.id)
-            tasks.append(a.ask(question, readonly=True))
-        results: List[str] = []
-        if tasks:
-            results = list(await asyncio.gather(*tasks, return_exceptions=False))
-        for agent_id, ans in zip(order, results, strict=False):
+        reconstruct_needed: List[dict] = []
+
+        for spec in specs:
+            profile = spec.get("profile") or {}
+            if isinstance(profile, dict) and field in profile:
+                if str(profile.get(field)).strip().lower() == target_norm:
+                    ids.append(int(spec["id"]))
+            else:
+                # Field not directly in the stored profile — need to ask the agent.
+                reconstruct_needed.append(spec)
+
+        if reconstruct_needed:
+            question = f"Please return your `{field}` field value, only output the original value."
+            # Reconstruct only the agents whose profile lacks the field.
+            to_ask_ids = [int(s["id"]) for s in reconstruct_needed]
+            agents = await self._society._reconstruct_agents(to_ask_ids)
             try:
-                if str(ans).strip().lower() == str(value).strip().lower():
-                    ids.append(agent_id)
-            except Exception:
-                continue
-        return {"agent_ids": ids}
+                results: List[str] = list(
+                    await asyncio.gather(
+                        *(a.ask(question, readonly=True) for a in agents),
+                        return_exceptions=False,
+                    )
+                )
+            finally:
+                # Readonly ask shouldn't mutate, but persist defensively.
+                for a in agents:
+                    try:
+                        await a.to_workspace(self._society._workspace_for(a.id))
+                    except Exception:
+                        pass
+            for a, ans in zip(agents, results, strict=False):
+                try:
+                    if str(ans).strip().lower() == target_norm:
+                        ids.append(a.id)
+                except Exception:
+                    continue
+        return {"agent_ids": sorted(set(ids))}
 
     async def _tool_ask_environment(
         self,
@@ -868,19 +915,31 @@ Generate the final answer. Your JSON response:"""
     async def _tool_ask_agents(
         self, agent_ids: List[int], question: str, readonly: bool | None = None
     ) -> Dict[str, Any]:
-        by_id: Dict[int, AgentBase] = {a.id: a for a in self._agents}
-        tasks = []
-        order: List[int] = []
-        for i in agent_ids:
-            a = by_id.get(int(i))
-            if a is None:
-                continue
-            order.append(int(i))
-            tasks.append(a.ask(question, readonly=bool(readonly)))
-        results: List[str] = []
-        if tasks:
-            results = list(await asyncio.gather(*tasks, return_exceptions=False))
+        """Ask specific agents a question.
+
+        Reconstructs ONLY the requested agents (by id) on demand. The society
+        holds no agent objects; reconstruction is via ``from_workspace``.
+        """
+        known_ids = set(self._society.agent_ids)
+        valid_ids = [int(i) for i in agent_ids if int(i) in known_ids]
+        if not valid_ids:
+            return {"answers": {}}
+        agents = await self._society._reconstruct_agents(valid_ids)
+        try:
+            results: List[str] = list(
+                await asyncio.gather(
+                    *(a.ask(question, readonly=bool(readonly)) for a in agents),
+                    return_exceptions=False,
+                )
+            )
+        finally:
+            # Persist any state changes back to workspaces.
+            for a in agents:
+                try:
+                    await a.to_workspace(self._society._workspace_for(a.id))
+                except Exception:
+                    pass
         answers: Dict[str, Any] = {}
-        for i, ans in zip(order, results, strict=False):
-            answers[str(i)] = ans
+        for a, ans in zip(agents, results, strict=False):
+            answers[str(a.id)] = ans
         return {"answers": answers}

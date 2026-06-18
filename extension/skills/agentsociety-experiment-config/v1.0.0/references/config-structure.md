@@ -19,6 +19,51 @@
 - All parameters go in the `kwargs` dictionary.
 - `agent_id` must equal `kwargs.id`.
 
+### Agent `kwargs` split (profile + config)
+
+The CLI's `_build_agent_specs` (`agentsociety2/society/cli.py`) splits each agent's
+`kwargs` into two records before the agent is created via
+`AgentBase.create(workspace_path, profile, config)`:
+
+- **`profile`** — `id` plus all persona fields (`name`, `age`, `gender`, `occupation`,
+  `persona`, …). Everything in `kwargs` that is NOT a recognized config key lands here.
+- **`config`** — recognized runtime-config keys, lifted out of `kwargs`. The current
+  set is:
+
+  | config key | effect |
+  |------------|--------|
+  | `max_react_turns` | max ReAct turns per step |
+  | `enable_memory` | enable PersonAgent memory runtime |
+  | `enable_todo_list` | enable built-in TODO tools |
+  | `force_template_mode` | force template mode for `ask_env` |
+  | `allow_template_mode` | whether template mode is permitted |
+  | `disabled_skill_ids` | skill ids hidden from the visible set |
+  | `default_activated_skill_ids` | skills activated on first restore |
+
+So a typical agent `kwargs` block mixes persona fields and (optionally) the config keys
+above. The split is automatic; you do not nest `profile` / `config` in `init_config.json`.
+
+```json
+{
+  "agent_id": 1,
+  "agent_type": "PersonAgent",
+  "kwargs": {
+    "id": 1,
+    "name": "Alice",
+    "age": 30,
+    "occupation": "Engineer",
+    "enable_memory": true,
+    "max_react_turns": 6
+  }
+}
+```
+
+For custom `AgentBase` subclasses that declare their own config keys in `config.json`,
+add those keys to `kwargs` too — but note the CLI only auto-splits the keys in the table
+above; any other key stays in `profile` and is written verbatim to `config.json` by
+`AgentBase.create`. Custom agents that need extra config keys outside `profile` should
+read them from `self._config` in `restore` (and document them in `init_description`).
+
 ## steps.yaml
 
 ```yaml

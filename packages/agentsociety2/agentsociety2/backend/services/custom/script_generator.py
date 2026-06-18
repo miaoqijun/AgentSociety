@@ -143,7 +143,7 @@ class SafeModuleTester:
         output_lines = [f"--- 测试 {class_name} ---"]
         checks: list[ValidationCheck] = []
 
-        required_methods = ["ask", "step", "dump", "load"]
+        required_methods = ["ask", "step", "create", "from_workspace", "to_workspace"]
         missing_methods = [
             method for method in required_methods if not hasattr(cls, method)
         ]
@@ -186,23 +186,43 @@ class SafeModuleTester:
                 error=str(exc),
             )
 
-        if hasattr(agent, "mcp_description"):
+        if hasattr(agent, "description"):
             try:
-                description = agent.mcp_description()
-                output_lines.append(f"✓ mcp_description() 返回 {len(description)} 字符")
+                description = agent.description()
+                output_lines.append(f"✓ description() 返回 {len(description)} 字符")
                 checks.append(
                     self._check(
-                        "mcp_description",
+                        "description",
                         bool(description),
-                        "mcp_description() 可调用",
+                        "description() 可调用",
                         length=len(description),
                     )
                 )
             except Exception as exc:
-                output_lines.append(f"✗ mcp_description() 调用失败: {exc}")
+                output_lines.append(f"✗ description() 调用失败: {exc}")
+                checks.append(
+                    self._check("description", False, f"description() 调用失败: {exc}")
+                )
+
+        if hasattr(agent, "init_description"):
+            try:
+                init_description = agent.init_description()
+                output_lines.append(
+                    f"✓ init_description() 返回 {len(init_description)} 字符"
+                )
                 checks.append(
                     self._check(
-                        "mcp_description", False, f"mcp_description() 调用失败: {exc}"
+                        "init_description",
+                        bool(init_description),
+                        "init_description() 可调用",
+                        length=len(init_description),
+                    )
+                )
+            except Exception as exc:
+                output_lines.append(f"✗ init_description() 调用失败: {exc}")
+                checks.append(
+                    self._check(
+                        "init_description", False, f"init_description() 调用失败: {exc}"
                     )
                 )
 
@@ -248,24 +268,45 @@ class SafeModuleTester:
                 error=str(exc),
             )
 
-        if hasattr(env, "mcp_description"):
+        if hasattr(env, "description"):
             try:
-                description = env.mcp_description()
-                output_lines.append(f"✓ mcp_description() 返回 {len(description)} 字符")
+                description = env.description()
+                output_lines.append(f"✓ description() 返回 {len(description)} 字符")
                 checks.append(
                     self._check(
-                        "mcp_description",
+                        "description",
                         bool(description),
-                        "mcp_description() 可调用",
+                        "description() 可调用",
                         length=len(description),
                     )
                 )
                 metadata["description_length"] = len(description)
             except Exception as exc:
-                output_lines.append(f"✗ mcp_description() 调用失败: {exc}")
+                output_lines.append(f"✗ description() 调用失败: {exc}")
+                checks.append(
+                    self._check("description", False, f"description() 调用失败: {exc}")
+                )
+
+        if hasattr(env, "init_description"):
+            try:
+                init_description = env.init_description()
+                output_lines.append(
+                    f"✓ init_description() 返回 {len(init_description)} 字符"
+                )
                 checks.append(
                     self._check(
-                        "mcp_description", False, f"mcp_description() 调用失败: {exc}"
+                        "init_description",
+                        bool(init_description),
+                        "init_description() 可调用",
+                        length=len(init_description),
+                    )
+                )
+                metadata["init_description_length"] = len(init_description)
+            except Exception as exc:
+                output_lines.append(f"✗ init_description() 调用失败: {exc}")
+                checks.append(
+                    self._check(
+                        "init_description", False, f"init_description() 调用失败: {exc}"
                     )
                 )
 
@@ -360,11 +401,13 @@ class SafeModuleTester:
             output_lines.append("✓ Agent 创建成功")
             checks.append(self._check("agent_creation", True, "Agent 创建成功"))
 
-            if hasattr(agent, "init"):
+            # Agents bind shared services instead of init(env).
+            if hasattr(agent, "_bind_services"):
                 try:
-                    import asyncio
+                    from agentsociety2.agent.service_proxy import build_service_proxy
 
-                    asyncio.run(agent.init(router))
+                    proxy = build_service_proxy(router, trace=False, replay=False)
+                    agent._bind_services(proxy)
                     output_lines.append("✓ Agent 环境初始化成功")
                     checks.append(
                         self._check("agent_init", True, "Agent 环境初始化成功")

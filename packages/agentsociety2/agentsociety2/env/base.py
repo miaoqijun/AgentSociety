@@ -36,7 +36,6 @@ import inspect
 import json
 import re
 from copy import deepcopy
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import (
@@ -51,8 +50,6 @@ from typing import (
     overload,
 )
 
-from agentsociety2.logger import get_logger
-
 if TYPE_CHECKING:
     from agentsociety2.storage import ReplayWriter
 
@@ -62,57 +59,8 @@ from openai.types.chat import ChatCompletionToolParam
 
 __all__ = [
     "EnvBase",
-    "PersonStepConstraints",
-    "merge_person_step_constraints",
     "tool",
 ]
-
-_constraints_logger = get_logger()
-
-
-@dataclass(frozen=True)
-class PersonStepConstraints:
-    """单仿真步内对 PersonAgent 可见技能等约束。
-
-    环境可实现 :meth:`EnvBase.person_step_constraints` 返回本结构；PersonAgent 合并后执行。
-    """
-
-    hide_skills: frozenset[str] = frozenset()
-    pin_active_skill: str | None = None
-
-
-def merge_person_step_constraints(
-    env_modules: list[Any],
-) -> PersonStepConstraints | None:
-    """合并路由器上所有环境模块返回的约束（并集/冲突检测）。"""
-    hide: set[str] = set()
-    pin: str | None = None
-    for m in env_modules or []:
-        fn = getattr(m, "person_step_constraints", None)
-        if not callable(fn):
-            continue
-        c = fn()
-        if c is None:
-            continue
-        hide.update(c.hide_skills)
-        if c.pin_active_skill:
-            p = c.pin_active_skill.strip()
-            if not p:
-                continue
-            if pin is None:
-                pin = p
-            elif pin != p:
-                _constraints_logger.warning(
-                    "person_step_constraints: conflicting pin_active_skill %r vs %r (using first)",
-                    pin,
-                    p,
-                )
-    if not hide and not pin:
-        return None
-    return PersonStepConstraints(
-        hide_skills=frozenset(hide),
-        pin_active_skill=pin,
-    )
 
 
 F = TypeVar("F", bound=Callable)
@@ -249,7 +197,12 @@ def tool(
             return normalized_kwargs
 
         def _create_call_record(
-            args, kwargs, return_value, exception_occurred, exception_info
+            args,
+            kwargs,
+            return_value,
+            exception_occurred,
+            exception_info,
+            trace_ctx,
         ):
             """Helper function to create a call record."""
             # Convert args and kwargs to unified kwargs dict
@@ -261,7 +214,7 @@ def tool(
                 else None
             )
 
-            return {
+            record = {
                 "function_name": tool_name,
                 "kwargs": kwargs_repr,
                 "return_value": return_value_repr,
@@ -269,13 +222,20 @@ def tool(
                 "exception_info": exception_info,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
+            # Attach OTel trace context if available
+            if trace_ctx:
+                record["trace_id"] = trace_ctx.get("trace_id")
+                record["parent_span_id"] = trace_ctx.get("parent_span_id")
+            return record
 
         if inspect.iscoroutinefunction(func):
 
+            @functools.wraps(original_func)
             async def async_wrapper(self, *args, **kwargs):
                 exception_occurred = False
                 exception_info = None
                 return_value = None
+                trace_ctx = getattr(self, "_current_trace_context", {})
 
                 try:
                     return_value = await original_func(self, *args, **kwargs)
@@ -295,6 +255,7 @@ def tool(
                             return_value,
                             exception_occurred,
                             exception_info,
+                            trace_ctx,
                         )
                         self._tool_call_history.append(call_record)
                 return return_value
@@ -307,6 +268,7 @@ def tool(
                 exception_occurred = False
                 exception_info = None
                 return_value = None
+                trace_ctx = getattr(self, "_current_trace_context", {})
 
                 try:
                     return_value = original_func(self, *args, **kwargs)
@@ -326,6 +288,7 @@ def tool(
                             return_value,
                             exception_occurred,
                             exception_info,
+                            trace_ctx,
                         )
                         self._tool_call_history.append(call_record)
                 return return_value
@@ -408,6 +371,22 @@ class EnvBase(metaclass=EnvMeta):
     _env_state_columns: ClassVar[list] = []
 
     @classmethod
+    def is_concurrency_safe(cls) -> bool:
+        """Return whether this module's tools may be called concurrently.
+
+        Concurrency-safe modules do not mutate shared (cross-agent) state in
+        their tools, so the router can execute their generated code without the
+        global ``_execute_lock`` and the env Ray actor can fan out parallel
+        ``ask`` calls. Default is ``False`` (conservative); modules that keep
+        only per-agent state (keyed by agent_id, no shared mutable structures)
+        override this to ``True``.
+
+        Returns:
+            True if concurrent tool calls are safe.
+        """
+        return False
+
+    @classmethod
     def _state_table_prefix_from_class(cls) -> str:
         """从类名推导表名前缀（PascalCase -> snake_case，去常见后缀）"""
         name = cls.__name__
@@ -422,6 +401,9 @@ class EnvBase(metaclass=EnvMeta):
 
         # Initialize tool call history storage
         self._tool_call_history: list[dict[str, Any]] = []
+
+        # Current trace context (set by router before tool execution)
+        self._current_trace_context: dict[str, str | None] = {}
 
         # Replay writer for storing simulation state
         self._replay_writer: Optional["ReplayWriter"] = None
@@ -463,27 +445,30 @@ class EnvBase(metaclass=EnvMeta):
         """Name of the environment module"""
         return self.__class__.__name__
 
-    @property
-    def description(self) -> str:
-        """Description of the environment module for router selection and function calling"""
-        return """EnvBase is an abstract class for environment modules. DO NOT USE IT DIRECTLY.
-It contains no functions or methods.
-"""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description for router/world orientation."""
+        if cls is EnvBase:
+            return "Abstract base class for environment modules."
+        doc = (cls.__doc__ or "").strip().splitlines()
+        if doc:
+            return doc[0].strip()
+        first = cls.init_description().strip().splitlines()
+        return first[0].strip() if first else f"{cls.__name__}: Environment module."
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
-        This method should be overridden by subclasses to provide a description
-        suitable for MCP server to list available environment modules.
+        Return AI-readable initialization guidance for this environment module.
 
-        :returns: A string description of the environment module for MCP registration. The description uses Markdown format and should include the class name, detailed description, initialization parameters when applicable, and an example config or JSON schema when applicable.
+        :returns: Markdown text with class name, constructor kwargs,
+            accepted data shapes, defaults, and a minimal kwargs example when useful.
         """
         # Check if this is the base class being called directly
         if cls is EnvBase:
             return f"""{cls.__name__}: Abstract base class for environment modules.
 
-**Description:** {cls.__doc__ or 'No description available'}
+**Description:** {cls.__doc__ or "No description available"}
 
 **Note:** This is an abstract base class. Do not use it directly. Subclasses should override this method to provide specific descriptions, initialization parameters, and usage examples.
 """
@@ -491,7 +476,7 @@ It contains no functions or methods.
             # For subclasses that don't override this method
             return f"""{cls.__name__}: Environment module.
 
-**Description:** {cls.__doc__ or 'No description available'}
+**Description:** {cls.__doc__ or "No description available"}
 
 **Note:** This subclass has not provided a detailed description. Please refer to the class documentation or source code for initialization parameters and usage.
 """
@@ -499,7 +484,7 @@ It contains no functions or methods.
     # ---- Skill Discovery ----
 
     @classmethod
-    def get_agent_skills_dirs(cls) -> list[Path]:
+    def skill_dirs(cls) -> list[Path]:
         """Return directories containing agent skills provided by this environment module.
 
         This method enables environment modules to bundle specialized skills that agents
@@ -521,7 +506,7 @@ It contains no functions or methods.
         Subclasses can override this method to specify custom skill directories::
 
             @classmethod
-            def get_agent_skills_dirs(cls) -> list[Path]:
+            def skill_dirs(cls) -> list[Path]:
                 from pathlib import Path
                 skills_dir = Path(__file__).parent.parent / "skills"
                 return [skills_dir] if skills_dir.is_dir() else []
@@ -552,43 +537,6 @@ It contains no functions or methods.
 
         return dirs
 
-    def get_default_skill(self) -> str | None:
-        """Return the default skill that should be auto-activated for agents in this environment.
-
-        When PersonAgent initializes within an environment, it automatically activates
-        the specified skill. This allows environments to override the default
-        observation-memory-cognition-plan decision flow with specialized behavior.
-
-        **Use Cases:**
-
-        - Game/experiment environments requiring specific decision protocols
-        - Domain-specific environments with specialized reasoning patterns
-        - Tutorial or guided scenarios with constrained agent behavior
-
-        **Example:**
-
-        Override to return a skill name, e.g.
-        ``return "public-goods-experiment"`` to auto-activate that skill.
-
-        **Note:** The skill must be available (either built-in or discovered via
-        :meth:`get_agent_skills_dirs`). If the skill is not found, a warning is logged
-        and the agent uses the default skill set.
-
-        :returns: Skill name to auto-activate, or None for default behavior.
-        """
-        return None
-
-    def person_step_constraints(self) -> Optional["PersonStepConstraints"]:
-        """可选：返回本步对 PersonAgent 的通用约束（隐藏技能、钉住 allowed-tools 等）。
-
-        默认无约束。需要「专用默认 skill 独占一步」类行为的环境应返回
-        :class:`PersonStepConstraints`，
-        由 PersonAgent 与具体实验/玩法解耦。
-
-        :returns: PersonStepConstraints | None
-        """
-        return None
-
     async def init(self, start_datetime: datetime):
         """初始化环境模块。
 
@@ -608,44 +556,6 @@ It contains no functions or methods.
     async def close(self):
         """关闭环境模块并释放资源（可选重写）。"""
         ...
-
-    # ---- Dump & Load ----
-    def _dump_state(self) -> dict:
-        """子类钩子：导出内部状态（如需持久化请重写）。"""
-        return {}
-
-    def _load_state(self, state: dict):
-        """子类钩子：加载内部状态（与 :meth:`_dump_state` 配对）。"""
-        return None
-
-    async def dump(self) -> dict:
-        """序列化环境模块状态。
-
-        :returns: 可序列化字典，包含 ``name``、``t`` 与 ``state``。
-        """
-        return {
-            "name": self.name,
-            "t": self.t.isoformat(),
-            "state": self._dump_state(),
-        }
-
-    async def load(self, dump_data: dict):
-        """从 :meth:`dump` 的输出恢复环境模块状态。
-
-        :param dump_data: 由 :meth:`dump` 产生的字典。
-        """
-        try:
-            t_str = dump_data.get("t")
-            if isinstance(t_str, str) and len(t_str) > 0:
-                from datetime import datetime as _dt
-
-                self.t = _dt.fromisoformat(t_str)
-        except Exception:
-            # keep current t on parse failure
-            pass
-        state = dump_data.get("state") or {}
-        if isinstance(state, dict):
-            self._load_state(state)
 
     def get_tool_call_history(self) -> list[dict[str, Any]]:
         """获取工具调用历史（浅拷贝）。

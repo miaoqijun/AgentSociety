@@ -224,12 +224,37 @@ class ConfigValidator:
             else:
                 init_kwargs["id"] = int(init_kwargs["id"])
 
-            # 尝试实例化
+            # 新 API 验证：__init__ 无参 + AgentBase.create 可写入 workspace。
+            # CLI 的 _build_agent_specs 用同样的 config_keys 集合把 kwargs 切成
+            # profile（id + persona）+ config（运行时键）。
             try:
-                instance = agent_class(**init_kwargs)
+                import tempfile
+                agent_id_int = int(init_kwargs.pop("id", agent_id))
+                config_keys = {
+                    "max_react_turns",
+                    "enable_memory",
+                    "enable_todo_list",
+                    "force_template_mode",
+                    "allow_template_mode",
+                    "disabled_skill_ids",
+                    "default_activated_skill_ids",
+                }
+                agent_config_dict = {
+                    k: init_kwargs.pop(k)
+                    for k in list(init_kwargs.keys())
+                    if k in config_keys
+                }
+                profile = dict(init_kwargs)
+                profile["id"] = agent_id_int
+                # 新契约：__init__ 无参；真正的状态在 restore() 里设置。
+                _ = agent_class()
+                with tempfile.TemporaryDirectory() as tmp_ws:
+                    agent_class.create(
+                        Path(tmp_ws), profile, agent_config_dict
+                    )
                 self.logger.debug(
-                    f"成功实例化 agent {agent_type} (id={agent_id}): "
-                    f"{agent_class.__name__}"
+                    f"成功验证 agent {agent_type} (id={agent_id}): "
+                    f"{agent_class.__name__} create() 写入 workspace"
                 )
                 return {
                     "success": True,
@@ -247,13 +272,14 @@ class ConfigValidator:
                     "success": False,
                     "errors": [
                         f"Agent '{agent_type}' (id={agent_id}, class={agent_class.__name__}) "
-                        f"实例化失败: {str(e)}"
+                        f"create() 失败: {str(e)}"
                     ],
                     "details": {
                         "agent_type": agent_type,
                         "class": agent_class.__name__,
                         "agent_id": agent_id,
-                        "kwargs": init_kwargs,
+                        "profile": profile if "profile" in locals() else init_kwargs,
+                        "config": agent_config_dict if "agent_config_dict" in locals() else {},
                         "error": str(e),
                         "traceback": traceback.format_exc(),
                     },

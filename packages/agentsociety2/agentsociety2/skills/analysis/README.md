@@ -40,13 +40,8 @@ Cross-experiment comparison happens in Stage 6 (required synthesis) of the
 
 `agentsociety2.skills.analysis.harness` provides staged state, structural validators,
 and LLM attestation gates (`record-attestation`, `validate-*`, `gate-status`, `advance`).
-Analysis completes when `validate-synthesis` gate passes. The SDK harness is
-self-contained for required mechanics: use `guidance --topic workflow|paths|attestation|charts|reports|reflection`
-and `payload-template --name NAME` from the analysis CLI for gate rules and JSON
-payload shapes. Chart quality guardrails and a reusable Matplotlib scaffold are built
-in (`guidance --topic charts`, `chart-scaffold`). The extension skill references remain
-useful for advanced chart recipes, report styling examples, subagent prompts, and
-external integrations.
+Analysis completes when `validate-synthesis` gate passes. See extension skill
+`references/harness-contract.md` for the two-layer model.
 
 Attestations carry automatic artifact fingerprints. If a phase artifact changes after
 attestation, the next `validate-*` blocks with `attestation_stale` until the phase is
@@ -75,7 +70,7 @@ from pathlib import Path
 from agentsociety2.skills.analysis import ContextLoader, DataReader, EDAGenerator
 
 workspace = Path("./workspace")
-db_path = workspace / "hypothesis_1" / "experiment_1" / "run" / "sqlite.db"
+db_path = workspace / "hypothesis_1" / "experiment_1" / "run" / "replay"
 
 context = ContextLoader(workspace).load_context("1", "1")
 summary = DataReader(db_path).read_full_summary()
@@ -94,7 +89,6 @@ The staged skill uses
 - `list-tables`
 - `data-summary`
 - `query-data`
-- `run-code`
 - `run-eda`
 - `compose-figure`
 - `collect-assets`
@@ -108,9 +102,6 @@ The staged skill uses
 - `review-reflection`
 - `promote-reflection`
 - `memory-context`
-- `guidance`
-- `payload-template`
-- `chart-scaffold`
 
 ## Output Layout
 
@@ -118,7 +109,7 @@ Single-experiment outputs live under:
 `presentation/hypothesis_{id}/`
 
 - `report_zh.md` / `report_en.md` (required for harness)
-- required LLM-authored bilingual `.html` reports (`guidance --topic reports`)
+- required LLM-authored bilingual `.html` reports (see extension skill `references/html-export.md`)
 - `.agentsociety/analysis/hypothesis_{id}/` harness state (`state.yaml`, `analysis_plan.yaml`, `claims.json`)
 - `data/analysis_summary.json`
 - `data/eda_*.html` or `eda_quick_stats.md`

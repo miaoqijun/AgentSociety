@@ -259,17 +259,6 @@
     "starting": "正在启动后端...",
     "validationSuccess": "验证成功",
     "validationFailed": "验证失败",
-    "analysis": {
-      "shortTitle": "数据分析",
-      "title": "数据分析 LLM",
-      "hint": "用于数据分析、洞察生成和报告撰写（API Key/API URL 可留空并沿用上方默认 LLM 配置）",
-      "apiKey": "API 密钥",
-      "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
-      "apiBase": "API URL",
-      "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
-      "model": "模型",
-      "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
-    },
     "overview": {
       "backend": "后端服务",
       "backendRunning": "运行中 :{{port}}",
@@ -330,17 +319,6 @@
         "modelPlaceholder": "默认值：text-embedding-3-large",
         "dims": "向量维度",
         "dimsPlaceholder": "1024"
-      },
-      "nano": {
-        "shortTitle": "高频",
-        "title": "高频操作 LLM",
-        "hint": "用于高频快速操作的轻量级模型，可留空并沿用上方默认 LLM 配置",
-        "apiKey": "高频操作 LLM API 密钥",
-        "apiKeyPlaceholder": "可留空，沿用上方默认 LLM 密钥",
-        "apiBase": "高频操作 LLM API 基础 URL",
-        "apiBasePlaceholder": "可留空，使用上方默认 LLM API 地址",
-        "model": "高频操作 LLM 模型",
-        "modelPlaceholder": "留空则沿用上方 LLM 模型（当前：{{model}}）"
       },
       "literature": {
         "title": "学术文献检索",

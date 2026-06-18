@@ -198,16 +198,14 @@ def _discover_contrib_agents() -> Dict[str, Type[AgentBase]]:
 
 
 def _discover_builtin_agents() -> Dict[str, Type[AgentBase]]:
-    """发现内置 agent（例如 PersonAgent）。"""
+    """发现内置 agent。"""
     agents = {}
 
     try:
-        from agentsociety2.agent import person
+        from agentsociety2.agent import PersonAgent
 
-        # Check PersonAgent
-        if hasattr(person, "PersonAgent"):
-            agents["PersonAgent"] = person.PersonAgent
-            logger.debug("Discovered built-in agent: PersonAgent")
+        agents["PersonAgent"] = PersonAgent
+        logger.debug("Discovered built-in agent: PersonAgent")
 
     except ImportError as e:
         logger.warning(f"Failed to import agentsociety2.agent: {e}")
@@ -337,18 +335,19 @@ def list_all_modules() -> Dict[str, List[Dict[str, Any]]]:
     env_modules = []
     for module_type, module_class in registry.list_env_modules():
         try:
-            description = (
-                module_class.mcp_description()
-                if hasattr(module_class, "mcp_description")
-                else module_class.__doc__ or ""
-            )
+            description = module_class.description()
         except Exception:
             description = ""
+        try:
+            init_description = module_class.init_description()
+        except Exception:
+            init_description = ""
         env_modules.append(
             {
                 "type": module_type,
                 "class_name": module_class.__name__,
                 "description": description,
+                "init_description": init_description,
                 "is_custom": getattr(module_class, "_is_custom", False),
             }
         )
@@ -356,18 +355,19 @@ def list_all_modules() -> Dict[str, List[Dict[str, Any]]]:
     agents = []
     for agent_type, agent_class in registry.list_agent_modules():
         try:
-            description = (
-                agent_class.mcp_description()
-                if hasattr(agent_class, "mcp_description")
-                else agent_class.__doc__ or ""
-            )
+            description = agent_class.description()
         except Exception:
             description = ""
+        try:
+            init_description = agent_class.init_description()
+        except Exception:
+            init_description = ""
         agents.append(
             {
                 "type": agent_type,
                 "class_name": agent_class.__name__,
                 "description": description,
+                "init_description": init_description,
                 "is_custom": getattr(agent_class, "_is_custom", False),
             }
         )

@@ -11,52 +11,54 @@
 您的第一个智能体
 ----------------
 
-使用 :class:`~agentsociety2.society.AgentSociety` 创建一个简单的智能体并与它交互：
+使用 :class:`~agentsociety2.society.AgentSociety` 创建一个简单的智能体并与它交互。注意：智能体现在
+以 **spec（元数据）** 的形式声明，由编排器在 ``init`` 时批量创建 workspace；不再直接 ``PersonAgent(...)``
+实例化（见 :doc:`agents`）。
 
 .. code-block:: python
 
    import asyncio
    from datetime import datetime
-   from agentsociety2 import PersonAgent
    from agentsociety2.env import CodeGenRouter
    from agentsociety2.contrib.env import SimpleSocialSpace
    from agentsociety2.society import AgentSociety
 
    async def main():
-       # Create agent with profile
-       agent = PersonAgent(
-           id=1,
-           profile={
-               "name": "Alice",
-               "age": 28,
-               "personality": "friendly and curious",
-               "bio": "A software engineer who loves hiking."
+       # 1) 声明 agent 元数据（id / profile / config），不实例化 agent 对象
+       agent_specs = [
+           {
+               "id": 1,
+               "profile": {
+                   "name": "Alice",
+                   "age": 28,
+                   "personality": "friendly and curious",
+                   "bio": "A software engineer who loves hiking.",
+               },
+               "config": {},
            }
-       )
+       ]
+       names = [(s["id"], s["profile"]["name"]) for s in agent_specs]
 
-       # Create environment module with agent info
-       social_env = SimpleSocialSpace(
-           agent_id_name_pairs=[(agent.id, agent.name)]
-       )
-
-       # Create environment router
+       # 2) 创建环境模块 + 路由器（进程内 CodeGenRouter 即可；生产环境用 EnvRouterProxy）
+       social_env = SimpleSocialSpace(agent_id_name_pairs=names)
        env_router = CodeGenRouter(env_modules=[social_env])
 
-       # Create society
+       # 3) 创建 society（agent_specs + agent_class_name + env_router）
        society = AgentSociety(
-           agents=[agent],
+           agent_specs=agent_specs,
+           agent_class_name="PersonAgent",
            env_router=env_router,
            start_t=datetime.now(),
+           run_dir=__import__("pathlib").Path("run"),
        )
 
-       # Initialize (set up environment for agents)
+       # 4) 初始化（批量创建 agent workspace、绑定环境）
        await society.init()
 
-       # Query (read-only)
+       # 5) 只读查询
        response = await society.ask("What's your favorite activity?")
        print(f"Agent: {response}")
 
-       # Close society
        await society.close()
 
    if __name__ == "__main__":
@@ -78,8 +80,8 @@
 
    import asyncio
    from datetime import datetime
+   from pathlib import Path
 
-   from agentsociety2 import PersonAgent
    from agentsociety2.env import EnvBase, tool, CodeGenRouter
    from agentsociety2.society import AgentSociety
 
@@ -97,12 +99,14 @@
            return f"Agent {agent_id}'s mood is now {mood}."
 
    async def main():
-       agent = PersonAgent(id=1, profile={"name": "Bob"})
+       agent_specs = [{"id": 1, "profile": {"name": "Bob"}, "config": {}}]
        env_router = CodeGenRouter(env_modules=[MyEnvironment()])
        society = AgentSociety(
-           agents=[agent],
+           agent_specs=agent_specs,
+           agent_class_name="PersonAgent",
            env_router=env_router,
            start_t=datetime.now(),
+           run_dir=Path("run"),
        )
        await society.init()
        response = await society.ask("What's the weather like?")
@@ -152,49 +156,37 @@ AgentSociety 2 提供了一个强大的 CLI 用于运行实验。
    import asyncio
    from datetime import datetime
    from pathlib import Path
-   from agentsociety2 import PersonAgent
    from agentsociety2.env import CodeGenRouter
    from agentsociety2.contrib.env import SimpleSocialSpace
-   from agentsociety2.storage import ReplayWriter
    from agentsociety2.society import AgentSociety
 
    async def main():
-       # Set up replay writer for environment datasets
-       writer = ReplayWriter(Path("my_experiment.db"))
-       await writer.init()
-
-       # Create agents first (SimpleSocialSpace needs this)
-       agents = [
-           PersonAgent(
-               id=i,
-               profile={"name": f"Player{i}", "personality": "competitive"},
-           )
+       # 1) 声明 agent 元数据
+       agent_specs = [
+           {"id": i, "profile": {"name": f"Player{i}", "personality": "competitive"}, "config": {}}
            for i in range(1, 4)
        ]
+       names = [(s["id"], s["profile"]["name"]) for s in agent_specs]
 
-       # Create environment router
-       env_router = CodeGenRouter(
-           env_modules=[SimpleSocialSpace(
-               agent_id_name_pairs=[(a.id, a.name) for a in agents]
-           )],
-           replay_writer=writer,
-       )
+       # 2) 环境路由器（replay 默认开启，写入 run_dir/replay/）
+       env_router = CodeGenRouter(env_modules=[SimpleSocialSpace(agent_id_name_pairs=names)])
 
-       # Create society
+       # 3) 创建并初始化 society
        society = AgentSociety(
-           agents=agents,
+           agent_specs=agent_specs,
+           agent_class_name="PersonAgent",
            env_router=env_router,
            start_t=datetime.now(),
-           replay_writer=writer,
+           run_dir=Path("run"),
        )
        await society.init()
 
-       # Run interactions
-       for agent in agents:
+       # 4) 逐个询问（低频外部查询，在主进程内按需 from_workspace 重建目标 agent）
+       for spec in agent_specs:
            response = await society.ask(
-               f"Tell {agent._name} to introduce themselves to the group!"
+               f"Tell {spec['profile']['name']} to introduce themselves to the group!"
            )
-           print(f"{agent._name}: {response}")
+           print(f"{spec['profile']['name']}: {response}")
 
        await society.close()
 
@@ -203,9 +195,10 @@ AgentSociety 2 提供了一个强大的 CLI 用于运行实验。
 
 .. note::
 
-   ``ReplayWriter`` 现在只记录环境侧 replay dataset。``PersonAgent`` 的本地状态、
-   thread 和工具日志会落在 ``run/agents/agent_xxxx/`` 目录，而不是 SQLite 的
-   ``agent_status`` / ``agent_profile`` 表。
+   ``ReplayWriter`` 现在把 replay dataset 写入 ``run/replay/`` 的 sharded JSONL，
+   并用 ``_schema.json`` 保存 catalog。``PersonAgent`` 的本地状态、thread 和工具日志
+   会落在 ``run/agents/agent_xxxx/`` 目录，而不是旧 SQLite 的 ``agent_status`` /
+   ``agent_profile`` 表。
 
 下一步
 ----------
@@ -215,6 +208,7 @@ AgentSociety 2 提供了一个强大的 CLI 用于运行实验。
 * :doc:`agents` - 详细了解智能体
 * :doc:`env_modules` - 创建自定义环境模块
 * :doc:`concepts` - 理解核心概念
+* :doc:`architecture` - 系统架构与 Ray 执行模型
 * :doc:`storage` - 了解回放系统
 * :doc:`examples` - 查看更多示例
 

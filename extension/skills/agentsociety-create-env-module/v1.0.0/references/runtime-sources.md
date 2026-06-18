@@ -36,7 +36,7 @@ Read these modules before generating or repairing a custom env module:
 - `agentsociety2.contrib.env.simple_social_space`
   Use this for a lightweight built-in social interaction reference.
 - `agentsociety2.contrib.env.economy_space`
-  Use this when you need a richer reference for state handling, persistence, and economic interactions.
+  Use this when you need a richer reference for replay-table persistence (`_agent_state_columns` / `_env_state_columns` + `_write_*` helpers) and economic interactions.
 - `agentsociety2.contrib.env.mobility_space.environment`
   Use this when you need a complex reference for movement-related state and multi-component environment behavior.
 

@@ -346,8 +346,10 @@ def _detect_stage_from_files(workspace: Path) -> str:
     if not config_files:
         return "experiment_config"
 
-    db_files = sorted(workspace.glob("hypothesis_*/experiment_*/run/sqlite.db"))
-    if not db_files:
+    replay_schemas = sorted(
+        workspace.glob("hypothesis_*/experiment_*/run/replay/_schema.json")
+    )
+    if not replay_schemas:
         return "run_experiment"
 
     report_globs = (

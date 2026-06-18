@@ -46,7 +46,7 @@ class AgentDialog(SQLModel, table=True):
     agent_id: int = Field(index=True)
     step: int = Field(index=True)
     t: datetime
-    type: int = Field(index=True)  # 0=反思 (thought/reflection); V2 only uses 0
+    type: int = Field(index=True)  # 0=反思 (thought/reflection); current agent uses 0
     speaker: str
     content: str
     created_at: datetime = Field(default_factory=datetime.now)

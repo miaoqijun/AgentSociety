@@ -42,8 +42,6 @@
 
 from .base import (
     EnvBase,
-    PersonStepConstraints,
-    merge_person_step_constraints,
     tool,
 )
 from .router_base import RouterBase
@@ -59,13 +57,11 @@ __all__ = [
     "CodeGenRouter",
     "EnvBase",
     "EnvRouterBenchmarkData",
-    "PersonStepConstraints",
     "PlanExecuteRouter",
     "ReActRouter",
     "RouterBase",
     "SearchToolRouter",
     "TwoTierPlanExecuteRouter",
     "TwoTierReActRouter",
-    "merge_person_step_constraints",
     "tool",
 ]

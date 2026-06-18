@@ -143,17 +143,26 @@
            self.t = t
            # Update time-dependent state here if needed
 
-   # Use the custom module
+   # Use the custom module（agent 以 spec 声明，不实例化）
    env_router = CodeGenRouter(env_modules=[WeatherEnvironment()])
 
-   agent = PersonAgent(id=1, profile={"name": "Bob"})
+   agent_specs = [{"id": 1, "profile": {"name": "Bob"}, "config": {}}]
 
    society = AgentSociety(
-       agents=[agent],
+       agent_specs=agent_specs,
+       agent_class_name="PersonAgent",
        env_router=env_router,
        start_t=datetime.now(),
+       run_dir=__import__("pathlib").Path("run"),
    )
    await society.init()
+
+.. note::
+
+   生产环境下环境路由跑在一个专用的 Ray actor 里（``EnvRouterProxy``），所有 agent 共享一份
+   环境状态；也可在进程内直接用 ``CodeGenRouter``。除默认的 ``CodeGenRouter`` 外还有
+   ``ReActRouter`` / ``PlanExecuteRouter`` / ``TwoTierReActRouter`` / ``TwoTierPlanExecuteRouter``
+   / ``SearchToolRouter`` 可选（见 :doc:`architecture`）。
 
 示例
 --------

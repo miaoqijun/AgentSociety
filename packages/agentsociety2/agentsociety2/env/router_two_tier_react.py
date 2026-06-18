@@ -51,7 +51,7 @@ class TwoTierReActRouter(RouterBase):
         """收集模块信息和工具信息"""
         for module in self.env_modules:
             module_name = module.name
-            module_description = module.description
+            module_description = module.description()
 
             # 收集该模块的所有工具
             all_tools = []
@@ -90,6 +90,8 @@ class TwoTierReActRouter(RouterBase):
         instruction: str,
         readonly: bool = False,
         template_mode: bool = False,
+        trace_id: str | None = None,
+        parent_span_id: str | None = None,
     ) -> Tuple[dict, str]:
         """
         使用双层ReAct模式处理指令。
@@ -101,116 +103,120 @@ class TwoTierReActRouter(RouterBase):
 
         :returns: (ctx, answer) 元组
         """
-        # 添加当前时间信息到 ctx，以便工具调用可以访问
-        self._add_current_time_to_ctx(ctx)
+        self.set_trace_context(trace_id, parent_span_id)
+        try:
+            # 添加当前时间信息到 ctx，以便工具调用可以访问
+            self._add_current_time_to_ctx(ctx)
 
-        get_logger().info(
-            f"TwoTierReActRouter: Processing instruction: {instruction}, readonly: {readonly}"
-        )
-
-        if not self.env_modules:
-            get_logger().warning("No environment modules available")
-            results = {"status": "fail", "reason": "No environment modules available"}
-            return (
-                results,
-                "No environment modules available to handle the request.",
+            get_logger().info(
+                f"TwoTierReActRouter: Processing instruction: {instruction}, readonly: {readonly}"
             )
 
-        results = {}
-        step_count = 0
-        used_modules = set()
-        execution_log: List[Dict[str, Any]] = []  # 记录执行历史
-        error = None
-
-        while step_count < self.max_steps:
-            step_count += 1
-            get_logger().debug(
-                f"TwoTierReActRouter: Step {step_count}/{self.max_steps}"
-            )
-
-            # 第一层：选择模块
-            selected_module = await self._select_module(
-                instruction, ctx, used_modules, readonly
-            )
-
-            if not selected_module:
-                get_logger().info(
-                    "TwoTierReActRouter: No more modules to select, task complete"
+            if not self.env_modules:
+                get_logger().warning("No environment modules available")
+                results = {"status": "fail", "reason": "No environment modules available"}
+                return (
+                    results,
+                    "No environment modules available to handle the request.",
                 )
-                break
 
-            used_modules.add(selected_module)
-            get_logger().info(f"TwoTierReActRouter: Selected module: {selected_module}")
+            results = {}
+            step_count = 0
+            used_modules = set()
+            execution_log: List[Dict[str, Any]] = []  # 记录执行历史
+            error = None
 
-            # 记录模块选择
-            execution_log.append(
-                {
-                    "step": step_count,
-                    "type": "module_selection",
-                    "module": selected_module,
-                }
-            )
-
-            # 第二层：使用ReAct模式调用该模块的工具
-            module_result, module_answer = await self._react_with_module(
-                selected_module, instruction, ctx, readonly
-            )
-
-            # 记录模块执行结果
-            execution_log.append(
-                {
-                    "step": step_count,
-                    "type": "module_execution",
-                    "module": selected_module,
-                    "result": module_result,
-                    "answer": module_answer,
-                }
-            )
-
-            # 合并结果
-            results.update(module_result)
-
-            # 检查是否有明显的错误
-            if isinstance(module_result, dict):
-                for value in module_result.values():
-                    if isinstance(value, dict) and "error" in value:
-                        error = str(value.get("error"))
-                        break
-
-            # 检查是否还需要其他模块
-            if await self._needs_more_modules(
-                instruction, ctx, results, used_modules, readonly
-            ):
-                continue
-            else:
-                # 构建过程文本
-                process_text = (
-                    json.dumps(execution_log, indent=2, default=str)
-                    if execution_log
-                    else ""
+            while step_count < self.max_steps:
+                step_count += 1
+                get_logger().debug(
+                    f"TwoTierReActRouter: Step {step_count}/{self.max_steps}"
                 )
-                # 使用基类的generate_final_answer生成最终答案
-                final_answer, determined_status = await self.generate_final_answer(
-                    ctx, instruction, results, process_text, "unknown", error
-                )
-                results["status"] = determined_status
-                if error:
-                    results["error"] = error
-                return results, final_answer
 
-        # 达到最大步数或没有更多模块
-        # 构建过程文本
-        process_text = (
-            json.dumps(execution_log, indent=2, default=str) if execution_log else ""
-        )
-        # 使用基类的generate_final_answer生成最终答案
-        final_answer, determined_status = await self.generate_final_answer(
-            ctx, instruction, results, process_text, "unknown", error
-        )
-        results["status"] = determined_status
-        if error:
-            results["error"] = error
-        return results, final_answer
+                # 第一层：选择模块
+                selected_module = await self._select_module(
+                    instruction, ctx, used_modules, readonly
+                )
+
+                if not selected_module:
+                    get_logger().info(
+                        "TwoTierReActRouter: No more modules to select, task complete"
+                    )
+                    break
+
+                used_modules.add(selected_module)
+                get_logger().info(f"TwoTierReActRouter: Selected module: {selected_module}")
+
+                # 记录模块选择
+                execution_log.append(
+                    {
+                        "step": step_count,
+                        "type": "module_selection",
+                        "module": selected_module,
+                    }
+                )
+
+                # 第二层：使用ReAct模式调用该模块的工具
+                module_result, module_answer = await self._react_with_module(
+                    selected_module, instruction, ctx, readonly
+                )
+
+                # 记录模块执行结果
+                execution_log.append(
+                    {
+                        "step": step_count,
+                        "type": "module_execution",
+                        "module": selected_module,
+                        "result": module_result,
+                        "answer": module_answer,
+                    }
+                )
+
+                # 合并结果
+                results.update(module_result)
+
+                # 检查是否有明显的错误
+                if isinstance(module_result, dict):
+                    for value in module_result.values():
+                        if isinstance(value, dict) and "error" in value:
+                            error = str(value.get("error"))
+                            break
+
+                # 检查是否还需要其他模块
+                if await self._needs_more_modules(
+                    instruction, ctx, results, used_modules, readonly
+                ):
+                    continue
+                else:
+                    # 构建过程文本
+                    process_text = (
+                        json.dumps(execution_log, indent=2, default=str)
+                        if execution_log
+                        else ""
+                    )
+                    # 使用基类的generate_final_answer生成最终答案
+                    final_answer, determined_status = await self.generate_final_answer(
+                        ctx, instruction, results, process_text, "unknown", error
+                    )
+                    results["status"] = determined_status
+                    if error:
+                        results["error"] = error
+                    return results, final_answer
+
+            # 达到最大步数或没有更多模块
+            # 构建过程文本
+            process_text = (
+                json.dumps(execution_log, indent=2, default=str) if execution_log else ""
+            )
+            # 使用基类的generate_final_answer生成最终答案
+            final_answer, determined_status = await self.generate_final_answer(
+                ctx, instruction, results, process_text, "unknown", error
+            )
+            results["status"] = determined_status
+            if error:
+                results["error"] = error
+            return results, final_answer
+        finally:
+            self.clear_trace_context()
 
     async def _select_module(
         self, instruction: str, ctx: dict, used_modules: set, readonly: bool

@@ -1,6 +1,6 @@
 """
 Volunteer's Dilemma Game Environment
-Environment for Volunteer's Dilemma game based on V2 framework
+Environment for Volunteer's Dilemma game based on AgentSociety2
 """
 import asyncio
 from datetime import datetime
@@ -22,7 +22,7 @@ class SubmitChoiceResponse(BaseModel):
 
 
 class VolunteerDilemmaEnv(EnvBase):
-    """Environment for Volunteer's Dilemma game based on V2 framework"""
+    """Environment for Volunteer's Dilemma game based on AgentSociety2"""
 
     _env_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("round_number", "INTEGER", nullable=False),
@@ -61,8 +61,8 @@ class VolunteerDilemmaEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
-        """Return a description text for MCP environment module candidate list"""
+    def init_description(cls) -> str:
+        """Return AI-readable initialization guidance for this environment module"""
         description = f"""{cls.__name__}: Volunteer's Dilemma game environment module.
 
 **Description:** Manages a Volunteer's Dilemma game where agents choose to volunteer or stand by. If at least one agent volunteers, all agents receive benefit, but volunteers pay a cost.
@@ -83,43 +83,10 @@ class VolunteerDilemmaEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module"""
-        return f"""You are a Volunteer's Dilemma game environment module specialized in managing group volunteer decisions.
-
-**Game Overview:** {self.num_agents} agents face a dilemma: someone must volunteer for a common cause, but volunteering has personal cost.
-
-**Game Rules:**
-- Each round: You choose "Volunteer" or "Stand by"
-- Payoffs:
-  * If at least 1 agent volunteers: Everyone gets benefit of {self.benefit_b}, volunteers pay cost of {self.cost_c}
-    - Volunteer: {self.benefit_b} - {self.cost_c} = {self.benefit_b - self.cost_c} points
-    - Stand by: {self.benefit_b} points (free rider benefit)
-  * If NO one volunteers: Everyone gets 0 points (collective failure)
-- Decisions are simultaneous
-- Everyone benefits if someone volunteers, creating incentive to free-ride
-- Goal: Maximize personal payoff while hoping others volunteer
-
-**Available Operations (you MUST use these within your plan):**
-1. **submit_choice(agent_name, choice)**: Make your decision
-   - agent_name: Your full name (e.g., "Agent-1")
-   - choice: "Volunteer" or "Stand by"
-   - You MUST submit exactly once per round - this is your only action
-   - No second chances - decision is final once submitted
-
-2. **get_round_history(round_num=None)**: View past results
-   - Returns: All rounds or specific round data
-   - Shows: Who volunteered, total volunteers, everyone's payoffs
-   - Use to evaluate group behavior and adjust future decisions
-
-**CRITICAL CONSTRAINT:**
-⚠️ You MUST submit your choice (call submit_choice with "Volunteer" or "Stand by") within your plan.
-⚠️ This is your ONLY action per round - do it immediately, don't overcomplicate.
-⚠️ The environment executes when all agents submit, so timely submission is crucial.
-⚠️ Your choice determines the outcome: volunteer to ensure success, or hope others volunteer.
-"""
-
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Volunteer's Dilemma game environment for group volunteer decisions."
     @tool(readonly=False)
     async def submit_choice(
         self, agent_name: str, choice: str
@@ -244,28 +211,5 @@ class VolunteerDilemmaEnv(EnvBase):
             cost_c=self.cost_c,
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "num_agents": self.num_agents,
-            "benefit_b": self.benefit_b,
-            "cost_c": self.cost_c,
-            "round_number": self.round_number,
-            "round_history": self.round_history,
-            "pending_choices": self._pending_choices,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.num_agents = state.get("num_agents", 4)
-        self.benefit_b = state.get("benefit_b", 100)
-        self.cost_c = state.get("cost_c", 40)
-        self.round_number = state.get("round_number", 0)
-        self.round_history = state.get("round_history", [])
-        self._pending_choices = state.get("pending_choices", {})
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["VolunteerDilemmaEnv"]

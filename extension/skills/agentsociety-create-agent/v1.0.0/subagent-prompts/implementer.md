@@ -29,14 +29,17 @@ Before writing code, read these files for reference:
 1. Write a **single file** at `custom/agents/<agent_name>.py`
 2. Use **exact class name** from the design (PascalCase)
 3. Inherit directly from `AgentBase` or `PersonAgent` (no intermediate bases)
-4. All four required methods must be `async def`: `ask`, `step`, `dump`, `load`
-5. Use `.get(key, default)` for profile field access
-6. Keep `dump`/`load` symmetric
-7. Do not blanket-swallow exceptions in ask/step
-8. Override `mcp_description()` with a meaningful description
-9. Use only standard library + `agentsociety2` imports
-10. Do NOT place the file under an `examples/` path segment
-11. Keep the implementation proportional to the provided simulation scale budget
+4. The three required abstracts must be `async def`: `to_workspace`, `ask`, `step`
+5. Put runtime state setup in `restore`
+6. Use the current `skill_runtime` and configured LLM roles exposed by the framework
+7. If you reuse `self.run_react_loop(...)`, override `build_react_messages(...)` (base raises `NotImplementedError`)
+8. Use `.get(key, default)` for profile field access
+9. Keep `to_workspace` / `restore` symmetric (fields written must be read back)
+10. Do not blanket-swallow exceptions in ask/step
+11. Override `description()` with a short summary and `init_description()` with profile/config-key guidance
+12. Use only standard library + `agentsociety2` imports
+13. Do NOT place the file under an `examples/` path segment
+14. Keep the implementation proportional to the provided simulation scale budget
 
 ## Template Placeholders
 

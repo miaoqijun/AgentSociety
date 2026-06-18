@@ -27,7 +27,8 @@ The orchestrator will provide:
 - [ ] At least one `@tool`-decorated method exists
 - [ ] `step()` method is present
 - [ ] `__init__` works without required args (`**kwargs` pattern)
-- [ ] `mcp_description()` returns an informative string
+- [ ] `description()` returns a short informative string
+- [ ] `init_description()` returns init kwargs guidance
 
 ### 2. Tool Correctness
 
@@ -40,7 +41,7 @@ The orchestrator will provide:
 
 ### 3. Instruction Style (see `references/pitfalls.md` P2)
 
-- [ ] `mcp_description()` and the `description` property phrase available operations in prose with bold function names + parameter descriptions (NOT as Python call literals like `submit_contribution(agent_name="X", contribution=10)`)
+- [ ] `init_description()` and tool docstrings phrase available operations in prose with bold function names + parameter descriptions (NOT as Python call literals like `submit_contribution(agent_name="X", contribution=10)`)
 - [ ] Tool docstrings describe semantics, not echo Python signatures
 
 ### 4. Same-step Idempotency (see `references/pitfalls.md` P3)
@@ -62,11 +63,11 @@ The orchestrator will provide:
 ### 7. State Persistence (only if design requires mutable state)
 
 - [ ] `_agent_state_columns` / `_env_state_columns` declared for replay tables
-- [ ] State writes use `_write_agent_state()` / `_write_env_state()` (not raw SQL)
+- [ ] State writes use `_write_agent_state()` / `_write_agent_state_batch()` / `_write_env_state()` (not raw SQL)
 - [ ] Internal step counter (`self._tick` or `self._step_index`) incremented once per `step()`
 - [ ] `tick` parameter is NOT used as step-index for replay table writes
-- [ ] `_dump_state()` / `_load_state()` are symmetric and cover all mutable state
-- [ ] No placeholder persistence hooks — either real implementations or stateless design
+- [ ] In-memory state is reconstructable from kwargs + replay
+- [ ] No placeholder persistence hooks — either real replay-write paths or stateless design
 
 ### 8. Safety
 

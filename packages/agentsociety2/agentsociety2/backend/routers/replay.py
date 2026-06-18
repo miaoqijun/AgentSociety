@@ -9,6 +9,7 @@ Replay data query API for simulation playback.
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime
 import json
 from pathlib import Path
@@ -16,23 +17,21 @@ from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlmodel import func, select
 
-from ...backend.path_security import resolve_experiment_db
+from ...backend.path_security import resolve_experiment_replay_dir
 from ...backend.services.replay_catalog import (
+    count_dataset_distinct,
     fetch_dataset_rows,
     get_dataset_by_id,
     load_dataset_catalog,
+    max_dataset_value,
+    min_dataset_value,
     query_dataset_rows,
-    reflect_dataset_table,
 )
 from ...storage.replay_metadata import AGENT_PROFILE_DATASET_CAPABILITY
+from ...storage.replay_reader import ReplayReader
 
 router = APIRouter(prefix="/replay", tags=["replay"])
-_DB_CACHE_LOCK = asyncio.Lock()
-_DB_SESSIONMAKER_CACHE: dict[str, tuple[int, AsyncEngine, sessionmaker]] = {}
 
 
 class ExperimentInfo(BaseModel):
@@ -138,43 +137,17 @@ class ReplayStepBundle(BaseModel):
     env_state_rows: Dict[str, ReplayEnvStateAtStep] = Field(default_factory=dict)
 
 
-def get_db_path(workspace_path: str, hypothesis_id: str, experiment_id: str) -> Path:
-    return resolve_experiment_db(workspace_path, hypothesis_id, experiment_id)
+def get_replay_dir(workspace_path: str, hypothesis_id: str, experiment_id: str) -> Path:
+    return resolve_experiment_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
 
-async def _get_cached_sessionmaker(db_path: Path) -> tuple[sessionmaker, int]:
-    resolved_path = db_path.resolve()
-    cache_key = str(resolved_path)
-    mtime_ns = resolved_path.stat().st_mtime_ns
-
-    async with _DB_CACHE_LOCK:
-        cached = _DB_SESSIONMAKER_CACHE.get(cache_key)
-        if cached is not None:
-            cached_mtime_ns, engine, cached_sessionmaker = cached
-            if cached_mtime_ns == mtime_ns:
-                return cached_sessionmaker, mtime_ns
-            await engine.dispose()
-
-        engine = create_async_engine(
-            f"sqlite+aiosqlite:///{resolved_path}",
-            echo=False,
-        )
-        async_session = sessionmaker(
-            engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
-        _DB_SESSIONMAKER_CACHE[cache_key] = (mtime_ns, engine, async_session)
-        return async_session, mtime_ns
-
-
-async def get_db_session(db_path: Path):
-    async_session, mtime_ns = await _get_cached_sessionmaker(db_path)
-    resolved_path = db_path.resolve()
-    async with async_session() as session:
-        session.info["replay_db_path"] = str(resolved_path)
-        session.info["replay_db_mtime_ns"] = mtime_ns
-        yield session
+@asynccontextmanager
+async def get_replay_reader(replay_dir: Path):
+    reader = ReplayReader(replay_dir)
+    try:
+        yield reader
+    finally:
+        await asyncio.to_thread(reader.close)
 
 
 def _dataset_to_response(dataset: Dict[str, Any]) -> ReplayDatasetInfo:
@@ -349,10 +322,10 @@ def _build_positions_from_step_rows(
 
 
 async def _get_agent_profile_dataset(
-    session: AsyncSession,
+    reader: ReplayReader,
     datasets: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
-    catalog = datasets or await load_dataset_catalog(session)
+    catalog = datasets or await load_dataset_catalog(reader)
     candidates = [
         dataset
         for dataset in catalog
@@ -388,43 +361,36 @@ def _resolve_agent_name(
 
 
 async def _load_agent_profiles(
-    session: AsyncSession,
+    reader: ReplayReader,
     datasets: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[int, AgentProfile]:
-    catalog = datasets or await load_dataset_catalog(session)
-    profile_dataset = await _get_agent_profile_dataset(session, catalog)
+    catalog = datasets or await load_dataset_catalog(reader)
+    profile_dataset = await _get_agent_profile_dataset(reader, catalog)
     if profile_dataset is not None:
-        table = await reflect_dataset_table(session, profile_dataset)
         entity_key = profile_dataset["entity_key"]
-        if entity_key in table.c:
-            query = select(table).order_by(table.c[entity_key])
-            result = await session.execute(query)
-            profiles: Dict[int, AgentProfile] = {}
-            for row in result.mappings().all():
-                raw_id = row.get(entity_key)
-                if raw_id is None:
-                    continue
-                agent_id = int(raw_id)
-                profile_payload = _parse_profile_payload(row.get("profile"))
-                profiles[agent_id] = AgentProfile(
-                    id=agent_id,
-                    name=_resolve_agent_name(agent_id, dict(row), profile_payload),
-                    profile=profile_payload,
-                )
-            if profiles:
-                return profiles
+        rows_result = await fetch_dataset_rows(reader, profile_dataset)
+        profiles: Dict[int, AgentProfile] = {}
+        for row in rows_result["rows"]:
+            raw_id = row.get(entity_key)
+            if raw_id is None:
+                continue
+            agent_id = int(raw_id)
+            profile_payload = _parse_profile_payload(row.get("profile"))
+            profiles[agent_id] = AgentProfile(
+                id=agent_id,
+                name=_resolve_agent_name(agent_id, dict(row), profile_payload),
+                profile=profile_payload,
+            )
+        if profiles:
+            return profiles
 
     identity_dataset = _select_primary_agent_state_dataset(catalog)
     if identity_dataset is None:
         return {}
 
-    table = await reflect_dataset_table(session, identity_dataset)
     entity_key = identity_dataset["entity_key"]
-    if entity_key not in table.c:
-        return {}
-
-    result = await session.execute(
-        select(table.c[entity_key]).distinct().order_by(table.c[entity_key])
+    agent_ids = await asyncio.to_thread(
+        reader.distinct_values, identity_dataset, entity_key, order=True
     )
     return {
         int(agent_id): AgentProfile(
@@ -432,13 +398,13 @@ async def _load_agent_profiles(
             name=f"Agent_{int(agent_id)}",
             profile={},
         )
-        for (agent_id,) in result.all()
+        for agent_id in agent_ids
         if agent_id is not None
     }
 
 
 async def _get_experiment_summary(
-    session: AsyncSession,
+    reader: ReplayReader,
     datasets: List[Dict[str, Any]],
 ) -> tuple[int, Optional[datetime], Optional[datetime], int]:
     timeline_dataset = _select_timeline_dataset(datasets)
@@ -447,23 +413,17 @@ async def _get_experiment_summary(
     end_time: Optional[datetime] = None
 
     if timeline_dataset is not None:
-        table = await reflect_dataset_table(session, timeline_dataset)
         step_key = timeline_dataset["step_key"]
         time_key = timeline_dataset["time_key"]
-        if step_key in table.c and time_key in table.c:
-            total_steps = (
-                await session.execute(
-                    select(func.count(func.distinct(table.c[step_key])))
-                )
-            ).scalar() or 0
-            start_time = _coerce_datetime(
-                (await session.execute(select(func.min(table.c[time_key])))).scalar()
-            )
-            end_time = _coerce_datetime(
-                (await session.execute(select(func.max(table.c[time_key])))).scalar()
-            )
+        total_steps = await count_dataset_distinct(reader, timeline_dataset, step_key)
+        start_time = _coerce_datetime(
+            await min_dataset_value(reader, timeline_dataset, time_key)
+        )
+        end_time = _coerce_datetime(
+            await max_dataset_value(reader, timeline_dataset, time_key)
+        )
 
-    profiles = await _load_agent_profiles(session, datasets)
+    profiles = await _load_agent_profiles(reader, datasets)
     return int(total_steps), start_time, end_time, len(profiles)
 
 
@@ -473,12 +433,12 @@ async def get_experiment_info(
     experiment_id: str,
     workspace_path: str = Query(..., description="Workspace root path"),
 ) -> ExperimentInfo:
-    db_path = get_db_path(workspace_path, hypothesis_id, experiment_id)
+    replay_dir = get_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
-    async for session in get_db_session(db_path):
-        datasets = await load_dataset_catalog(session)
+    async with get_replay_reader(replay_dir) as reader:
+        datasets = await load_dataset_catalog(reader)
         total_steps, start_time, end_time, agent_count = await _get_experiment_summary(
-            session, datasets
+            reader, datasets
         )
         return ExperimentInfo(
             hypothesis_id=hypothesis_id,
@@ -498,10 +458,10 @@ async def get_replay_datasets(
     experiment_id: str,
     workspace_path: str = Query(..., description="Workspace root path"),
 ) -> ReplayDatasetList:
-    db_path = get_db_path(workspace_path, hypothesis_id, experiment_id)
+    replay_dir = get_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
-    async for session in get_db_session(db_path):
-        datasets = await load_dataset_catalog(session)
+    async with get_replay_reader(replay_dir) as reader:
+        datasets = await load_dataset_catalog(reader)
         return ReplayDatasetList(
             datasets=[_dataset_to_response(dataset) for dataset in datasets]
         )
@@ -517,10 +477,10 @@ async def get_replay_dataset(
     dataset_id: str,
     workspace_path: str = Query(..., description="Workspace root path"),
 ) -> ReplayDatasetInfo:
-    db_path = get_db_path(workspace_path, hypothesis_id, experiment_id)
+    replay_dir = get_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
-    async for session in get_db_session(db_path):
-        dataset = await get_dataset_by_id(session, dataset_id)
+    async with get_replay_reader(replay_dir) as reader:
+        dataset = await get_dataset_by_id(reader, dataset_id)
         return _dataset_to_response(dataset)
 
 
@@ -550,12 +510,12 @@ async def get_replay_dataset_rows(
         description="Return only the latest row per entity",
     ),
 ) -> ReplayDatasetRows:
-    db_path = get_db_path(workspace_path, hypothesis_id, experiment_id)
+    replay_dir = get_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
-    async for session in get_db_session(db_path):
-        dataset = await get_dataset_by_id(session, dataset_id)
+    async with get_replay_reader(replay_dir) as reader:
+        dataset = await get_dataset_by_id(reader, dataset_id)
         rows = await query_dataset_rows(
-            session,
+            reader,
             dataset,
             page=page,
             page_size=page_size,
@@ -586,11 +546,11 @@ async def get_replay_panel_schema(
     experiment_id: str,
     workspace_path: str = Query(..., description="Workspace root path"),
 ) -> ReplayPanelSchema:
-    db_path = get_db_path(workspace_path, hypothesis_id, experiment_id)
+    replay_dir = get_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
-    async for session in get_db_session(db_path):
-        datasets = await load_dataset_catalog(session)
-        agent_profile_dataset = await _get_agent_profile_dataset(session, datasets)
+    async with get_replay_reader(replay_dir) as reader:
+        datasets = await load_dataset_catalog(reader)
+        agent_profile_dataset = await _get_agent_profile_dataset(reader, datasets)
         agent_state_datasets = _list_agent_state_datasets(datasets)
         env_state_datasets = _list_env_state_datasets(datasets)
         geo_dataset = _select_geo_dataset(datasets)
@@ -630,10 +590,10 @@ async def get_replay_step_bundle(
     step: int,
     workspace_path: str = Query(..., description="Workspace root path"),
 ) -> ReplayStepBundle:
-    db_path = get_db_path(workspace_path, hypothesis_id, experiment_id)
+    replay_dir = get_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
-    async for session in get_db_session(db_path):
-        datasets = await load_dataset_catalog(session)
+    async with get_replay_reader(replay_dir) as reader:
+        datasets = await load_dataset_catalog(reader)
         agent_state_datasets = _list_agent_state_datasets(datasets)
         env_state_datasets = _list_env_state_datasets(datasets)
         geo_dataset = _select_geo_dataset(datasets)
@@ -644,7 +604,7 @@ async def get_replay_step_bundle(
         step_timestamp: Optional[datetime] = None
         agent_state_rows: Dict[str, ReplayAgentStateAtStep] = {}
         for dataset in agent_state_datasets:
-            rows_result = await fetch_dataset_rows(session, dataset, step=step)
+            rows_result = await fetch_dataset_rows(reader, dataset, step=step)
             entity_key = dataset.get("entity_key")
             if not entity_key:
                 continue
@@ -665,7 +625,7 @@ async def get_replay_step_bundle(
 
         env_state_rows: Dict[str, ReplayEnvStateAtStep] = {}
         for dataset in env_state_datasets:
-            rows_result = await fetch_dataset_rows(session, dataset, step=step, limit=1)
+            rows_result = await fetch_dataset_rows(reader, dataset, step=step, limit=1)
             row = rows_result["rows"][0] if rows_result["rows"] else None
             env_state_rows[dataset["dataset_id"]] = ReplayEnvStateAtStep(
                 dataset=_dataset_ref(dataset),
@@ -695,30 +655,34 @@ async def get_timeline(
     experiment_id: str,
     workspace_path: str = Query(..., description="Workspace root path"),
 ) -> List[TimelinePoint]:
-    db_path = get_db_path(workspace_path, hypothesis_id, experiment_id)
+    replay_dir = get_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
-    async for session in get_db_session(db_path):
-        datasets = await load_dataset_catalog(session)
+    async with get_replay_reader(replay_dir) as reader:
+        datasets = await load_dataset_catalog(reader)
         timeline_dataset = _select_timeline_dataset(datasets)
         if timeline_dataset is None:
             return []
 
-        table = await reflect_dataset_table(session, timeline_dataset)
         step_key = timeline_dataset["step_key"]
         time_key = timeline_dataset["time_key"]
-        if step_key not in table.c or time_key not in table.c:
-            return []
-
-        result = await session.execute(
-            select(table.c[step_key], func.min(table.c[time_key]))
-            .group_by(table.c[step_key])
-            .order_by(table.c[step_key])
+        rows_result = await fetch_dataset_rows(
+            reader,
+            timeline_dataset,
+            columns=[step_key, time_key],
+            order_by=step_key,
         )
-        timeline: List[TimelinePoint] = []
-        for step_value, time_value in result.all():
-            timestamp = _coerce_datetime(time_value)
-            if timestamp is None:
+        by_step: Dict[int, datetime] = {}
+        for row in rows_result["rows"]:
+            raw_step = row.get(step_key)
+            timestamp = _coerce_datetime(row.get(time_key))
+            if raw_step is None or timestamp is None:
                 continue
+            step_value = int(raw_step)
+            current = by_step.get(step_value)
+            if current is None or timestamp < current:
+                by_step[step_value] = timestamp
+        timeline: List[TimelinePoint] = []
+        for step_value, timestamp in sorted(by_step.items()):
             timeline.append(TimelinePoint(step=int(step_value), t=timestamp))
         return timeline
 
@@ -732,9 +696,9 @@ async def get_agent_profiles(
     experiment_id: str,
     workspace_path: str = Query(..., description="Workspace root path"),
 ) -> List[AgentProfile]:
-    db_path = get_db_path(workspace_path, hypothesis_id, experiment_id)
+    replay_dir = get_replay_dir(workspace_path, hypothesis_id, experiment_id)
 
-    async for session in get_db_session(db_path):
-        datasets = await load_dataset_catalog(session)
-        profiles = await _load_agent_profiles(session, datasets)
+    async with get_replay_reader(replay_dir) as reader:
+        datasets = await load_dataset_catalog(reader)
+        profiles = await _load_agent_profiles(reader, datasets)
         return sorted(profiles.values(), key=lambda profile: profile.id)

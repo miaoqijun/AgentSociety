@@ -4,14 +4,6 @@ The experience loop turns finished analysis work into reviewable long-term asset
 It is deliberately conservative: the harness may draft lessons, but promotion is an
 explicit action and user preferences require user confirmation.
 
-## Activation by stage
-
-| When                      | Command / skill                                              |
-| ------------------------- | ------------------------------------------------------------ |
-| Stage 1 after `intake`    | `memory-context`                                             |
-| Stage 6 Part C (epilogue) | User debrief → `draft-reflection` → … → `promote-reflection` |
-| Next analysis             | `intake` / `run-loop` auto-inject promoted memory            |
-
 ## Flow
 
 ```text

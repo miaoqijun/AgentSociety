@@ -106,13 +106,15 @@ intervene() 方法 - 读写修改
 
 .. code-block:: python
 
-   from datetime import datetime, timedelta
+   from datetime import datetime
 
-   # Create and initialize society
+   # Create and initialize society（agent_specs + agent_class_name + env_router）
    society = AgentSociety(
-       agents=agents,
+       agent_specs=agent_specs,
+       agent_class_name="PersonAgent",
        env_router=env_router,
        start_t=datetime.now(),
+       run_dir=__import__("pathlib").Path("run"),
    )
    await society.init()
 
@@ -139,12 +141,12 @@ intervene() 方法 - 读写修改
 
 .. code-block:: python
 
-   # Collect responses from all agents
-   for agent in agents:
+   # Collect responses from all agents（按 spec 的 id 提问）
+   for spec in agent_specs:
        response = await society.ask(
-           f"Agent {agent.id}, how do you feel about the current situation?"
+           f"Agent {spec['id']}, how do you feel about the current situation?"
        )
-       print(f"Agent {agent.id}: {response}")
+       print(f"Agent {spec['id']}: {response}")
        # Store for analysis
 
    # Collect survey responses
@@ -153,9 +155,9 @@ intervene() 方法 - 读写修改
        "What would improve your quality of life?",
    ]
 
-   for agent in agents:
+   for spec in agent_specs:
        for question in survey_questions:
-           answer = await society.ask(f"Agent {agent.id}: {question}")
+           answer = await society.ask(f"Agent {spec['id']}: {question}")
            # Save answer to database or file
 
 使用 ReplayWriter 进行环境数据收集
@@ -164,24 +166,23 @@ intervene() 方法 - 读写修改
 .. code-block:: python
 
    from pathlib import Path
-   from agentsociety2.storage import ReplayWriter
 
-   writer = ReplayWriter(Path("experiment.db"))
-   await writer.init()
-
+   # replay 默认开启，写入 run_dir/replay/；环境 replay dataset 自动记录
    society = AgentSociety(
-       agents=agents,
+       agent_specs=agent_specs,
+       agent_class_name="PersonAgent",
        env_router=env_router,
        start_t=datetime.now(),
-       replay_writer=writer,
+       run_dir=Path("run"),
+       enable_replay=True,
    )
    await society.init()
 
-   # Run simulation - environment replay datasets are recorded to SQLite
+   # Run simulation - environment replay datasets are recorded to sharded JSONL
    await society.run(num_steps=10, tick=3600)
 
-   # Query replay catalog or environment tables later
-   # sqlite3 experiment.db "SELECT * FROM replay_dataset_catalog;"
+   # Query replay catalog or environment tables later with ReplayReader
+   # ReplayReader("run/replay").load_dataset_catalog()
 
    await society.close()
 
@@ -213,15 +214,15 @@ intervene() 方法 - 读写修改
 
 .. code-block:: python
 
-   # Control group - no policy
-   control_agents = [PersonAgent(id=i, profile=...) for i in range(1, 11)]
-   control_society = AgentSociety(agents=control_agents, ...)
+   # Control group - no policy（以 spec 声明，不实例化 agent）
+   control_specs = [{"id": i, "profile": {...}, "config": {}} for i in range(1, 11)]
+   control_society = AgentSociety(agent_specs=control_specs, agent_class_name="PersonAgent", ...)
    await control_society.init()
    await control_society.run(num_steps=10, tick=3600)
 
    # Treatment group - with policy intervention
-   treatment_agents = [PersonAgent(id=i+10, profile=...) for i in range(10)]
-   treatment_society = AgentSociety(agents=treatment_agents, ...)
+   treatment_specs = [{"id": i + 10, "profile": {...}, "config": {}} for i in range(10)]
+   treatment_society = AgentSociety(agent_specs=treatment_specs, agent_class_name="PersonAgent", ...)
    await treatment_society.init()
 
    # Implement policy

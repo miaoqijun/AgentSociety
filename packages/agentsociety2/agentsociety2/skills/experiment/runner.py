@@ -163,8 +163,8 @@ async def get_experiment_status(
     status = "not_initialized"
     if exp_paths["init_config"].exists():
         status = "configured"
-    # Check for completion: sqlite.db in run/ directory
-    if (exp_paths["run"] / "sqlite.db").exists():
+    # Check for completion: replay schema in run/replay/ directory
+    if (exp_paths["run"] / "replay" / "_schema.json").exists():
         status = "completed"
 
     # Check for PID file to determine if running
@@ -200,7 +200,7 @@ async def get_experiment_status(
                         status = "running"
                     except OSError:
                         if pid_status == "running" and status not in {"completed", "failed"}:
-                            if (exp_paths["run"] / "sqlite.db").exists():
+                            if (exp_paths["run"] / "replay" / "_schema.json").exists():
                                 status = "completed"
                             else:
                                 status = "failed"
@@ -256,12 +256,12 @@ async def list_experiments(
         Note:
             - has_init: checks init/init_config.json (simplified structure)
             - has_run: checks run/ directory exists
-            - is_completed: checks run/sqlite.db exists
+            - is_completed: checks run/replay/_schema.json exists
         """
         # Check for init_config.json directly in init/ (simplified structure)
         has_init = (exp_dir / "init" / "init_config.json").exists()
         has_run = (exp_dir / "run").exists()
-        is_completed = (exp_dir / "run" / "sqlite.db").exists()
+        is_completed = (exp_dir / "run" / "replay" / "_schema.json").exists()
 
         pid = None
         is_running = False

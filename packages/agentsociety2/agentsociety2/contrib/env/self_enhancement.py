@@ -1,6 +1,6 @@
 """
 Self-Enhancement Experiment Environment
-Environment for Self-Enhancement (SE) experiment based on V2 framework
+Environment for Self-Enhancement (SE) experiment based on AgentSociety2
 """
 import asyncio
 from datetime import datetime
@@ -45,7 +45,7 @@ VALID_DIMENSIONS = [
 
 
 class SelfEnhancementEnv(EnvBase):
-    """Environment for Self-Enhancement (SE) experiment based on V2 framework"""
+    """Environment for Self-Enhancement (SE) experiment based on AgentSociety2"""
 
     _agent_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("rankings", "JSON", nullable=False),
@@ -75,9 +75,9 @@ class SelfEnhancementEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Includes parameter descriptions and JSON schemas for data models.
         """
         description = f"""{cls.__name__}: Self-Enhancement experiment environment module.
@@ -96,52 +96,10 @@ class SelfEnhancementEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        return f"""You are a Self-Enhancement experiment environment module specialized in managing self-evaluation assessments.
-
-**Experiment Overview:** {self.num_agents} agents are participating in a self-enhancement evaluation study.
-
-**Experiment Task:**
-You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to the Tsinghua University student population. A percentile of 50 means you are at the median (average), 75 means you are better than 75% of students, 25 means you are better than 25% of students.
-
-**8 Evaluation Dimensions:**
-1. **INTELLIGENCE** - Your intellectual ability and cognitive capacity
-2. **COOPERATION** - Your ability to work collaboratively with others
-3. **APPEARANCE** - Your physical appearance and attractiveness
-4. **MORALITY** - Your moral character and ethical behavior
-5. **SOCIABILITY** - Your social skills and ability to interact with others
-6. **HEALTH** - Your physical health and well-being
-7. **HONESTY** - Your honesty and truthfulness
-8. **GENEROSITY** - Your generosity and willingness to help others
-
-**Evaluation Instructions:**
-- Consider your psychological profile and characteristics when making evaluations
-- Be honest but also consider your self-perception
-- Each dimension should be evaluated independently
-- Percentile rankings range from 0 to 100
-- You must complete all 8 dimensions
-
-**Available Operations (you MUST use these within your plan):**
-1. **submit_ranking(agent_id, dimension, percentile)**: Submit your percentile ranking for a dimension
-   - agent_id: Your agent ID (e.g., 101)
-   - dimension: One of the 8 dimensions (INTELLIGENCE, COOPERATION, APPEARANCE, MORALITY, SOCIABILITY, HEALTH, HONESTY, GENEROSITY)
-   - percentile: Your percentile ranking (0-100, integer)
-   - You can submit rankings for multiple dimensions, but each dimension can only be submitted once
-   - You MUST complete all 8 dimensions
-
-2. **get_my_rankings(agent_id)**: View your submitted rankings
-   - agent_id: Your agent ID
-   - Returns: Your current rankings, completed dimensions, and remaining dimensions
-   - Use this to track your progress and see which dimensions you still need to evaluate
-
-**CRITICAL CONSTRAINT:**
-⚠️ You MUST submit rankings for all 8 dimensions.
-⚠️ Each dimension can only be submitted once - you cannot change your ranking after submission.
-⚠️ Percentile must be an integer between 0 and 100.
-⚠️ Consider your psychological profile when making evaluations - your self-perception is important.
-"""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Self-Enhancement experiment environment for self-evaluation assessments."
 
     @tool(readonly=False)
     async def submit_ranking(
@@ -287,22 +245,5 @@ You need to evaluate your percentile ranking (0-100) in 8 dimensions relative to
             agent_id: rankings.copy()
             for agent_id, rankings in self._rankings.items()
         }
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "agent_ids": self.agent_ids,
-            "num_agents": self.num_agents,
-            "rankings": self._rankings,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.agent_ids = state.get("agent_ids", [])
-        self.num_agents = state.get("num_agents", 0)
-        self._rankings = state.get("rankings", {})
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["VALID_DIMENSIONS", "SelfEnhancementEnv"]

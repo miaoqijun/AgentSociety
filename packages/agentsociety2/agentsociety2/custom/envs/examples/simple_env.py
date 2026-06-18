@@ -32,9 +32,14 @@ class SimpleEnv(EnvBase):
         self._counter = config.initial_value
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def description(cls) -> str:
+        """返回环境模块短说明。"""
+        return "简单计数器环境，提供计数观察和增减操作。"
+
+    @classmethod
+    def init_description(cls) -> str:
         """
-        返回环境模块的描述信息
+        返回环境模块初始化参数说明
         """
         return """SimpleEnv: 简单的计数器环境示例
 

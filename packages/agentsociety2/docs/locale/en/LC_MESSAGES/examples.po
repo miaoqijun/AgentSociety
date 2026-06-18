@@ -6,7 +6,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-03-06 00:15+0800\n"
@@ -208,12 +208,3 @@ msgstr "PlanExecuteRouter: Plan-first execution"
 #: ../../examples.rst:107
 msgid "CodeGenRouter: 生成代码执行（推荐）"
 msgstr "CodeGenRouter: Generate code to execute (recommended)"
-
-#~ msgid "设置 ReplayWriter 用于自动数据捕获"
-#~ msgstr "Setting up ReplayWriter for automatic data capture"
-
-#~ msgid "记录智能体配置文件、对话和状态"
-#~ msgstr "Recording agent profiles, dialogues, and states"
-
-#~ msgid "读回记录的数据进行分析"
-#~ msgstr "Reading back recorded data for analysis"

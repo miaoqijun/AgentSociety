@@ -122,8 +122,10 @@ init_config.json
    {
        "agents": [
            {
-               "id": 1,
-               "profile": {
+               "agent_id": 1,
+               "agent_type": "PersonAgent",
+               "kwargs": {
+                   "id": 1,
                    "name": "Alice",
                    "personality": "friendly"
                }
@@ -131,13 +133,14 @@ init_config.json
        ],
        "env_modules": [
            {
-               "module": "agentsociety2.contrib.env:SimpleSocialSpace",
-               "config": {}
+               "module_type": "SimpleSocialSpace",
+               "kwargs": {
+                   "agent_id_name_pairs": [[1, "Alice"]]
+               }
            }
        ],
-       "env_router": "agentsociety2.env:CodeGenRouter",
-       "storage": {
-           "db_path": "sqlite.db"
+       "codegen_router": {
+           "final_summary_enabled": true
        }
    }
 
@@ -148,17 +151,17 @@ steps.yaml
 
 .. code-block:: yaml
 
+   start_t: "2026-01-01T00:00:00"
    steps:
      - type: ask
-       content: "Introduce yourself to the group"
-       save_artifact: true
+       question: "Introduce yourself to the group"
 
-     - type: step
+     - type: run
+       num_steps: 1
        tick: 3600
 
      - type: intervene
-       content: "Make everyone feel better"
-       save_artifact: true
+       instruction: "Make everyone feel better"
 
 步骤类型
 ~~~~~~~~~~~~~
@@ -185,7 +188,9 @@ steps.yaml
    hypothesis_1/experiment_1/run/
    ├── pid.json              # 进程信息（PID、启动时间、状态）
    ├── output.log            # 日志文件（如果指定了 --log-file）
-   ├── sqlite.db             # SQLite 数据库
+   ├── replay/               # _schema.json + sharded JSONL replay datasets
+   ├── trace/                # sharded JSONL trace spans
+   ├── agents/               # agent workspaces
    └── artifacts/            # 步骤产物（如果启用了 save_artifact）
        ├── step_1_ask.json
        ├── step_2_intervene.json
@@ -256,5 +261,10 @@ pid.json 格式
    # 4. 监控运行
    tail -f my_experiment/run/output.log
 
-   # 5. 完成后分析结果
-   sqlite3 my_experiment/run/sqlite.db "SELECT dataset_id, table_name FROM replay_dataset_catalog;"
+   # 5. 完成后检查 replay catalog
+   python - <<'PY'
+   from agentsociety2.storage import ReplayReader
+   reader = ReplayReader("my_experiment/run/replay")
+   print([d["dataset_id"] for d in reader.load_dataset_catalog()])
+   reader.close()
+   PY

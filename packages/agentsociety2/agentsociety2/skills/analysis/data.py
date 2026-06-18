@@ -1,4 +1,4 @@
-"""数据层：SQLite 读取（`DataReader`）、实验目录上下文（`ContextLoader`）。"""
+"""数据层：replay/SQLite 读取（`DataReader`）、实验目录上下文（`ContextLoader`）。"""
 
 import sqlite3
 from dataclasses import dataclass, field
@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from agentsociety2.logger import get_logger
+from agentsociety2.storage.replay_reader import ReplayReader
 
 from .models import (
+    DIR_REPLAY,
     ExperimentContext,
     ExperimentDesign,
     ExperimentStatus,
@@ -33,6 +35,19 @@ def _sanitize_id(raw: str) -> str:
     import re
     s = re.sub(r"[^a-zA-Z0-9_-]", "", s)
     return s or "unknown"
+
+
+def _resolve_replay_dir(path: Path) -> Path | None:
+    p = Path(path)
+    candidates: list[Path] = []
+    if p.is_dir():
+        candidates.extend([p, p / DIR_REPLAY])
+    else:
+        candidates.append(p.parent / DIR_REPLAY)
+    for candidate in candidates:
+        if (candidate / "_schema.json").exists():
+            return candidate
+    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -98,14 +113,72 @@ class DataSummary:
 # ─────────────────────────────────────────────────────────────────────────
 
 class DataReader:
-    """数据库读取和理解"""
+    """Replay/数据库读取和理解"""
 
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
+        self.replay_dir = _resolve_replay_dir(self.db_path)
         self.logger = logger
+
+    def _read_replay_schema(self) -> DatabaseSchema:
+        if self.replay_dir is None:
+            return DatabaseSchema(tables=[], columns={}, row_counts={})
+        reader = ReplayReader(self.replay_dir)
+        try:
+            columns_by_table: Dict[str, List[Dict[str, Any]]] = {}
+            row_counts: Dict[str, int] = {}
+            for dataset in reader.load_dataset_catalog():
+                table = dataset["table_name"]
+                dataset_meta = {
+                    key: dataset.get(key)
+                    for key in (
+                        "dataset_id",
+                        "kind",
+                        "title",
+                        "description",
+                        "entity_key",
+                        "step_key",
+                        "time_key",
+                        "default_order",
+                        "capabilities",
+                    )
+                }
+                pk_columns = {
+                    key for key in (dataset.get("entity_key"), dataset.get("step_key")) if key
+                }
+                columns_by_table[table] = [
+                    {
+                        "name": column.get("column_name"),
+                        "type": column.get("sqlite_type", "TEXT"),
+                        "logical_type": column.get("logical_type"),
+                        "analysis_role": column.get("analysis_role"),
+                        "title": column.get("title"),
+                        "description": column.get("description"),
+                        "unit": column.get("unit"),
+                        "enum_values": column.get("enum_values"),
+                        "example": column.get("example"),
+                        "notnull": not bool(column.get("nullable", True)),
+                        "pk": column.get("column_name") in pk_columns,
+                        "tags": list(column.get("tags") or []),
+                        "dataset": dataset_meta,
+                    }
+                    for column in dataset.get("columns", [])
+                ]
+                row_counts[table] = reader.count_dataset_rows(dataset)
+            markdown = self._format_schema_markdown(columns_by_table, row_counts)
+            return DatabaseSchema(
+                tables=list(columns_by_table.keys()),
+                columns=columns_by_table,
+                row_counts=row_counts,
+                markdown=markdown,
+            )
+        finally:
+            reader.close()
 
     def read_schema(self) -> DatabaseSchema:
         """读取数据库 Schema"""
+        if self.replay_dir is not None:
+            return self._read_replay_schema()
         if not self.db_path.exists():
             return DatabaseSchema(tables=[], columns={}, row_counts={})
 
@@ -148,6 +221,26 @@ class DataReader:
         limit: int = 5,
     ) -> Dict[str, List[Dict]]:
         """读取样本数据"""
+        if self.replay_dir is not None:
+            reader = ReplayReader(self.replay_dir)
+            try:
+                datasets_by_table = {
+                    dataset["table_name"]: dataset
+                    for dataset in reader.load_dataset_catalog()
+                }
+                if tables is None:
+                    tables = list(datasets_by_table.keys())
+                result: Dict[str, List[Dict]] = {}
+                for table in tables:
+                    dataset = datasets_by_table.get(table)
+                    if dataset is None:
+                        continue
+                    rows = reader.fetch_dataset_rows(dataset, limit=limit)["rows"]
+                    if rows:
+                        result[table] = rows
+                return result
+            finally:
+                reader.close()
         if not self.db_path.exists():
             return {}
 
@@ -176,6 +269,19 @@ class DataReader:
 
     def compute_stats(self, schema: DatabaseSchema) -> DataStats:
         """计算统计摘要"""
+        if self.replay_dir is not None:
+            numeric_stats = self._compute_replay_numeric_stats(schema)
+            categorical_stats = self._compute_replay_categorical_stats(schema)
+            sample_data = self.read_sample_data(schema.tables)
+            quick_stats_md = self._format_quick_stats(
+                schema, numeric_stats, categorical_stats, sample_data
+            )
+            return DataStats(
+                numeric_stats=numeric_stats,
+                categorical_stats=categorical_stats,
+                sample_data=sample_data,
+                quick_stats_md=quick_stats_md,
+            )
         if not self.db_path.exists():
             return DataStats()
 
@@ -211,6 +317,121 @@ class DataReader:
     # ─────────────────────────────────────────────────────────────────────
     # 私有方法
     # ─────────────────────────────────────────────────────────────────────
+
+    def _format_schema_markdown(
+        self,
+        schema: Dict[str, List[Dict[str, Any]]],
+        row_counts: Dict[str, int],
+    ) -> str:
+        if not schema:
+            return "Schema not available"
+        lines: list[str] = []
+        for table_name, columns in schema.items():
+            dataset = columns[0].get("dataset") if columns else None
+            dataset_id = dataset.get("dataset_id") if isinstance(dataset, dict) else table_name
+            lines.append(f"### Dataset: `{dataset_id}`")
+            lines.append(f"- Table: `{table_name}`")
+            lines.append(f"- Rows: {row_counts.get(table_name, 0)}")
+            if isinstance(dataset, dict):
+                if dataset.get("kind"):
+                    lines.append(f"- Kind: `{dataset['kind']}`")
+                if dataset.get("description"):
+                    lines.append(f"- Description: {dataset['description']}")
+            for col in columns:
+                extras = []
+                if col.get("logical_type"):
+                    extras.append(f"logical_type={col['logical_type']}")
+                if col.get("analysis_role"):
+                    extras.append(f"analysis_role={col['analysis_role']}")
+                extra_text = f" [{' ; '.join(extras)}]" if extras else ""
+                lines.append(f"  - {col['name']} ({col['type']}){extra_text}")
+            lines.append("")
+        return "\n".join(lines)
+
+    def _datasets_by_table(self) -> dict[str, dict[str, Any]]:
+        if self.replay_dir is None:
+            return {}
+        reader = ReplayReader(self.replay_dir)
+        try:
+            return {
+                dataset["table_name"]: dataset
+                for dataset in reader.load_dataset_catalog()
+            }
+        finally:
+            reader.close()
+
+    def _compute_replay_numeric_stats(
+        self,
+        schema: DatabaseSchema,
+    ) -> Dict[str, Dict[str, Any]]:
+        if self.replay_dir is None:
+            return {}
+        reader = ReplayReader(self.replay_dir)
+        try:
+            datasets_by_table = {
+                dataset["table_name"]: dataset
+                for dataset in reader.load_dataset_catalog()
+            }
+            result: Dict[str, Dict[str, Any]] = {}
+            for table in schema.tables:
+                dataset = datasets_by_table.get(table)
+                if dataset is None or schema.row_counts.get(table, 0) == 0:
+                    continue
+                table_stats: Dict[str, Any] = {}
+                for col in schema.columns.get(table, []):
+                    if col.get("type", "").upper() not in (
+                        "INTEGER",
+                        "REAL",
+                        "FLOAT",
+                        "DOUBLE",
+                        "NUMERIC",
+                    ):
+                        continue
+                    name = col["name"]
+                    table_stats[name] = {
+                        "min": reader.min_value(dataset, name),
+                        "max": reader.max_value(dataset, name),
+                        "avg": None,
+                        "count": schema.row_counts.get(table, 0),
+                    }
+                if table_stats:
+                    result[table] = table_stats
+            return result
+        finally:
+            reader.close()
+
+    def _compute_replay_categorical_stats(
+        self,
+        schema: DatabaseSchema,
+    ) -> Dict[str, Dict[str, Any]]:
+        if self.replay_dir is None:
+            return {}
+        reader = ReplayReader(self.replay_dir)
+        try:
+            datasets_by_table = {
+                dataset["table_name"]: dataset
+                for dataset in reader.load_dataset_catalog()
+            }
+            result: Dict[str, Dict[str, Any]] = {}
+            for table in schema.tables:
+                dataset = datasets_by_table.get(table)
+                if dataset is None or schema.row_counts.get(table, 0) == 0:
+                    continue
+                table_stats: Dict[str, Any] = {}
+                for col in schema.columns.get(table, []):
+                    if col.get("type", "").upper() not in ("TEXT", "VARCHAR", "CHAR", "STRING"):
+                        continue
+                    name = col["name"]
+                    values = reader.distinct_values(dataset, name)[:5]
+                    table_stats[name] = {
+                        "unique_count": reader.count_distinct(dataset, name),
+                        "top_values": [(value, None) for value in values],
+                    }
+                if table_stats:
+                    result[table] = table_stats
+            return result
+        finally:
+            reader.close()
 
     def _compute_numeric_stats(
         self,
@@ -311,7 +532,7 @@ class DataReader:
         """格式化快速统计为 Markdown"""
         sample_data = sample_data or {}
         lines = ["## Data Overview\n"]
-        lines.append(f"- **Database**: {self.db_path}")
+        lines.append(f"- **Data path**: {self.db_path}")
         lines.append(f"- **Tables**: {len(schema.tables)}")
         lines.append(f"- **Total Rows**: {sum(schema.row_counts.values())}")
         lines.append("")
@@ -471,14 +692,15 @@ class ContextLoader:
         """分析实验状态"""
         import json_repair
 
-        db_path = run_path / FILE_SQLITE
+        replay_dir = run_path / DIR_REPLAY
+        legacy_db_path = run_path / FILE_SQLITE
         pid_file = run_path / FILE_PID
         errors: List[str] = []
         status = ExperimentStatus.UNKNOWN
         completion = 0.0
 
-        if not db_path.exists():
-            return ExperimentStatus.FAILED, 0.0, ["Database file not found"]
+        if not (replay_dir / "_schema.json").exists() and not legacy_db_path.exists():
+            return ExperimentStatus.FAILED, 0.0, ["Replay data not found"]
 
         # 从 pid.json 读取状态
         if pid_file.exists():

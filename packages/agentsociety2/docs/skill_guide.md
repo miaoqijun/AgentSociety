@@ -6,10 +6,13 @@
 
 Skill 是 `PersonAgent` 的行为模块。常见写法有两种：
 
-- **Prompt-only**：只写 `SKILL.md`，适合判断、反思、总结、计划等开放任务。
-- **Subprocess script**：额外提供 Python 脚本，适合确定性计算、格式转换、批处理和可重复的数据维护。
+- **Prompt-only（推荐）**：只写 `SKILL.md`，适合判断、反思、总结、计划等开放任务。
+- **带脚本**：额外提供 Python 脚本，适合确定性计算、格式转换、批处理和可重复的数据维护。
+  脚本默认**在 agent 进程内**经 `entrypoint(argv, ctx)` 执行（毫秒级、并发安全）；无 `entrypoint`
+  时回退到动态包装器，最后才回退到子进程。
 
-与环境交互时，不需要在 frontmatter 里声明特殊 executor；在正文中说明何时使用 `codegen` 工具即可。
+与环境交互时，不需要在 frontmatter 里声明特殊 executor；在正文中说明何时使用 `ask_env` 工具即可。
+完整的设计说明见 `agentsociety2/agent/skills/README.md` 与 :doc:`/agent_skills`。
 
 ## 快速开始
 
@@ -36,13 +39,14 @@ description: 一句话描述功能。什么时候使用。产生什么输出。
 描述触发条件。
 
 ## 输入文件
-- `state/observation.txt`：当前观察（如果存在）
+- 当前 step 的 observation 已在 ReAct 上下文中，不需要从固定文件读取
 - `state/needs.json`：需求状态（如果存在）
+- `AGENT_MEMORY.md`：长期摘要（如果需要）
 
 ## 执行步骤
-1. 首先，用 `workspace_read` 读取需要的文件
+1. 首先，用 `read` 读取需要的 workspace 文件
 2. 然后，分析内容并做出决策
-3. 最后，用 `workspace_write` 写入输出文件
+3. 最后，用 `write` 写入输出文件
 
 ## 输出格式
 \`\`\`json
@@ -56,7 +60,7 @@ description: 一句话描述功能。什么时候使用。产生什么输出。
 
 **输入**：
 \`\`\`
-state/observation.txt: "在公园遇到了Alice"
+ReAct step context: "在公园遇到了Alice"
 \`\`\`
 
 **输出**：
@@ -83,7 +87,9 @@ description: 描述           # 必需：catalog / 选择器用
 ---
 ```
 
-可选：在同目录下放置 ``scripts/<name>.py``，运行时会作为子进程脚本执行；依赖关系写在正文里，由模型按需 ``activate_skill``。
+可选：在同目录下放置 ``scripts/<name>.py``。推荐在脚本顶层定义
+``def entrypoint(argv, ctx) -> str``，运行时会优先在进程内调用它（缓存 import、无 fork）；
+无 ``entrypoint`` 时回退到动态包装器 / 子进程。依赖关系写在正文里，由模型按需 ``activate_skill``。
 
 ### Body（必需）
 
@@ -96,18 +102,20 @@ Body是Markdown格式的行为指南，告诉LLM：
 
 ## 可用的内置工具
 
-Skill的Markdown body中可以指导LLM使用以下工具：
+Skill 的 Markdown body 中可以指导 LLM 使用 ``PersonAgent`` 的 ReAct 工具（注意实际工具名）：
 
 | 工具 | 用途 | 示例 |
 |------|------|------|
-| `workspace_read` | 读取文件 | `workspace_read("state/observation.txt")` |
-| `workspace_write` | 写入文件 | `workspace_write("state/result.json", content)` |
-| `workspace_list` | 列出文件 | `workspace_list(".")` |
-| `codegen` | 执行环境指令 | `codegen("<observe>")` |
-| `bash` | 执行命令 | `bash("echo hello")` |
-| `grep` | 搜索内容 | `grep("pattern", ".")` |
-| `glob` | 文件匹配 | `glob("*.json")` |
-| `done` | 完成执行 | 表示skill执行完毕 |
+| `read` | 读取工作区文件 | `read("state/needs.json")` |
+| `write` | 写入工作区文件 | `write("state/result.json", content)` |
+| `append` | 追加内容 | `append("state/notes.jsonl", line)` |
+| `list` | 列出目录文件 | `list(".")` |
+| `grep` | 在工作区文件中搜索 | `grep("pattern", ".")` |
+| `ask_env` | 向环境路由器发请求 | `ask_env("<observe>")` |
+| `activate_skill` / `read_skill_file` / `execute_skill_script` | 激活/读取/执行其它 skill | 见 :doc:`/agent_skills` |
+| `finish` | 结束当前仿真步 | 带可选 summary |
+
+> 没有 `bash` / `glob` / `codegen` / `batch` 工具；环境交互统一走 `ask_env`。
 
 ## Skill类型
 
@@ -126,9 +134,9 @@ description: Check and record current mood based on recent events.
 Analyze recent events and determine current mood.
 
 ## Input
-- `state/observation.txt`: Current perception
+- Current step context: current observation and available environment context
 - `state/emotion.json`: Current emotional state
-- `state/memory.jsonl`: Recent memories (last 5 lines)
+- `AGENT_MEMORY.md`: Persistent runtime summary, if needed
 
 ## Output
 Write `state/mood.json`:
@@ -161,43 +169,68 @@ script: scripts/calc.py
 ---
 ```
 
-calc.py:
+calc.py（提供 ``entrypoint``，进程内执行；CLI 与 entrypoint 共用同一派发）：
 ```python
 """Calculator skill script."""
 import argparse
+import contextvars
 import json
 from pathlib import Path
+from typing import Any
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--args-json", default="{}")
-    ns = parser.parse_args()
-    args = json.loads(ns.args_json)
+# 用 ContextVar 承载“本次调用的工作区根”，保证多 agent 并发安全
+_WS_ROOT: contextvars.ContextVar[Path | None] = contextvars.ContextVar(
+    "calc_ws_root", default=None
+)
+
+
+def dispatch(args: argparse.Namespace) -> int:
+    ws = _WS_ROOT.get() or Path.cwd()
+    state_dir = ws / "state"
+    state_dir.mkdir(exist_ok=True)
 
     # 计算逻辑。真实项目中不要直接 eval 用户输入。
-    expression = args.get("expression", "0")
+    expression = args.expression
     try:
         result = eval(expression)
         output = {"ok": True, "result": result}
     except Exception as e:
         output = {"ok": False, "error": str(e)}
 
-    # 写入输出
-    state_dir = Path.cwd() / "state"
-    state_dir.mkdir(exist_ok=True)
     (state_dir / "result.json").write_text(
         json.dumps(output, ensure_ascii=False, indent=2)
     )
     print(json.dumps(output))
     return 0
 
+
+def entrypoint(argv: list[str], ctx: Any) -> str:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--args-json", default="{}")
+    ns = parser.parse_args(list(argv))
+    import json as _json
+    ns.expression = _json.loads(ns.args_json or "{}").get("expression", "0")
+    _WS_ROOT.set(Path(str(getattr(ctx, "workspace_root"))).resolve())
+    dispatch(ns)
+    return ""  # 进程内：返回字符串而非依赖 print 捕获
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--args-json", default="{}")
+    ns = parser.parse_args()
+    import json as _json
+    ns.expression = _json.loads(ns.args_json or "{}").get("expression", "0")
+    return dispatch(ns)
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main())  # 子进程回退路径仍可用
 ```
 
 ### 与环境交互
 
-在 SKILL 正文里说明何时调用内置 **`codegen`** 工具即可；不要在 frontmatter 里写 ``executor``（框架不解析）。
+在 SKILL 正文里说明何时调用内置 **`ask_env`** 工具即可；不要在 frontmatter 里写 ``executor``（框架不解析）。
 
 ## 最佳实践
 
@@ -205,9 +238,9 @@ if __name__ == "__main__":
 
 每个 Skill 只做一件事：
 
-- ✅ `cognition`: 生成情绪和意图
-- ✅ `memory`: 写入值得长期保留的记忆
-- ❌ `needs_and_emotion`: 做太多事情
+- ✅ `mood-check`: 只更新当前情绪状态
+- ✅ `social-reflection`: 只更新社交关系
+- ❌ `mood_and_plan`: 做太多事情
 
 ### 2. 在正文写清产出文件
 
@@ -219,7 +252,7 @@ Skill应该优雅处理输入文件不存在的情况：
 
 ```markdown
 ## Input Files
-- `state/observation.txt`: Current observation (skip if missing)
+- Current step context contains the observation; do not assume `state/observation.txt` exists
 - `state/needs.json`: Need state (use defaults if missing)
 ```
 
@@ -232,7 +265,7 @@ Skill应该优雅处理输入文件不存在的情况：
 
 **Input**:
 \`\`\`
-state/observation.txt: "You see a café across the street."
+ReAct step context: "You see a cafe across the street."
 \`\`\`
 
 **Output** (intention.json):
@@ -289,15 +322,15 @@ Reflect on recent social interactions and how they affect relationships.
 - Before making social decisions
 
 ## Input Files
-- `state/observation.txt`: Current perception (may contain social events)
+- Current step context: current perception and recent event text
 - `state/relationships.json`: Current relationship state
-- `state/memory.jsonl`: Recent memories (last 10 lines)
+- `AGENT_MEMORY.md`: Persistent runtime summary, if needed
 - `state/emotion.json`: Current emotional state
 
 ## Execution Steps
 
 1. Read `state/relationships.json` to understand current state
-2. Read recent memories for social interaction context
+2. Read `AGENT_MEMORY.md` if additional background is needed
 3. Consider current emotional state
 4. Reflect on how recent events affect relationships
 5. Write reflection to `state/social_reflection.json`
@@ -324,7 +357,7 @@ Reflect on recent social interactions and how they affect relationships.
 ## Example
 
 **Input**:
-- state/observation.txt: "Alice smiled and offered to help with my project."
+- ReAct step context: "Alice smiled and offered to help with my project."
 - state/relationships.json: Agent 2 (Alice) is an acquaintance with trust 0.3
 
 **Output**:
@@ -379,14 +412,14 @@ A: 创建测试workspace，放置输入文件，运行agent，检查输出文件
 
 ### 与环境交互
 
-使用`codegen`工具与环境交互：
+使用`ask_env`工具与环境交互：
 
 ```markdown
 ## Environment Actions
 
-1. Observe: `codegen("<observe>")`
-2. Move: `codegen("Move to {location}")`
-3. Speak: `codegen("Say '{message}' to {target}")`
+1. Observe: `ask_env("<observe>")`
+2. Move: `ask_env("Move to {location}")`
+3. Speak: `ask_env("Say '{message}' to {target}")`
 ```
 
 ### 时间感知

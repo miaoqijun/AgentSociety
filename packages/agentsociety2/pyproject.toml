@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentsociety2"
-version = "2.5.4"
+version = "2.6.0"
 description = "A modern, LLM-native agent simulation platform for social science research"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -79,6 +79,10 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.46",
     "requests>=2.32.5",
     "protobuf>=4.0.0",
+    "streamlit>=1.58.0",
+    "plotly>=6.8.0",
+    "ray>=2.0.0",
+    "duckdb>=1.4.0",
 ]
 
 [project.scripts]
@@ -176,13 +180,13 @@ DEP003 = ["debugpy"]
 
 [dependency-groups]
 dev = [
+    "matplotlib>=3.10.0",
     "pytest>=9.0.2",
     "pytest-asyncio>=0.23.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = ["3-2", "daily_mobility", ".git", ".venv", "node_modules"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 

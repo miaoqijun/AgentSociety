@@ -57,6 +57,7 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
     unzip \
+    ripgrep \
     && rm -rf /var/lib/apt/lists/*
 
 # apt packages (libreoffice, etc.) may pull in a newer Python into /usr/bin/,

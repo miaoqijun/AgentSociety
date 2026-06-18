@@ -20,14 +20,14 @@ Generation rules:
 - Provide `step()`.
 - Default to no-arg construction.
 - If the module needs observation capability, provide it through one or more `@tool(readonly=True, kind="observe")` methods.
-- Provide a useful `mcp_description()`.
+- Provide a short `description()` and useful `init_description()` for init kwargs.
 - If per-agent state must be persisted to replay, declare `_agent_state_columns` and write through `_write_agent_state()` or `_write_agent_state_batch()`.
 - If global environment state must be persisted to replay, declare `_env_state_columns` and write through `_write_env_state()`.
 - Distinguish `tick` from replay `step`: in `EnvBase.step(self, tick, t)`, `tick` is the duration of one simulation step, not the monotonically increasing step index. Do not use `tick` directly as the primary-key step value for replay tables unless the design explicitly defines them to be the same.
 - If the environment needs per-step replay snapshots, maintain an internal step counter such as `self._tick` / `self._step_index`, increment it once per `step()` call, and use that counter for `_write_agent_state_batch()` / `_write_env_state()` and other step-keyed state like `created_step`.
-- If the module keeps mutable in-memory state that must survive save and restore, implement `_dump_state()` and `_load_state()` for the exact structures that need to round-trip.
-- Persist step counters, IDs, queues, maps, or other reconstruction-critical state in `_dump_state()` when replay tables alone are not enough to restore behavior.
-- Do not add placeholder persistence hooks. Either implement the real replay/dump-load path or keep the module intentionally stateless.
+- If the module keeps mutable in-memory state, treat it as derived/cached: reconstruct it from the constructor kwargs + replay data on each run.
+- Persist step counters, IDs, queues, maps, or other reconstruction-critical state by writing them to replay tables (declare the columns, write via `_write_*`), not via a dump channel.
+- Do not add placeholder persistence hooks. Either implement the real replay-write path or keep the module intentionally stateless.
 
 After writing code, keep lightweight notes only if they help later review:
 

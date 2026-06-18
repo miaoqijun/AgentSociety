@@ -27,7 +27,7 @@ def get_available_env_modules() -> Dict[str, str]:
         env_modules_info = {}
         for module_type, module_class in get_registered_env_modules():
             try:
-                env_modules_info[module_type] = module_class.mcp_description()
+                env_modules_info[module_type] = module_class.description()
             except Exception as e:
                 logger.warning(f"Failed to get description for env module {module_type}: {e}")
                 env_modules_info[module_type] = f"Module type: {module_type}, Class: {module_class.__name__}"
@@ -47,7 +47,7 @@ def get_available_agent_modules() -> Dict[str, str]:
         agents_info = {}
         for agent_type, agent_class in get_registered_agent_modules():
             try:
-                agents_info[agent_type] = agent_class.mcp_description()
+                agents_info[agent_type] = agent_class.description()
             except Exception as e:
                 logger.warning(f"Failed to get description for agent {agent_type}: {e}")
                 agents_info[agent_type] = f"Agent type: {agent_type}, Class: {agent_class.__name__}"

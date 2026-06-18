@@ -27,33 +27,36 @@ export AGENTSOCIETY_LLM_API_BASE="https://api.openai.com/v1"
 export AGENTSOCIETY_LLM_MODEL="gpt-5.5"
 ```
 
-最小示例：
+最小示例（智能体以 spec 元数据声明，由 ``AgentSociety`` 在 ``init`` 时批量创建 workspace）：
 
 ```python
 import asyncio
 from datetime import datetime
+from pathlib import Path
 
-from agentsociety2 import PersonAgent
 from agentsociety2.contrib.env import SimpleSocialSpace
 from agentsociety2.env import CodeGenRouter
 from agentsociety2.society import AgentSociety
 
 
 async def main():
-    agent = PersonAgent(
-        id=1,
-        profile={
-            "name": "Alice",
-            "age": 28,
-            "personality": "friendly and curious",
-        },
-    )
-    social_env = SimpleSocialSpace(agent_id_name_pairs=[(agent.id, agent.name)])
+    agent_specs = [
+        {
+            "id": 1,
+            "profile": {"name": "Alice", "age": 28, "personality": "friendly and curious"},
+            "config": {},
+        }
+    ]
+    names = [(s["id"], s["profile"]["name"]) for s in agent_specs]
+
+    social_env = SimpleSocialSpace(agent_id_name_pairs=names)
     env_router = CodeGenRouter(env_modules=[social_env])
     society = AgentSociety(
-        agents=[agent],
+        agent_specs=agent_specs,
+        agent_class_name="PersonAgent",
         env_router=env_router,
         start_t=datetime.now(),
+        run_dir=Path("run"),
     )
 
     await society.init()
@@ -66,12 +69,13 @@ asyncio.run(main())
 
 ## 核心概念
 
-- **PersonAgent**：默认人物智能体。采用 metadata-first 的 skill 选择模型，每个 step 通过工具循环按需激活技能。
-- **Agent Skills**：内置 `observation`、`cognition`、`plan`、`memory`，自定义技能放在 `custom/skills/`。
-- **Environment Modules**：继承 `EnvBase`，通过 `@tool` 暴露可观察、统计和读写工具。
-- **CodeGenRouter**：推荐的环境路由器，将自然语言环境指令转换为可执行工具调用。
-- **ReplayWriter**：SQLite replay dataset 写入器。新实验使用 catalog-driven dataset，不再写旧的 `agent_profile` / `agent_status` / `agent_dialog` 表。
-- **Agent Workspace**：每个 `PersonAgent` 在 `run/agents/agent_xxxx/` 下维护本地状态、线程日志和工具调用记录。
+- **PersonAgent / AgentBase**：默认人物智能体。基于 `AgentBase`（直接拥有 workspace / 技能运行时 / ReAct 循环 / TODO / trace），作为 workspace 绑定的**无状态 record**，由 Ray Task 流式驱动。
+- **Agent Skills**：metadata-first 的 skill 选择模型；当前唯一内置技能是 `daily-guidance`，自定义技能放在 `custom/skills/`。脚本默认经进程内 `entrypoint(argv, ctx)` 执行。
+- **Environment Modules**：继承 `EnvBase`，通过 `@tool` 暴露可观察、统计和读写工具；生产环境路由跑在专用 Ray actor 里。
+- **ServiceProxy**：把 env / LLM clients / trace / replay 句柄收口为单一容器注入 agent。
+- **CodeGenRouter**：推荐的环境路由器（另有 ReAct / Plan-Execute / Two-Tier / Search 路由器可选）。
+- **ReplayWriter / ReplayReader / Trace**：`run/replay/` 下的 sharded JSONL replay dataset、`_schema.json` catalog 与 DuckDB 读侧 + 分布式 trace span。新实验不再写旧的 `sqlite.db`、`agent_profile` / `agent_status` / `agent_dialog` 表。
+- **Agent Workspace**：每个 `PersonAgent` 在 `run/agents/agent_xxxx/` 下维护 `config.json` / `AGENT.json` / `state/*` / `.runtime/logs/*`。
 
 ## 配置
 
@@ -126,12 +130,9 @@ python -m agentsociety2.backend.run
 
 ## 文档与开发
 
-- 在线文档（英文）：https://agentsociety2.readthedocs.io/
-- 在线文档（中文）：https://agentsociety2.readthedocs.io/zh_CN/latest/
-- 仓库根目录中文说明：[../../README_zh.md](../../README_zh.md)
+- 在线文档：https://agentsociety2.readthedocs.io/
 - 开发指南：[docs/development.rst](./docs/development.rst)
 - 贡献指南：[../../CONTRIBUTING.md](../../CONTRIBUTING.md)
-- 安全政策：[../../SECURITY.md](../../SECURITY.md)
 
 开发常用命令：
 

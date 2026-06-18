@@ -8,9 +8,12 @@
 
 AgentSociety 2 围绕三个主要组件构建：
 
-* **智能体 (Agents)**: 使用 LLM 与环境交互的自主实体
+* **智能体 (Agents)**: 使用 LLM 与环境交互的自主实体（workspace 绑定的无状态 record，由 Ray Task 流式驱动）
 * **环境模块 (Environment Modules)**: 定义模拟规则的可组合组件
 * **AgentSociety**: 管理智能体和环境的协调器
+
+智能体不直接持有 env / LLM / trace / replay 等运行时对象，而是经一个 ``ServiceProxy`` 容器接收共享
+服务句柄；环境路由跑在专用 Ray actor 里。详见 :doc:`architecture`。
 
 .. graphviz::
 
@@ -51,15 +54,17 @@ AgentSociety 2 围绕三个主要组件构建：
            label = "核心模拟层";
            style=filled;
            color=lightblue;
-           Society [label="AgentSociety\n协调器"];
-           Router [label="Router\n路由器"];
-           Storage [label="ReplayWriter / Workspace\n存储"];
+           Society [label="AgentSociety\n协调器 (driver)"];
+           Router [label="Router\n(EnvRouterActor)"];
+           Storage [label="ReplayWriter (Actor)\n/ Workspace 存储"];
+           Trace [label="Trace Actor\n(sharded writer)"];
        }
 
        subgraph cluster_agents {
-           label = "智能体层";
+           label = "智能体层 (无状态 record, Ray Task 流式)";
            style=filled;
            color=lightgreen;
+           Proxy [label="ServiceProxy\n(env/llm/trace/replay)", shape=note];
            Agent1 [label="PersonAgent 1"];
            Agent2 [label="PersonAgent 2"];
            AgentN [label="... PersonAgent N"];
@@ -78,7 +83,7 @@ AgentSociety 2 围绕三个主要组件构建：
            label = "外部服务";
            style=filled;
            color=lavender;
-           LLM [label="LLM Provider"];
+           LLM [label="LLM Client\n(per-process dispatcher)"];
        }
 
        CLI -> Society;
@@ -87,18 +92,22 @@ AgentSociety 2 围绕三个主要组件构建：
 
        Society -> Router;
        Society -> Storage;
-       Society -> Agent1;
-       Society -> Agent2;
-       Society -> AgentN;
+       Society -> Trace;
+       Society -> Proxy;
+
+       Proxy -> Agent1;
+       Proxy -> Agent2;
+       Proxy -> AgentN;
 
        Router -> Env1;
        Router -> Env2;
        Router -> EnvN;
 
-       Agent1 -> Router;
+       Agent1 -> Router [label="ask_env"];
        Agent2 -> Router;
        AgentN -> Router;
 
+       Agent1 -> LLM [label="dispatcher"];
        Society -> LLM;
    }
 
@@ -155,6 +164,19 @@ CodeGenRouter 通过以下方式将智能体连接到环境模块：
 4. 将结果返回给智能体
 
 这种方法允许智能体与任何环境模块组合交互，而无需更改代码。
+
+路由器选择
+~~~~~~~~~~~~
+
+``RouterBase`` 有多个实现，可按需替换：
+
+* ``CodeGenRouter`` （默认）：生成调用代码并在沙盒执行，带 AST 守卫与缓存。
+* ``ReActRouter``：ReAct 式工具选择。
+* ``PlanExecuteRouter``：先规划再执行。
+* ``TwoTierReActRouter`` / ``TwoTierPlanExecuteRouter``：两级路由，适合大工具集。
+* ``SearchToolRouter``：以检索方式选择工具。
+
+生产环境下路由跑在专用 Ray actor（``EnvRouterProxy``）里，详见 :doc:`architecture`。
 
 工具类别
 ---------------

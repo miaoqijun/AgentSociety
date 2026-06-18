@@ -1,6 +1,6 @@
 """
 Self-Reference Effect (SRE) Experiment Environment
-Environment for Self-Reference Effect experiment based on V2 framework
+Environment for Self-Reference Effect experiment based on AgentSociety2
 """
 import asyncio
 from datetime import datetime
@@ -60,7 +60,7 @@ class GetRecognitionStatusResponse(BaseModel):
 
 
 class SelfReferenceEffectEnv(EnvBase):
-    """Environment for Self-Reference Effect (SRE) experiment based on V2 framework"""
+    """Environment for Self-Reference Effect (SRE) experiment based on AgentSociety2"""
 
     _agent_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("encoding_ratings", "JSON", nullable=False),
@@ -138,9 +138,9 @@ class SelfReferenceEffectEnv(EnvBase):
         return ["聪明", "勇敢", "懒惰", "自私"]
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP environment module candidate list.
+        Return AI-readable initialization guidance for this environment module.
         Includes parameter descriptions and JSON schemas for data models.
         """
         description = f"""{cls.__name__}: Self-Reference Effect experiment environment module.
@@ -161,101 +161,10 @@ class SelfReferenceEffectEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module for router selection and function calling"""
-        # Get encoding traits list for display (only for encoding phase)
-        encoding_traits_str = "\n".join([
-            f"  - {t['trait']} (identity: {t['identity']}, valence: {t.get('valence', 1)})"
-            for t in self.encoding_traits
-        ])
-        
-        return f"""You are a Self-Reference Effect (SRE) experiment environment module specialized in managing memory and recognition tasks.
-
-**Experiment Overview:** {self.num_agents} agents are participating in a self-reference effect study.
-
-**Experiment Structure:**
-The experiment consists of two phases:
-1. **Encoding Phase**: Rate trait adjectives (1-5 scale) associated with different identities (self, friend, other)
-2. **Recognition Phase**: Judge whether trait adjectives were presented in the encoding phase (old/new) and provide Remember/Know judgment
-
-**IMPORTANT: YOU MUST ACTIVELY COMPLETE ALL TASKS**
-
-**Encoding Phase Task:**
-You MUST complete ratings for ALL {len(self.encoding_traits)} encoding traits. The traits you need to rate are:
-{encoding_traits_str}
-
-**STEP-BY-STEP INSTRUCTIONS FOR ENCODING PHASE:**
-1. First, call get_encoding_status(agent_id) to see which traits you still need to rate
-2. For each remaining trait, call submit_encoding_rating(agent_id, trait, identity, rating)
-3. Rating scale (1-5):
-   - 1 = Not at all
-   - 2 = Slightly
-   - 3 = Moderately
-   - 4 = Very well
-   - 5 = Extremely well
-4. Consider your psychological profile when making ratings
-5. Continue until all {len(self.encoding_traits)} traits are rated
-
-**Recognition Phase Task:**
-You MUST complete judgments for ALL {len(self.recognition_traits)} recognition traits. 
-
-**IMPORTANT FOR RECOGNITION PHASE:**
-- You will be presented with trait adjectives one by one
-- You need to judge whether EACH trait was presented in the encoding phase (old/new)
-- DO NOT assume you know which traits are old or new - rely on your MEMORY of the encoding phase
-- Some traits were in encoding phase (old), some were not (new)
-- You need to use your memory to distinguish between old and new traits
-
-**STEP-BY-STEP INSTRUCTIONS FOR RECOGNITION PHASE:**
-1. First, call get_recognition_status(agent_id) to see which traits you still need to judge
-2. For each remaining trait, call submit_recognition(agent_id, trait, judge_type, rk_type)
-3. Judge whether each trait was in encoding phase based on YOUR MEMORY:
-   - "old" = Yes, you remember it was presented in encoding phase
-   - "new" = No, you do not remember it being presented in encoding phase
-4. For traits judged as "old", you MUST provide rk_type:
-   - "remember" = You remember the specific episode of seeing this trait
-   - "know" = You know it was presented but don't remember the specific episode
-5. Rely on your memory - do not try to systematically check against a list
-6. Consider your memory and self-reference when making judgments
-7. Continue until all {len(self.recognition_traits)} traits are judged
-
-**Available Operations (you MUST use these within your plan):**
-
-1. **get_encoding_status(agent_id)**: View your encoding phase progress
-   - agent_id: Your agent ID
-   - Returns: Completed traits and remaining count
-   - **CALL THIS FIRST** to see what you need to do
-
-2. **submit_encoding_rating(agent_id, trait, identity, rating)**: Submit rating for a trait in encoding phase
-   - agent_id: Your agent ID (e.g., 101)
-   - trait: The trait adjective (e.g., "谦和")
-   - identity: Identity type ("self", "friend", or "other")
-   - rating: Rating score (1-5, integer)
-   - **CALL THIS FOR EACH TRAIT** until all are completed
-
-3. **get_recognition_status(agent_id)**: View your recognition phase progress
-   - agent_id: Your agent ID
-   - Returns: Completed judgments and remaining count
-   - **CALL THIS FIRST** to see what you need to do
-
-4. **submit_recognition(agent_id, trait, judge_type, rk_type=None)**: Submit recognition judgment
-   - agent_id: Your agent ID
-   - trait: The trait adjective
-   - judge_type: "old" or "new"
-   - rk_type: "remember" or "know" (REQUIRED if judge_type is "old")
-   - **CALL THIS FOR EACH TRAIT** until all are completed
-
-**CRITICAL CONSTRAINTS:**
-⚠️ You MUST actively complete ALL tasks - the system will NOT present tasks to you automatically
-⚠️ Start by calling get_encoding_status() to see what needs to be done
-⚠️ In encoding phase, you MUST rate all {len(self.encoding_traits)} traits
-⚠️ Rating must be an integer between 1 and 5
-⚠️ In recognition phase, you MUST judge all {len(self.recognition_traits)} traits
-⚠️ If judge_type is "old", you MUST provide rk_type ("remember" or "know")
-⚠️ Consider your psychological profile and self-reference when making judgments
-⚠️ Work systematically through all tasks - don't skip any!
-"""
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Self-Reference Effect experiment environment for encoding and recognition memory tasks."
 
     @tool(readonly=False)
     async def submit_encoding_rating(
@@ -568,29 +477,5 @@ You MUST complete judgments for ALL {len(self.recognition_traits)} recognition t
                 for agent_id, judgments in self._recognition_judgments.items()
             },
         }
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "agent_ids": self.agent_ids,
-            "num_agents": self.num_agents,
-            "encoding_traits": self.encoding_traits,
-            "recognition_traits": self.recognition_traits,
-            "encoding_ratings": self._encoding_ratings,
-            "recognition_judgments": self._recognition_judgments,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.agent_ids = state.get("agent_ids", [])
-        self.num_agents = state.get("num_agents", 0)
-        self.encoding_traits = state.get("encoding_traits", [])
-        self.recognition_traits = state.get("recognition_traits", [])
-        self._encoding_ratings = state.get("encoding_ratings", {})
-        self._recognition_judgments = state.get("recognition_judgments", {})
-        self._encoding_trait_set = {t["trait"] for t in self.encoding_traits}
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["IdentityType", "SelfReferenceEffectEnv"]

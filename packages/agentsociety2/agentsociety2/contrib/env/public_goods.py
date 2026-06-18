@@ -1,6 +1,6 @@
 """
 Public Goods Game Environment
-Environment for Public Goods Game based on V2 framework
+Environment for Public Goods Game based on AgentSociety2
 """
 import asyncio
 from datetime import datetime
@@ -33,7 +33,7 @@ class GetRoundResultResponse(BaseModel):
 
 
 class PublicGoodsEnv(EnvBase):
-    """Environment for Public Goods Game based on V2 framework"""
+    """Environment for Public Goods Game based on AgentSociety2"""
 
     _env_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("round_number", "INTEGER", nullable=False),
@@ -76,8 +76,8 @@ class PublicGoodsEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
-        """Return a description text for MCP environment module candidate list"""
+    def init_description(cls) -> str:
+        """Return AI-readable initialization guidance for this environment module"""
         description = f"""{cls.__name__}: Public Goods Game environment module.
 
 **Description:** Manages a Public Goods Game where agents contribute to a public fund. Contributions are multiplied and divided equally among all players.
@@ -98,41 +98,10 @@ class PublicGoodsEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module"""
-        return f"""You are a Public Goods Game environment module specialized in managing contributions and collective payoffs.
-
-**Game Overview:** {self.num_agents} agents cooperatively contribute to a shared public fund that benefits everyone.
-
-**Game Rules:**
-- Each round: You receive {self.initial_endowment} coins
-- You choose: Contribute 0 to {self.initial_endowment} coins to public fund
-- Public fund calculation: Total contributions × {self.public_pool_multiplier} multiplier
-- Your payoff = (coins kept) + (share of multiplied fund / {self.num_agents})
-- Example: If you keep 10 and total fund is 40: payoff = 10 + (40×{self.public_pool_multiplier}/{self.num_agents})
-- All agents' past contributions and payoffs are visible
-- Goal: Maximize cumulative coins over 10 rounds
-
-**Available Operations (you MUST use these within your plan):**
-1. **submit_contribution(agent_name, contribution)**: Submit your contribution
-   - agent_name: Your full name (e.g., "Agent-1")
-   - contribution: 0 to {self.initial_endowment} coins
-   - You MUST submit exactly once per round before round executes
-   - Contributing more benefits everyone, but reduces your private coins
-
-2. **get_round_history(round_num=None)**: View past results
-   - Returns: All rounds or specific round data
-   - Shows: Each agent's contribution, total fund, gain per agent, individual payoffs
-   - Use to analyze others' strategies and plan accordingly
-
-**CRITICAL CONSTRAINT:**
-⚠️ You MUST submit your contribution (call submit_contribution) within your plan for this round.
-The environment executes the round when all agents submit.
-If you don't submit, the round execution is delayed.
-Submissions are final - cannot change contribution after submitting.
-"""
-
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Public Goods game environment for contribution and collective payoff decisions."
     @tool(readonly=False)
     async def submit_contribution(
         self, agent_name: str, contribution: int
@@ -267,30 +236,5 @@ Submissions are final - cannot change contribution after submitting.
             public_pool_multiplier=self.public_pool_multiplier,
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "num_agents": self.num_agents,
-            "initial_endowment": self.initial_endowment,
-            "public_pool_multiplier": self.public_pool_multiplier,
-            "round_number": self.round_number,
-            "round_history": self.round_history,
-            "pending_contributions": self._pending_contributions,
-            "agents_submitted_in_current_round": list(self._agents_submitted_in_current_round),
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.num_agents = state.get("num_agents", 4)
-        self.initial_endowment = state.get("initial_endowment", 20)
-        self.public_pool_multiplier = state.get("public_pool_multiplier", 1.6)
-        self.round_number = state.get("round_number", 0)
-        self.round_history = state.get("round_history", [])
-        self._pending_contributions = state.get("pending_contributions", {})
-        self._agents_submitted_in_current_round = set(state.get("agents_submitted_in_current_round", []))
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["PublicGoodsEnv"]

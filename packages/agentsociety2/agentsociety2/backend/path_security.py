@@ -78,6 +78,24 @@ def resolve_experiment_db(
     return db_path
 
 
+def resolve_experiment_replay_dir(
+    workspace_path: str,
+    hypothesis_id: str,
+    experiment_id: str,
+) -> Path:
+    replay_dir = resolve_under_root(
+        resolve_experiment_dir(workspace_path, hypothesis_id, experiment_id),
+        "run",
+        "replay",
+    )
+    if not replay_dir.is_dir():
+        raise HTTPException(status_code=404, detail=f"Replay directory not found: {replay_dir}")
+    schema_path = replay_dir / "_schema.json"
+    if not schema_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Replay schema not found: {schema_path}")
+    return replay_dir
+
+
 def resolve_artifact_path(
     workspace_path: str,
     hypothesis_id: str,

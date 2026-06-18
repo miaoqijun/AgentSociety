@@ -31,7 +31,8 @@ The orchestrator will provide:
 5. Use class names as type identifiers (e.g., `PersonAgent`, not `person_agent`)
 6. All parameters go in `kwargs` dictionary
 7. `agent_id` must equal `kwargs.id`
-8. If questionnaire steps are needed, each question must have `id` and `prompt`; choice questions must have `choices`
+8. Agent `kwargs` mixes persona fields (name, age, …) and optional runtime-config keys (`max_react_turns`, `enable_memory`, `enable_todo_list`, `force_template_mode`, `allow_template_mode`, `disabled_skill_ids`, `default_activated_skill_ids`). The CLI splits these into `profile` + `config` automatically — do NOT nest a `profile`/`config` sub-dict in `init_config.json`.
+9. If questionnaire steps are needed, each question must have `id` and `prompt`; choice questions must have `choices`
 9. Keep the total agent count, step count, and per-agent complexity aligned with the provided scale budget. If the budget is partial, choose conservative defaults and surface the unresolved items in the summary.
 
 ## Key Constraints

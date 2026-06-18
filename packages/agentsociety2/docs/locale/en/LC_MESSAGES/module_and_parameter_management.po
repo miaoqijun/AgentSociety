@@ -6,7 +6,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: AgentSociety 2 2.3.0\n"
+"Project-Id-Version: AgentSociety 2 2.6.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-02 22:32+0800\n"
 "PO-Revision-Date: 2026-05-19 00:00+0800\n"
@@ -48,9 +48,7 @@ msgstr "AgentSociety2 supports two types of modules:"
 
 #: ../../module_and_parameter_management.md:13
 msgid "**内置模块 (Built-in Modules)**：位于 `agentsociety2/contrib/` 目录下"
-msgstr ""
-"**内置模块 (Built-in Modules)**: Located in the `agentsociety2/contrib/` "
-"directory"
+msgstr "**Built-in Modules**: located under `agentsociety2/contrib/`"
 
 #: ../../module_and_parameter_management.md:14
 msgid "环境模块：`contrib/env/` 目录"
@@ -66,9 +64,7 @@ msgstr "Core Agent: `PersonAgent` out of `agent/person.py`"
 
 #: ../../module_and_parameter_management.md:18
 msgid "**自定义模块 (Custom Modules)**：位于工作区的 `custom/` 目录下"
-msgstr ""
-"**自定义模块 (Custom Modules)**: Located in the `custom/` directory of the "
-"workspace"
+msgstr "**Custom Modules**: located under workspace `custom/`"
 
 #: ../../module_and_parameter_management.md:19
 msgid "Agent：`custom/agents/` 目录"
@@ -280,17 +276,15 @@ msgstr "Parameters in AgentSociety2 come from three sources:"
 
 #: ../../module_and_parameter_management.md:144
 msgid "**类定义参数**：从模块类的 `__init__` 方法签名中提取"
-msgstr ""
-"**类定义参数**: Extracted from the `__init__` method signature of the module "
-"class"
+msgstr "**Class definition parameters**: extracted from the module class `__init__` signature"
 
 #: ../../module_and_parameter_management.md:145
 msgid "**生成参数**：通过代码生成过程创建的配置"
-msgstr "**生成参数**: Configuration created through the code generation process"
+msgstr "**Generated parameters**: configuration created by the code generation process"
 
 #: ../../module_and_parameter_management.md:146
 msgid "**预填充参数 (Prefill Params)**：用户预先定义的默认参数"
-msgstr "**预填充参数 (Prefill Params)**: Default parameters predefined by the user"
+msgstr "**Prefill Params**: user-defined default parameters"
 
 #: ../../module_and_parameter_management.md:148
 msgid "2.2 参数获取流程"

@@ -1,6 +1,6 @@
 """
 Prisoner's Dilemma Game Environment
-Environment for Prisoner's Dilemma game based on V2 framework
+Environment for Prisoner's Dilemma game based on AgentSociety2
 """
 import asyncio
 from datetime import datetime
@@ -31,7 +31,7 @@ class GetPayoffMatrixResponse(BaseModel):
 
 
 class PrisonersDilemmaEnv(EnvBase):
-    """Environment for Prisoner's Dilemma game based on V2 framework"""
+    """Environment for Prisoner's Dilemma game based on AgentSociety2"""
 
     _env_state_columns: ClassVar[list[ColumnDef]] = [
         ColumnDef("round_number", "INTEGER", nullable=False),
@@ -74,8 +74,8 @@ class PrisonersDilemmaEnv(EnvBase):
         self._step_counter: int = 0
 
     @classmethod
-    def mcp_description(cls) -> str:
-        """Return a description text for MCP environment module candidate list"""
+    def init_description(cls) -> str:
+        """Return AI-readable initialization guidance for this environment module"""
         description = f"""{cls.__name__}: Prisoner's Dilemma game environment module.
 
 **Description:** Manages a Prisoner's Dilemma game where two agents simultaneously choose to cooperate (Yes) or defect (No), with payoffs determined by the payoff matrix.
@@ -98,44 +98,10 @@ class PrisonersDilemmaEnv(EnvBase):
 """
         return description
 
-    @property
-    def description(self):
-        """Description of the environment module"""
-        return f"""You are a Prisoner's Dilemma game environment module specialized in managing simultaneous decisions.
-
-**Game Overview:** Two agents make simultaneous decisions to cooperate or defect, with payoff outcomes based on mutual decisions.
-
-**Game Rules:**
-- Two players: Agent-A and Agent-B
-- Each round: Choose "Yes" (cooperate) or "No" (defect)
-- Payoffs determined by payoff matrix:
-  * Both cooperate (Yes, Yes): {self.payoff_cc} points each
-  * You cooperate, opponent defects (Yes, No): {self.payoff_cd} for you, {self.payoff_dc} for opponent
-  * You defect, opponent cooperates (No, Yes): {self.payoff_dc} for you, {self.payoff_cd} for opponent
-  * Both defect (No, No): {self.payoff_dd} points each
-- Decisions are simultaneous and executed together
-- You won't see opponent's choice until round ends
-
-**Available Operations (you MUST use these within your plan):**
-1. **submit_action(agent_name, action)**: Submit your decision
-   - agent_name: Your full name ("Agent-A" or "Agent-B")
-   - action: "Yes" (cooperate) or "No" (defect)
-   - You MUST submit exactly once per round
-
-2. **get_payoff_matrix()**: View the payoff structure
-   - Returns: All payoff values for different outcome combinations
-   - Use this to make informed strategic decisions
-
-3. **get_round_history(round_num=None)**: View past results
-   - Returns: All rounds or specific round data
-   - Shows: Both players' actions and payoffs per round
-
-**CRITICAL CONSTRAINT:**
-⚠️ You MUST submit your action decision (call submit_action) within your plan for this round.
-The environment executes the round when both agents submit.
-If you don't submit, the round execution is delayed.
-"""
-
+    @classmethod
+    def description(cls) -> str:
+        """Return a short module description."""
+        return "Prisoner's Dilemma game environment for simultaneous cooperation/defection decisions."
     def _calculate_payoff(self, action1: str, action2: str) -> Tuple[int, int]:
         """Calculate payoffs based on actions"""
         action1 = action1.capitalize()
@@ -288,30 +254,5 @@ If you don't submit, the round execution is delayed.
             payoff_dd=self.payoff_dd,
         )
         self._step_counter += 1
-
-    def _dump_state(self) -> dict:
-        """Serialize state"""
-        return {
-            "payoff_cc": self.payoff_cc,
-            "payoff_cd": self.payoff_cd,
-            "payoff_dc": self.payoff_dc,
-            "payoff_dd": self.payoff_dd,
-            "round_number": self.round_number,
-            "round_history": self.round_history,
-            "pending_actions": self._pending_actions,
-            "step_counter": self._step_counter,
-        }
-
-    def _load_state(self, state: dict):
-        """Deserialize state"""
-        self.payoff_cc = state.get("payoff_cc", 3)
-        self.payoff_dc = state.get("payoff_dc", 5)
-        self.payoff_cd = state.get("payoff_cd", 0)
-        self.payoff_dd = state.get("payoff_dd", 1)
-        self.round_number = state.get("round_number", 0)
-        self.round_history = state.get("round_history", [])
-        self._pending_actions = state.get("pending_actions", {})
-        self._step_counter = state.get("step_counter", 0)
-
 
 __all__ = ["PrisonersDilemmaEnv"]

@@ -16,22 +16,10 @@ from __future__ import annotations
 
 import os
 import re
-import uuid
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from litellm.router import Router
 
 from agentsociety2.logger import get_logger, setup_litellm_logging
-
-# 默认关闭 mem0 / Chroma 相关遥测开关（未设置环境变量时）
-# mem0 上游会在部分路径创建 Posthog client，长仿真可能拖出大量后台线程；
-# 下方对 capture_event 的无操作替换在导入本模块后始终生效，与 MEM0_TELEMETRY 取值无关。
-os.environ.setdefault("MEM0_TELEMETRY", "False")
-
-# ChromaDB 也使用 Posthog 进行遥测，必须禁用
-os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
-
-from mem0.memory.main import MemoryConfig
-import mem0.memory.main as _mem0_main
 
 __all__ = [
     "Config",
@@ -44,16 +32,22 @@ __all__ = [
 logger = get_logger()
 
 
-def _disable_mem0_capture_event() -> None:
-    """将 mem0 的 capture_event 替换为无操作，避免默认路径下的遥测上报。"""
-
-    def _noop_capture_event(*args, **kwargs):
-        return None
-
-    _mem0_main.capture_event = _noop_capture_event
+def _router_model_names(model_list: list[dict[str, Any]]) -> list[str]:
+    return [str(entry.get("model_name", "")) for entry in model_list]
 
 
-_disable_mem0_capture_event()
+def _redact_router_config_for_log(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        out: dict[str, Any] = {}
+        for k, v in obj.items():
+            if k in ("api_key", "api_base") and isinstance(v, str) and v:
+                out[k] = (v[:4] + "…") if len(v) > 4 else "****"
+            else:
+                out[k] = _redact_router_config_for_log(v)
+        return out
+    if isinstance(obj, list):
+        return [_redact_router_config_for_log(x) for x in obj]
+    return obj
 
 
 # Initialize LiteLLM logging once
@@ -70,8 +64,6 @@ class Config:
     - ``AGENTSOCIETY_HOME_DIR``：数据目录
     - ``AGENTSOCIETY_LLM_API_KEY`` / ``AGENTSOCIETY_LLM_API_BASE`` / ``AGENTSOCIETY_LLM_MODEL``：默认模型配置
     - ``AGENTSOCIETY_CODER_LLM_*``：代码生成模型配置
-    - ``AGENTSOCIETY_NANO_LLM_*``：高频/低延迟模型配置
-    - ``AGENTSOCIETY_ANALYSIS_LLM_*``：分析写作模型配置
     - ``AGENTSOCIETY_EMBEDDING_*``：embedding 配置
     """
 
@@ -98,7 +90,7 @@ class Config:
 
     This is the primary API key used for most LLM operations. If not set, the system
     will raise an error when attempting to create LLM routers. Other specialized LLM
-    configurations (coder, nano, embedding) will fall back to this key if their specific
+    configurations (coder, embedding) will fall back to this key if their specific
     keys are not provided.
     """
 
@@ -129,7 +121,7 @@ class Config:
     """
 
     # Coder LLM settings
-    # These are specifically optimized for code generation, analysis, and programming tasks.
+    # These are specifically optimized for code generation and programming tasks.
 
     CODER_LLM_API_KEY: Optional[str] = (
         os.getenv("AGENTSOCIETY_CODER_LLM_API_KEY") or LLM_API_KEY
@@ -170,90 +162,6 @@ class Config:
     This model is specifically used for code generation, code analysis, and other
     programming-related operations. Choose a model that is optimized for code understanding
     and generation, such as models trained on codebases.
-    """
-
-    # Nano LLM settings
-    # These are optimized for high-frequency, low-latency operations that require fast responses.
-
-    NANO_LLM_API_KEY: Optional[str] = (
-        os.getenv("AGENTSOCIETY_NANO_LLM_API_KEY") or LLM_API_KEY
-    )
-    """
-    API key for the nano LLM service used in high-frequency operations.
-
-    Environment variable: AGENTSOCIETY_NANO_LLM_API_KEY
-    Default: Falls back to LLM_API_KEY if not set
-
-    The nano LLM is used for operations that require frequent, fast responses such as
-    memory operations, quick decision-making, and low-latency tasks. Setting a separate
-    key allows you to use a faster or cheaper model for these high-frequency operations.
-    """
-
-    NANO_LLM_API_BASE: str = os.getenv("AGENTSOCIETY_NANO_LLM_API_BASE") or LLM_API_BASE
-    """
-    Base URL endpoint for the nano LLM API.
-
-    Environment variable: AGENTSOCIETY_NANO_LLM_API_BASE
-    Default: Falls back to LLM_API_BASE if not set
-
-    Allows routing high-frequency operations to a different endpoint, which may be
-    optimized for low latency or located in a different geographic region for better
-    response times.
-    """
-
-    NANO_LLM_MODEL: str = os.getenv("AGENTSOCIETY_NANO_LLM_MODEL") or LLM_MODEL
-    """
-    Model identifier for high-frequency, low-latency operations.
-
-    Environment variable: AGENTSOCIETY_NANO_LLM_MODEL
-    Default: "gpt-5.5"
-
-    This model is used for operations that require fast responses, such as memory
-    retrieval, quick reasoning, and other tasks where latency is critical. Typically,
-    you might choose a smaller or faster model for these operations to reduce response time.
-    """
-
-    # Analysis LLM settings
-    # These are optimized for data analysis, insight generation, and report writing.
-
-    ANALYSIS_LLM_API_KEY: Optional[str] = (
-        os.getenv("AGENTSOCIETY_ANALYSIS_LLM_API_KEY") or LLM_API_KEY
-    )
-    """
-    API key for the analysis LLM service.
-
-    Environment variable: AGENTSOCIETY_ANALYSIS_LLM_API_KEY
-    Default: Falls back to LLM_API_KEY if not set
-
-    This key is used specifically for data analysis, insight generation, and report
-    writing tasks. Setting a separate key allows you to use a more capable model
-    for these complex reasoning tasks.
-    """
-
-    ANALYSIS_LLM_API_BASE: str = (
-        os.getenv("AGENTSOCIETY_ANALYSIS_LLM_API_BASE") or LLM_API_BASE
-    )
-    """
-    Base URL endpoint for the analysis LLM API.
-
-    Environment variable: AGENTSOCIETY_ANALYSIS_LLM_API_BASE
-    Default: Falls back to LLM_API_BASE if not set
-
-    Allows you to use a different API endpoint specifically for analysis tasks.
-    This is useful if you want to route analysis requests to a more capable model
-    or a different service.
-    """
-
-    ANALYSIS_LLM_MODEL: str = os.getenv("AGENTSOCIETY_ANALYSIS_LLM_MODEL") or LLM_MODEL
-    """
-    Model identifier for data analysis and report generation tasks.
-
-    Environment variable: AGENTSOCIETY_ANALYSIS_LLM_MODEL
-    Default: Falls back to LLM_MODEL if not set
-
-    This model is specifically used for data analysis, insight generation,
-    visualization planning, and report writing. Choose a model with strong
-    reasoning and writing capabilities for best results.
     """
 
     # Embedding model settings
@@ -315,17 +223,104 @@ class Config:
     Common values are 384, 512, 768, 1024, or 1536 depending on the model.
     """
 
-    # Adaptive concurrency control for LLM requests
-    LLM_MAX_CONCURRENT: int = int(os.getenv("AGENTSOCIETY_LLM_MAX_CONCURRENT", "100"))
+    # Trace writer: flush spans via a background thread (default on for
+    # production so span writes never block the agent event loop). Tests set
+    # this False via conftest for deterministic synchronous reads.
+    TRACE_WRITER_ASYNC: bool = os.getenv(
+        "AGENTSOCIETY_TRACE_WRITER_ASYNC", "1"
+    ) not in (
+        "0",
+        "",
+        "false",
+        "False",
+    )
+    # Env Ray actor concurrency. Only takes effect (>1) when every mounted env
+    # module declares is_concurrency_safe(); otherwise the actor stays serial.
+    ENV_ACTOR_MAX_CONCURRENCY: int = int(
+        os.getenv("AGENTSOCIETY_ENV_ACTOR_MAX_CONCURRENCY", "8")
+    )
+
+    # Adaptive concurrency control for LLM requests (per-worker AIMD).
+    LLM_LATENCY_DEGRADE_FACTOR: float = float(
+        os.getenv("AGENTSOCIETY_LLM_LATENCY_DEGRADE_FACTOR", "4.0")
+    )
     """
-    Initial concurrency limit for LLM API requests with AIMD adaptive control.
+    Relative latency backoff factor for AIMD. A non-error LLM call is counted
+    as "slow" (and contributes to an AIMD decrease) when its latency exceeds
+    ``baseline * factor``, where ``baseline`` is a rolling low-percentile
+    (P25) of recent healthy latencies.
 
-    Environment variable: AGENTSOCIETY_LLM_MAX_CONCURRENT
-    Default: 100
+    Environment variable: AGENTSOCIETY_LLM_LATENCY_DEGRADE_FACTOR
+    Default: 4.0
 
-    When > 0, an adaptive semaphore wraps all RouterBase.acompletion() calls.
-    The AIMD algorithm auto-tunes concurrency between max(N//4, 1) and N*8.
-    Set to 0 to disable adaptive concurrency control entirely.
+    The baseline tracks the fast path, so this triggers when calls are
+    genuinely slow relative to recent good performance — robust to the
+    initial concurrent burst. Set to a very large value (or ``inf``) to
+    disable relative latency backoff and rely on rate-limit (429) errors
+    alone (the previous behavior).
+    """
+
+    LLM_SLOW_LATENCY_MS: Optional[float] = (
+        float(v) if (v := os.getenv("AGENTSOCIETY_LLM_SLOW_LATENCY_MS")) else None
+    )
+    """
+    Optional absolute SLO ceiling in milliseconds. A non-error LLM call slower
+    than this counts as "slow" regardless of the rolling baseline. Catches
+    pathological tails even when sustained contention has pushed the whole
+    baseline up (where the relative factor goes blind).
+
+    Environment variable: AGENTSOCIETY_LLM_SLOW_LATENCY_MS
+    Default: unset (relative-factor backoff only)
+    """
+
+    LLM_ROUND_SAMPLE_CAP: int = int(
+        os.getenv("AGENTSOCIETY_LLM_ROUND_SAMPLE_CAP", "64")
+    )
+    """
+    Upper bound on AIMD round size (completions evaluated per adjustment).
+    Without this cap, round size grows with the limit, so a large limit makes
+    adaptation sluggish (e.g. limit 400 → 400 completions before any adjust).
+
+    Environment variable: AGENTSOCIETY_LLM_ROUND_SAMPLE_CAP
+    Default: 64
+    """
+
+    # Ray / local LLM dispatch configuration. Clients build litellm Routers in
+    # their own process / event loop.
+    LLM_RAY_WORKERS: int = int(os.getenv("AGENTSOCIETY_LLM_RAY_WORKERS", "1"))
+    """
+    Compatibility CPU-budget hint for Ray initialization.
+
+    Environment variable: AGENTSOCIETY_LLM_RAY_WORKERS
+    Default: 1
+
+    Kept for compatibility with older configs. The current LLM dispatcher does
+    not create a central pool or LLM actor workers; this value only contributes
+    to the ``ray.init(num_cpus=...)`` budget hint.
+    """
+
+    LLM_RAY_MAX_WORKERS: int = int(os.getenv("AGENTSOCIETY_LLM_RAY_MAX_WORKERS", "4"))
+    """
+    Upper bound used as a Ray CPU budget hint.
+
+    Environment variable: AGENTSOCIETY_LLM_RAY_MAX_WORKERS
+    Default: 4
+
+    Used as the ``num_cpus`` hint to ``ray.init`` so env actors and agent Ray
+    tasks have reasonable scheduling headroom.
+    """
+
+    LLM_RAY_CONCURRENCY: int = int(os.getenv("AGENTSOCIETY_LLM_RAY_CONCURRENCY", "16"))
+    """
+    Initial per-process concurrency for local LLM dispatching.
+
+    Environment variable: AGENTSOCIETY_LLM_RAY_CONCURRENCY
+    Default: 16
+
+    The initial concurrency each local ``LLMClient`` AIMD semaphore tunes from.
+    Each process adjusts its own concurrency between
+    ``LLM_RAY_CONCURRENCY//4`` and ``LLM_RAY_CONCURRENCY*4`` based on observed
+    latency / rate-limit errors.
     """
 
     # Web Search API settings
@@ -350,12 +345,10 @@ class Config:
     """
 
     @classmethod
-    def get_router(
-        cls, model_type: Literal["default", "coder", "nano", "analysis"] = "default"
-    ) -> Router:
+    def get_router(cls, model_type: Literal["default", "coder"] = "default") -> Router:
         """获取指定用途的 LLM Router（不做全局缓存）。
 
-        :param model_type: ``default`` / ``coder`` / ``nano`` / ``analysis``。
+        :param model_type: ``default`` / ``coder``。
         :returns: LiteLLM :class:`litellm.router.Router` 实例。
         :raises ValueError: 当所需 API key 未配置时抛出。
         """
@@ -366,90 +359,16 @@ class Config:
             setup_litellm_logging()
             _litellm_logging_initialized = True
 
-        if model_type == "analysis":
-            # Analysis model with fallback to default, then nano
-            analysis_api_key = cls.ANALYSIS_LLM_API_KEY
-            analysis_api_base = cls.ANALYSIS_LLM_API_BASE
-            analysis_model = cls.ANALYSIS_LLM_MODEL
+        # Shared default-model definition (used as a fallback target below).
+        default_api_key = cls.LLM_API_KEY
+        default_api_base = cls.LLM_API_BASE
+        default_model = cls.LLM_MODEL
 
-            default_api_key = cls.LLM_API_KEY
-            default_api_base = cls.LLM_API_BASE
-            default_model = cls.LLM_MODEL
-
-            nano_api_key = cls.NANO_LLM_API_KEY
-            nano_api_base = cls.NANO_LLM_API_BASE
-            nano_model = cls.NANO_LLM_MODEL
-
-            if not analysis_api_key:
-                raise ValueError(
-                    "API key not configured for analysis model. "
-                    "Set AGENTSOCIETY_ANALYSIS_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
-                )
-            if not default_api_key:
-                raise ValueError(
-                    "API key not configured for default model (fallback). "
-                    "Set AGENTSOCIETY_LLM_API_KEY"
-                )
-            if not nano_api_key:
-                raise ValueError(
-                    "API key not configured for nano model (fallback). "
-                    "Set AGENTSOCIETY_NANO_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
-                )
-
-            # Build model_list with all three models
-            model_list = [
-                {
-                    "model_name": analysis_model,
-                    "litellm_params": {
-                        "model": f"openai/{analysis_model}",
-                        "api_key": analysis_api_key,
-                        "api_base": analysis_api_base,
-                    },
-                },
-                {
-                    "model_name": default_model,
-                    "litellm_params": {
-                        "model": f"openai/{default_model}",
-                        "api_key": default_api_key,
-                        "api_base": default_api_base,
-                    },
-                },
-                {
-                    "model_name": nano_model,
-                    "litellm_params": {
-                        "model": f"openai/{nano_model}",
-                        "api_key": nano_api_key,
-                        "api_base": nano_api_base,
-                    },
-                },
-            ]
-
-            # Configure fallback chain: analysis -> default -> nano
-            fallbacks = [{analysis_model: [default_model, nano_model]}]
-
-            logger.debug(
-                "Analysis router models: %s",
-                [analysis_model, default_model, nano_model],
-            )
-            return Router(
-                model_list=model_list,
-                fallbacks=fallbacks,
-                cache_responses=True,
-                num_retries=10,
-            )
-        elif model_type == "coder":
-            # Coder model with fallback to default, then nano
+        if model_type == "coder":
+            # Coder model with fallback to default.
             coder_api_key = cls.CODER_LLM_API_KEY
             coder_api_base = cls.CODER_LLM_API_BASE
             coder_model = cls.CODER_LLM_MODEL
-
-            default_api_key = cls.LLM_API_KEY
-            default_api_base = cls.LLM_API_BASE
-            default_model = cls.LLM_MODEL
-
-            nano_api_key = cls.NANO_LLM_API_KEY
-            nano_api_base = cls.NANO_LLM_API_BASE
-            nano_model = cls.NANO_LLM_MODEL
 
             if not coder_api_key:
                 raise ValueError(
@@ -461,13 +380,7 @@ class Config:
                     "API key not configured for default model (fallback). "
                     "Set AGENTSOCIETY_LLM_API_KEY"
                 )
-            if not nano_api_key:
-                raise ValueError(
-                    "API key not configured for nano model (fallback). "
-                    "Set AGENTSOCIETY_NANO_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
-                )
 
-            # Build model_list with all three models
             model_list = [
                 {
                     "model_name": coder_model,
@@ -485,52 +398,25 @@ class Config:
                         "api_base": default_api_base,
                     },
                 },
-                {
-                    "model_name": nano_model,
-                    "litellm_params": {
-                        "model": f"openai/{nano_model}",
-                        "api_key": nano_api_key,
-                        "api_base": nano_api_base,
-                    },
-                },
             ]
 
-            # Configure fallback chain: coder -> default -> nano
-            # fallbacks should be a list of dicts, where each dict maps primary model to fallback models
-            fallbacks = [{coder_model: [default_model, nano_model]}]
+            # Configure fallback chain: coder -> default
+            fallbacks = [{coder_model: [default_model]}]
 
-            logger.debug(
-                "Coder router models: %s",
-                [coder_model, default_model, nano_model],
-            )
+            logger.debug("Coder router models: %s", _router_model_names(model_list))
             return Router(
                 model_list=model_list,
                 fallbacks=fallbacks,
                 cache_responses=True,
-                num_retries=10,  # 设置429错误的重试次数为10次
+                num_retries=10,
             )
-        elif model_type == "default":
-            # Default model with fallback to nano
-            default_api_key = cls.LLM_API_KEY
-            default_api_base = cls.LLM_API_BASE
-            default_model = cls.LLM_MODEL
-
-            nano_api_key = cls.NANO_LLM_API_KEY
-            nano_api_base = cls.NANO_LLM_API_BASE
-            nano_model = cls.NANO_LLM_MODEL
-
+        else:  # default
             if not default_api_key:
                 raise ValueError(
                     "API key not configured for default model. "
                     "Set AGENTSOCIETY_LLM_API_KEY"
                 )
-            if not nano_api_key:
-                raise ValueError(
-                    "API key not configured for nano model (fallback). "
-                    "Set AGENTSOCIETY_NANO_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
-                )
 
-            # Build model_list with default and nano models
             model_list = [
                 {
                     "model_name": default_model,
@@ -540,55 +426,13 @@ class Config:
                         "api_base": default_api_base,
                     },
                 },
-                {
-                    "model_name": nano_model,
-                    "litellm_params": {
-                        "model": f"openai/{nano_model}",
-                        "api_key": nano_api_key,
-                        "api_base": nano_api_base,
-                    },
-                },
             ]
 
-            # Configure fallback chain: default -> nano
-            fallbacks = [{default_model: [nano_model]}]
-
-            logger.debug(
-                "Default router models: %s",
-                [default_model, nano_model],
-            )
-            return Router(
-                model_list=model_list,
-                fallbacks=fallbacks,
-                cache_responses=True,
-                num_retries=10,  # 设置429错误的重试次数为10次
-            )
-        else:  # nano
-            api_key = cls.NANO_LLM_API_KEY
-            api_base = cls.NANO_LLM_API_BASE
-            model = cls.NANO_LLM_MODEL
-
-            if not api_key:
-                raise ValueError(
-                    f"API key not configured for {model_type} model. "
-                    f"Set AGENTSOCIETY_{model_type.upper()}_LLM_API_KEY or AGENTSOCIETY_LLM_API_KEY"
-                )
-
-            model_list = [
-                {
-                    "model_name": model,
-                    "litellm_params": {
-                        "model": f"openai/{model}",
-                        "api_key": api_key,
-                        "api_base": api_base,
-                    },
-                },
-            ]
-            logger.info("Nano LLM configured: model=%s", model)
+            logger.debug("Default router models: %s", _router_model_names(model_list))
             return Router(
                 model_list=model_list,
                 cache_responses=True,
-                num_retries=10,  # 设置429错误的重试次数为10次
+                num_retries=10,
             )
 
     @classmethod
@@ -623,43 +467,6 @@ class Config:
         """:returns: 默认用途的 LLM Router。"""
         return cls.get_router("default")
 
-    @classmethod
-    def get_mem0_config(cls, id: str) -> MemoryConfig:
-        # Generate a random string to avoid path conflicts
-        random_suffix = uuid.uuid4().hex[:8]
-        memory_config = {
-            "vector_store": {
-                "provider": "chroma",
-                "config": {
-                    "collection_name": f"agent_{id}_memory_{random_suffix}",
-                    "path": f"{cls.HOME_DIR}/memory/agent_{id}_{random_suffix}",
-                },
-            },
-            "history_db_path": os.path.join(
-                cls.HOME_DIR, "memory", f"agent_{id}_{random_suffix}.db"
-            ),
-            "llm": {
-                "provider": "openai",
-                "config": {
-                    "model": cls.NANO_LLM_MODEL,
-                    "temperature": 0.0,
-                    "max_tokens": 2000,
-                    "api_key": cls.NANO_LLM_API_KEY,
-                    "openai_base_url": cls.NANO_LLM_API_BASE,
-                },
-            },
-            "embedder": {
-                "provider": "openai",
-                "config": {
-                    "api_key": cls.EMBEDDING_API_KEY,
-                    "model": cls.EMBEDDING_MODEL,
-                    "openai_base_url": cls.EMBEDDING_API_BASE,
-                    "embedding_dims": cls.EMBEDDING_DIMS,
-                },
-            },
-        }
-        return MemoryConfig.model_validate(memory_config)
-
 
 # Validate required configuration at module load time
 if not Config.LLM_API_KEY:
@@ -677,30 +484,20 @@ if not Config.LLM_API_BASE:
 # Global router instances (lazy initialization)
 _default_router: Optional[Router] = None
 _coder_router: Optional[Router] = None
-_nano_router: Optional[Router] = None
-_analysis_router: Optional[Router] = None
 
 
 def get_llm_router(model_type: str = "default") -> Router:
     """获取（并缓存）指定用途的 LLM Router。
 
-    :param model_type: ``default`` / ``coder`` / ``nano`` / ``analysis``。
+    :param model_type: ``default`` / ``coder``。
     :returns: LiteLLM :class:`litellm.router.Router` 实例（进程内单例缓存）。
     """
-    global _default_router, _coder_router, _nano_router, _analysis_router
+    global _default_router, _coder_router
 
-    if model_type == "analysis":
-        if _analysis_router is None:
-            _analysis_router = Config.get_router("analysis")
-        return _analysis_router
-    elif model_type == "coder":
+    if model_type == "coder":
         if _coder_router is None:
             _coder_router = Config.get_router("coder")
         return _coder_router
-    elif model_type == "nano":
-        if _nano_router is None:
-            _nano_router = Config.get_router("nano")
-        return _nano_router
     else:  # default
         if _default_router is None:
             _default_router = Config.get_router("default")
@@ -710,23 +507,43 @@ def get_llm_router(model_type: str = "default") -> Router:
 def get_model_name(model_type: str = "default") -> str:
     """获取指定用途的模型名。
 
-    :param model_type: ``default`` / ``coder`` / ``nano`` / ``analysis``。
+    :param model_type: ``default`` / ``coder``。
     :returns: 模型名字符串。
     """
-    if model_type == "analysis":
-        return Config.ANALYSIS_LLM_MODEL
-    elif model_type == "coder":
+    if model_type == "coder":
         return Config.CODER_LLM_MODEL
-    elif model_type == "nano":
-        return Config.NANO_LLM_MODEL
     else:  # default
         return Config.LLM_MODEL
+
+
+def get_llm_connection(
+    model_type: str = "default",
+) -> tuple[str, str | None, str]:
+    """返回某用途 LLM 的原始连接参数 ``(base_url, api_key, model_name)``。
+
+    与 :func:`get_llm_router_and_model` 不同，这里不构建 Router，只返回连接
+    参数，供 :class:`agentsociety2.config.llm_dispatcher.LLMClient` 携带跨 Ray 任务
+    边界、在各 worker 进程内按需重建 Router。``coder``/``embedding`` 未单独配置时
+    自动回退到 default（与 :class:`Config` 的回退语义一致）。
+
+    :param model_type: ``default`` / ``coder`` / ``embedding``。
+    :returns: ``(base_url, api_key, model_name)``；未配置的用途 ``api_key`` 可能为 ``None``。
+    """
+    if model_type == "coder":
+        return Config.CODER_LLM_API_BASE, Config.CODER_LLM_API_KEY, Config.CODER_LLM_MODEL
+    if model_type == "embedding":
+        return (
+            Config.EMBEDDING_API_BASE,
+            Config.EMBEDDING_API_KEY,
+            Config.EMBEDDING_MODEL,
+        )
+    return Config.LLM_API_BASE, Config.LLM_API_KEY, Config.LLM_MODEL
 
 
 def get_llm_router_and_model(model_type: str = "default") -> tuple[Router, str]:
     """同时获取 Router 与模型名（Router 使用缓存）。
 
-    :param model_type: ``default`` / ``coder`` / ``nano`` / ``analysis``。
+    :param model_type: ``default`` / ``coder``。
     :returns: ``(router, model_name)``。
     """
     router = get_llm_router(model_type)

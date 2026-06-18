@@ -1,35 +1,36 @@
 """
 Trust Game Agent
-Agent for Trust Game based on V2 framework
+Agent for Trust Game based on AgentSociety2
 """
+
+import json
 import re
 from datetime import datetime
-from typing import Any, Literal
+from pathlib import Path
+from typing import Any
 
 from agentsociety2.agent.base import AgentBase
 
 
 class TrustGameAgent(AgentBase):
-    """Agent for Trust Game based on V2 framework"""
+    """Agent for Trust Game based on AgentSociety2"""
 
     @classmethod
-    def mcp_description(cls) -> str:
+    def init_description(cls) -> str:
         """
-        Return a description text for MCP agent module candidate list.
+        Return AI-readable initialization guidance for this agent class.
         Includes parameter descriptions.
         """
         description = f"""{cls.__name__}: Agent for Trust Game.
 
-**Description:** {cls.__doc__ or 'No description available'}
+**Description:** {cls.__doc__ or "No description available"}
 
-**Initialization Parameters:**
+**Initialization Parameters (workspace contract):**
 - id (int): The unique identifier for the agent.
 - name (str): The name of the agent.
-- role (Literal["Trustor", "Trustee"]): The role of the agent - either "Trustor" (investor) or "Trustee" (receiver).
-- num_rounds (int, optional): Number of rounds in the game (default: 10).
-- initial_funds (int, optional): Initial coins per Trustor per round (default: 10).
-- multiplication_factor (int, optional): Investment multiplication factor (default: 3).
-- partner_name (str, optional): Partner's name (will be set by environment).
+- role (Literal["Trustor", "Trustee"]): The role of the agent.
+- config dict keys: num_rounds (int, default 10), initial_funds (int, default 10),
+  multiplication_factor (int, default 3), partner_name (str, default "").
 
 **Game Rules:**
 This agent participates in a multi-round Trust Game with two roles:
@@ -42,86 +43,111 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
 ```json
 {{
   "id": 1,
-  "name": "Trustor A",
-  "role": "Trustor",
-  "num_rounds": 10,
-  "initial_funds": 10,
-  "multiplication_factor": 3,
-  "partner_name": ""
+  "profile": {{"name": "Trustor A"}},
+  "config": {{"role": "Trustor", "num_rounds": 10, "initial_funds": 10, "multiplication_factor": 3, "partner_name": ""}}
 }}
 ```
 """
         return description
 
-    def __init__(
-        self,
-        id: int,
-        name: str,
-        role: Literal["Trustor", "Trustee"],
-        num_rounds: int = 10,
-        initial_funds: int = 10,
-        multiplication_factor: int = 3,
-        partner_name: str = "",
-    ):
-        """Initialize TrustGameAgent
-        
-        Args:
-            id: Agent ID
-            name: Agent name
-            role: Role: "Trustor" or "Trustee"
-            num_rounds: Number of rounds in the game (default: 10)
-            initial_funds: Initial coins per Trustor per round (default: 10)
-            multiplication_factor: Investment multiplication factor (default: 3)
-            partner_name: Partner's name (will be set by environment)
-        """
-        profile = {"name": name}
-        super().__init__(id=id, profile=profile)
-        self._name = name
-        self._role = role  # Role: "Trustor" or "Trustee"
-        self.history = []  # Store history records
-        self._current_funds = initial_funds  # Current funds
-        self.num_rounds = num_rounds
-        self.initial_funds = initial_funds
-        self.multiplication_factor = multiplication_factor
-        self._partner_name = partner_name  # Partner's name
+    # ==================== Workspace 契约 ====================
 
+    @classmethod
+    def create(cls, workspace_path: Path, profile: dict, config: dict) -> None:
+        """Create the initial agent workspace."""
+        workspace_path = Path(workspace_path)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        (workspace_path / "config.json").write_text(
+            json.dumps(config or {}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        agent_id = int(profile.get("id", 0))
+        name = str(profile.get("name") or f"Agent_{agent_id}")
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": agent_id,
+                    "name": name,
+                    "profile": profile,
+                    "step_count": 0,
+                    "history": [],
+                    "current_funds": int((config or {}).get("initial_funds", 10)),
+                    "partner_name": str((config or {}).get("partner_name", "")),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    @classmethod
+    async def from_workspace(
+        cls, workspace_path: Path, service_proxy: Any
+    ) -> "TrustGameAgent":
+        """Reconstruct a ready TrustGameAgent from its workspace."""
+        agent = cls()
+        await agent._restore(workspace_path, service_proxy)
+        return agent
+
+    async def _restore(self, workspace_path: Path, service_proxy: Any) -> None:
+        """Restore game-agent state from AGENT.json + config.json (no super() —
+        game agents don't use the skill/workspace runtime that
+        AgentBase._restore binds)."""
+        workspace_path = Path(workspace_path)
+        cfg = {}
+        config_path = workspace_path / "config.json"
+        if config_path.exists():
+            cfg = json.loads(config_path.read_text(encoding="utf-8"))
+        meta = json.loads((workspace_path / "AGENT.json").read_text(encoding="utf-8"))
+        self._id = int(meta.get("agent_id", meta.get("id", 0)))
+        self._profile = meta.get("profile", {"name": meta.get("name")})
+        self._name = meta.get("name") or f"Agent_{self._id}"
+        self._config = dict(cfg or {})
+        self._bind_services(service_proxy)
+        self._step_count = int(meta.get("step_count", 0))
+        # custom attributes
+        self._role = cfg.get("role", "Trustor")
+        self.history = list(meta.get("history", []))
+        self.num_rounds = int(cfg.get("num_rounds", 10))
+        self.initial_funds = int(cfg.get("initial_funds", 10))
+        self._current_funds = int(meta.get("current_funds", self.initial_funds))
+        self.multiplication_factor = int(cfg.get("multiplication_factor", 3))
+        partner = meta.get("partner_name") or cfg.get("partner_name", "")
+        self._partner_name = str(partner)
         # Validate role
         if self._role not in ["Trustor", "Trustee"]:
-            raise ValueError(f"Invalid role: {role}. Must be 'Trustor' or 'Trustee'")
+            raise ValueError(
+                f"Invalid role: {self._role}. Must be 'Trustor' or 'Trustee'"
+            )
+
+    async def to_workspace(self, workspace_path: Path) -> None:
+        """Write current dynamic state back to the workspace."""
+        workspace_path = Path(workspace_path)
+        (workspace_path / "AGENT.json").write_text(
+            json.dumps(
+                {
+                    "id": self._id,
+                    "name": self._name,
+                    "role": self._role,
+                    "profile": self.get_profile(),
+                    "step_count": self._step_count,
+                    "history": self.history,
+                    "current_funds": self._current_funds,
+                    "partner_name": self._partner_name,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     def set_partner_name(self, partner_name: str):
         """Set partner name (called by environment)"""
         self._partner_name = partner_name
 
     @property
-    def name(self) -> str:
-        """Return agent name"""
-        return self._name
-
-    @property
     def role(self) -> str:
         """Return agent role"""
         return self._role
-
-    async def dump(self) -> dict:
-        """Export agent state"""
-        return {
-            "id": self._id,
-            "name": self._name,
-            "role": self._role,
-            "profile": self._profile,
-            "history": self.history,
-            "current_funds": self._current_funds,
-        }
-
-    async def load(self, dump_data: dict):
-        """Load agent state"""
-        self._id = dump_data.get("id", self._id)
-        self._name = dump_data.get("name", self._name)
-        self._role = dump_data.get("role", self._role)
-        self._profile = dump_data.get("profile", self._profile)
-        self.history = dump_data.get("history", [])
-        self._current_funds = dump_data.get("current_funds", 10)
 
     async def ask(self, message: str, readonly: bool = True) -> str:
         """Answer questions"""
@@ -144,7 +170,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
         """Execute one step - make investment or return decision and submit to environment"""
         if self._env is None:
             return f"[{self.name}] Environment not initialized"
-        
+
         try:
             # Step 1: Get round history from environment
             history_result, history_response = await self.ask_env(
@@ -154,23 +180,23 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
                 template_mode=True,
             )
             self._logger.debug(f"[{self.name}] History response: {history_response}")
-            
+
             # Parse and update local history
             round_history = self._parse_round_history(history_result, history_response)
             self._sync_history(round_history)
-            
+
             # Determine current round number (next round = len(history) + 1)
             current_round = len(self.history) + 1
-            
+
             # Extract partner name from history if available
             partner_name = self._extract_partner_name()
-            
+
             if self._role == "Trustor":
                 # Trustor: Decide investment and submit
                 investment, explanation = await self._decide_investment(
                     current_round, partner_name
                 )
-                
+
                 # Submit investment to environment
                 submit_result, submit_response = await self.ask_env(
                     {
@@ -192,8 +218,12 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
             else:
                 # Trustee: Query pending investment, decide return and submit
                 # First, get partner name (trustor) to query pending investment
-                trustor_name = partner_name if partner_name else self._extract_partner_name_from_env()
-                
+                trustor_name = (
+                    partner_name
+                    if partner_name
+                    else self._extract_partner_name_from_env()
+                )
+
                 if trustor_name:
                     # Query pending investment
                     pending_result, pending_response = await self.ask_env(
@@ -206,20 +236,24 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
                         readonly=True,
                         template_mode=True,
                     )
-                    
+
                     # Parse pending investment
-                    pending_investment = self._parse_pending_investment(pending_response)
-                    
+                    pending_investment = self._parse_pending_investment(
+                        pending_response
+                    )
+
                     if pending_investment is not None and pending_investment > 0:
                         # Calculate received amount
-                        received_amount = pending_investment * self.multiplication_factor
+                        received_amount = (
+                            pending_investment * self.multiplication_factor
+                        )
                         self._current_funds = received_amount
-                        
+
                         # Decide return amount
                         return_amount, explanation = await self._decide_return(
                             current_round, partner_name, received_amount
                         )
-                        
+
                         # Submit return to environment
                         submit_result, submit_response = await self.ask_env(
                             {
@@ -268,13 +302,15 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
                     )
                     _ = submit_result, submit_response
                     return f"[{self.name}] Round {current_round}: Cannot determine partner, submitted return 0"
-            
+
         except Exception as e:
             error_message = f"Step execution failed: {type(e).__name__} - {e!s}"
             self._logger.error(f"[{self.name}] {error_message}")
             return f"[{self.name}] [ERROR] {error_message}"
 
-    async def _decide_investment(self, round_num: int, partner_name: str) -> tuple[int, str]:
+    async def _decide_investment(
+        self, round_num: int, partner_name: str
+    ) -> tuple[int, str]:
         """Decide investment amount using LLM"""
         # Build history string
         history_str = self._build_history_string(partner_name)
@@ -394,7 +430,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
             name = self._profile.get("name", f"Agent {self.id}")
         else:
             name = self._name
-            
+
         if self._role == "Trustor":
             return (
                 f"You are {name}, Trustor in a {self.num_rounds}-round Trust Game.\n"
@@ -428,7 +464,7 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
             trustor_investments = round_data.get("trustor_investments", {})
             trustee_returns = round_data.get("trustee_returns", {})
             payoffs = round_data.get("payoffs", {})
-            
+
             if self._role == "Trustor":
                 sent_amount = trustor_investments.get(self.name, 0)
                 # Find partner trustee
@@ -438,14 +474,16 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
                 else:
                     returned_amount = 0
                 payoff = payoffs.get(self.name, 0)
-                
-                self.history.append({
-                    "round": round_num,
-                    "sent_amount": sent_amount,
-                    "returned_amount": returned_amount,
-                    "payoff": payoff,
-                    "multiplication_factor": self.multiplication_factor,
-                })
+
+                self.history.append(
+                    {
+                        "round": round_num,
+                        "sent_amount": sent_amount,
+                        "returned_amount": returned_amount,
+                        "payoff": payoff,
+                        "multiplication_factor": self.multiplication_factor,
+                    }
+                )
             else:  # Trustee
                 # Find partner trustor
                 partner_name = self._extract_partner_name()
@@ -457,28 +495,30 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
                     received_amount = 0
                 returned_amount = trustee_returns.get(self.name, 0)
                 payoff = payoffs.get(self.name, 0)
-                
-                self.history.append({
-                    "round": round_num,
-                    "sent_amount": sent_amount,
-                    "received_amount": received_amount,
-                    "returned_amount": returned_amount,
-                    "payoff": payoff,
-                    "multiplication_factor": self.multiplication_factor,
-                })
+
+                self.history.append(
+                    {
+                        "round": round_num,
+                        "sent_amount": sent_amount,
+                        "received_amount": received_amount,
+                        "returned_amount": returned_amount,
+                        "payoff": payoff,
+                        "multiplication_factor": self.multiplication_factor,
+                    }
+                )
 
     def _extract_partner_name(self) -> str:
         """Extract partner name"""
         # Use stored partner name if available
         if self._partner_name:
             return self._partner_name
-        
+
         # Try to extract from history by checking round data
         if self.history:
             # Partner name should be set by environment, but we can try to infer from history
             # This is a fallback - partner mapping should be set explicitly
             return ""
-        
+
         return ""
 
     def _extract_partner_name_from_env(self) -> str:
@@ -489,11 +529,13 @@ Both roles aim to maximize cumulative coins while considering trust and reciproc
         """Parse pending investment amount from environment response"""
         try:
             # Try to extract number from response
-            match = re.search(r'\b(\d+)\b', response)
+            match = re.search(r"\b(\d+)\b", response)
             if match:
                 return int(match.group(1))
         except Exception as e:
-            self._logger.warning(f"[{self.name}] Failed to parse pending investment: {e}")
+            self._logger.warning(
+                f"[{self.name}] Failed to parse pending investment: {e}"
+            )
         return 0
 
     def _build_history_string(self, partner_name: str) -> str:

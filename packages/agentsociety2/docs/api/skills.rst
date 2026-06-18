@@ -39,37 +39,54 @@ literature
 .. automodule:: agentsociety2.skills.literature
    :members:
 
+paper
+~~~~~
+
+.. automodule:: agentsociety2.skills.paper
+   :members:
+
 .. note::
 
    当前仓库中可公开使用的 research skills 模块为 ``analysis``、``experiment``、
-   ``hypothesis``、``literature``。论文撰写由外部 ``paper-toolkit`` 插件提供。
-   ``web_research`` 目录当前没有保留
+   ``hypothesis``、``literature``、``paper``。``web_research`` 目录当前没有保留
    可读源码，因此未列为文档 API 表面。
 
 Agent Skills
 ------------
 
-本模块提供智能体技能的注册与管理，支持渐进式加载。
+技能基础设施（发现、可见性/激活、脚本执行、生命周期 hook）已从 ``agent/skills/`` 下沉到
+:mod:`agentsociety2.agent.base`。``agent/skills/`` 目录现在只承载技能**内容**（如内置的
+``daily-guidance/``）。设计说明见 :doc:`/agent_skills`。
 
 SkillRegistry
 ~~~~~~~~~~~~~
 
-.. autoclass:: agentsociety2.agent.skills.SkillRegistry
+.. autoclass:: agentsociety2.agent.base.registry.SkillRegistry
    :members:
    :undoc-members:
    :show-inheritance:
 
-SkillInfo
-~~~~~~~~~
+SkillDescriptor
+~~~~~~~~~~~~~~~
 
-.. autoclass:: agentsociety2.agent.skills.SkillInfo
+.. autoclass:: agentsociety2.agent.base.registry.SkillDescriptor
    :members:
    :undoc-members:
 
-工具函数
-~~~~~~~~
+AgentSkillRuntime
+~~~~~~~~~~~~~~~~~
 
-.. autofunction:: agentsociety2.agent.skills.get_skill_registry
+.. autoclass:: agentsociety2.agent.base.runtime.AgentSkillRuntime
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+SkillScriptContext
+~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: agentsociety2.agent.base.runtime.SkillScriptContext
+   :members:
+   :undoc-members:
 
 SKILL.md Frontmatter
 ~~~~~~~~~~~~~~~~~~~~
@@ -79,10 +96,15 @@ SKILL.md 文件使用 YAML frontmatter 声明 skill 元信息：
 .. code-block:: yaml
 
    ---
-   name: my_skill
-   description: 这是一个示例 skill
+   name: my-skill
+   description: 触发条件 + 输出结果，选择阶段 LLM 唯一可见的文本
    script: scripts/my_skill.py
+   hooks:
+     pre_step: scripts/my_skill.py
    ---
 
-**解析进 catalog 的字段**：``name``、``description``。
-``script`` 为可选子进程脚本路径；未声明时会尝试按 ``scripts/<name>.py`` 自动识别。环境交互走工具 ``codegen``，不经 skill 的 execute 分支。
+frontmatter 之后识别的字段：``name``、``description``（选择阶段唯一可见，决定是否激活）、
+可选的 ``script``（默认脚本相对路径）与 ``hooks``（生命周期脚本映射，键如 ``pre_step`` /
+``post_step``）。Skill 注册 id 形如 ``namespace@name``（内置 ``built-in@``、自定义 ``custom@``）。
+脚本默认在 agent 进程内经 ``entrypoint(argv, ctx)`` 执行（详见 :doc:`/agent_skills`）；以
+``env:`` 开头的 skill id 会被重定向到 ``ask_env``，走环境路由而非脚本。

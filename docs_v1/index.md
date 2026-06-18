@@ -1,5 +1,15 @@
 # AgentSociety
 
+```{admonition} AgentSociety 2 已作为推荐版本发布
+:class: tip
+
+如果你正在开始新的 LLM agent 仿真或研究工作流，建议优先使用
+[AgentSociety 2](https://agentsociety2.readthedocs.io/)（PyPI 包：
+`agentsociety2`）。V2 提供 LLM 原生的 `PersonAgent`、workspace 绑定执行模型、
+模块化环境、Ray Task 扩展、JSONL replay 与研究技能。本文档仍保留 AgentSociety
+1.x 的城市仿真框架说明，适合维护旧项目或查阅 legacy API。
+```
+
 **AgentSociety**是一个基于大模型智能体与第一性原理构建的大型社会模拟器。
 通过该平台，我们可以快速创建和管理城市模拟环境中的智能体，高效地开展复杂城市场景的建模与模拟。
 借此，AgentSociety从社会学第一性原理出发，以助力推动社会科学研究范式变革，推动了社会学领域从行为模拟到心智建模、从静态推演到动态共生、从实验室工具到社会基础设施的发展。
