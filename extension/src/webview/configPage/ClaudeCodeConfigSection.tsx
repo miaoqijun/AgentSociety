@@ -36,7 +36,7 @@ export const ClaudeCodeConfigSection: React.FC<ClaudeCodeConfigSectionProps> = (
   cliStatus,
   settingsPath,
   onReset,
-  modelOptions,
+  modelOptions = [],
 }) => {
   const baseUrlValue = Form.useWatch('baseUrl', form);
 

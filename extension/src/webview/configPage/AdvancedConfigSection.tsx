@@ -10,7 +10,7 @@ import type { FormInstance } from 'antd';
 import type { TFunction } from 'i18next';
 import type { VscodeThemePalette } from '../theme';
 import type { ClaudeCodeCliStatus, ClaudeCodeConfigValues } from './claudeCodeTypes';
-import type { ValidationState } from './types';
+import type { ImportedModelOptions, ValidationState } from './types';
 import { ClaudeCodeConfigSection } from './ClaudeCodeConfigSection';
 import { ValidationAction } from './ValidationAction';
 import { tabBodyStyle } from './configPageStyles';
@@ -48,6 +48,7 @@ export interface AdvancedConfigSectionProps {
   claudeCliStatus: ClaudeCodeCliStatus;
   claudeSettingsPath: string;
   onResetClaude: () => void;
+  modelOptions: ImportedModelOptions;
 }
 
 const MODEL_TAB_KEYS: SpecializedLlmKind[] = ['coder', 'embedding'];
@@ -73,6 +74,7 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
   claudeCliStatus,
   claudeSettingsPath,
   onResetClaude,
+  modelOptions,
 }) => {
   const linkedKeyPlaceholder = t('configPage.linkedPlaceholders.apiKey', {
     status: hasDefaultLlmKey
@@ -300,6 +302,7 @@ export const AdvancedConfigSection: React.FC<AdvancedConfigSectionProps> = ({
             cliStatus={claudeCliStatus}
             settingsPath={claudeSettingsPath}
             onReset={onResetClaude}
+            modelOptions={modelOptions.claudeCode}
           />
         </div>
       ),
